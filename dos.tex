@@ -1,0 +1,3745 @@
+\documentclass[10pt,twoside]{book}
+\usepackage{a4}
+%
+\setlength{\oddsidemargin}{0cm}
+\setlength{\evensidemargin}{0cm}
+\setlength{\textwidth}{15.2cm}
+\setlength{\footskip}{1.6cm}
+%\setlength{\footheight}{0.5cm}
+\setlength{\topmargin}{0.0cm}
+\setlength{\headheight}{0.5cm}
+\setlength{\headsep}{1.5cm}
+\setlength{\topskip}{0.5cm}
+\setlength{\textheight}{21.8cm}
+%
+\usepackage{fancyhdr}
+%\nonfrenchspacing
+\usepackage{latexsym}
+\usepackage{t1enc}
+\usepackage[latin1]{inputenc}
+\usepackage{index}
+\pagestyle{headings}
+\pagestyle{fancy}
+%
+\renewcommand{\labelitemi}{\raisebox{0.3ex}{\tiny $\Box$}}
+%
+%
+\renewcommand{\sectionmark}[1]{%
+\markboth{#1}{}}
+\fancyhead{}
+\fancyfoot{}
+\fancyfoot[LE]{{\sf \thepage} \hspace{1em} {\sfi Rom Kernel Reference Manual: DOS}}
+\fancyfoot[RO]{{\sfi \leftmark} \hspace{1em} {\sf \thepage}}
+% Redefine the plain page style
+\fancypagestyle{plain}{%
+  \fancyhf{}%
+  \fancyfoot[LE]{{\sf \thepage} \hspace{1em} {\sfi Rom Kernel Reference Manual: DOS}}
+  \fancyfoot[RO]{{\sfi \leftmark} \hspace{1em} {\sf \thepage}}
+  \renewcommand{\headrulewidth}{2.0mm}
+  \renewcommand{\footrulewidth}{0.0mm}
+}
+\renewcommand{\headrulewidth}{2.0mm}
+\renewcommand{\footrulewidth}{0.0mm}
+%
+\newcommand{\sfi}{\sffamily\slshape}
+\newcommand{\sfb}{\sffamily\bfseries}
+\newcommand{\cnot}{\symbol{126}}
+\setcounter{secnumdepth}{4}
+%
+%
+\newcounter{rkrmtablecount}
+%
+\newenvironment{rkrmtable}[1]%
+{%
+\nopagebreak[5]%
+\begin{center}%
+\begin{minipage}{15.2cm}%
+\begin{center}%
+\refstepcounter{rkrmtablecount}
+{\sfb Table \arabic{rkrmtablecount}: #1} \\[1ex]
+\begin{tabular}{|ll|} \hline
+}{%
+\end{tabular}%
+\end{center}%
+\end{minipage}%
+\end{center}%
+}
+%
+\newlength{\punchlinewidth}
+\setlength{\punchlinewidth}{\textwidth}
+\addtolength{\punchlinewidth}{-\rightmargin}
+\addtolength{\punchlinewidth}{-\leftmargin}
+\addtolength{\punchlinewidth}{-4.2pt}
+%
+\newlength{\jpgtablewidth}
+\setlength{\jpgtablewidth}{\textwidth}
+\addtolength{\jpgtablewidth}{-\rightmargin}
+\addtolength{\jpgtablewidth}{-\leftmargin}
+\addtolength{\jpgtablewidth}{-4.2pt}
+%
+%
+\newcommand{\punchline}[2]{%
+\bigskip{\setlength{\arrayrulewidth}{1mm}
+\begin{tabular}{|p{\punchlinewidth}}
+{\sfi #1} #2
+\end{tabular}
+}\bigskip}
+
+%
+% Insert the page under the given key into the index.
+\newcommand{\key}[1]{\index{#1@{\scriptsize{} #1}}}
+% The same again, but make this the main entry.
+\newcommand{\mkey}[1]{\index{#1@{\scriptsize{} #1}|emph}}
+% An entry defining a library function call
+\newcommand{\call}[1]{{\bf J2K::#1()\key{#1()}}}
+%
+\makeindex
+%
+%
+\begin{document}
+\thispagestyle{empty}
+\pagenumbering{roman}
+\begin{center}
+\vspace*{\fill}
+{\Huge Amiga ROM Kernel Reference Manual\\}
+\bigskip
+{\Huge DOS\\}
+\bigskip
+{\huge\sc
+Thomas Richter\\}
+\bigskip
+\end{center}
+\bigskip
+\vspace*{\fill}
+\bigskip
+{\small Copyright © 2023 by Thomas Richter, all rights reserved. This
+publication is freely distributable under the restrictions stated below, but is
+also Copyright © Thomas Richter.
+
+Distribution of the publication by a commercial organization without written
+permission from the author to any third party is prohibited if any payment is
+made in connection with such distribution, whether directly (as in payment for a
+copy of the publication) or indirectly (as in payment for some service related
+to the Publication, or payment for some product or service that includes a
+copy of the publication ``without charge''; these are only examples, and
+not an exhaustive enumeration of prohibited activities).
+
+However, the following methods of distribution involving payment shall not in
+and of themselves be a violation of this restriction:
+\begin{enumerate}
+\item Distributing the Publication on a physical data carrier (e.g. CD-ROM,
+  DVD, USB-Stick, Disk, Paper,...) provided that:
+  \begin{enumerate}
+  \item the Archive is reproduced entirely and verbatim on such data carrier,
+    including especially this licence agreement;
+  \item the data carrier is made available to the public for a nominal
+    fee only, i.e. for a fee that covers the costs of the data carrier,
+    and shipment of the data carrier;
+  \item a data carrier with the Publication or a print-out is made
+    available to the author for free except for shipment costs, and
+  \item provided further that all information on said data carrier is
+    redistributable for non-commercial purposes without charge.
+  \end{enumerate}
+\end{enumerate}
+
+Redistribution of a modified version of the publication is prohibited in any
+way, by any organization, regardless whether commercial or non-commercial.
+Everything must be kept together, in original and unmodified form. }
+
+\bigskip
+
+{\small \sc Disclaimer: This publication is provided ``as is'' without any
+warranty of any kind, either expressed or implied, including, but not limited
+to, the implied warranties of merchantability and fitness for any particular
+purpose. Further, the author does not warrant, guarantee, or make any
+representation regarding the use of, or the results of the use of, the
+information contained herein in term of correctness, accuracy, reliability,
+currentness, or otherwise; the entire risk as to its quality and accuracy is
+assumed solely by the user. Should the information prove inaccurate, the user
+(and not the author) assumes the either cost of all necessary correction. In no
+event will the author be liable for direct, indirect, incidental, or
+consequential damages resulting from any defect or inaccuracy in this
+publication, even if advised of the possibility of such damages. Some laws do
+not allow the exclusion or limitation of implied warranties or liabilities for
+incidental or consequential damages, so the above limitation or exclusion may
+not apply.}
+
+\bigskip
+
+{\small {\it Amiga} is a registered trademark, {\it Amiga-DOS}, {\it Exec} and
+{\it Kickstart} are registered trademarks of Amiga Intl. {\it Motorola} is a
+registered trademark of Motorola, inc. {\it Unix} is a trademark of AT\&T.}
+\newpage
+\vspace*{\fill}
+\newpage
+\tableofcontents
+\pagenumbering{arabic}
+%
+%
+\chapter{Introduction}
+\section{Purpose}
+The purpose of this manual is to provide a comprehensive documentation
+of the AmigaDOS subsystem of the Amiga Operation System. This
+subsystem is represented by the \emph{dos.library}, and it provides
+services around files, file systems and stream-based input and
+output. While the Amiga ROM Kernel Reference Manuals~\cite{rkrmlib}
+document major parts of the AmigaOs, they do not include a volume on
+AmigaDOS itself. This is due to the history of AmigaDOS which is
+nothing but a port of the TRIPOS to the Amiga, and thus its
+documentation became available as the AmigaDOS manual\cite{Bantam}
+separately. This book itself is, similar to AmigaDOS, based on the
+TRIPOS manual which has been augmented and updated to reflect the
+changes that were necessary to fit TRIPOS into AmigaOs. Unfortunately,
+the book is hard to obtain, and also leaves a lot to deserve.
+
+Good third party documentation is available in the form of the Guru
+Book\cite{guru}, though this source is out of print and even harder to
+obtain. It covers also other aspects of AmigaOs that go beyond
+AmigaDOS such that its focus is a bit different than this work.
+
+This work attempts to fill this gap by providing a comprehensive and
+complete documentation of the AmigaDOS library and its subsystems in
+the style of the ROM Kernel Reference Manuals.
+
+\section{Language and Type Setting Conventions}
+The words \emph{shall} and \emph{shall not} indicate normative
+requirements software shall or shall not follow or in order to satisfy the
+interface requirements of AmigaOs. The words \emph{should} and
+\emph{should not} indicate best practise and recommendations that are
+advisable, but not strictly necessary to satisfy a particular
+interface. The word \emph{may} provides a hint to a possible
+implementation strategy.
+
+The word \emph{must} indicates a logical consequence from existing
+requirements or conditions that follows necessarily without
+introducing a new restriction, such as in ``if $a$ is 2, $a+a$
+\emph{must} be 4''.
+
+\punchline{Worth to remember!}{Important aspects of the text are
+  indicated with a bold vertical bar like this.}
+
+Terms are indicated in \emph{italics}, e.g. the \emph{dos.library}
+implements interface of \emph{AmigaDOS}. Data structures and
+components of source code are printed {\tt in courier} in fixed-width
+font, reassembling the output of a terminal, e.g.
+
+\begin{verbatim}
+typedef unsigned char UBYTE; /* an 8-bit unsigned integer */
+typedef long LONG;           /* a 32-bit integer          */
+\end{verbatim}
+
+\chapter{Elementary Data Types}
+\section{The dos.library}
+\emph{AmigaDOS} as part of the \emph{Amiga Operating System} or short
+\emph{AmigaOs} is represented by the ROM-based
+\emph{dos.library}. This library is typically opened by the startup
+code of most compilers anyhow, and its base pointer is placed into
+{\tt DOSBase} by this startup code:
+\begin{verbatim}
+struct DosLibrary *DOSBase;
+\end{verbatim}
+Hence, in general, there is no need to open this library manually.
+
+The structure \emph{\mkey{DosLibrary}struct DosLibrary} is defined in
+{\tt dos/dosextens.h}, but its layout and its members are usually not
+required and should rather not be accessed directly. Instead, the
+library provides accessor functions to read many objects contained
+within it.
+
+If you do not link with compiler startup code, the base pointer of the
+\emph{dos.library} can be obtained similar to that of any other library:
+\begin{verbatim}
+#include <proto/exec.h>
+#include <proto/dos.h>
+#include <exec/libraries.h>
+#include <dos/dos.h>
+
+...
+if ((DOSBase = (struct DosLibrary *)(OpenLibrary(DOSNAME,47))) {
+  ...
+  CloseLibrary((struct Library *)DOSBase);
+}
+\end{verbatim}
+
+Unlike many other operating system, the \emph{dos.library} does not
+manage disks or files itself, neither does it provide access to
+hardware interface components. It rather implements a \emph{virtual
+  file system} which forwards requests to its subsystems, called
+\emph{handlers} or \emph{file systems}, see~\ref{sec:handlerovv}.
+
+\section{Booleans}
+
+AmigaDOS uses a somewhat different convention for booleans, i.e. truth
+values defined in the file {\tt dos/dos.h}:
+
+\begin{rkrmtable}{DOS Truth Values} \label{table:dosbool}
+{\bf Define} & {\bf Value}\\ \hline \hline
+DOSFALSE & 0  \\ \hline
+DOSTRUE  & -1 \\ \hline
+\end{rkrmtable}
+
+Note that the C language instead uses the value $1$ for
+{\tt TRUE}. Code that checks for zero or non-zero return codes will
+function normally, however code shall not compare to {\tt TRUE} in
+boolean tests.
+
+\section{Pointers and BPTRs} \label{sec:bptrs}
+AmigaDOS is a descendent of the \emph{TRIPOS system} and as such
+originally implemented in the BCPL language. As of Kickstart 2.0,
+AmigaDOS was re-implemented in C and assembler, but this
+implementation had to preserve the existing interface based on BCPL
+conventions.
+
+BCPL is a typeless language that structures the memory of its host
+system as an array of 32-bit elements enumerated contiguously from
+zero up. Rather than pointers, BCPL communicates the position of its
+data structures in the form of indices of the first 32-bit element of
+such structures. As each 32-bit group is assigned its own index, one
+can obtain this index by dividing the byte-address of an element by 4,
+or equivalently, by right-shifting the address by two bits. This has
+the consequence that (most) data structures passed into and out of the
+dos.library shall be aligned to 32-bit boundaries. Similarly, in order
+to obtain the byte-address of a BPCL structure, the index is
+multiplied by 4, or left-shifted by 2 bits.
+
+\punchline{Not on the Stack!}{Since BPCL structures must have an
+  address that is divisible by 4, you should not keep such structures
+  on the stack as the average compiler will not ensure long word
+  alignment for automatic objects. In the absense of a dedicated
+  constructor function such as
+  \emph{\key{AllocDosObject()}AllocDosObject()}, a safe strategy is
+  use the exec.library memory allocation functions such as
+  \emph{\key{AllocMem()}AllocMem()} or
+  \emph{\key{AllocVec()}AllocVec()} to obtain memory for holding
+  them.}
+
+These indices are called \emph{BCPL pointers} or short \emph{\key{BPTR}BPTR}s,
+even though they are not pointers in the sense of the C language, but
+rather integer numbers as indices to an array of {\tt LONG}
+(i.e. 32-bit) integers. In order to communicate this fact more
+clearly, the {\tt dos/dos.h} include file defines the following data
+type:
+
+\mkey{BPTR}
+\begin{verbatim}
+typedef long  BPTR;                 /* Long word pointer */
+\end{verbatim}
+
+Conversion from BCPL pointers to conventional C pointers and back are
+formed by the following macros, also defined in {\tt dos/dos.h}:
+
+\mkey{BADDR()} \mkey{MKBADDR()}
+\begin{verbatim} 
+/* Convert BPTR to typical C pointer */
+#define BADDR(x)        ((APTR)((ULONG)(x) << 2))
+/* Convert address into a BPTR */
+#define MKBADDR(x)      (((LONG)(x)) >> 2)
+\end{verbatim}
+
+Luckely, in most cases callers of the \emph{dos.library} do not need
+to convert from and to BPTRs but can rather use such ``pointers'' as
+\emph{opaque values} or \emph{handles} representing some AmigaDOS
+objects.
+
+It is certainly a burden to always allocate temporary BCPL objects
+from the heap, and doing so may also fragment the AmigaOs memory
+unnecessarily. However, allocation of automatic objects from the stack
+does not ensure long-word aligment in general. To work around this
+burden, one can use a trick and instead request from the compiler a
+somewhat longer object of automatic lifetime and align the requested
+object manually within the memory obtained this way. The following
+macro performs this trick:
+
+\begin{verbatim}
+#define D_S(type,name) char a_##name[sizeof(type)+3]; \
+                       type *name = (type *)((ULONG)(a_##name+3) & ~3UL)
+\end{verbatim}
+
+It is used as follows:
+\begin{verbatim}
+D_S (struct FileInfoBlock, fib); 
+\end{verbatim}
+
+At this point, fib is pointer to a properly aligned {\tt struct
+FileInfoBlock}, e.g. this is equivalent to
+\begin{verbatim}
+struct FileInfoBlock _tmp;
+struct FileInfoBlock *fib = &tmp;
+\end{verbatim}
+except that the created pointer is properly aligned and can safely be
+passed into the \emph{dos.library}.
+
+Similar to the C language, a pointer to a non-existing element is
+expressed by the special pointer value $0$. While this is called the
+{\tt NULL} pointer in C, it is better to reserve another name for it
+in BPCL as its pointers are rather indices. The following convention
+is suggested to express an invalid \emph{BPTR}:
+
+\begin{verbatim}
+#define ZERO 0L
+\end{verbatim}
+
+Clearly, with the above convention, the BCPL {\tt \mkey{ZERO}ZERO} pointer
+converts to the C {\tt \mkey{NULL}NULL} pointer and back, even though the two are
+conceptionally something different: The first being the index to the
+first element of the host memory array, the later the pointer to the
+first address.
+
+\section{C strings and BSTRs}
+While the C language defines \emph{\mkey{String}strings} as
+0-terminated arrays of {\tt char}, and AmigaOs in particular to
+0-terminated arrays of {\tt UBYTE}s, that is, unsigned characters, the
+BPCL language uses a different convention, namely that of a {\tt
+  UBYTE} array whose first element contains the size of the string to
+follow. They are not necessarily 0-terminated either. If BCPL strings
+are passed into BCPL functions, or are part of BCPL data structures,
+then typically in the form of a \emph{\key{BPTR}BPTR} to the 32-bit
+element containing the size of the string its 8 most significant
+bits. The include file {\tt dos/dos.h} provides its own data type for
+such strings:
+
+\mkey{BSTR}
+\begin{verbatim}
+typedef long  BSTR;                 /* Long word pointer to BCPL string  */
+\end{verbatim}
+
+Luckely, functions of the \emph{dos.library} take C strings as
+arguments and perform the conversion from C strings to their BCPL
+representation as \emph{BSTR}s internally, such that one rarely gets
+in contact with this type of strings. They appear as part of some
+AmigaDOS structures to be discussed, and as part of the interface
+between the \emph{dos.library} and its handlers, e.g. file systems.
+However, even though users of the \emph{dos.library} rarely come in
+contact with \emph{BSTR}s themselves, the \emph{BCPL} convention has
+an important consequence, namely that (most) strings handled by the
+\emph{dos.library} cannot be longer than 255 characters as this is the
+limit imposed by the BCPL convention.
+
+\punchline{Lengh-Limited Strings}{Remember that most strings that are
+  passed into the \emph{dos.library} are internally converted to
+  \emph{BSTR}s and thus cannot exceed a length of 255 characters.}
+
+Unfortunately, even as of the latest version of \emph{AmigaDos}, the
+\emph{dos.library} is ill-prepared to take longer strings, and will
+likely fail or mis-interpret the string passed in. If longer strings
+are requried, e.g. as part of a \emph{\key{path}path}, it is
+(unfortunately) in the responsibility of the caller to take this path
+appart into components and iterate through the components manually,
+see also section~\ref{sec:files}.
+
+\section{Files}
+Files\key{File} are streams of bytes together with a file pointer that
+identifies the next position to be read, or the next byte position to
+be filled. Files are explained in more detail in section~\ref{sec:file}.
+
+\section{Locks}
+Locks\key{Lock} are access rights to a particular object on a file
+system. A locked object cannot be altered by any other
+process. Section~\ref{sec:lock} provides more details on locks.
+
+\section{Processes}
+AmigaDOS is a multi-tasking system operating on top of the \emph{exec}
+kernel~\cite{rkrmlib}. As such, it can operate multiple tasks at once,
+where the tasks are assigned to the CPU in a round-robin fashion. A
+\emph{Process}\key{Process} is an extension of an AmigaOs
+\emph{Task}\mkey{Task} that includes additional state information
+relevant to AmigaDOS, such as a \emph{current directory} \emph{Current
+  Directory} it operates in, a \emph{default file system}\key{Default
+  file system}, a \emph{console}\key{console} it is connected to, and
+default input, output and error streams. Processes are explained in
+more detail in section~\ref{sec:process}.
+
+\section{Handlers and File Systems} \label{sec:handlerovv}
+\emph{Handlers} are special processes that manage files on a volume, or that
+input or output data to a physical device. AmigaDOS itself delegates
+all operations on files to such handlers. Handlers are introduced in
+section~\ref{sec:handler}.
+
+\emph{File systems} are special handlers that organize the contents of
+data carriers such as hard disks, floppies or CD-Roms in the form of
+files and directories, and provides access to such objects through the
+\emph{dos.library}. File systems interpret paths (see~\ref{sec:paths})
+in order to locate objects such as files and directories on such data
+carriers.
+
+\chapter{Files} \label{sec:file}
+
+\section{What are Files?}
+\emph{\mkey{File}Files} are streams of sequences of bytes that can be read from
+and written to, along with a file pointer that points to the next byte
+to be read, or the next byte to be written or overwritten. Files may
+have an \emph{End-of-File position}, beyond which the file pointer can
+not advance when reading bytes from it.
+
+\section{Interactive vs. non-Interactive Files} \label{sec:interactive}
+
+AmigaDOS knows two types of files: \emph{Interactive} and
+\emph{non-interactive} files.
+
+\emph{Non-interactive} files are stored on some persistent data carrier;
+unless modified by a process\key{Process}, the contents of such non-interactive
+files does not change. They also have a defined \emph{file size}. The
+file size is the number of bytes between the start of the file and the
+end-of-file position, or short \emph{EOF position}\mkey{EOF}. This file size
+does not change unless some process\key{Process} writes to the file, which may or
+may not be the same process that reads from the file.
+
+Examples for non-interactive files are data on a disk, such as a
+floppy or a harddisk. Such files have a name, possibly a path within a
+hierachical file system, and possibly multiple protection flags that
+define which type of actions can be applied to a file; such flags
+define whether the file can be read from, written to, and so on.
+
+\emph{Interactive} files depend on the interaction of the computer
+system with the outside world, and their contents can change due to
+such interaction. Interactive files may not define a clear end-of-file
+position, and an attempt to read from them or write to them may block
+an indefinite amount of time until triggered by an external event.
+
+Examples for interactive files are the console\key{Console}, where reading from it
+depends on the user entering data in a console window and output
+corresponds to printing to the console; or the serial port, where read
+requests are satisfied by serial data arriving at the serial port and
+written bytes are transmitted out of the port. The parallel port is
+another example of an interactive file. Requests to read from it
+result in an error condition, while writing prints data on a printer
+connected to the port. Writing may block indefinitely if the printer
+runs out of paper or is turned off.
+
+\section{Paths and File Names} \label{sec:paths}
+Files are identified by \emph{\mkey{Path}paths}, which are strings
+from which AmigaDOS locates a process\key{Process} through which
+access to the file is managed. Such a process is called the
+\emph{\key{Handler}Handler} of the file, or, in case of files of on a
+data carrier, also the \emph{\key{File System}File System}.  AmigaDOS
+itself does not operate on files directly, but delegates such work to
+its handler.
+
+A \emph{path} is broken up into two parts: An optional device or
+volume name terminated by a colon (``:''), followed by string that
+identifies the file within the handler identified by the first part.
+
+The first part, if present, is interpreted by AmigaDOS itself. It
+relates to the name of a handler (or file system) of the given name,
+or a known disk volume\key{Volume}, or a logical volume of the name
+within the AmigaDOS \emph{device list}\key{Device List}. These concepts are
+presented in further detail in section~\ref{sec:devicelist}.
+
+The second, or only part is interpreted by the handler identfied by
+the first part.
+
+\subsection{Devices, Volumes and Assigns}
+The first part of a path, up to the colon, identifies the device, the
+volume or the assign a file is located in.
+
+\subsubsection{Devices} \label{sec:deviceoverview}
+A \emph{\mkey{Device name}device name} identifies the handler or file
+system directly. Handlers are typically responsible for particular
+hardware units within the system, for example for the first floppy
+drive, or the second partition of a harddisk. For example, {\tt df0}
+is the name of the handler responsible for the first floppy drive,
+regardless of which disk is inserted into it.
+
+Table~\ref{table:romdevices} lists all devices AmigaDOS mounts itself
+even without a boot volume available. They can be assumed present any
+time.
+
+\begin{rkrmtable}{System defined devices} \label{table:romdevices}
+{\bf Device Name} & {\bf Description}\\ \hline \hline
+{\tt DF0}              & First floppy drive\\ \hline
+{\tt PRT}              & Printer\\ \hline
+{\tt PAR}              & Parallel port\\ \hline
+{\tt SER}              & Serial port\\ \hline
+{\tt CON}              & Line-interactive console\\ \hline
+{\tt RAW}              & Character based console\\ \hline
+{\tt PIPE}             & Pipeline between processes\\ \hline
+{\tt RAM}              & RAM-based file handler\\ \hline
+\end{rkrmtable}
+
+If more than one floppy drives are connected to the system, they are
+named {\tt DF1} through {\tt DF3}. If a hard disk is present, then the device
+name(s) of the harddisk partitions depend on the contents of Rigid
+Disk Block, see~\ref{rkrmdev}. These names can be selected upon
+installation of the harddisks, e.g. through \emph{HDToolBox}.  The
+general convention is to name them {\tt DH0} and following.
+
+The following device names have a special meaning and do not belong to
+a particular device:
+
+\begin{rkrmtable}{System defined devices} \label{table:specialdevices}
+{\bf Name} & {\bf Description} \\ \hline \hline
+{\tt *}          & the console of the current process\\ \hline  
+{\tt CONSOLE}    & the console of the current process\\ \hline
+{\tt NIL}        & the data sink\\ \hline
+\end{rkrmtable}
+
+The {\tt NIL}\mkey{NIL} device is a special device without a handler
+that is maintained by AmigaDOS itself. Any data written into it
+vanishes completely, and any attempt to read data from it results in
+an end-of-file\key{EOF} condition.
+
+The {\tt *}\mkey{* (file name)}, if used as complete path name without
+a trailing colon, is the current console of the process\key{Process}, if such a
+console\key{console} exists. Any data output to the file named {\tt *} will be
+printed on the console. Any attempt to read from {\tt *} will wait on
+the user to input data on the console, and will return such data.
+
+\punchline{Not a wildcard!}{Unlike other operating systems, the
+  asterisk {\tt *} is \emph{not} a wildcard under AmigaDOS. It rather
+  identifies the current console of a process, or is used as escape
+  character in AmigaDOS shell scripts}.
+
+The {\tt CONSOLE}\mkey{CONSOLE (device)} device is the default console
+of the process\key{Process}. Unlike {\tt *}, but like any other device name, it
+shall be followed by a colon, and an optional job name. Such job names
+form \emph{logical consoles} that are used by the shell for job
+control purposes.
+
+\punchline{Prefer the stars}{The difference between {\tt *} and {\tt
+    CONSOLE} is subtle, and the former should be preferred as it
+  identifies the process as part of a particular shell job. An attempt
+  to output to {\tt CONSOLE:} may block the current process as it does
+  not identify it properly as part of its job, but rather denotes the
+  job started when creating the shell. Thus, in case of doubt, use the
+  {\tt *} without any colon if you mean the console.}
+
+Additional devices can be loaded into the system by the \emph{Mount}\key{Mount}
+command, see section~\ref{sec:handlers}.
+
+\subsubsection{Volumes} \label{sec:volumelist}
+A \emph{\mkey{Volume name}volume name} identifies a particular data
+carrier within a physical drive. For example, it may identify a
+particular floppy disk, regardless of the drive it is inserted it. For
+example, the volume name ``Workbench3.2'' relates always to the same
+floppy, regardless of whether it is inserted in the first {\tt df0} or
+second {\tt df1} drive.
+
+\subsubsection{Assigns} \label{sec:assignlist}
+An \emph{\mkey{Assign}assign} or \emph{logical volume} identifies a
+subset of a files within a file system under a unique name. Such
+assigns are created by the system or by the user helping to identify
+portions of the file system containing files that are of particular
+relevance for the system. For example, the assign {\tt C} contains all
+commands of the boot shell, and the assign {LIBS} contains dynamically
+loadable system libraries. Such assigns can be changed or redirected, and by that
+the system can be instructed to take system resources from other parts of a file system,
+or entirely different file systems.
+
+Assigns can be of three types: \emph{Regular assigns},
+\emph{non-binding assigns} and \emph{late assigns}. \emph{Regular
+  assigns} bind to a particular directory on a particular volume. If
+the \emph{assign} is accessed, and the original volume the bound
+directory is not available, the system will ask to insert this
+particular volume, and no other volume will be accepted.
+
+\emph{Regular assigns} can also bind to multiple directories at once,
+in which case a particular file or directory within such a
+\emph{multi-assign} is searched in all directories bound to the
+assign. A particular use case for this is the {\tt FONTS} assign,
+containing all system-available fonts. Adding another directory to
+{\tt FONTS} makes additional fonts available to the system without
+loosing the original ones.
+
+\emph{Regular assigns} have the drawback that the volume remains known
+to the system, and the corresponding volume icon will not vanish from
+the workbench.
+
+\emph{Non-binding assigns} avoid this problem by only storing the
+symbolic path the assign goes to; whenever the assign is accessed, any
+volume of the particular name containing the particular path will
+work. However, if this also implies that the target of the assign is
+not necessarily consistent, i.e. if the assign is accessed later on,
+another volume with different content will be accepted by the system.
+
+\emph{Late assigns} are a compromize between \emph{regular assigns}
+and \emph{non-binding assigns}. AmigaDOS initially only stores a
+target path for the assign, but when the assign is accessed the first
+time, the assign is converted to a \emph{regular assign} and thus then
+binds to the particular directory of the particular volume that was
+inserted at the time of the first access.
+
+Table~\ref{table:romassigns} lists the assigns made by AmigaDOS
+automatically during bootstrap; except for the {\tt SYS} assign, they
+all go to a directory of the same name on the boot volume. They are
+all \emph{regular assigns}, except for {\tt ENVARC}, which is
+\emph{late assign}.
+
+\begin{rkrmtable}{System defined assigns} \label{table:romassigns}
+{\bf Assign Name} & {\bf Description}\\ \hline \hline
+{\tt C}           & Boot shell commands\\ \hline
+{\tt L}           & AmigaDOS handlers and file systems\\ \hline
+{\tt S}           & AmigaDOS Scripts \\ \hline
+{\tt LIBS}        & AmigaOs libraries \\ \hline
+{\tt DEVS}        & AmigaOs hardware drivers \\ \hline
+{\tt FONTS}       & AmigaOs fonts \\ \hline
+{\tt ENVARC}      & AmigaOs preferences (late)\\ \hline
+{\tt SYS}         & The boot volume \\ \hline
+\end{rkrmtable}
+
+In addition to the above table, the following assigns are handled by
+AmigaDOS internally and are not part of the \emph{device
+  list}\key{Device list}, (see section \ref{sec:devicelist}):
+
+\begin{rkrmtable}{System defined assigns} \label{table:specialassigns}
+{\bf Assign Name} & {\bf Description}\\ \hline \hline
+{\tt PROGDIR}     & Location of the executable\\ \hline
+\end{rkrmtable}
+
+Thus, {\tt PROGDIR}\mkey{PROGDIR} is the directory the currently
+executed binary was loaded from. Note that {\tt PROGDIR} does not
+exist in case an executable file was not loaded from disk, probably
+because it was either taken from ROM or was made resident. More on
+resident executables is found in section~\ref{sec:commands}.
+
+Additional assigns can become necessary for a fully operational
+system, though these assigns are created through the
+\emph{Startup-sequence}\key{Startup-Sequence}, a particular AmigaDOS
+script residing in the S assign which is executed by the boot shell.
+Table~\ref{table:startupassigns} lists some of them.
+
+\begin{rkrmtable}{Assigns made during bootstrap} \label{table:startupassigns}
+{\bf Assign Name} & {\bf Description}\\ \hline \hline
+{\tt ENV}         & Storage for active preferences and global variables\\ \hline
+{\tt T}           & Storage for temporary files\\ \hline
+{\tt CLIPS}       & Storage for clipboard contents\\ \hline
+{\tt KEYMAPS}     & Keymap layouts\\ \hline
+{\tt PRINTERS}    & Printer drivers\\ \hline
+{\tt REXX}        & ARexx scripts\\ \hline
+{\tt LOCALE}      & Catalogs and localization\\ \hline
+\end{rkrmtable}
+
+Additional assigns can always be made with the
+\emph{Assign}\key{Assign} command, see section~\ref{sec:handlers}.
+
+\subsection{Relative and Absolute Paths}
+
+As introduced in section~\ref{sec:paths}, a path consists either of an
+device, volume or assign name followed by a colon followed by a second
+part, or the second part alone. If a device, volume or assign name is
+present, such a path is said to be an \emph{absolute path} because it
+identifies a location within a logical or physical volume.
+
+If no first part is present, or if it is empty, i.e. the colon is the
+first part of the path, AmigaDOS uses information from the calling
+process\key{Process} to identify a suitable handler. Details on this are provided
+in section~\ref{sec:process}. Such a path is called a
+\emph{relative path}.
+
+This second part is forwarded to the handler and is not interpreted by
+the \emph{dos.library}. It is then within the responsibility of the
+handler to interpret this path and locate a file within the data
+carrier it manages, or to configure an interface to the outside world
+according to this path.
+
+In general, the \emph{dos.library} does not impose a particular syntax
+on how this second part looks like. However, several support functions
+of AmigaDOS implicitly define conventions file systems should follow
+to make these support functions workable and it is therefore advisable
+for file system implementors to follow these conventions.
+
+\subsection{Maximum Path Length} \label{sec:pathlimit}
+
+The \emph{dos.library} does not enforce a limit on the size of file or
+directory names, except that the total length of a path including all
+of its components shall not be larger than 255 characters. This is
+because it is converted to a BSTR within the
+\emph{dos.library}. How large a component name can be is a matter of
+the file system itself. The \emph{Fast File System} includes variants
+that limit file names to 30, 56 or 106 characters.
+
+File systems typically do not report an error if the maximum file
+name is exceeded; instead, the name is clamped to the maximum size
+without further notice, which may lead to undesired side effects. For
+example, a file system may clip or remove a trailing {\tt .info} from
+a workbench icon file name without ever reporting this, resulting in
+unexpected side effects. The \emph{icon.library} and
+\emph{workbench.library} of AmigaOs take care to avoid such file names
+and double check created objects for correct names.
+
+\subsection{Flat vs. Hiearchical File Systems} \ref{sec:flathierarchical}
+A flat file system organizes files as a single list of all files
+available on a physical data carrier. For large amounts of files, such
+a representation is clearly burdensome as files may be hard to find
+and hard to identify.
+
+For this reason, all file systems provided by AmigaOs are
+\emph{hierarchical} and organize files in nested sets of
+\emph{directories}\mkey{Directory}, where each directory contains
+files or additional directories. The topmost directory of a volume forms
+the \emph{root directory}\mkey{Root Directory} of this volume.
+
+While AmigaDOS itself does not enforce a particular convention, all
+file systems included in AmigaDOS follow the convention that a path
+consists of a sequence of zero or more directory names separated by a
+forwards slash (``/''), and a final file or directory name.
+
+\subsubsection{Locating Files or Directories} \label{sec:locate}
+
+When attempting to locate a particular file or directory, the
+\emph{dos.library} first checks whether an absolute path name is
+present. If so, it starts from the root directory on the device,
+physical or logical volume identified by the device or volume name and
+delegates the interpretation of the path to the handler.
+
+Otherwise, it uses the \emph{current directory} of the calling
+process\key{Process} to locate a handler responsible for the
+interpretation of the path name. If this current directory is {\tt
+  ZERO} (see section~\ref{sec:bptrs}), it uses the \emph{default file
+  system}\key{Default file system} of the process, which by itself,
+defaults to the boot file system.
+
+The second part of the path interpretation is up to the file system
+identified by the first step and is performed there, outside of the
+\emph{dos.library}. If the path name includes a colon (``:''), then locating
+a file starts from the root of the inserted volume. This also includes
+the special case of an absent device or volume name, though a present
+colon, i.e. ``:'' represents the root directory of the volume to which
+the current directory belongs.
+
+The following paragraphs describe a recommended set of operations an
+AmigaDOS file system should follow. A path consists of a sequence of
+components separated by forward slashes (``/'').
+
+To locate a file, the file system should work iteratively through the
+path, component by component: A single isolated ``/'' without a
+preceeding component indicates the parent directory of the current
+directory. The parent directory of the root directory is the root
+directory itself.
+
+Otherwise, a component followed by ``/'' instructs the handler to enter
+the directory of given by the component, and continue searching there.
+
+Scanning terminates when the file system reaches the last component. The
+file or directory to find is then the given by the last component
+reached during the scan.
+
+As scanning through directories starts with the current directory and
+stops when the end of the path has been reached, the empty string
+indicates the current directory.
+
+\punchline{No Dots Here}{Unlike other operating systems, AmigaDOS does
+  not use ``.'' and ``..'' to indicate the current directory or the
+  parent directory. Rather, the current directory is represented by
+  the empty string, and the parent directory is represented by an
+  isolated forwards slash without a preceeding component.}
+
+Thus, for example, ``:S'' is a file or directory named ``S'' in the
+root directory of the current directory of the process, and
+``//Top/Hi'' is a file or directory named ``Hi'' two directories up
+from the current directory, in a directory named ``Top''.
+
+\subsection{Case Sensitivity}
+
+The \emph{dos.library} does not define whether file names are
+case-sensitive or insensitive, except for the device or volume name
+which is case-insensitive. Most if not all AmigaDOS file-systems are
+also case-insensitve, or rather should. Some variants of the
+\emph{Fast File System} do not handle case-insensitive comparisons
+correctly on non-ASCII characters, i.e. ISO-Latin code points whose
+most-significant bit is set, see section~\ref{sec:ffs} for
+details. These variants should be avoided and the ``international''
+variants should be preferred.
+
+\section{Opening Files} \label{sec:open}
+To read data from or write data to a file, it first needs to be opened
+by the {\tt Open()}\mkey{Open()} function:
+
+\begin{verbatim}
+file = Open( name, accessMode )
+        D0           D1    D2
+
+BPTR Open(STRPTR, LONG)
+\end{verbatim}
+The {\tt name} argument is the \emph{path} the file to be opened,
+which is interpreted according to the rules given in
+section~\ref{sec:paths}. The argument {\tt accessMode} identifies how
+the file is opened. The function returns a {\tt BPTR} to a
+\emph{file handle} on success, or {\tt ZERO} on failure. A secondary return
+code can be retrieved from {\tt IoErr()} described in
+section~\ref{sec:misc}. It is $0$ on success, or an error code from
+{\tt dos/dos.h} in case opening the file failed.
+
+The access mode shall be one of the following, defined in {\tt dos/dos.h}:
+
+\begin{rkrmtable}{Access Modes for Opening Files} \label{table:openmodes}
+{\bf Access Name} & {\bf Description}\\ \hline \hline
+{\tt MODE\_OLDFILE}   & Shared access to existing files\\ \hline
+{\tt MODE\_READWRITE} & Shared access to new or existing files\\ \hline
+{\tt MODE\_NEWFILE}   & Exclusive access to new files\\ \hline
+\end{rkrmtable}
+
+\punchline{Length Limited}{As this function needs to convert the path
+  argument from a C string to a BSTR, path names longer than 255
+  characters are not supported and results are unpredictable if such
+  names are passed into Open(). If such long path names cannot be
+  avoided, it is the responsibility of the caller to split the path
+  name accordingly and potentially walk through the directories
+  manually if necessary. Note that this strategy may not be suitable
+  for interactive files or handlers that follow conventions for the
+  path name that are different from the conventions described in
+  section~\ref{sec:locate}.}
+
+The access mode {\tt MODE\_OLDFILE}\mkey{MODE\_OLDFILE} attempts to find an existing
+file. If the file does not exist, the function fails. If the file
+exists, it can be read from or written from, though simultaneous
+access from multiple processes is possible and does not create an
+error condition. If multiple processes write to the same file
+simultaneously, the result is undefined and no particular order of the
+write operations is imposed.
+
+The access mode {\tt MODE\_READWRITE}\mkey{MODE\_READWRITE} first attempts to find an
+existing file, but if the file does not exist, it will be created
+under the name given by the last component of the path. The function
+does not attempt to create directories within the path if they do not
+access. Once the file is opened, access to the file is shared, even if
+it has been just created. That is, multiple processes may then access
+it for reading or writing. If multiple processes write to the file
+simultenously, the order in which the writes are served is undefined
+and depends on the scheduling of the processes.
+
+The access mode {\tt MODE\_NEWFILE}\mkey{MODE\_NEWFILE} creates a new file, potentially
+erasing an already existing file of the same name if it already
+exists. The function does not attempt to create directories within the
+path if they do not exist. Access to the file is exclusive, that is,
+any attempt to access the file from a second process fails with an
+error condition.
+
+\punchline{No Wildcards}{The Open() function, similar to most
+  \emph{dos.library} functions, does not attempt to resolve wild cards. That
+  is, any character potentially reassembling a wild card, such as
+  ``?'' or ``\#'' will taken as a literal and will be used as part of
+  the file name. While these characters are valid, they should be
+  avoided as they make such files hard to access from the Shell.}
+
+\section{Closing Files}
+
+The {\tt Close()}\mkey{Close()} function writes all internally
+buffered data to disk and makes an exclusively opened file accessible
+to other processes again.
+
+\begin{verbatim}
+success = Close( file )
+   D0             D1
+
+BOOL Close(BPTR)
+\end{verbatim}
+
+The {\tt file} is a BPTR to {\tt FileHandle} identifying the file. The
+return code indicates whether the file system could successfully close
+the file and write back any data. If the result code is {\tt DOSFALSE},
+an error code can be obtained through {\tt IoErr()} described in
+section~\ref{sec:misc}. Otherwise, {\tt IoErr()} will not be altered.
+
+Unfortunately, not much can be done if closing a file fails and no
+general advise is possible how to handle this situation.
+
+Attempting to close the {\tt ZERO} file handle returns success
+immediately.
+
+\section{Types of Files and Handlers}
+
+As introduced in \ref{sec:interactive}, AmigaDOS distinguishes between
+non-interactive files managed by file systems and interactive files
+that interact with the outside world. Typically, \emph{file
+  systems}\key{File System} create non-interactive files; all other
+\emph{handlers}\key{Handlers} create interactive or non-interactive
+files, depending on the nature of the handler.
+
+\subsection{Obtaining the Type from a File}
+
+A file can be either interactive, in which case attempts to read or
+write data to the file may block indefinitely, or non-interactive
+where the amount of available data is determined by file itself. The
+{\tt IsInteractive()} function returns the nature of an already opened
+file.
+
+\begin{verbatim}
+status = IsInteractive( file )
+ D0                      D1
+
+BOOL IsInteractive(BPTR)
+\end{verbatim}
+
+The {\tt IsInteractive()}\mkey{IsInteractive()} function returns
+{\tt TRUE} in case the \emph{file handle} passed in is interactive, or
+{\tt FALSE} in case it corresponds to a non-interactive stream of
+bytes, potentially on a file system.
+This function cannot fail and does not alter {\tt IoErr()}.
+
+\subsection{Obtaining the Type from a Path}
+
+A \emph{handler}\key{handler} that manages physical data carriers and
+allows to access named files on such data carriers is a \emph{file
+  system}. The {\tt IsFileSystem()}\key{IsFileSystem()} function
+determines the nature of a handler given a path (see~\ref{sec:paths})
+to a candidate handler.
+
+\begin{verbatim}
+result = IsFileSystem(name)
+D0                     D1
+
+BOOL IsFileSystem(STRPTR)
+\end{verbatim}
+The {\tt name} argument is a path that does not need to identify a
+physically existing object. Instead, it is used to identify a handler
+that would be responsible to such a hypothetical object regardless
+whether it exists or not.
+
+It is of advisable to provide a path that identifies the handler
+uniquely, i.e. a string that is terminated by a colon (``:'').
+
+The returned result is {\tt DOSTRUE} in case the handler identified by
+the path is a file system, and as such allows access to multiple files
+on a physical data carrier. Otherwise, it returns {\tt DOSFALSE}.
+
+\section{Unbuffered Input and Output}
+
+The functions described in this section read bytes from or write bytes
+to already opened files. These functions are \emph{unbuffered}, that
+is, any request goes directly to the handler. Since a request performs
+necessarily a task switch from the caller to the handler managing the
+file, these functions are inefficient on small amounts of data and
+should be avoided. Instead, files should be read or written in larger
+chunks, either by buffering data manually, or by using the buffered
+I/O functions described in section~\ref{sec:buffered}.
+
+\subsection{Reading Data}
+The following function reads data from an opened file by directly
+invoking the handler for performing the read:
+
+\begin{verbatim}
+actualLength = Read( file, buffer, length )
+  D0                   D1    D2      D3
+
+LONG Read(BPTR, void *, LONG)
+\end{verbatim}
+
+The {\tt Read()}\mkey{Read()} function reads {\tt length} bytes from an opened
+file identified by the \emph{file handle} {\tt file} into the buffer pointed
+to by {\tt buffer}. The buffer is a standard C pointer, not a BPTR.
+
+The return code {\tt actualLength} is the amount of bytes actually
+read, or -1 for an error condition. A secondary return
+code can be retrieved from {\tt IoErr()} described in
+section~\ref{sec:misc}. It is $0$ on success, or an error code from
+{\tt dos/dos.h} in case reading failed.
+
+The amount of data read may be less data than requested by the {\tt
+  length} argument, either because the \emph{EOF} position has been
+reached (see section \ref{sec:interactive}) for non-interactive files,
+or because the interactive source is depleted. Note that for
+interactive files, the function may block indefinitely until data
+becomes available.
+
+\subsection{Testing for Availability of Data}
+
+An issue of the {\tt Read}function is that it may block indefinitely
+on an interactive file if the user does not enter any data. The {\tt
+  WaitForChar()}\mkey{WaitForChar()} tests for the availability of a
+character on an interactive file for limited amount of time and
+returns if no data becomes available.
+
+\begin{verbatim}
+status = WaitForChar( file, timeout )
+  D0                    D1    D2
+
+BOOL WaitForChar(BPTR, LONG)
+\end{verbatim}
+
+This function waits for a maximum of {\tt timeout} microseconds for
+the availability of input on {\tt file}. If data is already available,
+or becomes available within this time, the function returns
+{\tt DOSTRUE}. Otherwise, the function returns {\tt DOSFALSE}.
+
+A secondary return code can be obtained from {\tt IoErr()}. If it is
+$0$, the handler was able check the availablility of a byte from the
+given file. Otherwise, an error code from {\tt dos/dos.h} indicates
+failure of the function.
+
+This function requires an interactive file to operate, file systems
+will typically not implement this function as they do not block.
+
+\subsection{Writing Data}
+The following call writes an array of bytes unbuffered to a file,
+interacting directly with the corresponding handler:
+
+\begin{verbatim}
+returnedLength =  Write( file, buffer, length )
+ D0                       D1    D2      D3
+
+LONG Write (BPTR, void *, LONG)
+\end{verbatim}
+
+The Write\mkey{Write} function writes {\tt length} bytes in the buffer
+pointed to by {\tt buffer} to the \emph{file handle} given by the {\tt file}
+argument. On success, it returns the number of bytes written as {\tt
+  returnedLength}, and advances the file pointer of the file by this
+amount. Note that this amount of bytes may even be 0 in case the file
+cannot absorb any more bytes. On error, $-1$ is returned.
+
+A secondary return code can be retrieved from {\tt IoErr()} described
+in section~\ref{sec:misc}. It is $0$ on success, or an error code from
+{\tt dos/dos.h} in case writing failed.
+
+For interactive files, this function may block indefinitely until the
+corresponding handler is able to take additional data.
+
+\subsection{Adjusting the File Pointer}
+
+The {\tt Seek()}\mkey{Seek()} adjusts the file pointer of a
+non-interactive file such that subsequent reading or writing is
+performed from an alternative position of the file.
+
+\begin{verbatim}
+oldPosition = Seek( file, position, mode )
+ D0                  D1    D2        D3
+
+LONG Seek(BPTR, LONG, LONG)
+\end{verbatim}
+
+This function adjusts the file pointer of {\tt file} relative to the
+position determined by {\tt mode} by {\tt position} bytes. The value
+of {\tt mode} shall be one of the following options, defined in
+{\tt dos/dos.h}:
+
+\begin{rkrmtable}{Seek Modes} \label{table:seekmode}
+{\bf Mode Name} & {\bf Description}\\ \hline \hline
+{\tt OFFSET\_BEGINNING} & Seek relative to the start of the file\\ \hline
+{\tt OFFSET\_CURRENT}   & Seek relative to the current file position\\ \hline
+{\tt OFFSET\_END}       & Seek relative to the end of the file\\ \hline
+\end{rkrmtable}
+
+\punchline{Undefined on Interactive Files}{The {\tt Seek} function
+  will typically indicate failure if applied to interactive
+  files. Some handlers may assign this function, however, a particular
+  meaning. See the handler definition for details.}
+  
+If {\tt mode} is {\tt OFFSET\_BEGINNING}, then the new file pointer is
+placed {\tt position} bytes from the start of the file, i.e. the new
+file pointer is equal to {\tt position}.
+
+If {\tt mode} is {\tt OFFSET\_CURRENT}, then {\tt position} is added
+to the file pointer. That is, the file pointer is advanced if
+{\tt position} is positive, or rewinded if {\tt position} is negative.
+
+If {\tt mode} is {\tt OFFSET\_END}, then the end-of-file
+position\key{EOF} is determined, and {\tt position} is added to this
+position. This, in particular, requires that {\tt position} should be
+negative.
+
+The {\tt Seek()} function returns the file pointer before its
+adjustment, or $-1$ in case of an error.
+
+A secondary return code can be retrieved from {\tt IoErr()} described
+in section~\ref{sec:misc}. It is $0$ on success, or an error code from
+{\tt dos/dos.h} in case adjusting the file pointer failed.
+
+\punchline{Not 64bit safe}{Unfortunately, it is not quite clear how
+  {\tt Seek} operates on files that are larger than 2GB, and it is
+  file system dependent how such files could be handled. {\tt
+    OFFSET\_BEGINNING} can probably only reach the first 2GB of a
+  larger file as the file system may interpret negative values as an
+  attempt to reach a file position upfront the start of the file and
+  may return an error. Similarly, {\tt OFFSET\_END} may possibly only
+  reach the last 2GB of the file. Any other position within the file
+  may be reached by splitting the seek into chunks of at most 2GB and
+  perform multiple {\tt OFFSET\_CURRENT} seeks. However, whether such a
+  strategy suceeds is pretty much file system dependent. Note in
+  particular that the return code of the function does not allow to
+  distinguish between a file pointer just below the 4GB barrier and an
+  error condition. A zero result code of {\tt IoErr()} should be then
+  used to learn whether a result of -1 indicates a file position of
+  {\tt 0xffffffff} instead. Most AmigaDOS file systems may not be able
+  to handle files larger than 2GB.}
+
+Even though {\tt Seek()} is an unbuffered function, it is aware of a
+buffer and implicitly flushes the file system internal buffer. That
+is, it can be safely used by buffered and unbuffered functions.
+
+\subsection{Setting the Size of a File}
+
+The {\tt SetFileSize()}\mkey{SetFileSize()} function truncates or
+extends the size of an opened file to a given size. Not all handlers
+support this function.
+
+\begin{verbatim}
+newsize = SetFileSize(fh, offset, mode)
+D0                    D1    D2     D3
+
+LONG SetFileSize(BPTR, LONG, LONG)
+\end{verbatim}
+This function extends or truncates the size of the file identified by
+the \emph{file handle} {\tt fh}; the target size is determined by the
+current file pointer, {\tt offset} and the {\tt mode}. Interpretation
+of {\tt mode} and {\tt offset} is similar to {\tt Seek()}, except that
+the end-of-file position\key{EOF} of the file is adjusted, and not the
+file pointer.
+
+The {\tt mode} shall be selected from to
+table~\ref{table:seekmode}. In particular, it is interpreted as
+follows:
+
+If {\tt mode} is {\tt OFFSET\_BEGINNING}, then the file size is set to
+the value of {\tt offset}, irrespectible of the current file pointer.
+
+If {\tt mode} is {\tt OFFSET\_CURRENT}, then the new end-of-file position
+is set {\tt offset} bytes relative to the current file pointer. That
+is, the file is truncated if {\tt offset} is negative, and extended if
+{\tt offset} is positive.
+
+If {\tt mode} is {\tt OFFSET\_END}, the new file size is given by the
+current file size plus {\tt offset}. That is, the file is extended by
+{\tt offset} bytes if positive, or truncated otherwise. The value of the
+current file pointer is irrelevant and ignored.
+
+If the current file pointer of any \emph{file handle} opened on the
+same file is, after a potential truncation, beyond the new
+end-of-file, it is clamped to the end-of-file. They remain unchanged
+otherwise.
+
+If the file is enlarged, the values within the file beyond the
+previous end-of-file position are undetermined.
+
+The return value {\tt newsize} is the size of the file after the
+adjustment, i.e. the position of the end-of-file location.
+
+\punchline{Not 64bit safe}{Similar to {\tt Seek()},
+  {\tt SetFileSize()} cannot be assumed to work properly if the (old or
+  new) file size is larger than 2GB. What exactly happens if an
+  attempt is made to adjust the file by more than 2GB depends on
+  the file system performing the operation. A possible strategy to
+  adjust the file size to a value above 2GB is to first seek to the
+  closest position, potentially using multiple seeks of maximal size,
+  and then perform one or multiple calls to {\tt SetFileSize()} with
+  the {\tt mode} set to {\tt OFFSET\_CURRENT}. However, whether this
+  strategy succeeds is file system dependent.}
+
+\section{Buffered Input and Output}
+
+AmigaDOS also offers buffered input and output functions that stores
+data in an intermediate buffer. AmigaDOS then transfers data only in
+larger chunks between the buffer and the handler, minimizing the task
+switching overhead and offering better performance if data is to be
+read or written in smaller units.
+
+\punchline{Performance Improved}{While buffered I/O functions of
+  AmigaOs 3.1.4 and below were designed around single-byte functions
+  and thus caused massive overhead in the buffered functions described
+  in this section, the functions in this section were redesigned in
+  AmigaOs 3.2 and now offer significantly better
+  performance. Unfortunately, the default buffer size AmigaDOS uses is
+  quite small and should be significantly increased by
+  {\tt SetVBuf()}\key{SetVBuf()}. A suggested buffer size is 4096 bytes
+  which corresponds to a disk block of modern hard drives.}
+
+\subsection{Buffered Read}
+
+The {\tt FRead()}\mkey{FRead()} function reads multiple equally-sized
+records from a file through a buffer, and returns the number of
+records retrieved.
+
+\begin{verbatim}
+count = FRead(fh, buf, blocklen, blocks)
+ D0           D1  D2     D3        D4
+
+LONG FRead(BPTR, STRPTR, ULONG, ULONG)
+\end{verbatim}
+
+This function reads {\tt blocks} records each of {\tt blocklen} bytes
+from the file {\tt fh} into the buffer {\tt buf}. It returns the
+number of complete records retrieved from the file. If the file runs
+out of data, the last record may be incomplete.
+
+From AmigaOs 3.2 onwards, {\tt FRead()} first attempts to satisfy the
+request from the file handle internal buffer, but if the number of
+remaining bytes is larger than the buffer size, the handler will be
+invoked directly for ``bursting'' the data into the target buffer,
+bypassing the file buffer.
+
+This function does not modify {\tt IoErr()}\key{IoErr()} in case the
+request can be satisfied completely from the file handle buffer. It
+neither returns $-1$ in case of an error. Callers should instead use
+{\tt SetIoErr(0)} to clear the error state before calling this
+function, and then use {\tt IoErr()} to learn if any error occured if
+the number of records read is smaller than the number of records
+requested.
+
+\subsection{Buffered Write}
+
+The {\tt FWrite()}\mkey{FWrite()} function writes multiple equally-sized
+records to a file through a buffer, and returns the number of
+records it could write.
+
+\begin{verbatim}
+count = FWrite(fh, buf, blocklen, blocks)
+D0             D1  D2     D3        D4
+
+LONG FWrite(BPTR, STRPTR, ULONG, ULONG)
+\end{verbatim}
+
+This function write {\tt blocks} records each of {\tt blocklen} bytes
+from the buffer {\tt buf} to the file {\tt fh}. It returns the number
+of complete records written to the file. On an error, the last record
+written may be incomplete.
+
+From AmigaOs 3.2 onwards, {\tt FWrite()} first checks whether the file
+handle internal buffer is partially filled. If so, the file handle
+interal buffer is filled from {\tt buf}. If any bytes remain to be
+written, and the number of bytes is larger than the internal buffer
+size, the handler will be invoked to write the data in a single block,
+bypassing the buffer. Otherwise, the data will be copied to the
+internal buffer.
+
+This function does not modify {\tt IoErr()}\key{IoErr()} in case the
+request can be satisfied completely by using the file handle
+buffer. It neither returns $-1$ in case of an error. Callers should
+instead use {\tt SetIoErr(0)} to clear the error state before calling
+this function, and then use {\tt IoErr()} to learn if any error
+occured if the number of records written is smaller than the number of
+records passed in.
+
+\subsection{Adjusting the Buffer}
+
+The {\tt SetVBuf()}\mkey{SetVBuf()} function allows to adjust the
+internal buffer size for buffered input/output functions such as {\tt
+  FRead()}\key{FRead()} or {\tt FWrite()}\key{FWrite()}. It also sets
+the buffer mode. The default buffer size is 204 characters, which is
+too low for many applications.
+
+\begin{verbatim}
+error = SetVBuf(fh, buff, type, size)
+D0              D1   D2    D3    D4
+
+LONG SetVBuf(BPTR, STRPTR, LONG, LONG)
+\end{verbatim}
+
+This function sets the internal buffer of the \emph{file handle}
+{\tt fh} to {\tt size} bytes. Sizes smaller than 204 characters will be
+rounded up to 204. If {\tt buff} is non-{\tt NULL}, it is a pointer to
+a user-provided buffer that will be used for buffering. This buffer
+shall be aligned to a 32-bit boundary. A user provided buffer will not
+be released when the file is closed.
+
+Otherwise, if {\tt buff} is {\tt NULL} AmigaDOS will allocate the
+buffer for you, and will also release it when the file is closed.
+
+The {\tt type} argument identifies the type of buffering according to
+Table~\ref{table:buffmode}; the modes there are defined in the include
+file {\tt dos/stdio.h}.
+
+\begin{rkrmtable}{Buffer Modes} \label{table:buffmode}
+{\bf Buffer Name} & {\bf Description}\\ \hline \hline
+{\tt BUF\_LINE} & Buffer up to end of line\\ \hline
+{\tt BUF\_FULL} & Buffer everything\\ \hline
+{\tt BUF\_NONE} & No buffering\\ \hline
+\end{rkrmtable}
+
+The buffer mode {\tt BUF\_LINE} automatically flushes the buffer when
+writing a line feed (0x0a), carriage return (0x0c) or ASCII NUL (0x00)
+character to the buffer, and the target file is
+interactive. Otherwise, the characters remain in the buffer until it
+either overflows or is flushed manually, see {\tt Flush()}\key{Flush()}.
+
+The buffer mode {\tt BUF\_FULL} buffers all characters until the
+buffer either overflows or is flushed.
+
+The buffer mode {\tt BUF\_NONE} effectively disables the buffer and
+writes all characters to the target file immediately.
+
+On reading, {\tt BUF\_LINE} and {\tt BUF\_FULL} are equivalent and
+fill the entire buffer from the file; {\tt BUF\_NONE} disables
+buffering.
+
+The function returns non-zero on success, or $0$ on error. Error
+conditions are either out-of-memory, an invalid buffer mode or an
+invalid file handle. Unfortunately, {\tt IoErr()} is only set on an
+out-of-memory condition and remains otherwise unchanged.
+
+\subsection{Synchronize the File to the Buffer}
+
+The {\tt Flush()}\mkey{Flush()} function flushes the internal buffer
+of a \emph{file handle} and synchronizes the file pointer to the
+buffer position.
+
+\begin{verbatim}
+success = Flush(fh)
+D0              D1
+
+LONG Flush(BPTR)
+\end{verbatim}
+
+Synchronizes the file pointer to the buffer, that is, if bytes were
+written to the buffer, writes out buffer content to file. If bytes
+were read from the file and non-read files remained in the buffer,
+such bytes are dropped and the function attempts to seek back to the
+position of the last read byte. This can fail for interactive files.
+
+The return code is currently always {\tt DOSTRUE} and thus cannot be
+used as an indication of error, even if not all bytes could be
+written, or if seeking failed. If error detection is desired, the
+caller should first use {\tt SetIoErr(0)}\key{SetIoErr()} to erase an
+error condition, then call flush, and then use {\tt IoErr()} to
+check whether an error occurred.
+
+\punchline{Flush when switching between reading and writing}{The {\tt
+    Flush()} function shall be called when switching from writing to a
+  file to reading from the same file, or vice versa. The internal
+  buffer logic is unfortunately not capable to handle this case
+  correctly. Also, {\tt Flush()} shall be called when switching from
+  buffered to unbuffered input/output.}
+
+\subsection{Write a Character buffered to a file}
+
+The {\tt FPutC()}\mkey{FPutC()} function writes a single character to
+a file, using the \emph{file handle} internal buffer.
+
+\begin{verbatim}
+char = FPutC(fh, char)
+D0           D1   D2
+
+LONG FPutC(BPTR, LONG)
+\end{verbatim}
+
+This function writes the single character {\tt char} to the \emph{file
+  handle} {\tt fh}.  Depending on the buffer mode, the character and
+the type of file, the character may go to the buffer first, or may
+cause the buffer to be emptied. See {\tt SetVBuf()}\key{SetVBuf()} for
+details on buffer modes and conditions for implicit buffer flushes.
+
+It returns the character written, or {\tt ENDSTREAMCH} on an
+error. The latter constant is defined in {\tt dos/stdio.h} and equals
+to $-1$.
+
+This function does not touch {\tt IoErr()} if the character only goes
+into the internal buffer. 
+
+\subsection{Write a String Buffered to a File}
+
+The {\tt FPuts()}\mkey{FPuts()} function writes a {\tt NUL}-terminated
+string to a file, using the \emph{file handle} internal buffer.
+
+\begin{verbatim}
+error = FPuts(fh, str)
+D0            D1  D2
+
+LONG FPuts(BPTR, STRPTR)
+\end{verbatim}
+
+This function writes the NUL-terminated (C-style) string {\tt str} to
+the \emph{file handle} {\tt fh}. The terminating {\tt NUL} character
+is not written.
+
+Depending on the buffer mode, the string will first go into the
+buffer, or may be written out immediately. See
+{\tt SetVBuf()}\key{SetVBuf()} for details on buffer modes and conditions
+for implicit buffer flushes.
+
+This function returns $0$ on success, or {\tt ENDSTREAMCH} on an
+error. The latter constant is defined in {\tt dos/stdio.h} and equals
+to $-1$.
+
+\subsection{Read a Character from a File}
+
+The {\tt FGetC()}\mkey{FGetC()} function reads a single character from
+a file through the internal buffer of the \emph{file handle}.
+
+\begin{verbatim}
+char = FGetC(fh)
+D0           D1
+
+LONG FGetC(BPTR)
+\end{verbatim}
+
+This function attempts to read a single character from the \emph{file
+  handle} {\tt fh} using the buffer of the handle. If characters are
+present in the buffer, the request is satisfied from the buffer first,
+then the function attempts to refill the buffer from the file and
+tries again.
+
+The function returns the character read, or {\tt ENDSTREAMCH} on an
+end-of-file condition or an error. The latter constant is defined in
+{\tt dos/stdio.h} and equals to $-1$.
+
+To distingish between the error and the
+end-of-file case, the caller should first reset the error condition
+with {\tt SetIoErr(0)}\key{SetIoErr()}, and then check {\tt IoErr()}
+when the function returns with {\tt ENDSTREAMCH}.
+
+\subsection{Read a Line from a File}
+
+The {\tt FGets()}\mkey{FGets()} function reads a newline-terminated
+string from a file, using the \emph{file handle} internal buffer.
+
+\begin{verbatim}
+buffer = FGets(fh, buf, len)
+D0             D1  D2   D3
+
+STRPTR FGets(BPTR, STRPTR, ULONG)
+\end{verbatim}
+
+This function reads a line from the \emph{file handle} into the buffer
+pointed to by {\tt buf}, capable of holding {\tt len} characters.
+
+Reading terminates either if {\tt len}-1 characters have been read, filling
+up the buffer completely; or a line-feed character is found, which is
+copied into the buffer; or if an end-of-file condition or an error
+condition is encountered. In either event, the string is {\tt NUL}
+terminated.
+
+The function returns {\tt NULL} in case not even a single character
+could be read. Otherwise, the function returns the buffer passed in.
+
+To distinguish between the error and end-of-file condition, the caller
+should first use {\tt SetIoErr(0)}\key{SetIoErr()}, and then test
+{\tt IoErr()} in case the function returns {\tt NULL}.
+
+\subsection{Revert a Single Byte Read}
+
+The {\tt UnGetC()} function reverts a single byte read from a
+stream and makes this byte available for reading again.
+
+\begin{verbatim}
+value = UnGetC(fh, ch)
+D0             D1  D2
+
+LONG UnGetC(BPTR, LONG)
+\end{verbatim}
+
+The character {\tt ch} is pushed back into the \emph{file handle} {\tt fh}
+such that the next attempt to read a character from {\tt fh}
+returns {\tt ch}. If {\tt ch} is $-1$, the last character read will be
+pushed back. If the last read operation indicated an error or end-of-file condition,
+{\tt UnGetC(fh,-1)} pushes an end-of-file condition back.
+
+This function returns non-zero on success or $0$ if the character
+could not be pushed back. At most a single character can be pushed
+back after each read operation, an attempt to push back more
+characters can fail.
+
+\section{File Handle Documentation}
+
+So far, the \emph{file handle} has been used as an opaque value bare
+any meaning. However, the {\tt BPTR}, once converted to a regular
+pointer, is a pointer to {\tt struct FileHandle}\mkey{FileHandle}:
+\begin{verbatim}
+BPTR file = Open("S:Startup-Sequence,MODE_OLDFILE);
+struct FileHandle *fh = BADDR(file);
+\end{verbatim}
+
+In the following sections, this structure and its functions are documented.
+
+\subsection{The struct FileHandle}
+
+When opening a file via {\tt Open()}, the \emph{file handle} is allocated by
+the \emph{dos.library} by going through {\tt AllocDosObject()}\key{AllocDosObject()},
+and then forwarded to the file system or handler for second-level initialization. It is
+documented in {\tt dos/dosextens.h} as replicated here:
+\mkey{FileHandle}
+\begin{verbatim}
+struct FileHandle {
+   struct Message *fh_Link;	 
+   struct MsgPort *fh_Port;
+   struct MsgPort *fh_Type;
+   BPTR fh_Buf;       
+   LONG fh_Pos;
+   LONG fh_End;
+   LONG fh_Funcs;
+#define fh_Func1 fh_Funcs
+   LONG fh_Func2;
+   LONG fh_Func3;
+   LONG fh_Args;
+#define fh_Arg1 fh_Args
+   LONG fh_Arg2;
+};
+\end{verbatim}
+{\tt fh\_Link} is actually not a pointer, but an AmigaDOS internal
+value that shall not be interpreted or touched, and of which one
+cannot make productive use.
+
+{\tt fh\_Port} is similarly not a pointer, but a {\tt LONG}. If it is
+non-zero, the file is interactive, otherwise it is a file system.
+{\tt IsInteractive()}\key{IsInteractive()} makes use of this
+member. The file system or handler shall initialize this value when
+opening a file and shall initialize it according to the nature of the
+handler.
+
+{\tt fh\_Type} points to the {\tt MsgPort} of the handler or file
+system that implements all input and output
+operations. Section~\ref{sec:handler} provides additional information
+on how handlers and file systems work. If this pointer is {\tt NULL},
+no handler is associated to the file handle. This is also the value
+AmigaDOS will deposit here when opening a file to the {\tt NIL:}
+(pseudo-)device. Attempting to {\tt Read()}\key{Read()} from this
+handle results in an end-of-file situation, and calling {\tt Write()}
+on such a handle does nothing, ignoring any data written.
+
+{\tt fh\_Buf} is a {\tt BPTR} to the file handle internal buffer all
+buffered I/O function documented in this section use.
+
+{\tt fh\_Pos} is the next read or write position within this buffer.
+
+{\tt fh\_End} is the size of the buffer in bytes.
+
+{\tt fh\_Func1} is a function pointer that is called whenever the
+buffer is to be filled through the handler. Users shall not call this
+function itself, and the function prototype is intentionally not
+documented.
+
+{\tt fh\_Func2} is a second function pointer that is called whenever
+the buffer is full and is to be written by the handler. Users shall
+not call this function itself, and the function prototype is
+intentially undocumented.
+
+{\tt fh\_Func3} is a final function pointer that is called whenever
+the file handle is closed. This function then potentially writes the
+buffer content out when dirty, releases the buffer if it is
+system-allocated, and finally forwards the close request to the
+handler.
+
+{\tt fh\_Arg1} is a file-system internal value the handler or file
+system uses to identify the file. The interpretation of this value is
+to the file system or handler, and the \emph{dos.library} does not
+attempt to interpret it. The handler deposits the file identification
+here when opening a file, and the \emph{dos.library} forwards it to the
+handler on {\tt Read()} and {\tt Write()}. See
+section~\ref{sec:handler} for details.
+
+{\tt fh\_Arg2} is currently unused.
+
+\subsection{String Streams}
+It is sometimes useful to provide programs with (temporary) input not
+coming from a file system or handler directly, even though the program
+uses a file interface to access it. One solution to this problem is to
+deposit the input data on the {\tt RAM} disk, then opening this file
+and providing it as input to such a program. The drawback of this
+approach is that additional tests are necessary to ensure that the
+file name is unique, and to avoid that other than the intended program
+accesses it.
+
+AmigaDOS uses the technique documented here itself, for example to
+provide the command to be executed by the {\tt Run}\key{Run}
+command. There, the string stream contains the command to be run in
+background, which is then provided as input file to the shell. The
+{\tt System()}\key{System()} function of the \emph{dos.library} makes
+use of the same trick to feed the command to be executed as input
+file. Thus, even though the shell can only execute commands from a
+file, AmigaDOS can generate \emph{file handles} that do not correspond
+to a handler, but to a string in memory containing the commands.
+
+The shell itself is using the same technique to pass arguments to the
+commands it executes; it deposits the command arguments in the file
+handle buffer of the input stream where {\tt ReadArgs()} collects them.
+
+The idea is to allocate a {\tt struct FileHandle} and initialize its
+buffer to contain the string within the file. For this {\tt fh->Buf}
+needs to point to the buffer containing the string, and {\tt fh->End}
+needs to be its size. The function pointers in the \emph{file handle}
+remain 0 such as to avoid that the \emph{dos.library} reads, writes or
+flushes the buffer. The {\tt FileHandle} shall be allocated by {\tt
+  AllocVec()} as the \emph{dos.library} releases the handle through
+{\tt FreeVec()}.
+
+The following program demonstrates this technique:
+\begin{verbatim}
+#include <exec/memory.h>
+#include <dos/dos.h>
+#include <dos/stdio.h>
+#include <string.h>
+#include <proto/dos.h>
+#include <proto/exec.h>
+
+int main(int argc,char **argv)
+{
+  const char *test = "Hello World!\n";
+  const int len = strlen(test)+1;
+  struct FileHandle *fh;
+  BPTR file;
+
+  fh   = AllocVec(sizeof(struct FileHandle) + len,MEMF_PUBLIC|MEMF_CLEAR);
+  if (fh) {
+    UBYTE *c = (UBYTE *)(fh + 1);
+    file     = MKBADDR(fh);
+    memcpy(c,test,len);
+    fh->fh_Buf = MKBADDR(c);
+    fh->fh_End = len;
+    {
+      BPTR out = Output();
+      LONG ch;
+      while((ch = FGetC(file)) >= 0) {
+        FPutC(out,ch);
+      }
+    }
+    Close(file);
+  }
+  return 0;
+}
+\end{verbatim}
+Here the buffer is allocated along with the file handle, and thus
+released along with it. Setting {\tt MEMF\_PUBLIC} is of utter
+importance as it clears all function pointers, and in particular the
+{\tt fh\_Link} field to zero; the latter is an indication to the
+\emph{dos.library} that this structure was not allocated through
+itself.
+
+\subsection{An FSkip() Implementation}
+
+Unlike most unbuffered functions, {\tt Seek()}\key{Seek} can be safely
+mixed with buffered input and output functions. However, this function
+is not very efficient, and seeking should be avoided if buffer
+manipulation is sufficient. Buffer manipulation has the advantage that
+small amounts of bytes can be skipped easily without going through the
+file system; skipping over larger amounts of bytes can be performed by
+a single function without requiring to read bytes.
+
+
+The following function implements an {\tt FSkip()}\mkey{FSkip()}
+function that selects the most viable option and is more efficient
+that {\tt Seek()} for buffered reads.
+\begin{verbatim}
+LONG FSkip(BPTR file,LONG skip)
+{
+  LONG res;
+  struct FileHandle *fh = BADDR(file);
+  if (fh->fh_Pos >= 0 && fh->fh_End > 0 && fh->fh_Func3) {
+    LONG newpos = fh->fh_Pos + skip;
+    if (newpos >= 0 && newpos < fh->fh_End) {
+      fh->fh_Pos = newpos;
+      return DOSTRUE;
+    }
+  }
+  skip += fh->fh_Pos - fh->fh_End;
+  fh->fh_Pos = -1;
+  fh->fh_End = -1;
+  if (Seek(fh,skip,OFFSET_CURRENT) != -1)
+   return DOSTRUE;
+  return DOSFALSE;
+}
+\end{verbatim}
+
+The first if-condition checks whether the buffer is actually
+present. Then, the new buffer position is computed. If it is within
+the buffer, the new buffer position is installed as the work is done.
+
+Otherwise, the skip distance is adjusted by the buffer
+position. Initializing the buffer size and position to $-1$ ensures
+that the following {\tt Seek()} does not attempt to call {\tt Flush()}
+internally.
+
+There is one particular catch, namely that the {\tt file}
+needs to be initialized for reading immediately after opening the
+file, or the buffer will not be in the right state for the trick:
+\begin{verbatim}
+BPTR file = Open(filename,MODE_OLDFILE);
+UnGetC(file,-1); /* initialize buffer */
+\end{verbatim}
+This is only necessary if the first access to the file is an
+{\tt FSkip()}.
+
+\section{Formatted Output}
+
+The functions in this section print strings formatted to a file. Both
+files use the internal buffer of the \emph{file handle}.
+
+\subsection{Print Formatted String using C-Syntax}
+
+The {\tt VFPrintf()}\mkey{VFPrintf()} function prints multiple
+datatypes using a format string that closely reessembles the syntax of
+the C syntax. {\tt FPrintf()}\mkey{FPrintf()} is based on the same
+entry point of the \emph{dos.library}, though the prototype for the C
+language is different and thus arguments are expected directly as function
+arguments instead of requiring them to be collected in an array upfront.
+
+\begin{verbatim}
+count = VFPrintf(fh, fmt, argv)
+D0               D1  D2    D3
+
+LONG VFPrintf(BPTR, STRPTR, LONG *)
+
+count = FPrintf(fh, fmt, ...)
+
+LONG FPrintf(BPTR, STRPTR, ...)
+\end{verbatim}
+
+This function uses the {\tt fmt} string to format an array of
+arguments pointed to by {\tt argv} and outputs the result to the file
+{\tt fh}. The syntax of the format string is identical to that of the
+exec function {\tt RawDoFmt()}, and shares its problems. In
+particular, format strings indicating integer arguments such as
+{\tt \%d} and {\tt \%u} assume 16bit integers, independent of the integer
+model of the compiler. On compilers working with a 32bit integer
+models, the format modifier {\tt l} should be used, e.g. {\tt \%ld}
+for signed and {\tt \%lu} for unsigned integers.
+
+As {\tt RawDoFmt()}\key{RawDoFmt()} is also patched by the
+\emph{locale.library}, additional syntax elements from the
+{\tt FormatString()} function of this library become available for
+{\tt VFPrintf()} and {\tt FPrintf()}.
+
+The result {\tt count} delivers the number of characters written to
+the file, or $-1$ for an error. In the latter case,
+{\tt IoErr}\key{IoErr()} provides an error code.
+
+\subsection{BCPL Style Formatted Print to a File}
+
+The {\tt VFWritef()}\mkey{VFwrite()} function formats several
+arguments according to a format string similar to
+{\tt VFPrintf()}\key{VFprintf()}, but uses the formatting syntax of the
+BCPL language. The main purpose of this function is to offer formatted
+output for legacy BCPL programs where this function appears as an
+entry of the BCPL \emph{Global Vector}. New code should not use this
+function but rather depend on {\tt VFPrintf()} which also gets enhanced
+by the \emph{locale.library}.
+
+The {\tt FWritef()}\mkey{FWritef()} uses the same entry point of the
+\emph{dos.library}, though the compiler prototype imposes a different
+calling syntax where the objects to be formatted are directly
+delivered as function arguments rather requiring the caller to collect
+them in an array upfront.
+
+\begin{verbatim}
+count = VFWritef(fh, fmt, argv)
+D0               D1  D2    D3
+
+LONG VFWritef(BPTR, STRPTR, LONG *)
+
+count = FWritef(fh, fmt, ...)
+
+LONG FWritef(BPTR, STRPTR, ...)
+\end{verbatim}
+
+This function formats the arguments from the array pointed to by
+{\tt argv} according to the format string in {\tt fmt} and writes the
+output to the file {\tt fh}. The format string follows the syntax of
+the BCPL language. The following format identifiers are supported:
+
+\begin{itemize}
+\item[{\tt \%S }] Write a {\tt NUL} terminated string from the array to the output.
+\item[{\tt \%Tx}] Writes a {\tt NUL} terminated string left justified
+  in a field whose width is given by the character {\tt x}. The length
+  indicator is always a single character; a digit from {\tt 0} to
+  {\tt 9} indicates the field widths from $0$ to $9$ directly. Characters
+  {\tt A} to {\tt Z} indicate field widths from $10$ onwards.
+\item[{\tt \%C }] Writes a single character whose ISO-Latin-1 code is given
+  as a 32-bit integer on the {\tt argv} array.
+\item[{\tt \%Ox}] Writes an integer in octal to the output where
+  {\tt x} indicates the maximal field width. The field width is a single
+  character that is encoded similarly to the {\tt \%T} format string.
+\item[{\tt \%Xx}] Writes an integer in hexadecimal to the output in a field
+  that is at most {\tt x} characters long. {\tt x} is a single character and
+  encodes the width similar to that {\tt \%T} format string.
+\item[{\tt \%Ix}] Writes a (signed) integer in decimal to the output
+  in field that is at most {\tt x} characters long. The field length
+  is again indicated by a single character.
+\item[{\tt \%N }] Writes a (signed) integer in decimal to the output
+  without any length limitation.
+\item[{\tt \%Ux}] Writes an unsigned integer in decimal to the output,
+  limiting the field length to at most {\tt x} characters, where
+  {\tt x} is encoded in a single character.
+\item[{\tt \%\$ }] Ignores the next argument, i.e. skips over it.
+\end{itemize}
+
+This function is \emph{not} patched by the \emph{locale.library} and
+therefore is not localized or enhanced.
+
+While the same function can also be found in the BPCL
+\emph{Global Vector}, it there takes BSTRs instead of regular C strings for the
+format string and arguments of the {\tt \%S} and {\tt \%T} formats.
+  
+\chapter{Locks} \label{sec:locks}
+
+\emph{Locks}\mkey{Lock} are access rights to objects, such as files or
+directories, on a file system. Once an object has been locked, it can
+no longer be deleted, or in case of files, it can no longer altered
+either. Depending on the file system, locks may also prevent other
+forms of changes of the object.
+
+Locks come in two types: \emph{Exclusive}\mkey{Lock (Exclusive)} and
+\emph{shared locks}. Only a single exclusive lock can exist on a file
+system object at a time, and no other locks on an exclusively locked
+object can exist. An attempt to lock an exclusively locked object
+results in failure, and attempting to exclusively lock an object that
+is already shared locked will also fail.
+
+Multiple \emph{shared locks}\mkey{Lock (Shared)} can be kept on the
+same object at the same time, though once a shared lock has been
+obtained, any attempt to lock the same object exclusively fails.
+
+One particular use case of \emph{locks} is to serve as an identifier
+of a particular directory or file on a file system. Since paths are
+limited to 255 characters, see~\ref{sec:paths}, locks are the
+preferred method of indicating a position within a file system. Even
+though paths are length limited, there is no restriction on the depth
+within the directory structure of a file system. The {\tt ZERO} lock
+identifies the boot volume, also known as {\tt SYS:}, see also
+section~\ref{sec:assignlist}.
+
+\emph{Locks} are also the building stone of files; in fact, every file
+is internally represented by a lock on the corresponding object, even
+if the file system does not expose this lock to the caller.
+
+As long as at least a single lock is held of an object on a particular
+volume, the file system will keep the volume within the
+\emph{device list} of the \emph{dos.library}, see section~\ref{sec:devicelist}.
+This has, for example, the consequence that the workbench will
+continue to show an icon representing the volume in its window.
+
+\section{Obtaining and Releasing Locks}
+
+\emph{Locks} can be obtained either explictly from a path, or can be
+derived from another lock or file. As locks block altering accesses to
+an object of a file system, locks need to be released as early as
+possible to allow other accesses to the locked object.
+
+\subsection{Obtaining a Lock from a Path} \label{sec:lock}.
+
+The {\tt Lock()}\key{Lock()} function obtains a lock on an object
+given a path to the object. The path can be either absolute, or
+relative (see section~\ref{sec:paths}) to the current directory of the
+calling process.
+
+\begin{verbatim}
+lock  = Lock( name, accessMode )
+D0            D1        D2
+
+BPTR Lock(STRPTR, LONG)
+\end{verbatim}
+
+This function locks the object identified by {\tt name}, which is the
+path to the object. The type of the lock is identified by {\tt
+  accessMode}. This mode shall be one of the two following modes,
+defined in {\tt dos/dos.h}:
+
+\begin{rkrmtable}{Lock Access Modes} \label{table:lockmodes}
+{\bf Access Mode} & {\bf Description}\\ \hline \hline
+{\tt SHARED\_LOCK} & Lock allowing shared access from multiple sources\\ \hline
+{\tt ACCESS\_READ} & Synonym of the above, identical to {\tt SHARED\_LOCK} \\ \hline
+{\tt EXCLUSIVE\_LOCK} & Exclusive lock, only allowing a single lock on the object \\ \hline
+{\tt ACCESS\_WRITE} & Synonym of the above, identical to {\tt EXCLUSIVE\_LOCK} \\ \hline
+\end{rkrmtable}
+
+The access mode {\tt SHARED\_LOCK}\mkey{SHARED\_LOCK} or {\tt
+  ACCESS\_READ}\mkey{ACCESS\_READ} allows multiple shared locks on the
+same object. This type of lock should be preferred. The access mode
+{\tt EXCLUSIVE\_LOCK}\mkey{EXCLUSIVE\_LOCK} or
+{\tt ACCESS\_WRITE}\mkey{ACCESS\_READ} only allows a single, exclusive
+lock on the same object.
+
+The return code {\tt lock} identifies the lock. It is non-{\tt ZERO}
+(see~\ref{sec:bptrs}) on success, or {\tt ZERO} on failure. In either
+case, {\tt IoErr()}\key{IoErr()} is set to $0$ indicating success, or
+an error code on failure.
+
+\emph{No Wildcards Here!}{Note that this function does not attempt to
+  resolve wild cards, similar to {\tt Open()}. All characters in the
+  path are literals.}
+
+\subsection{Duplicating a Lock}
+
+The {\tt DupLock()}\mkey{DupLock()} function replicates a given
+\emph{lock}, returning a copy of the \emph{lock} given as
+argument. This requires that the original \emph{lock} is a
+\emph{shared lock}, and it returns a \emph{shared lock} if successful.
+
+\begin{verbatim}
+lock = DupLock( lock )
+D0              D1
+
+BPTR DupLock(BPTR)
+\end{verbatim}
+
+This function copies the (shared) lock passed in as {\tt lock} and
+returns a copy of it in {\tt lock}. In case of error, it returns {\tt
+  ZERO}, and then {\tt IoErr()}\key{IoErr()} returns an error code
+identifying the error. On success, {\tt IoErr()} is reset. It is not
+possible to copy an \emph{exclusive lock}.
+
+\subsection{Obtaining the Parent of an Object}
+
+The {\tt ParentDir()}\mkey{ParentDir()} function obtains a
+\emph{shared lock} on the directory containing the locked object
+passed in. For directories, this is the parent directory, for files,
+this is the directory containing the file.
+
+\begin{verbatim}
+newlock = ParentDir( lock )
+D0                   D1
+
+BPTR ParentDir(BPTR)
+\end{verbatim}
+
+The {\tt lock} argument identifies the object whose parent is to be
+found; the function returns a \emph{lock} on the directory containing
+the object. If such parent does not exist, or an error occurs, the
+function returns {\tt ZERO}. The former case applies to the topmost
+directory of a file system, or the {\tt ZERO} lock itself.
+
+To distinguish the two cases, the caller should check the {\tt
+  IoErr()}\key{IoErr()} function; if this function returns $0$, then
+no error occurred and the passed in object is topmost and no parent
+exists. If it returns a non-zero error code, then the file system
+failed to identify the parent directory.
+
+\subsection{Creating a Directory}
+
+The {\tt CreateDir()} object creates a new empty directory whose name
+is given by the last component of the path passed in. It does not
+create any intermediate directories between the first component of the
+path and its last component, such directories need potentially be
+created manually by multiple calls to this function.
+
+\begin{verbatim}
+lock = CreateDir( name )
+ D0                D1
+
+BPTR CreateDir(STRPTR)
+\end{verbatim}
+
+The {\tt name} argument is the path to the new directory to be
+created; that is, the directory given by the last component of the
+path (see section~\ref{sec:paths}) will be created. If successful,
+the function returns an \emph{exclusive lock} in {\tt lock}, otherwise
+it returns {\tt ZERO}.
+
+In either case, {\tt IoErr()}\key{IoErr()} is set to either an error
+code, or to $0$ in case the function succeeds.
+
+Note that not all file systems support directories, i.e. flat file
+systems (see section~\ref{sec:flathierarchical}) do not.
+
+\subsection{Releasing a Lock}
+
+Once you are done with a \emph{lock} and no part of your program is
+using it anymore, you should release it to allow other processes or
+functions to access or modify the locked object. Note that setting the
+{\tt CurrentDir()}\key{CurrentDir()} to a particular lock implies
+usage of the lock, i.e. the lock installed as {\tt CurrentDir()} shall
+not be unlocked.
+
+\begin{verbatim}
+UnLock( lock )
+         D1
+
+void UnLock(BPTR)
+\end{verbatim}
+
+This function releases the \emph{lock} passed in as {\tt lock}
+argument. Passing {\tt ZERO} as a lock is fine and performs no
+activity.
+
+\subsection{Changing the Type of a Lock}
+
+Once a \emph{lock} has been granted, it is possible to change the
+nature of the lock, either from
+{\tt EXCLUSIVE\_LOCK}\key{EXCLUSIVE\_LOCK} to
+{\tt SHARED\_LOCK}\key{SHARED\_LOCK}, or --- if this is the only \emph{lock} on
+the object --- vice versa.
+
+\begin{verbatim}
+success = ChangeMode(type, object, newmode)
+D0                    D1     D2      D3
+
+BOOL ChangeMode(ULONG, BPTR, ULONG)
+\end{verbatim}
+
+This function changes the access mode of {\tt object} whose type is
+identified by {\tt type} to the access mode {\tt newmode}. The
+relation between {\tt type} and the nature of the object shall be as
+in table~\ref{table::changemode}, where the types are defined
+in {\tt dos/dos.h}:
+
+\begin{rkrmtable}{Object Types for ChangeMode()} \label{table::changemode}
+{\bf {\tt \bf type}} & {\bf {\tt \bf object} Type}\\ \hline \hline
+{\tt CHANGE\_LOCK} & {\tt object} shall be a \emph{lock}\\ \hline
+{\tt CHANGE\_FH} & {\tt object} shall be a \emph{file handle}\\ \hline
+\end{rkrmtable}
+
+The argument {\tt newmode} shall be one of the modes indicated in
+Table~\ref{table:lockmodes}, i.e. {\tt SHARED\_LOCK}\key{SHARED\_LOCK}
+to make either the file or the lock accessible for shared access, and
+{\tt EXCLUSIVE\_LOCK}\key{SHARED\_LOCK} for exclusive access.
+
+On success, the function returns a non-zero result code, and
+{\tt IoErr()} is set to $0$. Otherwise, the function returns $0$ and sets
+{\tt IoErr()}\key{IoErr()} to an appropriate error code.
+
+Unfortunately, this function may not work reliable for \emph{file
+  handles} under all versions of AmigaDOS. In particular, the
+\emph{RAM-Handler} does not interpret {\tt newmode} correctly for {\tt
+  CHANGE\_FH}.
+
+\subsection{Comparing two Locks}
+
+The {\tt SameLock()}\mkey{SameLock()} function compares two locks and
+returns information whether they are identical, or at least correspond
+to objects on the same volume.
+
+\begin{verbatim}
+value = SameLock(lock1, lock2)
+ D0                D1     D2
+
+LONG SameLock(BPTR, BPTR)
+\end{verbatim}
+
+This function compares {\tt lock1} with {\tt lock2}. The return code,
+all of them defined in {\tt dos/dos.h}, can be one of the following:
+
+\begin{rkrmtable}{Lock Comparison Return Code} \label{table:lockcompare}
+{\bf Return Code} & {\bf Description}\\ \hline \hline
+{\tt SAME\_LOCK} & Both locks are on the same object\\ \hline
+{\tt SAME\_VOLUME} & Locks are on different objects, but on the same volume\\ \hline
+{\tt LOCK\_DIFFERENT} & Locks are on different volumes\\ \hline
+\end{rkrmtable}
+
+This function does not set {\tt IoErr()}\key{IoErr()} consistently,
+and callers cannot depend on its value. Furthermore, the function does
+not compare a {\tt ZERO} lock with lock on the boot volume, e.g {\tt
+  SYS:} as identical. It is recommended not to pass in the {\tt ZERO}
+lock for either {\tt lock1} or {\tt lock2}.
+
+\section{Locks and Files}
+
+Each \emph{file handle} is associated to a lock to the file that has
+been opened. The type of the \emph{lock} depends on the access mode
+the file has been opened with, table~\ref{table:modelock} for how lock
+types and access modes relate.
+
+\begin{rkrmtable}{Lock and File Access Modes} \label{table:modelock}
+{\bf Access Mode} & {\bf Lock Type}\\ \hline \hline
+{\tt MODE\_OLDFILE} & {\tt SHARED\_LOCK} \\ \hline
+{\tt MODE\_READWRITE} & {\tt SHARED\_LOCK} \\ \hline
+{\tt MODE\_NEWFILE} & {\tt EXCLUSIVE\_LOCK} \\ \hline
+\end{rkrmtable}
+
+The association of {\tt MODE\_READWRITE} to {\tt SHARED\_LOCK} is
+unfortunate, and due to a defect in the \emph{RAM-Handler}
+implementation in AmigaDOS 2.0 which was then later copied into the
+\emph{Fast File System} implementation. Exclusive access to a file
+without deleting its contents can, however, be established through the
+{\tt OpenFromLock()}\key{OpenFromLock()} function passing in an
+\emph{exclusive lock} to the function as argument.
+
+\subsection{Duplicate the Implicit Lock of a File}
+
+The {\tt DupLockFromFH()}\mkey{DupLockFromFH()} function performs a copy of a lock implicit
+to a \emph{file handle} of an openend file. For this to succeed, the
+file must be opened in the mode {\tt MODE\_OLDFILE}\key{MODE\_OLDFILE}
+or {\tt MODE\_READWRITE}\key{MODE\_READWRITE}. Files openend with {\tt
+  MODE\_NEWFILE}\key{MODE\_NEWFILE} are based on an implicit \emph{exclusive
+lock} that cannot be copied.
+
+\begin{verbatim}
+lock = DupLockFromFH(fh)
+D0                   D1
+
+BPTR DupLockFromFH(BPTR)
+\end{verbatim}
+
+This function returns a copy of the lock the \emph{file handle} {\tt
+  fh} is based on and returns it in {\tt lock}. In case of failure,
+{\tt ZERO} is returned. In either case, {\tt IoErr()} is set to either
+$0$ in case of succes, or an error code on failure.
+
+\subsection{Obtaining the Directory a File is Located in}
+
+The {\tt ParentOfFH()}\mkey{ParentOfFH()} function obtains a
+\emph{shared lock} on the parent directory of the file associated to
+the \emph{file handle} passed in. That is, it is roughly equivalent to
+first obtaining a lock on the file through {\tt DupLockFromFile()}
+\key{DupLockFromFile()}, and then calling {\tt ParentDir()}\key{ParentDir()}
+on it, except that this function also applies to files opened in
+the {\tt MODE\_NEWFILE}\key{MODE\_NEWFILE} mode.
+
+\begin{verbatim}
+lock = ParentOfFH(fh)
+ D0               D1
+
+BPTR ParentOfFH(BPTR)
+\end{verbatim}
+
+This function returns in {\tt lock} a shared lock on the directory
+containing the file opened through the {\tt fh} \emph{file handle}. It
+returns {\tt ZERO} on failure. In either case, {\tt IoErr()}
+\key{IoErr()} is set, namely to $0$ in case of success or to an error
+code on failure.
+
+\subsection{Opening a File from a Lock}
+
+The {\tt OpenFromLock()} function uses a \emph{lock} and opens the
+locked file, returning a \emph{file handle}. If the lock is associated
+to a directory, the function fails. The \emph{lock} passed in is then
+absorbed into the \emph{file handle} and shall not be unlocked. It
+will be released by the file system upon closing the file.
+
+\begin{verbatim}
+fh = OpenFromLock(lock)
+D0                 D1
+
+BPTR OpenFromLock(BPTR)
+\end{verbatim}
+
+This function attempts to open the object locked by {\tt lock} as
+file, and creates the \emph{file handle} {\tt fh} from it. It fails in
+case the {\tt lock} argument belongs to a directory and not a file.
+
+In case of success, the \emph{lock} becomes an implicit part of the
+\emph{file handle} and shall not be unlocked by the caller anymore.
+In case of failure, the function returns {\tt ZERO} and the
+\emph{lock} remains available to the caller, and also needs to be
+unlocked at a later time. In either case, {\tt IoErr()} is set, to an
+error code in case of failure, or $0$ on success.
+
+This function allows to open files in exclusive mode without deleting
+its contents. For that, obtain an \emph{exclusive lock} on the file to
+be opened, and then call {\tt OpenFromLock()} as second step.
+
+\subsection{The struct FileLock} \label{sec:filelock}
+
+\emph{Locks} have been so far been opaque identifiers; in fact, they
+are \emph{BPTR}s to a {\tt struct FileLock} that is defined in {\tt
+  dos/dosextens.h}.
+
+\begin{verbatim}
+#include <dos/dosextens.h>
+lock = Lock("S:Startup-Sequence",SHARED_LOCK);
+struct FileLock *flock = BADDR(lock);
+\end{verbatim}
+
+While this structure is defined there, it is not allocated by the
+\emph{dos.library} but by the \emph{file system} itself. The file
+system may therefore allocate a structure that is somewhat larger and
+can have additional members that are not shown here. 
+
+\mkey{FileLock}
+\begin{verbatim}
+struct FileLock {
+    BPTR                fl_Link;        /* bcpl pointer to next lock */
+    LONG                fl_Key;         /* disk block number */
+    LONG                fl_Access;      /* exclusive or shared */
+    struct MsgPort *    fl_Task;        /* handler task's port */
+    BPTR                fl_Volume;      /* bptr to DLT_VOLUME DosList entry */
+};
+\end{verbatim}
+
+Most of the members of this structure are of no practical value, and
+they should not be interpreted in any way. What is listed here is the
+information callers can depend upon.
+
+The {\tt fl\_Link} member has no practical value for users; the
+\emph{file system} can use it to keep multiple links on object on the
+same volume in a list.
+
+The {\tt fl\_Key} member can be used by the file system to identify the
+object that has been locked. It may not necessarily be an integer, but
+can be any data type, potentially a pointer to some internal
+management object. It shall not be interpreted in any particular way.
+
+The {\tt fl\_Access} member keeps the type of the lock. It is either {\tt SHARED\_LOCK}\key{SHARED\_LOCK}
+or {\tt EXCLUSIVE\_LOCK}\key{EXCLUSIVE\_LOCK}.
+
+The {\tt fl\_Task} member points to the message port of the file
+system for processing requests on the lock. Any activity on the lock
+goes through this port.
+
+The {\tt fl\_Volume} is a \emph{BPTR} to the \emph{volume node} on the
+\emph{Device list}\key{Device list}. The \emph{volume node} identifies
+the volume the locked object is located
+on. Section~\ref{sec:devicelist} provides further information on this
+list and its entries.
+
+\chapter{Working with Directories}
+
+As objects on a file system can be identified by a name, these names
+need to be stored somewhere on the data carrier. This object is called
+a \emph{directory}. While a flat file system only contains a single,
+topmost directory which then contains all files, a directory of a
+hierarchical file system can contain other directories, thus creating
+a \emph{tree} of nested objects, see also
+section~\ref{sec:flathierarchical}.
+
+AmigaDOS provides functions to list the directory contents, to move
+objects in the file system hierarchy or change their name, and to
+access adjust their metadata, such as comments, protection bits, or
+creation dates.
+
+AmigaDOS also supports \emph{links}, that is, entries in the file
+system that point to some other object in the same, or some other file
+system. Therefore, links circumvent the hierarchy otherwise imposed by
+the tree structure of the file system.
+
+\section{Examining Objects on File Systems} \label{sec:fib}
+
+Given a lock on a file or a directory, further information on such an
+object can be requested by the {\tt Examine()}\key{Examine()} function
+of the \emph{dos.library}. To read multiple directory entries at once
+and minimizing the calling overhead, {\tt ExAll()}\key{ExAll()}
+provides an advantage that is, however, harder to use, but also
+provides options to filter entries.
+
+One general warning upfront: As AmigaDOS is a multitasking operating
+system, the directory may change under your feed while scanning; in
+particular, entries you received through the above functions may not
+be up to date, may have been deleted already when the above functions
+return, or new entries may have been added the current scan will not
+reach. While a \emph{Lock} on a directory prevents that this directory
+goes away, it does \emph{not} prevent other processes to add or remove
+objects to this directory, so beware.
+
+While {\tt ExAll()} seems to provide an advantage by reading multiple
+directory entries in one go, the AmigaOS ROM file system does usually
+not profit from this feature, at least not unless a directory cache is
+used. The latter has, however, other drawbacks and should be avoided
+for different reasons, see section~\ref{sec:ffs}.
+Actually, {\tt ExAll()} is (even more) complex to implement, and it is
+probably not surprising that multiple file systems have issues. The
+{\tt dos.library} provides an {\tt ExAll()} implementation for those
+file systems that do not implement it themselves, but even this
+(ROM-based) implementation had issues in the past. Therefore,
+{\tt ExAll()} has probably less to offer than it seems.
+
+{\tt Examine()} and {\tt ExNext()} fill a {\tt FileInfoBlock}\mkey{FileInfoBlock}
+structure that collects information on an examined object in a directory.
+It is defined in {\tt dos/dos.h} and reads as follows:
+\begin{verbatim}
+struct FileInfoBlock {
+   LONG   fib_DiskKey;
+   LONG   fib_DirEntryType;  /* Type of Directory. If < 0, then a plain file.
+                              * If > 0 a directory */
+   char   fib_FileName[108]; /* Null terminated. Max 30 chars used for now */
+   LONG   fib_Protection;    /* bit mask of protection, rwxd are 3-0.      */
+   LONG   fib_EntryType;
+   LONG   fib_Size;          /* Number of bytes in file */
+   LONG   fib_NumBlocks;     /* Number of blocks in file */
+   struct DateStamp fib_Date;/* Date file last changed */
+   char   fib_Comment[80];  /* Null terminated comment associated with file */
+
+   /* Note: the following fields are not supported by all filesystems.  */
+   /* They should be initialized to 0 sending an ACTION_EXAMINE packet. */
+   /* When Examine() is called, these are set to 0 for you.             */
+   /* AllocDosObject() also initializes them to 0.                      */
+   UWORD  fib_OwnerUID;         /* owner's UID */
+   UWORD  fib_OwnerGID;         /* owner's GID */
+   char   fib_Reserved[32];
+}; /* FileInfoBlock */
+
+\end{verbatim}
+The meaning of the members of this structure are as follows:
+
+{\tt fib\_DiskKey} is a file system internal identifier of the
+object. It shall not be used, and programs shall not make any
+assumptions on its meaning.
+
+{\tt fib\_DirEntryType} identifies the type of an object. Object types
+are defined in {\tt dos/dosextens.h}, replicated in
+table~\ref{table:direntrytypes}:
+
+\begin{rkrmtable}{Directory Entry Types} \label{table:direntrytypes}
+{\bf Value of {\tt \bf fib\_DirEntryType}} & {\bf Description}\\ \hline \hline
+{\tt ST\_SOFTLINK} & Object is a soft link to another object \\ \hline
+{\tt ST\_LINKDIR} & Object is a hard link to a directory \\ \hline
+{\tt ST\_LINKFILE} & Object is a hard link to a file \\ \hline
+\end{rkrmtable}
+All other types $>0$ indicate directories, and all other types $<0$
+indicate files. Section~\ref{sec:link} provides more details on soft
+links and hard links.
+
+{\tt fib\_FileName} is the name of the object as {\tt NUL} terminated
+string.
+
+{\tt fib\_Protection} are the protection bits of the object. It
+defines which operations can be performed on it. The following
+protection bits are currently defined in {\tt dos/dos.h}:
+\begin{rkrmtable}{Protection Bits} \label{table:protectionbits}
+{\bf Protection Bits} & {\bf Description}\\ \hline \hline
+{\tt FIBB\_DELETE} & If this bit is $0$, the object can be deleted.\\ \hline
+{\tt FIBB\_EXECUTE} & If this bit is $0$, the file is an executable binary.\\ \hline
+{\tt FIBB\_WRITE} & If this bit is $0$, the file can be written to.\\ \hline
+{\tt FIBB\_READ} & If this bit is $0$, the file content can be read. \\ \hline
+{\tt FIBB\_ARCHIVE} & This bit is set to $0$ on every write access. \\ \hline
+{\tt FIBB\_PURE} & If $1$, the executable is reentrant and can be made resident. \\ \hline
+{\tt FIBB\_SCRIPT} & If $1$, the file is a script. \\ \hline
+{\tt FIBB\_HOLD} & If $1$, the executable is made resident on first execution. \\ \hline
+\end{rkrmtable}
+The flags {\tt FIBB\_DELETE} to {\tt FIBB\_READ} are shown inverted in
+the output of most tools, i.e. they are shown active if the
+corresponding flag is $0$, i.e. a particular protection function is
+\emph{not} active.
+
+The {\tt FIBB\_EXECUTE} flag is only interpreted by the \emph{Shell}
+(see section~\ref{sec.shell}); if the bit is $1$, the \emph{Shell}
+refuses to load the file as command.
+
+The {\tt FIBB\_ARCHIVE} flag is typically used by archival
+software. Such software will set this flag upon archiving the flag,
+whereas the file system will reset the flag when writing to a file, or
+when creating new files. The archiving software is thus able to learn
+which files had been altered since the last backup.
+
+The {\tt FIBB\_PURE} flag inidicates an additional property of
+executable binaries; if the flag is set, the binaries do not alter
+their segments and their code can be loaded in \emph{RAM} and stay
+there to be executed from multple processes in parallel. This avoids
+loading the binary multiple times. The \emph{Shell} command
+{\tt resident} can load such binaries into \emph{RAM} for future usage.
+
+The {\tt FIBB\_SCRIPT} flag indicates whether a file is a \emph{Shell}
+or an \emph{ARexx} script. If this flag is set, and the script is
+given as command to the \emph{Shell}, it will forward this file to a
+suitable script interpreter, such as \emph{ARexx} or {\tt Execute}.
+
+The {\tt FIBB\_HOLD} flag indicates whether a command shall be made
+resident upon loading it the first time. If the flag is $1$, and the
+shell loads the file as executable binary, and the {\tt FIBB\_PURE}
+bit is also set, the file is kept in \emph{RAM} and stays there for
+future execution.
+
+The {\tt fib\_EntryType} member shall not be used; it can be identical
+to the {\tt fib\_DirEntryType}, but its use is not documented.
+
+The {\tt fib\_Size} member indicates the size of the file in bytes. It
+should have probably be defined as an unsigned type. Its value is
+undefined for directories.
+
+The {\tt fib\_NumBlocks} member indicates now many blocks a file
+occupies on the storage medium, if such a concept applies. Disks and
+harddisk organize their storage into blocks of equal size, and the
+file system manages these blocks to store data on the medium. The
+number of blocks can be meaningless for directories.
+
+The {\tt fib\_Date} member indicates when the file was changed last;
+depending on the file system, the date may also indicate when the last
+modification was made for a directory, such as creating or deleting a
+file within. Which operations exactly trigger a change of a directory
+is file system dependent. The {\tt DateStamp}\key{DateStamp} structure is specified
+in section~\ref{sec:datestamp}.
+
+The {\tt fib\_Comment} member contains a {\tt NUL} terminated string
+to a comment on the file. Not all file systems support comments. The
+comment has no particular meaning, it is only shown by some
+\emph{Shell} commands or utilities and can be set by the user.
+
+The {\tt fib\_OwnerUID} and {\tt fib\_OwnerGID} are filled in by some
+multi-user aware file systems. The AmigaDOS ROM file systems do not
+support these fields, and no provision is made to moderate access to a
+particular file according to an owner or its group. The two concepts
+are alien to AmigaDOS itself.
+
+The {\tt fib\_Reserved} field is currently unused and shall not be
+accessed.
+
+\subsection{Retrieving Information on an Directory Entry}
+
+The {\tt Examine()}\mkey{Examine()} function retrieves information on the object
+identified by a \emph{lock} and fills a {\tt FileInfoBlock} from it.
+
+\begin{verbatim}
+success = Examine( lock, FileInfoBlock )
+D0                  D1        D2
+
+BOOL Examine(BPTR,struct FileInfoBlock *)
+\end{verbatim}
+
+This function fills out the {\tt FileInfoBlock}\key{FileInfoBlock} providing information
+on the object identified by {\tt lock}. The structure is discussed in
+section~\ref{sec:fib} in more detail. The function returns non-zero in
+case of success, and $0$ for failure. In either case, {\tt IoErr()} is filled,
+by $0$ on success, on an error code on failure.
+
+\punchline{Keep it Aligned!}{As with most BCPL structures, the {\tt
+    FileInfoBlock} shall be aligned to a long-word boundary. For that
+  reason, it should be allocated from the heap. Section~\ref{sec:bptrs}
+  provides some additional hints on how to allocate such structures.}
+
+\subsection{Retrieving Information from a File Handle}
+
+While {\tt Examine()}\key{Examine()} retrieves information a locked
+object, {\tt ExamineFH()}\mkey{ExamineFH()} retrieves the same
+information from a \emph{file handle}, or rather from the \emph{lock}
+implicit to the handle.
+
+\begin{verbatim}
+success = ExamineFH(fh, fib)
+D0                  D1  D2
+
+BOOL ExamineFH(BPTR, struct FileInfoBlock *)
+\end{verbatim}
+
+This function examines the object accessed through the
+\emph{file handle} {\tt fh}, and returns the information in the
+\emph{FileInfoBlock}\key{FileInfoBlock}\key{FileInfoBlock}. Note that
+the file content and thus its change can be changed any time, and thus
+the information returned by this function may not be fully up-to-date,
+see also the general information in section~\ref{sec:fib}.
+
+This function returns non-zero in case of success, or $0$ on error. In
+either case, {\tt IoErr()}\key{IoErr()} is set, namely to $0$ on
+success and to an error code otherwise.
+
+As for {\tt Examine()}\key{Examine()}, the \emph{FileInfoBlock} shall
+be aligned to a 4-byte boundary.
+
+\subsection{Scanning through a Directory Step by Step}
+
+The {\tt ExNext()}\mkey{ExNext()} function iterates through entries of
+a directory, retrieving information on one object after another
+contained in this directory. For scanning through a directory, first
+{\tt Lock()}\key{Lock()} the directory itself. Then use {\tt
+  Examine()}\key{Examine()} on the \emph{lock}. This provides
+information on the directory itself.
+
+To learn about the objects in the directory, iteratively call {\tt
+  ExNext()} on the same {\tt lock} and on the same {\tt FileInfoBlock}
+until the function returns {\tt DOSFALSE}. Each iteration provides
+then information on the subsequent element in the directory of the
+{\tt lock}.
+
+\begin{verbatim}
+success = ExNext( lock, FileInfoBlock )
+D0                 D1        D2
+
+BOOL ExNext(BPTR, struct FileInfoBlock *)
+\end{verbatim}
+
+This call returns information on the subsequent entry of a directory
+identified by {\tt lock} and deposits this information in the {\tt
+  FileInfoBlock}\key{FileInfoBlock} described in~\ref{sec:fib}. The
+{\tt lock} shall be a \emph{lock} on a directory, in particular.
+
+On success, {\tt ExNext()} returns non-zero. If there is no further
+element in the scanned directory, or on an error, it returns {\tt
+  DOSFALSE}. In either event, {\tt IoErr()}\key{IoErr()} is set,
+namely to $0$ in case of success, or to an error code otherwise.
+
+At the end of the directory, the function returns {\tt DOSFALSE}, and
+the error code as obtained from {\tt IoErr()} is set to {\tt
+  ERROR\_NO\_MORE\_ENTRIES}.
+
+\punchline{Same Lock, Same FIB}{To iterate through a directory, a lock
+  to the same directory as passed into {\tt Examine()}\key{Examine()}
+  shall be used. Actually, the same \emph{lock} should be used, and
+  the same \emph{FileInfoBlock} should be used. As important state
+  information is associated to the \emph{lock} and
+  \emph{FileInfoBlock}, {\tt UnLock()}ing the original \emph{lock} and
+  obtaining a new \emph{lock} on the same directory looses this
+  information; using a different \emph{FileInfoBlock} also looses this
+  state information, requiring the \emph{file system} to rebuild this
+  state information, which is not only complex, but also slows down
+  scanning the directory. In particular, you shall \emph{not} use the
+  same \emph{FileInfoBlock} you used for scanning one directory for
+  scanning a second, different directory as this can confuse the
+  \emph{file system}. Also, as for {\tt Examine()}\key{Examine()}, the
+       {\tt FileInfoBlock} shall be aligned to a long-word boundary.}
+
+\subsection{Examine Multiple Entries at once}
+
+While scanning a directory with {\tt ExNext()}\key{ExNext()} requires
+one interaction with the \emph{file system} for each entry and is
+therefore potentially slow, {\tt ExAll()}\mkey{ExAll()} retrieves as
+many entries as possible in one go. Whether a particular file system
+can take advantage of such a block transfer is a matter of its orginal
+organization, however.
+
+\begin{verbatim}
+continue = ExAll(lock, buffer, size, type, control)
+D0               D1     D2     D3    D4     D5
+
+BOOL ExAll(BPTR,STRPTR,LONG,LONG,struct ExAllControl *)
+\end{verbatim}
+
+This function examines as many directory entries belonging to the
+directory identified by {\tt lock} as fit into the buffer {\tt buffer}
+of {\tt size} bytes. This buffer is filled by a linked list of {\tt
+  ExAllData} structures, see below for their layout. {\tt type}
+determines which elements of {\tt ExAllData} is filled.
+
+The {\tt lock} shall belong to a directory for this function to
+succeed. It shall not be {\tt ZERO}.
+
+To start a directory scan with {\tt ExAll()}, first allocate a {\tt
+  ExAllControl}\mkey{ExAllControl} structure through {\tt
+  AllocDosObject()}\key{AllocDosObject()}, see~\ref{sec:allocdosobject}.
+This structure looks as follows:
+
+\mkey{ExAllControl}
+\begin{verbatim}
+struct ExAllControl {
+        ULONG   eac_Entries;     /* number of entries returned in buffer      */
+        ULONG   eac_LastKey;     /* Don't touch inbetween linked ExAll calls! */
+        UBYTE  *eac_MatchString; /* wildcard string for pattern match or NULL */
+        struct Hook *eac_MatchFunc; /* optional private wildcard function     */
+};
+\end{verbatim}
+
+{\tt eac\_Entries} is provided by the \emph{file system} upon
+returning from {\tt ExAll} and then contains the number of entries
+that fit into the {\tt buffer}. Note that this number may well be $0$,
+which does not need to indicate termination of the scan. Callers shall
+instead check the return code of {\tt ExAll()} to learn on whether
+scanning may continue or not.
+
+{\tt eac\_LastKey} is a \emph{file system} internal identifier of the
+current state of the directory scanner. This member shall not be
+interpreted nor modified in any way.
+
+{\tt eac\_MatchString} filters the directory entry names, and returns
+only those that match the wild card pointed to by this member. This
+entry shall be either {\tt NULL}, or a pre-parsed pattern as generated
+by {\tt ParsePatternNoCase()}\key{ParsePatternNoCase()}.
+
+{\tt eac\_MatchFunc} is a even more flexible option to filter
+directory entries. It shall be either {\tt NULL} or point to a {\tt
+  struct Hook} as defined in {\tt utility/hooks.h}. If set, then for
+each directory entry the hook function {\tt h\_Entry} is called as
+follows:
+
+\begin{verbatim}
+match = (hook->h_Entry)(struct Hook *hook, LONG *datap,
+d0                                    a0          a2
+
+                        struct ExAllData *buf )
+                                          a1
+\end{verbatim}
+
+that is, register {\tt a0} points to the called hook, register {\tt
+  a1} to the data buffer to be filled, which is part of the {\tt
+  buffer} supplied by the caller of {\tt ExAll()} and which is already
+filled in.  Register {\tt a2} points to a {\tt LONG}, which is a copy
+of the {\tt type} argument supplied to {\tt ExAll()}. If the hook
+function returns non-zero, a match is assumed and the directory entry
+remains in the output buffer. Otherwise, the data is discarded.
+
+{\tt eac\_MatchFunc} and {\tt eac\_MatchString} shall not be filled in
+simultaneously, only one of the two shall be non-{\tt NULL}. If both
+members are {\tt NULL}, all entries match.
+
+The {\tt buffer} supplied to {\tt ExAll()} is filled by a singly
+linked list of {\tt ExAllData} structures that look as follows:
+\mkey{ExAllData}
+\begin{verbatim}
+struct ExAllData {
+        struct ExAllData *ed_Next;
+        UBYTE  *ed_Name;
+        LONG    ed_Type;
+        ULONG   ed_Size;
+        ULONG   ed_Prot;
+        ULONG   ed_Days;
+        ULONG   ed_Mins;
+        ULONG   ed_Ticks;
+        UBYTE  *ed_Comment;     /* strings will be after last used field */
+        UWORD   ed_OwnerUID;    /* new for V39 */
+        UWORD   ed_OwnerGID;
+};
+\end{verbatim}
+
+The members of this structure are as follows:
+
+{\tt ed\_Next} points to the next {\tt ExAllData} structure within
+{\tt buffer}, or {\tt NULL} for the last structure filled in.
+
+{\tt ed\_Name} points to the file name of a directory entry, and
+supplies the same name as {\tt fib\_FileName} as in the {\tt FileInfoBlock}.
+
+{\tt ed\_Type} identifies the type of the entry. It identifies
+directory entries according to table~\ref{table:direntrytypes} and
+corresponds to {\tt fib\_DirEntryType}.
+
+{\tt ed\_Size} is the size of the directory element for files. It is
+undefined for directories. It corresponds to {\tt fib\_Size}.
+
+{\tt ed\_Prot} collects the protection bits of the directory entry
+according to table~\ref{table:protectionbits} and by that corresponds
+to {\tt fib\_Protection}.
+
+{\tt ed\_Days}, {\tt ed\_Mins} and {\tt ed\_Ticks} identifies the date
+of the last change to the directory element. It corresponds to {\tt fib\_Date}.
+Section~\ref{sec:setfiledate} defines these elements more rigorously.
+
+{\tt ed\_Comment} points to a potential comment on the directory entry
+and corresponds to {\tt fib\_Comment}.
+
+{\tt ed\_ed\_OwnerUID} and {\tt ed\_OwnerGID} contain potential user
+and group IDs if the file system is able to provide such
+information. All the AmigaDOS native file systems do not.
+
+Which members of the {\tt ExAllData} structure are filled in is
+selected by the {\tt type} argument. It shall be selected according to
+table~\ref{table:exalltypes}, whose elements are defined in
+{\tt dos/exall.h}:
+
+\begin{rkrmtable}{Type Values} \label{table:exalltypes}
+{\bf Type} & {\bf Filled Members}\\ \hline \hline
+{\tt ED\_NAME} & Fill only {\tt ed\_Next} and {\tt ed\_Name}\\ \hline
+{\tt ED\_TYPE} & Fill all members up to {\tt ed\_Type} \\ \hline
+{\tt ED\_SIZE} & Fill all members up to {\tt ed\_Size} \\ \hline
+{\tt ED\_PROTECTION} & Fill all members up to {\tt ed\_Prot} \\ \hline
+{\tt ED\_DATE} & Fill all members up to {\tt ed\_Ticks}, i.e. up to the date \\ \hline
+{\tt ED\_COMMENT} & Fill all members up to {\tt ed\_Comment} \\ \hline
+{\tt ED\_OWNER} & Fill all members up to {\tt ed\_OwnerGID} \\ \hline
+\end{rkrmtable}
+
+The return code {\tt continue} is non-zero in case the directory
+contents was too large to fit into the supplied {\tt buffer}
+completely. In such a case, either {\tt ExAll()} shall be called again
+to read additional entries, or {\tt ExAllEnd()}\key{ExAllEnd()} shall
+be called to terminate the call and release all internal state information.
+
+If {\tt ExAll()} is called again, the {\tt lock} shall be identical to
+the {\tt lock} passed into the first call, and not only a copy on the
+same directory as for the first call.
+
+The return code {\tt continue} is {\tt DOSFALSE} in case the scan
+result fit entirely into {\tt buffer} or in case an error occured.
+
+Regardless of the return code, {\tt IoErr()} is set to $0$ in case
+{\tt continue} is non-zero, or to an error code otherwise. If the
+error code is {\tt ERROR\_NO\_MORE\_ENTRIES}, then {\tt ExAll()}
+terminated because all entries have been read and scanning the
+directory completed. In this case, {\tt ExAllEnd()} should not be
+called.
+
+Not all file systems --- actually, none delivered with AmigaOs ---
+support {\tt ED\_OWNER}. If {\tt continue} is {\tt DOSFALSE} and
+{\tt IoErr()} is {\tt ERROR\_BAD\_NUMBER}, try to reduce {\tt type} and
+call {\tt ExAll()} again.
+
+Some file systems do not implement {\tt ExAll()} themselves; in such a
+case, the \emph{dos.library} provides a fall-back implementation
+keeping {\tt ExAll()} workable regardless of the completeness of the
+target \emph{file system}.
+
+\subsection{Aborting a Directory Scan}
+
+To abort an {\tt ExAll()}\key{ExAll()} scan through a directory,
+{\tt ExAllEnd()}\mkey{ExAllEnd()} shall be called to explicitly release
+all state information associated to the scan. This is unlike an
+item-by-item scan through {\tt ExNext()}\key{ExNext()} which does not
+require explicit termination.
+
+\begin{verbatim}
+ExAllEnd(lock, buffer, size, type, control)
+          D1     D2     D3    D4     D5
+
+void ExAllEnd(BPTR,STRPTR,LONG,LONG,struct ExAllControl *)
+\end{verbatim}
+
+This function aborts an {\tt ExAll()} driven directory scan before it
+terminates due to an error or due to the end of the directory,
+i.e. whenever {\tt ExAll()} returns with a non-zero result code which
+would indicate that the function should be called again.
+
+{\tt ExAll()} may also be the fastest way to terminate a directory
+scan once it is running, for example on network file systems where the
+scan may proceed offline on a separate server. The arguments to
+{\tt ExAllEnd()} shall be exactly those supplied to
+{\tt ExAll()}\key{ExAll()} which it is supposed to terminate. Note in
+particular that the {\tt lock} shall be identical to the \emph{lock}
+passed into {\tt ExAll()}, and not just a \emph{lock} to the same
+object.
+
+\section{Modifying Directory Entries}
+
+While the functions in section~\ref{sec:fib} read directory entries,
+the functions listed here modify the directory and its entries.
+
+\subsection{Deleting Objects on the File System}
+
+The {\tt DeleteFile()}\mkey{DeleteFile()} function removes --- despite
+its name --- not only files, but also directories and links from a
+directory. For this to succeed, the object need to allow deletion
+through its protection bits (see section~\ref{sec:fib}), and no
+\emph{locks} are held on the object (see section~\ref{sec:locks}).  To
+be able to delete a directory, this directory needs to be empty in
+addition.
+
+\begin{verbatim}
+success = DeleteFile( name )
+ D0                    D1
+
+BOOL DeleteFile(STRPTR)
+\end{verbatim}
+
+This function deletes the object given by the last component of the
+path passed in as {\tt name}. It returns non-zero in case of success,
+or $0$ in case of error. In either case, {\tt IoErr()}\key{IoErr()} is
+set, namely $0$ on success or an error code in case of failure.
+
+\subsection{Rename or Relocate an Object}
+
+The {\tt Rename()}\mkey{Rename()} function changes the name of an
+object, or even relocates it from one directory to another.
+
+\begin{verbatim}
+success = Rename( oldName, newName )
+  D0                D1       D2
+
+BOOL Rename(STRPTR, STRPTR)
+\end{verbatim}
+
+This function renames and optionally relocates an object between
+directories. The {\tt oldName} is the current path to the object, and
+its last component is the current name of the object to relocate and
+rename; {\tt newName} is the target path and its last component the
+target name of the object. The target directory may be different from
+the directory the object is currently located in, and the target name
+may be different from the current name. However, current path and
+target path shall be on the same volume, and the target directory
+shall not already contain an object of the target name; otherwise,
+current and target path may be either relative or absolute paths.
+
+A third condition is that if the object to relocate is a directory,
+then the target path shall not be a position within the object to
+relocate, i.e. you cannot move a directory into itself.
+
+This function returns a boolean success indicator. It is non-zero on
+success, or $0$ on error. In either case, {\tt IoErr()}\key{IoErr()}
+is set, to $0$ on success, or to an error code otherwise.
+
+\subsection{Set the File Comment}
+
+The {\tt SetComment()}\mkey{SetComment()} function sets the comment of
+an directory entry, provided the \emph{file system} supports comments.
+
+\begin{verbatim}
+success = SetComment( name, comment )
+D0                    D1    D2
+
+BOOL SetComment(STRPTR, STRPTR)
+\end{verbatim}
+
+This function sets the comment of the \emph{file system} object whose
+path is given by {\tt name} to {\tt comment}. It depends on the file
+system whether or how long comments can grow. The maximum comment
+length AmigaDOS supports is 79 characters, due to the available space
+in the {\tt FileInfoBlock}\key{FileInfoBlock} structure.
+
+This function returns non-zero on success and $0$ on error. In either
+case, the function sets {\tt IoErr()}\key{IoErr()} to $0$ on success
+or to an error code otherwise.
+
+\subsection{Set the Modification Date} \label{sec:setfiledate}
+
+The {\tt SetFileDate()}\mkey{SetFileDate()} function sets the
+modification date of an object of a \emph{file system}. Despite its
+name, the function can also set the modification date of directories
+and links if the file system supports them.
+
+\begin{verbatim}
+success = SetFileDate(name, date)
+D0                     D1    D2
+
+BOOL SetFileDate(STRPTR, struct DateStamp *)
+\end{verbatim}
+
+This function adjusts the modification date of the \emph{file system}
+object identified by path as given by {\tt name} to {\tt date}. The
+{\tt DateStamp}\key{DateStamp} structure is specified in
+section~\ref{sec:datestamp}.
+
+This function returns $0$ on error or non-zero on success. In either
+case, {\tt IoErr()} is set, either to $0$ on success or to an error
+code otherwise.
+
+Note that not all file systems may be able to set the date precisely
+to ticks, e.g. {\tt FAT} has only a precision of 2 seconds. Some file
+systems may refuse to set the modification date if an object is
+exclusively locked, this is unfortunately not handled consistently.
+
+\subsection{Set User and Group ID}
+
+The {\tt SetOwner()}\mkey{SetOwner()} function sets the user and group
+ID of an object within a \emph{file system}. Both are concatenated to
+a 32-bit ID value. While this function seems to imply that the file
+system or AmigaDOS seems to offer some multi-user capability, this is
+not the case. User and group ID are purely metadata that is returned
+by the functions discussed in section~\ref{sec:fib}, they usually
+ignore them. AmigaDOS has no concept of the current user of a
+\emph{file system} and thus cannot decide whether a user is
+priviledged to access an object on a file system. In fact, all ROM
+based file systems delivered with AmigaDOS do not support setting the
+user or group ID.
+
+\begin{verbatim}
+success = SetOwner( name, owner_info )
+D0                   D1       D2
+
+BOOL SetOwner (STRPTR, LONG)
+\end{verbatim}
+
+This function sets the user and group ID of the \emph{file system}
+object identified by the path in {\tt name} to the value {\tt
+  owner\_info}. How exactly the {\tt owner\_info} is encoded is
+\emph{file system} specific. Typically, the owner is encoded in the
+topmost 16 bits, and the group in the least significant 16 bits.
+
+This function returns a boolean success indicator which is non-zero on
+success and $0$ on error. This function always sets {\tt IoErr()},
+either to $0$ on success or to an error code otherwise.
+
+\section{Working with Paths}
+
+The \emph{dos.library} contains a couple of support functions that
+help working with paths, see also section~\ref{sec:paths}. What is
+different from the remaining functions is that the paths are not
+interpreted by the file system, but rather by the \emph{dos.library}
+itself. This has several consequences: First, there is no 255
+character limit as the path is never communicated into the \emph{file
+  system} as it was stated in section~\ref{sec:pathlimit}. Second, as
+the paths are constructed or interpreted by the library and not the
+\emph{file system}, the syntax of the path is also that imposed by the
+library.
+
+That is, for these functions to work, the separator between component
+must be the forwards slash ('{\tt /}') and the parent directory must
+be indicated by an isolated single forward slash without a component
+upfront. This implies, in particular, that the involved file systems
+follow the conventions of AmigaDOS.
+
+\subsection{Find the Path From a Lock}
+
+The {\tt NameFromLock()}\mkey{NameFromLock()} function constructs a
+path to the locked object, i.e. if the constructed path is used to
+create a lock, it will refer to the same object.
+
+\begin{verbatim}
+success = NameFromLock(lock, buffer, len)
+D0                      D1     D2    D3
+
+BOOL NameFromLock(BPTR, STRPTR, LONG)
+\end{verbatim}
+
+This function constructs in {\tt buffer} an absolute path that
+identifies the object locked by {\tt lock}. At most {\tt len} bytes
+will be filled into {\tt buffer}, including {\tt NUL} termination of the
+string. The created string is always {\tt NUL}-terminated, even if the
+buffer is too short. However, in such a case the function returns~$0$,
+and {\tt IoErr()}\key{IoErr()} is set to {\tt ERROR\_LINE\_TOO\_LONG}.
+
+If the path cannot be constructed due to an error, {\tt success} is
+also set to $0$ and {\tt IoErr()} is set to an error code. However, on
+success, {\tt IoErr()} is not set consistently and cannot be depended
+upon. Possible cases of failure are that the volume the locked object
+is located on is currently not inserted in which case it will be
+requested. The {\tt ZERO} lock is correctly interpreted, and resolves
+into the string {\tt SYS:}. The {\tt lock} remains valid after the
+call.
+
+\subsection{Append a Component to a Path}
+
+The {\tt AddPart()}\mkey{AddPart()} adds an absolute or relative path
+to an existing path; the resulting path is constructed as if the input
+path is a directory, and the attached (second) path identifies an object
+relative to this given directory. The function handles special cases
+such as the colon ('{\tt :}') and one or multiple leading slashes
+('{\tt /}') correctly and are interpreted according to the rules
+explained in section~\ref{sec:paths}: The colon identifies the root of
+the volume, and a leading slash the parent directory, upon which the
+trailing component of the input path is removed.
+
+\begin{verbatim}
+success = AddPart( dirname, filename, size )
+D0                   D1        D2      D3
+
+BOOL AddPart( STRPTR, STRPTR, ULONG )
+\end{verbatim}
+
+This function attaches to the existing path in {\tt dirname} another
+path in {\tt filename}. The constructed path will overwrite the buffer
+in {\tt dirname}, which is able to hold {\tt size} bytes, including a
+terminating {\tt NUL} byte.
+
+If the required buffer for the constructed path, including
+termination, is larger than {\tt size} bytes, then the function
+returns $0$ and {\tt IoErr()} is set to {\tt ERROR\_LINE\_TOO\_LONG},
+and the input buffers are not altered. Otherwise, the function returns
+non-zero, and {\tt IoErr()} is not altered.
+
+This function does not interact with a \emph{file system} and does not
+check whether the paths passed in correspond to accessible
+objects. The output path is constructed purely based on the AmigaDOS
+syntax of paths.
+
+\subsection{Find the last Component of a Path}
+
+The {\tt FilePart()}\mkey{FilePart()} function finds the last
+component of a path; the function name is a bit misleading since the
+last component does not necessarily correspond to a file, but could
+also correspond to a directory once identified by a \emph{file
+  system}. If there is only a single component in the path passed in,
+this component is returned. If the path passed in terminates with at
+least two slashes ('{\tt /}') indicating that the last component is at
+least one level above, a pointer to the terminating slash is returned.
+
+\begin{verbatim}
+        fileptr = FilePart( path )
+        D0                   D1
+
+        STRPTR FilePart( STRPTR )
+\end{verbatim}
+
+This function returns in {\tt fileptr} a pointer to the last component
+of the path passed in as {\tt path}, or a pointer to '{\tt /}' in case
+the input path terminates with at least two slashes.
+
+This function cannot fail, and does not touch {\tt IoErr()}.
+
+\subsection{Find End of Next-to-Last Component in a Path}
+
+The {\tt PathPart()}\mkey{PathPart()} identifies the end of the
+next-to-last component in a path. That is, if a {\tt NUL} is injected
+at the pointer returned by this function, the resulting string
+starting at the passed in buffer corresponds to a path that
+corresponds to the directory containing the last component of the
+path. If the passed in path consists only of a single component, the
+returned pointer is identical to the pointer passed in.
+
+\begin{verbatim}
+fileptr = PathPart( path )
+D0                   D1
+
+STRPTR PathPart( STRPTR )
+\end{verbatim}
+
+This function returns in {\tt fileptr} a pointer to the end of the
+next-to-last component of the {\tt path} passed in. This function
+cannot fail and does not alter {\tt IoErr()}.
+
+The only difference between this function and {\tt
+  FileParth()}\key{FilePart()} is that the latter advanced over a
+potential trailing slash. That is, if the last character of the input
+path of {\tt PathPart()} would be a slash, then {\tt PathPart()} would
+return a pointer to this slash, but {\tt FilePart()} would advance
+beyond this slash. That is, the ``file part'' of a path that
+explicitly indicates a directory is empty, though the ``path part'' is
+the same path without the trailing slash.
+
+\section{Links} \label{sec:links}
+
+\emph{Links} are tools to escape the tree-like hierarchy of
+directories, sub-directories and files. A \emph{link} mirrors one
+object of a file system to another location such that if the object is
+changed using the path of one location, the changes are reflected in
+another location. Put differently, creating a link is like copying an
+object except that copy and original are always in sync. The storage
+for the payload data of a file is only required once, the link just
+points to the same data as the original directory entry. The same goes
+for links between directories: Whenever a new entry is made in one
+directory, the change also appears in the other.
+
+AmigaDOS supports two (or, actually, three) types of links:
+\emph{Hard-links} and \emph{Soft-links}. The \emph{RAM-Handler}
+supports a third type that will be discussed below. \emph{Hard-links}
+establish the relation between two \emph{file-system} objects on the
+same volume at the level of the file system. That is, whenever a link
+is accessed, the file system resolves the link, transparent to its
+user.  While for the Amiga \emph{Fast File System} and the
+\emph{RAM-Handler} a \emph{hard-link} is a distinct directory entry
+type, some file systems do not distinguish between the original object
+and a \emph{hard-link} to it. For such file systems, the same payload
+data is just referenced by two directory entries. If the larget of a
+link is deleted on the \emph{Fast File System} or the
+\emph{RAM-Handler}, and (at least one) link to the object still
+exists, then (one of) the link(s) takes over and becomes the object
+itself. For other file systems, only a file system internal reference
+counter is decreased, and the payload data is removed only if this
+counter becomes zero.
+
+\emph{Soft-Links} work differently and can also be established between
+two different \emph{file systems}, or between two different
+volumes. Here, the \emph{soft-link} is a type of its own that contains
+the path of the referenced object. If such a \emph{soft-link} is
+accessed, an error code is reported by the \emph{file-system} and it
+is then up to a higher layer such as the \emph{dos.library} or an
+application program to read the link destination, and use it to create
+a path from the original path and the link destination. The access is
+then (hopefully) retried under the updated path. As this object may
+also be a \emph{soft-link}, this process can continue; in worst case,
+indefinitely if one link refers to another in a circular way. To avoid
+this situation, the \emph{dos.library} follows at most 15 links.
+
+The \emph{dos.library} supports \emph{Soft-Links} through the
+functions listed in Table~\ref{table:softenabled}:
+
+\begin{rkrmtable}{Softlink aware functions} \label{table:softenabled}
+{\bf Function} & {\bf Purpose}\\ \hline \hline
+{\tt Open()} & Open a file\\ \hline
+{\tt Lock()} & Obtain access rights to an object\\ \hline
+{\tt CreateDir()} & Create a directory\\ \hline
+{\tt SetProtection()} & Modify protection bits\\ \hline
+{\tt SetFileDate()} & Set the modification date of a file\\ \hline
+{\tt DeleteFile()} & Delete an object on a file system\\ \hline
+{\tt SetComment()} & Modify object comment\\ \hline
+{\tt MakeLink()} & Create a link to an object\\ \hline
+{\tt SetOwner()} & Set User and Group ID\\ \hline
+\end{rkrmtable}
+
+All of the above functions take a path of its first argument. If the
+path consists of multiple components, i.e. identifies an object in a
+nested directory, and one of the intermediate components are, in
+fact, \emph{soft-links}, the \emph{dos.library} will automatically
+resolve such an intermediate link and construct internally the true
+path to the link destination. Whether a soft-link at the last
+component is resolved is typically \emph{file system} and function
+dependent. For example, {\tt Open()} will always resolve
+\emph{soft-links}, but {\tt Lock()} or {\tt SetProtection()} may not
+and may instead affect the link, not the target object. {\tt
+  DeleteFile()} will never resolve a link at the final component of
+the path, and will therefore delete the link, not the object linked
+to.
+
+If the target of a \emph{Soft-Link} is deleted (and not the link
+itself), a link pointing to it becomes invalid, even though remains in the
+\emph{file system}. Any attempt to resolve the link then, obviously,
+fails. AmigaDOS does not attempt to identify such invalid links. The
+same cannot happen for \emph{hard-links}.
+
+Finally, the \emph{RAM-Handler} supports a special type of
+\emph{hard-links} that goes across volumes. These \emph{external
+  links} copy the linked object on a read-access into the RAM disk,
+i.e. the \emph{RAM-Handler} implements a \emph{copy on access}. This
+feature is used for the {\tt ENV:} assign containing all active system
+settings. This assign points to a directory in the RAM disk which
+itself is externally linked to {\tt ENVARC:}. Thus, whenever a program
+attempts to access its settings --- such as the preferences programs
+--- the \emph{RAM-Handler} automatically copies the data from {\tt
+  ENVARC:} to {\tt ENV:}, avoiding a manual copy and also saving RAM
+space for settings that are currently not accessed and thus unused.
+
+The {\tt FileInfoBlock} introduced in section~\ref{sec:fib} identifies
+links through the {\tt fib\_DirEntryType} member. As seen from
+table~\ref{table:direntrytypes}, \emph{hard-links} to files are
+indicated by {\tt ST\_LINKFILE} and \emph{hard-links} to directories
+by {\tt ST\_LINKDIR}. Note, however, that not all file systems are
+able to distinguish \emph{hard-links} from regular directory entries,
+so this feature cannot be dependened upon. In particular,
+\emph{external links} of the \emph{RAM-Handler} cannot be identified
+by any particular value of the {\tt fib\_DirEntryType}.
+
+Table~\ref{table:direntrytypes} also provides the {\tt
+  fib\_DirEntryType} for \emph{soft-links}, namely {\tt
+  ST\_SOFTLINK}. As the target of a \emph{soft-link} may not under
+control of the \emph{file system}, it cannot know whether the link
+target is a file or a directory (or maybe another link), and therefore
+a single type is sufficient to identify them.
+
+\subsection{Creating Links}
+
+The {\tt MakeLink()}\mkey{MakeLink()} function creates a
+\emph{hard-link} or a \emph{soft-link} to an existing object on a
+\emph{file system}.
+
+\begin{verbatim}
+success = MakeLink( name, dest, soft )
+D0                   D1    D2    D3
+
+BOOL MakeLink( STRPTR, LONG, LONG )
+\end{verbatim}
+
+This function creates a new link at the path {\tt name} of the type
+given by {\tt soft}. The destination the link points to is given by
+{\tt dest}.
+
+If {\tt soft} is {\tt FALSE}, {\tt dest} is a \emph{lock} represented
+by {\tt BPTR}. For most \emph{file systems}, {\tt dest} shall be on
+the same volume as the one identified by the path in {\tt name}. The
+currently only exception is the \emph{RAM-Handler} for which the
+destination \emph{lock} may be on a different volume. In such a case,
+an \emph{external link} is created. While the target object will be
+created, it may look initially like an empty file or an empty
+directory, depending on the type of the link destination. Its contents
+is copied, potentially recursively creating directories, by copying
+the contents of the link destination into the link, or to a file or
+directory within the link. Thus, the link becomes a mirror of the link
+destination whenever an object within the link or the link itself is
+accessed.
+
+If {\tt soft} is non-zero, {\tt dest} is a {\tt const UBYTE *} that
+shall be casted to a {\tt LONG}. Then, this function creates a
+\emph{soft-link} that is relative to the path of the link, i.e.
+{\tt name}. For details on \emph{soft-link} resolution, see
+section~\ref{sec:readlink}.
+
+This function returns in {\tt success} non-zero if creation of the
+lock succeeded, or $0$ in case of failure. In either case,
+{\tt IoErr()} is set to an error code on failure, or $0$ on success.
+
+\subsection{Resolving Soft-Links}
+
+The {\tt ReadLink()}\mkey{ReadLink()} function locates the destination
+of a \emph{soft-link} and constructs from the path and directory of
+the link a new path that identifies the target of the link. A typical
+use case for this function is if a \emph{dos.library} function returns
+with the error {\tt ERROR\_IS\_SOFT\_LINK}, indicating that the
+\emph{file system} needs help from a higher layer to grant access to
+the object. You then typically retry the access to the object with the
+path constructed by this function. Note well that this path may be
+that of yet another \emph{soft-link}, requiring recursive resolution
+of the link. To avoid endless recursion, this loop should be aborted
+after a maximum number of attempts, then generating an error such as
+{\tt ERROR\_TOO\_MANY\_LEVELS}. A suggested maximum level of nested
+\emph{soft-links}, also used by the \emph{dos.library}, is 15 links.
+
+Note, however, that such steps would not be necessary for the
+functions listed in table~\ref{table:softenabled} as they already
+perform such steps internally.
+
+\begin{verbatim}
+success = ReadLink( port, lock, path, buffer, size)
+D0                   D1    D2    D3     D4     D5
+
+BOOL ReadLink( struct MsgPort *, BPTR, STRPTR, STRPTR, ULONG)
+\end{verbatim}
+
+This function creates in {\tt buffer} of {\tt size} bytes a path to
+the target of a \emph{soft-link} contained in the input {\tt path}
+relative to the directory represented by {\tt lock}. Typically, {\tt
+  path} is the path given to some object you attempted to access, and
+{\tt lock} is the \emph{lock} as given by the current
+directory\key{CurrentDir()} to which the path is relative. The output
+path constructed in {\tt buffer} is then an updated path relative to
+the same directory, i.e. relative to {\tt lock}.
+
+The {\tt port} is the message port of the file system that is queried
+to resolve the \emph{soft-link}; this port should be obtained from
+{\tt GetDeviceProc()}\key{GetDeviceProc()}, see
+section~\ref{sec:getdevproc}. For relative paths, this port is
+identical to the one in the {\tt fl\_Task} member of the {\tt FileLock}
+structure representing {\tt lock}, see section~\ref{sec:filelock}.
+
+If {\tt size} is too small to hold the adjusted path, the function
+returns $0$ and sets {\tt IoErr()} to {\tt ERROR\_LINE\_TOO\_LONG}.
+
+The function returns non-zero in case of success, or $0$ in case of
+error. In either case, {\tt IoErr()}\key{IoErr()} is set to ether $0$
+on succes, or an error code otherwise.
+
+\chapter{Administration of Volumes, Devices and Assigns} \label{sec:devicelist}
+
+The \emph{dos.library} is just a layer of AmigaDOS that provides a
+common API for input/output operations; these operations are not
+implemented by the library itself, but forwarded to
+\emph{file systems} or \emph{handlers}. This forwarding is based on the
+exec \emph{message} and \emph{message port} system, and to this
+end, the {\tt FileLock} structure and the {\tt FileHandle} structure
+contain a pointer to a {\tt MsgPort}.
+
+However, the \emph{dos.library} also needs to obtain this port from
+somewhere; for relative paths (see section~\ref{sec:paths}), the
+current directory\key{CurrentDir()} (see section~\ref{sec:currentdir})
+provides it. For absolute paths, i.e. paths that contain a colon
+('{\tt :}'), the string upfront the colon identifies handler, directly
+or indirectly. If this string is empty, i.e. the path starts with a
+colon, it is again the handler of the current directory that is
+contacted, but otherwise, the dos searches the \emph{device list} to
+find a suitable \emph{message port}. This algorithm is also available
+as a function, namely {\tt GetDeviceProc()}\key{GetDeviceProc()},
+which is documented in section~\ref{sec:getdeviceproc}.
+
+Internally, the \emph{dos.library} keeps the relation between such
+names and the corresponding ports in the {\tt DosList} structure. Such
+a structure is also created when \emph{mounting} a handler,
+i.e. advertizing the handler to the system, or when creating an
+\emph{Assign}, see section~\ref{sec:assignlist}, or when inserting a
+disk into a drive, thus making a particular \emph{volume} available to
+the system (see also~\ref{sec:volumelist}). Only the names from
+table~\ref{table:specialdevices} in~\ref{sec:deviceoverview} are
+special cases and hard-coded into the~\emph{dos.library} without
+requiring an entry in the \emph{device list} in the form of a
+{\tt DosList} structure.
+
+This structure, defined in {\tt dos/dosextens.h} reads as follows:
+
+\mkey{DosList}
+\begin{verbatim}
+struct DosList {
+    BPTR                dol_Next;        /* bptr to next device on list */
+    LONG                dol_Type;        /* see DLT below */
+    struct MsgPort     *dol_Task;        /* ptr to handler task */
+    BPTR                dol_Lock;
+    union {
+        struct {
+        BSTR    dol_Handler;    /* file name to load if seglist is null */
+        LONG    dol_StackSize;  /* stacksize to use when starting process */
+        LONG    dol_Priority;   /* task priority when starting process */
+        ULONG   dol_Startup;    /* startup msg: FileSysStartupMsg for disks */
+        BPTR    dol_SegList;    /* already loaded code for new task */
+        BPTR    dol_GlobVec;    /* BCPL global vector to use when starting
+                                 * a process. -1 indicates a C/Assembler
+                                 * program. */
+        } dol_handler;
+
+        struct {
+        struct DateStamp        dol_VolumeDate;  /* creation date */
+        BPTR                    dol_LockList;    /* outstanding locks */
+        LONG                    dol_DiskType;    /* 'DOS', etc */
+        } dol_volume;
+
+        struct {
+        UBYTE   *dol_AssignName;     /* name for non-or-late-binding assign */
+        struct AssignList *dol_List; /* for multi-directory assigns (regular) */
+        } dol_assign;
+
+    } dol_misc;
+
+    BSTR                dol_Name;        /* bptr to bcpl name */
+};
+\end{verbatim}
+
+and its members have the following purpose:
+
+{\tt dol\_Next} is a \emph{BPTR} to the corresponding next entry in a
+singly linked list of {\tt DosList} structures. However, this list
+should not be walked manually, but instead {\tt FindDosEntry()}\key{FindDosEntry()} should be used for
+iterating through this list.
+
+{\tt dol\_Type} identifies the type of the entry, and by that also the
+layout of the structure, i.e. which members of the unions are
+used. The following types are defined in {\tt dos/dosextens.h}:
+
+\begin{rkrmtable}{\emph{DosList} Entry Types} \label{table:doslisttypes}
+{\tt \bf dol\_Type} & {\bf Description}\\ \hline \hline
+{\tt DLT\_DEVICE} & A \emph{file system} or \emph{handler}, see~\ref{sec:deviceoverview}\\ \hline
+{\tt DLT\_DIRECTORY} & A regular assign, see~\ref{sec:assignlist}\\ \hline
+{\tt DLT\_VOLUME} & A volume, see~\ref{sec:volumelist}\\ \hline
+{\tt DLT\_LATE} & A late binding assign, see~\ref{sec:assignlist}\\ \hline
+{\tt DLT\_NONBINDING} & A non-binding assign, see~\ref{sec:assignlist}\\ \hline
+\end{rkrmtable}
+
+{\tt dol\_Task} is the \emph{MsgPort} of the handler to contact for
+the particular \emph{handler}, \emph{assign} or \emph{volume}. It may
+be {\tt NULL} if the \emph{handler} is not started, or a new handler
+process is supposed to be started for each file opened. This is, for
+example, the case for the console which requires a process for each
+window it handles. \emph{File systems} usually provide their port here
+such that the same process is used for all objects on the
+volume. \emph{Volumes} keep here the \emph{MsgPort} of the \emph{file
+  system} that operates the volume, but it to {\tt NULL} in case the
+volume goes away, e.g. is ejected. For \emph{regular assigns}, this is
+also the pointer to the \emph{MsgPort} of the \emph{file system} the
+assign binds to; in case the assign is a \emph{multi-assign}, this is
+the \emph{MsgPort} of the first directory bound to. All additional
+ports are part of the {\tt AssignList}. For \emph{late assigns} this
+member is initially {\tt NULL}, but will be filled in as soon as the
+assign in bound to a particular directory, and then becomes the
+pointer to the \emph{MsgPort} of the handler the assign is bound
+to. Finally, for \emph{non-binding assigns} this member always stays
+{\tt NULL}.
+
+{\tt dol\_Lock} is only used for \emph{assigns}, and only if it is
+bound to a particular directory. That is, the member remains
+{\tt ZERO} for \emph{non-binding assigns} and is initially {\tt ZERO} for
+\emph{late assigns}. For all other types, this member stays {\tt ZERO}.
+
+{\tt dol\_Name} is a \emph{BPTR} to a \emph{BSTR} is the name under
+which the \emph{handler}, \emph{volume} or \emph{assign} is
+accessed. That is, this string corresponds to the path component
+upfront the colon.
+
+The members within {\tt dol\_handler} are used by \emph{handlers} and
+\emph{file systems}, i.e. if {\tt dol\_Type} is {\tt DLT\_DEVICE}.
+
+{\tt dol\_Handler} is a \emph{BPTR} to a \emph{BSTR} containing the
+file name from which the \emph{handler} or \emph{file system} is
+loaded from. It corresponds to the {\tt Handler}, {\tt FileSystem} and
+{\tt EHandler} fields of the mount list. They all deposit the file
+name here.
+
+{\tt dol\_StackSize} specifies the size of the stack for creating the
+\emph{handler} or \emph{file system} process. Interestingly, the unit
+of the stack size depends on the {\tt dol\_GlobVec} entry. If {\tt
+  dol\_GlobVec} is negative indicating a C or assembler handler, {\tt
+  dol\_StackSize} is in bytes. Otherwise, that is, for BCPL handlers,
+it is in 32-bit long words. This member corresponds to the {\tt
+  Stacksize} entry of the mount list.
+
+{\tt dol\_Priority} is priority of the handler process. Even though it
+is a {\tt LONG}, it shall be a number between $-128$ and $127$ because
+priorities of the exec task scheduler are {\tt BYTE}s. For all
+practical purposes, the priority should be a value between $0$ and
+$19$. It corresponds to the {\tt Priority} entry of the mount list.
+
+{\tt dol\_Startup} is a handler-specific startup value that is used to
+commumicate a configuration to the handler during startup. While this
+value may be whatever the handler requires, the {\tt mount} command
+either deposits here a small integer, or a pointer to the {\tt
+  FileSysStartupMsg} structure defined in {\tt
+  dos/filehandler.h}. Section~\ref{sec:handler} provides more details
+on mounting handlers and how the startup mechanism
+works. Unfortunately, it is hard to interpret {\tt dol\_Startup}
+correctly, see~\ref{sec:startup}. One way to set this member is to set
+{\tt Startup} in the mount list, see~\ref{sec:startup} for details.
+
+{\tt dol\_SegList} is a \emph{BPTR} to the chained segment list of the
+handler if it is loaded. For disk-based handlers, this member is
+initially {\tt ZERO}. When a program attempts to access a file on the
+handler, the \emph{dos.library} first checks whether this field is
+{\tt ZERO}, and if so, attempts to find a segment, i.e. a binary, for
+the handler. If the {\tt FORCELOAD} entry of the mount list is
+non-zero, the {\tt mount} command already performs this activity. The
+process of loading a handler depends on the nature of the handler and
+explained in more detail in section~\ref{sec:startup}.
+
+{\tt dol\_GlobVec} identifies the nature of the handler as AmigaDOS
+supports (still) BPCL and C/assembler handlers and defines how access
+to the \emph{dos list} is secured for handler loading and startup.
+BCPL handlers use a somewhat more complex loading and linking
+mechanism as the language-specific \emph{global vector} needs to be
+populated. This is not required for C or assembler handlers where a
+simpler mechanism is sufficient, more on this in
+section~\ref{startup}. Another aspect of the startup process is how
+the \emph{device list} is protected from conflicting accesses from
+multiple processes. Two types of access protection are possible:
+Exclusive access to the list, or shared access to the list. Exclusive
+access protects the \emph{device list} from any changes while the
+handler is loaded and until handler startup completed. This prevents
+any other modification to the list, but also read access from any
+other process to the list. Shared access allows read accesses to the
+list while preventing exclusive access to it.
+
+The value in {\tt dol\_GlobVec} corresponds to the {\tt GlobVec} entry
+in the mount list. It shall be one of the values in
+table~\ref{table:gvvalues}.
+
+\begin{rkrmtable}{GlobVec Values} \label{table:gvvalues}
+{\tt \bf dol\_Type} & {\bf Description}\\ \hline \hline
+{\tt -1} & C/assembler handler, exclusive lock on the \emph{dos list} \\ \hline
+{\tt -2} & C/assembler handler, shared lock on the \emph{dos list} \\ \hline
+{\tt  0} & BCPL handler using system GV, exclusive lock on the \emph{dos list} \\ \hline
+{\tt -3} & BCPL handler using system GV, shared lock on the \emph{dos list} \\ \hline
+{\tt >0} & BPCL handler with custom GV, exclusive lock on the \emph{dos list} \\ \hline
+\end{rkrmtable}
+
+The values $0$, $-3$ and $>0$ all setup a BCPL handler, but differ in
+the access type to the \emph{device list} and how the BCPL
+\emph{global vector} is populated. This vector contains all global
+objects and all globally reachable functions of a BCPL program,
+including functions of the \emph{dos.library}. The values $0$ and $-3$
+fill this vector with the system functions first, and then use the
+BPCL binding mechanism to extend or override entries in this vector
+with the values found in the loaded code. Any values $>0$ defines a
+\emph{BPTR} to a custom vector which is used instead for initializing
+the handler. This startup mechanism has never been used in AmigaDOS
+and is not quite practical as this vector needs to be communicated into
+the \emph{dos.library} somehow. For new code, BCPL linkage and binding
+should not be used anymore.
+
+Members of the {\tt dol\_volume} structure are used if {\tt dol\_Type}
+is {\tt DLT\_VOLUME}, identifying this entry as belonging to a known
+specific data carrier.
+
+{\tt dol\_VolumeDate} is the creation date of the volume. It is a
+{\tt DateStamp}\ref{sec:datestamp} structure that is specified in
+section~\ref{sec:datestamp}. It is used to uniquely identify the volume,
+and to distinguish this volume from any other volume of the same name.
+
+{\tt dol\_LockList} is a pointer to a singly-linked list of
+\emph{locks} on the volume. This list is created by the
+\emph{file system} when the volume is ejected, and contains all locks on this
+volume. It is stored here to allow a similar file system to pick up
+the locks once the volume is re-inserted, even if it is re-inserted
+into another device. Note that the linkage is performed with
+\emph{BPTR}s and the {\tt fl\_Link} member of the {\tt FileLock}
+structure.
+
+{\tt dol\_DiskType} is an identifier of the \emph{file system type}
+that operated the volume and placed here such that an alternative
+process of the same file system is able to pick up or refuse the locks
+stored here for non-available volumes.
+
+Members of the {\tt dol\_assign} structure are used for all other
+types, i.e. all types of \emph{assigns}.
+
+{\tt dol\_AssignName} is pointer to the target name of the assign for
+\emph{non-binding} and \emph{late assigns}. The \emph{dos.library}
+uses this string to locate the target of the assign. For \emph{late
+  assigns}, this member is used only on the first attempt to access
+the assign at which {\tt dol\_Lock} is populated.
+
+{\tt dol\_List} contains additional locks for \emph{multi-assigns} and
+is only used if {\tt dol\_Type} is {\tt DLT\_DIRECTORY}. In such a
+case, {\tt dol\_Lock} is the lock to the first directory of the
+\emph{multi-assign}, while {\tt dol\_List} contains all following
+\emph{locks} in a singly-linked list of {\tt AssignList} structures:
+
+\mkey{AssignList}
+\begin{verbatim}
+struct AssignList {
+        struct AssignList *al_Next;
+        BPTR               al_Lock;
+};
+\end{verbatim}
+
+{\tt al\_Next} points to the next \emph{lock} that is part of the
+\emph{multi-assign} and {\tt al\_Lock} is the lock itself. This
+structure is also defined in {\tt dos/dosextens.h}.
+
+\section{Finding Handler or File System Ports}
+
+The following functions find the \emph{MsgPort} of the \emph{handler}
+or \emph{file system} that is responsible for a given object. The
+functions search the \emph{device list}, check whether the handler is
+already loaded or load it if necessary, then check whether the handler
+is already running, and if not, launch another instance of it. If
+\emph{multi-assigns} are involved, it can become necessary to contact
+multiple \emph{file systems} to resolve the task and thus to iterate
+through multiple potential \emph{file systems} to find the right one.
+
+\subsection{Iterate through Devices Matching a Path}
+
+The {\tt GetDeviceProc()}\mkey{GetDeviceProc()} find a handler, or the
+next handler responsible for a given path. Once the handler has been
+identified, or iteration through matching handlers is to be aborted,
+{\tt FreeDeviceProc()} shall be called to release temporary resources.
+
+\begin{verbatim}
+devproc = GetDeviceProc(name, devproc)
+  D0                     D1     D2
+
+struct DevProc *GetDeviceProc(STRPTR, struct DevProc *)
+\end{verbatim}
+
+This function takes a path in {\tt name} and either {\tt NULL} on the
+first iteration or a {\tt DevProc} structure from a previous iteration
+and returns either a {\tt DevProc} structure in case a matching
+handler could be identified, or {\tt NULL} if no matching handler
+could be found or all possible matches have been iterated over already
+already.
+
+The {\tt DevProc} structure, defined in {\tt dos/dosextens.h}
+looks as follows:
+
+\key{DevProc}
+\begin{verbatim}
+struct DevProc {
+        struct MsgPort *dvp_Port;
+        BPTR            dvp_Lock;
+        ULONG           dvp_Flags;
+        struct DosList *dvp_DevNode;    /* DON'T TOUCH OR USE! */
+};
+\end{verbatim}
+
+{\tt dvp\_Port} is a pointer to a candidate \emph{MsgPort} that should
+be tried to resolve {\tt name}.
+
+If the matching handler is a \emph{file system}, then {\tt dvp\_Lock}
+is a \emph{lock} of a directory. The path in {\tt name}is a path
+relative to this directory. This \emph{lock} shall not be released,
+but it may be copied with {\tt DupLock}\key{DupLock()}.
+
+{\tt dvp\_Flags} identifies the nature of the found port. If the bit
+{\tt DVPB\_ASSIGN} is set, i.e {\tt dvp\_Flags \& DVPF\_ASSIGN} is
+non-zero, then the found match is part of a \emph{multi-assign} and
+{\tt GetDeviceProc()} may be called again with the {\tt devproc}
+argument just returned as second argument. This will return another
+candidate for a path. {\tt DVPB\_UNLOCK} is another bit of the flags
+but shall not be interpreted and is only used internally by the function.
+
+The member {\tt dvp\_DevNode} shall not be touched or used and is
+required internally by the function.
+
+If the function returns {\tt NULL}, then {\tt IoErr()}\key{IoErr()}
+provides additional information on the failure. If the error code is
+{\tt ERROR\_NO\_MORE\_ENTRIES}, then the last directory of a
+\emph{multi-assign} has been reached. If the error code is {\tt
+  ERROR\_DEVICE\_NOT\_MOUNTED}, then no matching device could be
+found. Other errors may be returned, e.g. if the function could not
+allocate sufficient memory for its operation.
+
+Unfortunately, the function does not set {\tt IoErr()} consistently if
+{\tt GetDeviceProc()} is called again on an existing {\tt DevProc}
+structure as second argument with {\tt DVPB\_ASSIGN} cleared. {\tt
+  IoErr()} remains then unaltered and it is therefore advisable to
+clear it upfront.
+
+The function also returns {\tt NULL} if {\tt name} corresponds to the
+{\tt NIL:} pseudo-device and then sets {\tt IoErr()} to {\tt
+  ERROR\_DEVICE\_NOT\_MOUNTED}. This is not fully correct, and callers
+need to be aware of this defect.
+
+Also, {\tt GetDeviceProc} does not handle the path ``{\tt *}'' at all,
+even though it indicates the current console and the
+\emph{Console-Handler} is responsible for it.  This case also needs to
+be detected by the caller, and in such a case,
+{\tt GetConsoleTask()}\key{GetConsoleTask()} delivers the correct port.
+
+\subsection{Releasing DevProc Information}
+
+The {\tt FreeDeviceProc()}\mkey{FreeDeviceProc()} function releases a
+{\tt DevProc}\key{DevProc} structure previously returned by {\tt
+  GetDeviceProc()}\key{GetDeviceProc()} and releases all temporary
+resources allocated by this function. It shall be called as soon as
+the {\tt DevProc} structure is no longer needed.
+
+\begin{verbatim}
+FreeDeviceProc(devproc)
+                 D1
+
+void FreeDeviceProc(struct DevProc *)
+\end{verbatim}
+
+This function releases the {\tt DevProc} structure and all its
+resources from an iteration through one or multiple
+{\tt GetDeviceProc()} calls. If {\tt GetDeviceProc()} returned {\tt NULL}
+itself it had already released such resources itself and no further
+activity is necessary.
+
+The {\tt dvp\_Port} or {\tt dvp\_Lock} within the {\tt DevProc}
+structure shall not be used after releasing it with {\tt
+  FreeDeviceProc()}. If a \emph{lock} is needed afterwards, a copy of
+{\tt dvp\_Lock} shall be made with {\tt DupLock()}\key{DupLock()}. If
+the port of the \emph{handler} or \emph{file system} is needed
+afterwards, a resource of this handler shall be obtained, e.g. by
+opening a file or obtaining a lock on it. Both the {\tt
+  FileHandle}\key{FileHandle} and the {\tt FileLock}\key{FileLock}
+structures contain a pointer to the port of the corresponding handler.
+
+It is safe to call {\tt FreeDeviceProc()} with a {\tt NULL} argument;
+this performs no activity.
+
+This function does not set {\tt IoErr()} consistently and no
+particular value may be assumed. It may or may not alter its value.
+
+\subsection{Legacy Handler Port Access}
+
+The {\tt DeviceProc()}\mkey{DeviceProc()} function is a legacy variant
+of {\tt GetDeviceProc()}\key{GetDeviceProc()} that should not be used
+anymore. It is not able to reliably provide locks to \emph{assigns}
+and will not work through all directories of a \emph{multi-assign}.
+
+\begin{verbatim}
+process = DeviceProc( name )
+ D0                    D1
+
+struct MsgPort *DeviceProc (STRPTR)
+\end{verbatim}
+
+This function returns a pointer to a port of a \emph{handler} or
+\emph{file system}able to handle the path {\tt name}. It returns
+{\tt NULL} on error in which case it sets {\tt IoErr()}\key{IoErr()}.
+
+If the passed in {\tt name} is part of an \emph{assign}, the handler
+port of the directory the assign binds to is returned, and {\tt
+  IoErr()} is set to the \emph{lock} of the assign. Unfortunately, one
+cannot safely make use of this \emph{lock} as the \emph{device list}
+may be altered any time, including the time between the return from
+this function and its first use by the caller. Thus, {\tt
+  GetDeviceProc()} shall be used instead which locks resources such as
+the \emph{device list}; they are released through {\tt
+  FreeDeviceProc()}.
+
+This function does not operate properly on \emph{multi-assigns} where
+it only provides the port and \emph{lock} to the first directory
+participating in the assign. It also returns {\tt NULL} for
+\emph{non-binding assigns} as there is no way to release a temporary
+lock obtained on the target of the \emph{assign}. Same as
+{\tt GetDeviceProc()}, it does not properly handle {\tt NIL:} and
+``{\tt *}''.
+
+\subsection{Obtaining the Current Console Handler}
+
+The {\tt GetConsoleTask()}\mkey{GetConsoleTask()} function returns the
+\emph{MsgPort} of the handler responsible for the console of the
+calling process, that is, the process that takes care of the file name
+``{\tt *}'' or paths relative to {\tt CONSOLE:}.
+
+\begin{verbatim}
+port = GetConsoleTask()
+ D0
+
+struct MsgPort *GetConsoleTask(void)
+\end{verbatim}
+
+This function returns a port to the handler of the console of the
+calling process, or {\tt NULL} in case there is no console associated
+to the caller. The latter holds for example for programs started from
+the workbench. It does not alter {\tt IoErr()}.
+
+\subsection{Obtaining the Default File System}
+
+The {\tt GetFileSysTask()}\mkey{GetFileSysTask()} function returns the
+\emph{MsgPort} of the default \emph{file system} of the caller. The
+default \emph{file system} is used as fall-back if a
+\emph{file system} is required for a path relative to the {\tt ZERO} lock, and
+the path itself does not contain an indication of the responsible
+handler, i.e. is a relative path itself.
+
+The default \emph{file system} is typically the boot file system, or
+the file system of the {\tt SYS:} \emph{assign}, though it can be
+changed with {\tt SetFileSysTask()} at any point.
+
+\begin{verbatim}
+port = GetFileSysTask()
+ D0
+
+struct MsgPort *GetFileSysTask(void)
+\end{verbatim}
+
+This function returns the port of the default file system of this
+task. It does not alter {\tt IoErr()}. Note that {\tt SYS:} itself is
+an \emph{assign} and paths starting with {\tt SYS:} do therefore not
+require resolution through this function, though the default
+\emph{file system} and the file system handling {\tt SYS:} are
+typically identical. However, as the former is returned by {\tt
+  GetFileSysTask()} and the latter is part of the \emph{device list}
+\emph{assign}, they can be different.
+
+%%% For later.
+
+The {\tt DateStamp} structure reads as follows:
+
+\begin{verbatim}
+struct DateStamp {
+   LONG  ds_Days;             /* Number of days since Jan. 1, 1978 */
+   LONG  ds_Minute;           /* Number of minutes past midnight */
+   LONG  ds_Tick;             /* Number of ticks past minute */
+};
+\end{verbatim}
+
+{\tt ds\_Days} counts the number of days since January $1^{\mbox{{\tiny st}}}$ 1978.
+
+{\tt ds\_Minute} counts the number of minutes past midnight, i.e. the start of the day.
+
+{\tt ds\_Tick} counts the ticks since the start of the minute. A tick
+is $1/50^{\mbox{\tiny th}}$ of a second, regardless whether the
+machine is a PAL or NTSC system. This constant is also defined as
+{\tt TICKS\_PER\_SECOND} in {\tt dos/dos.h}.
+
+
+
+
+\begin{thebibliography}{99}
+\bibitem{Bantam} Commodore-Amiga Inc:
+{\sl AmigaDOS Manual, $3^{\mbox{\tiny rd}}$ Edition}
+Random House Information Group (1991)  
+\bibitem{mc030} Motorola MC68030UM/AD Rev. 2:
+{\sl MC68030 Enhanced 32-Bit Microprocessor User's Manual, 3rd ed.}
+Prentice Hall, Englewood Cliffs, N.J. 07632 (1990)
+\bibitem{mc040} Motorola MC68040UM/AD Rev. 1:
+{\sl MC68040 Microprocessor User's Manual, revised ed.}
+Motorola (1992,1993)
+\bibitem{mc060} Motorola MC68060UM/AD Rev. 1:
+{\sl MC68060 Microprocessor User's Manual.}
+Motorola (1994)
+\bibitem{mcfam} Motorola MC68000PM/AD Rev. 1:
+{\sl Programmer's Reference Manual.}
+Motorola (1992)
+\bibitem{yuchen} Yu-Cheng Liu:
+{\sl The M68000 Microprocessor Family.}
+Prentice-Hall Intl., Inc. (1991)
+\bibitem{rkrmlib} Dan Baker (Ed.):
+{\sl Amiga ROM Kernal Reference Manual: Libraries. 3rd. ed.}
+Addison-Wesley Publishing Company (1992)
+\bibitem{rkrmdev} Dan Baker (Ed.):
+{\sl Amiga ROM Kernal Reference Manual: Devices. 3rd. ed.}
+Addison-Wesley Publishing Company (1992)
+\bibitem{rkrmiia} Dan Baker (Ed.):
+{\sl Amiga ROM Kernal Reference Manual: Includes and Autodocs. 3rd. ed.}
+Addison-Wesley Publishing Company (1991)
+\bibitem{guru} Ralph Babel:
+{\sl The Amiga Guru Book.}
+Ralph Babel, Taunusstein (1993)
+\end{thebibliography}
+%\begin{theindex}
+\printindex
+%\end{theindex}
+\end{document}
+
+
