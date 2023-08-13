@@ -127,16 +127,16 @@ not an exhaustive enumeration of prohibited activities).
 However, the following methods of distribution involving payment shall not in
 and of themselves be a violation of this restriction:
 \begin{enumerate}
-\item Distributing the Publication on a physical data carrier (e.g. CD-ROM,
-  DVD, USB-Stick, Disk, Paper,...) provided that:
+\item Distributing the Program on a physical data carrier (e.g. CD-ROM,
+  DVD, USB-Stick, Disk...) provided that:
   \begin{enumerate}
   \item the Archive is reproduced entirely and verbatim on such data carrier,
     including especially this licence agreement;
   \item the data carrier is made available to the public for a nominal
     fee only, i.e. for a fee that covers the costs of the data carrier,
     and shipment of the data carrier;
-  \item a data carrier with the Publication or a print-out is made
-    available to the author for free except for shipment costs, and
+  \item a data carrier with the Program installed is made available to the
+    author for free except for shipment costs, and
   \item provided further that all information on said data carrier is
     redistributable for non-commercial purposes without charge.
   \end{enumerate}
@@ -3331,7 +3331,10 @@ bound to a particular directory. That is, the member remains
 {\tt dol\_Name} is a \emph{BPTR} to a \emph{BSTR} is the name under
 which the \emph{handler}, \emph{volume} or \emph{assign} is
 accessed. That is, this string corresponds to the path component
-upfront the colon.
+upfront the colon. As a courtesy to C and assembler functions,
+AmigaDOS ensures that this string is {\tt NUL} terminated, i.e.
+{\tt dol\_Name + 1} is a regular C string whose length is available in
+{\tt dol\_Name[0]}.
 
 The members within {\tt dol\_handler} are used by \emph{handlers} and
 \emph{file systems}, i.e. if {\tt dol\_Type} is {\tt DLT\_DEVICE}.
@@ -3680,6 +3683,195 @@ require resolution through this function, though the default
 typically identical. However, as the former is returned by {\tt
   GetFileSysTask()} and the latter is part of the \emph{device list}
 \emph{assign}, they can be different.
+
+\section{Iterating and Accessing the Device List}
+
+While {\tt GetDeviceProc()}\key{GetDeviceProc()} uses the \emph{device
+  list} to locate a particular \emph{MsgPort} and \emph{Lock}, all
+other members of the {\tt DosList} structure remain unavailable. For
+them, the \emph{device list} containing these structures need to be
+scanned manually. The \emph{dos.library} provides functions to grant
+access, search and release access to this list.
+
+\subsection{Gaining Access to the Device List}
+
+The {\tt LockDosList()}\mkey{LockDosList()} function requests shared
+or exclusive access to a subset of entries of the \emph{device list}
+containing all \emph{handlers}, \emph{volumes} and \emph{assigns} and
+blocks until access is granted. It requires as input multiple sets
+that specify which parts of the list to access:
+
+\begin{verbatim}
+dlist = LockDosList(flags)
+ D0                   D1
+
+struct DosList *LockDosList(ULONG)
+\end{verbatim}
+
+This function grants access to a subset of entries of the \emph{device
+  list} indicated by {\tt flags}, and returns an opaque handle through
+which elements of the list can be accessed. For this, see
+{\tt FindDosEntry()}\key{FindDosEntry()}.
+
+The {\tt flags} value shall be combination of the following values, all
+defined in {\tt dos/dosextens.h}:
+
+\begin{rkrmtable}{LockDosList Flags} \label{table:lockdoslistflags}
+{\tt Flags} & {\bf Description}\\ \hline \hline
+{\tt LDF\_DEVICES} & Access \emph{handlers} and \emph{file system} entries, see~\ref{sec:deviceoverview} \\ \hline
+{\tt LDF\_VOLUMES} & Access \emph{volumnes}, see~\ref{sec:volumelist} \\ \hline
+{\tt LDF\_ASSIGNS} & Access \emph{assigns}, see~\ref{sec:assignlist} \\ \hline \hline
+{\tt LDF\_ENTRY}  & Lock access to a {\tt DosList} entries \\ \hline
+{\tt LDF\_DELETE} & Lock \emph{device list} for deletion \\ \hline \hline
+{\tt LDF\_READ} & Shared access to the \emph{device list} \\ \hline
+{\tt LDF\_WRITE} & Exclusive access to the \emph{device list} \\ \hline
+\end{rkrmtable}
+
+At least {\tt LDF\_READ} or {\tt LDF\_WRITE} shall be included in the
+flags, they shall not be set both. The three first flags may also be
+combined to access multiple types.
+
+{\tt LDF\_ENTRY} and {\tt LDF\_DELETE} are additional flags that
+moderate access to entries of the \emph{device list}. If {\tt
+  LDF\_ENTRY} is set, then exclusive access to the selected entries is
+requested and entries shall not be altered or removed. The {\tt
+  LDF\_ENTRY} flag shall not be combined with {\tt LDF\_READ}. If
+{\tt LDF\_DELETE} is set, then access is granted for removing entries
+from the list.
+
+The result code {\tt dlist} is \emph{not} a pointer to a {\tt DosList}
+structure, but only a handle that may be passed into {\tt
+  FindDosEntry()}\key{FindDosEntry()} or {\tt
+  NextDosEntry()}\key{NextDosEntry}. If {\tt dlist} is {\tt NULL},
+then locking failed because the combination of {\tt flags} passed in
+was invalid.
+
+This function does not alter {\tt IoErr()}.
+
+\subsection{Requesting Access to the Device List}
+
+The {\tt AttemptLockDosList()}\mkey{AttemptLockDosList()} requests
+access to the \emph{device list} or a subset of its entries, and, in
+case it cannot gain access, returns {\tt NULL}. Unlike
+{\tt LockDosList()}\key{LockDosList()}, it does not block.
+
+\begin{verbatim}
+dlist = AttemptLockDosList(flags)
+D0                          D1
+
+struct DosList *AttemptLockDosList(ULONG)
+\end{verbatim}
+
+The {\tt flags} argument specifies which elements of the \emph{device
+  list} are requested for access, and which type of access is
+required. The flags are a combination of the flags listed in
+table~\ref{table:lockdoslistflags}, and the semantics of the flags are
+exactly as specified for {\tt LockDosList()}\key{LockDosList()}, see
+there for details.
+
+The result code is either a (non-{\tt NULL}) handle that may be passed
+into {\tt FindDosEntry()}\key{FindDosEntry()} or {\tt
+  NextDosEntry()}\key{NextDosEntry()} in case access could be granted,
+or {\tt NULL}. In the latter case, the list is either currently locked
+and access cannot be granted without blocking, or flags are
+invalid. These two cases of failure cannot be distinguished
+unfortunately.
+
+This function does not alter {\tt IoErr()}.
+
+\subsection{Release Access to the Device List}
+
+The {\tt UnLockDosList()}\mkey{UnLockDosList()} function releases
+access to the \emph{device list} once obtained through {\tt
+  LockDosList()}\key{LockDosList()}.
+
+\begin{verbatim}
+UnLockDosList(flags)
+                D1
+
+void UnLockDosList(ULONG)
+\end{verbatim}
+
+This function releases access to the \emph{device list} again. The
+{\tt flags} argument shall be identical to the {\tt flags}argument
+provided to {\tt LockDosList()}\key{LockDosList()}.
+
+\subsection{Iterate through the Device List}
+
+The {\tt NextDosEntry()}\mkey{NextDosEntry()} iterates to the next
+entry in the \emph{device list} given the current entry or the handle
+returned by {\tt LockDosList()}.
+
+\begin{verbatim}
+newdlist = NextDosEntry(dlist,flags)
+ D0                       D1    D2
+
+struct DosList *NextDosEntry(struct DosList *,ULONG)
+\end{verbatim}
+
+This function returns the next {\tt DosList}\key{DosList} structure of the
+\emph{device list} which shall have been locked with {\tt LockDosList()}. The
+{\tt dlist} argument shall be either the return code of a previous
+{\tt NextDosEntry()} or {\tt FindDosEntry()}\key{FindDosEntry()}
+call, or the handle returned by {\tt LockDosEntry()}.
+
+The {\tt flags} argument shall be a subset of the {\tt flags} argument
+into {\tt LockDosList()} and specifies the type of {\tt DosList}
+structures that shall be found. Only the first 3 elements of
+Table~\ref{table:lockdoslistflags} are relevant here, all other flags
+are ignored but may be included.
+
+The {\tt newdlist} result is either a pointer to a {\tt DosList}
+structure of the requested type, or {\tt NULL} if the end of list has
+been reached. This function does not alter {\tt IoErr()}.
+
+\subsection{Find a Device List Entry by Name}
+
+The {\tt FindDosEntry()}\mkey{FindDosEntry()} function finds a
+{\tt DosList}\key{DosList} structure of a particular type and particular
+name, from a particular entry on, or the handle returned by
+{\tt LockDosList()}\key{LockDosList()}.
+
+\begin{verbatim}
+newdlist = FindDosEntry(dlist,name,flags)
+D0                       D1    D2   D3
+
+struct DosList *FindDosEntry(struct DosList *,STRPTR,ULONG)
+\end{verbatim}
+
+This function scans through the \emph{device list} starting at the
+entry {\tt dlist}, or the handle returned by {\tt LockDosList()}, and
+returns the next {\tt DosList} structure that is of the type indicated
+by {\tt flags} and has the name {\tt name}.
+
+The {\tt flags} shall be a subset of the {\tt flags} argument passed
+into {\tt LockDosList()}. Only the first 3 elements of
+Table~\ref{table:lockdoslistflags} are relevant here, all other flags
+are ignored but may be included.
+
+The {\tt name} argument is the (case-insensitive) name of the {\tt
+  assign}, {\tt handler}, {\tt file system} or {\tt volume} the
+function should look for. The name \emph{shall not} include the colon
+('{\tt :}') that separates the name from the remaining components of a
+path, see section~\ref{sec:paths}. It may be {\tt NULL} in which case
+every entry of the requested type matches.
+
+The returned {\tt newdlist} is a pointer to a {\tt DosList} structure
+that matches the name (if provided) and flags passed in, or {\tt NULL}
+in case no match could be found and the entire list has been
+scanned. Note that the returned {\tt DosList} may be identical to the
+{\tt dlist} passed in if it already fits the requirements. Thus
+potentially, {\tt NextDosList()} may be called upfront to scan from
+the subsequent entry.
+
+Passing {\tt NULL} as {\tt dlist} is safe and returns {\tt NULL},
+i.e. the end of the list. Note that the (pseudo-) devices from
+tables~\ref{table:specialdevices} and \ref{table:specialassigns} are
+not part of the \emph{device list}, i.e. {\tt NIL}, {\tt CONSOLE},
+{\tt *} and {\tt PROGDIR} cannot be found and are special cases of
+{\tt GetDeviceProc()}\key{GetDeviceProc()}.
+
+This function does not alter {\tt IoErr()}.
 
 %%% For later.
 
