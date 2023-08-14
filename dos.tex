@@ -3873,6 +3873,275 @@ not part of the \emph{device list}, i.e. {\tt NIL}, {\tt CONSOLE},
 
 This function does not alter {\tt IoErr()}.
 
+\section{Adding or Removing Entries to the Device List}
+
+The \emph{dos.library} provides two service functions to add or remove
+{\tt DosList} structures from the \emph{device list}. They secure the
+\emph{dos.library} internal state from inconsistencies as other
+processes may attempt to access the \emph{device list} simultaneously,
+and they also ensure proper linkage of the structures.
+
+Nevertheless, there is one particular race condition \emph{handler}
+authors should be aware of. When opening a file, or obtaining a
+\emph{lock}, the \emph{dos.library} calls through {\tt
+  GetDeviceProc()} to identify a \emph{handler} responsible for the
+requested path. As {\tt GetDeviceProc()}\key{LockDosList()} requires
+access to the \emph{device list}, it will secure access to it through
+{\tt LockDosList()}\key{LockDosList()}, then possibly start up the
+\emph{handler}, and then unlock the list. Thus, at the time the
+handler is initiated, it may find the \emph{device list}
+unaccessible. Attempting to lock it would result in a \emph{deadlock}
+situation as the \emph{dos.library} waits for the \emph{handler} to
+reply its startup packet, and the \emph{handler} waits for the
+\emph{dos.library} to grant access to the \emph{device list}.  The
+following sections provide workarounds how to avoid this situation,
+see also section~\ref{sec:handler} for details on the \emph{handler}
+and \emph{file system} startup mechanism.
+
+\subsection{Adding an Entry to the Device List}
+
+The {\tt AddDosEntry()}\mkey{AddDosEntry()} adds an initialized {\tt
+  DosList} structure to the \emph{device list}.
+
+\begin{verbatim}
+success = AddDosEntry(dlist)
+D0                     D1
+
+LONG AddDosEntry(struct DosList *)
+\end{verbatim}
+
+This function takes an initialized {\tt DosList} entry pointed to by
+{\tt dlist} and attempts to add it to the \emph{device list}. For
+this, it requests write access to the list, i.e. locking of the
+\emph{device list} through the caller is not necessary.
+The {\tt DosList} may be either created manually, by
+{\tt MakeDosEntry()}\key{MakeDosEntry()} of the \emph{dos.library}
+or by {\tt MakeDosNode()}\key{MakeDosNode()} of the \emph{expansion.library}.
+While there the structure is called a {\tt DeviceNode}, it is still a
+particular incarnation of a {\tt DosList} and may be savely used here.
+
+\emph{Assigns} \emph{shall not} be added to the \emph{device list}
+through this function, but rather through
+{\tt AssignLock()}\key{AssignLock()}, {\tt AssignPath()}\key{AssignPath()}
+or {\tt AssignLate()}\key{AssignLate()}, depending on the nature of the
+required assign.  This avoids memory management problems when
+releasing or changing assigns.
+
+Particular care needs to be taken if this function is called from
+within a \emph{handler} or \emph{file system}, e.g. to add a
+\emph{volume} representing an inserted medium. As the list may be
+locked by the \emph{dos.library} to secure the list from modifications
+within a {\tt GetDeviceProc()}\key{GetDeviceProc()} function, a
+deadlock may result where \emph{file system} and \emph{dos.library}
+mutually block access. To prevent this from happening handlers should
+check upfront whether the \emph{device list} is available for
+modifications by {\tt AttemptLockDosList()}\key{AttemptLockDosList()}, e.g.
+
+\begin{verbatim}
+if (AttemptLockDosList(LDF_VOLUMES|LDF_WRITE)) {
+  rc = AddDosEntry(volumenode);
+  UnLockDosList(LDF_VOLUMES|LDF_WRITE);
+}
+\end{verbatim}
+when adding a {\tt DosList} entry of type {\tt DLT\_VOLUME}. If
+attempting to get write access failed, the handler should check for
+incoming requests, handle them, and attempt adding the entry later.
+
+The function fails if an entry is to be added and an entry of the same
+name, regardless its type, is already present on the list. The only
+exception is that the list may contain two \emph{volumes} of the same
+name, provided provided their creation date {\tt dol\_VolumeDate}
+differs, see section~\ref{sec:devicelist}.
+
+If successful, the function returns non-zero, but then does not alter
+{\tt IoErr()}. The {\tt DosList} is then enqueued in the
+\emph{dos.library} database and it and its members shall then no
+longer be altered or released by the caller. On failure, the function
+returns $0$ and {\tt IoErr()} is set to {\tt ERROR\_OBJECT\_EXISTS}.
+
+\subsection{Removing an Entry from the Device List}
+
+The {\tt RemDosEntry()}\mkey{RemDosEntry()} removes a {\tt DosList}
+entry from the \emph{device list}, making it unacessible for AmigaDOS.
+
+\begin{verbatim}
+success = RemDosEntry(dlist)
+D0                     D1
+
+BOOL RemDosEntry(struct DosList *)
+\end{verbatim}
+
+This function attempts to find the {\tt DosList} structure pointed to
+by {\tt dlist} in the \emph{device list} and, if present, removes
+it. Unlike what some other documentation says, this funciton locks the
+\emph{device list} properly before attempting to remove an entry,
+locking it upfront is not necessary.
+
+The function does \emph{not} attempt to release the memory allocated
+for the {\tt DosList} passed in, or any of its members, it just
+removes the {\tt DosList} from the \emph{device list}. While
+\emph{file systems} may know how they allocated the {\tt DosList}
+structures represening their \emph{volumes} and hence should be aware
+how to release the memory taken by them, there is no good solution on
+how to recycle memory for {\tt DosList} structures representing
+\emph{handlers}, \emph{file systems} or \emph{assigns}. Some manual
+footwork is currently required, see also {\tt
+  FreeDosNode()}\key{FreeDosNode()}. In particular, as entries
+representing \emph{handlers} and \emph{file systems} may have been
+created in multiple ways, their memory cannot be safely recycled.
+
+Particular care needs to be taken if this function is called from
+within a \emph{handler} or \emph{file system}, e.g. to remove a
+\emph{volume} representing a removed medium. As the list may be
+locked by the \emph{dos.library} to secure the list from modifications
+within a {\tt GetDeviceProc()}\key{GetDeviceProc()} function, a
+deadlock may result where \emph{file system} and \emph{dos.library}
+mutually block access. To prevent this from happening handlers should
+check upfront whether the \emph{device list} is available for
+modifications by {\tt AttemptLockDosList()}\key{AttemptLockDosList()}, e.g.
+
+\begin{verbatim}
+if (AttemptLockDosList(LDF_DELETE|LDF_ENTRY|LDF_WRITE)) {
+  rc = RemDosEntry(volumenode);
+  UnLockDosList(LDF_DELETE|LDF_ENTRY|LDF_WRITE);
+}
+\end{verbatim}
+when removing a {\tt DosList} entry. If attempting to get write access
+failed, the handler should check for incoming requests, handle them,
+and attempt adding the entry later.
+
+This function returns a success indicator; it returns non-zero if the
+function succeeds, and $0$ in case it fails. The only reason for
+failure is that {\tt dlist} is not a member of the
+\emph{device list}. This function does not touch {\tt IoErr()}.
+
+\section{Creating and Deleting Device List Entries}
+
+AmigaOs offers multiple functions to create {\tt DosList}
+structures. The {\tt MakeDosEntry()}\key{MakeDosEntry()} function is a
+low-level function that allocates a {\tt DosList} but only performs
+minimal intialization of the structure. For \emph{assigns}, the
+functions {\tt AssignLock()}\key{AssignLock()}, {\tt
+  AssignLate()}\key{AssignLate()} or {\tt
+  AssignPath()}\key{AssignPath()} provide better alternatives as they
+include complete initialization of the {\tt DosList}. To initialize
+{\tt DosList}s for \emph{handlers} and \emph{file systems}, the
+\emph{expansion.library} function {\tt
+  MakeDosNode()}\key{MakeDosNode()}.
+
+Releasing {\tt DosList}s along with all its resources is unfortunately
+much harder. For \emph{assigns}, the algorithm in
+section~\ref{sec:releaseentry} provides a workable function based on
+{\tt FreeDosEntry()}\key{FreeDosEntry()}.
+
+{\tt DosLists} representing \emph{Volumes} are build and released by
+\emph{file systems}; it depends on them which resources need to be
+released along with the {\tt DosList} structure itself. While it is
+recommended that \emph{file systems} should go through
+{\tt MakeDosEntry()}\key{MakeDosEntry()} and {\tt FreeDosEntry()}\key{FreeDosEntry()}, it
+is not a requirement.
+
+Releasing a {\tt DosList} representing a \emph{handler} or \emph{file
+  system} is currently not possible in a completely robust way. It is
+suggested just to unlink such nodes if absolutely necessary, but
+tolerate the memory leak.
+
+\subsection{Creating a Device List Entry}
+
+The {\tt MakeDosEntry()}\mkey{MakeDosEntry()} creates an empty
+{\tt DosList} structure of the given type, and makes all elementary
+initializations. It does not accquire any additional resources, and neither
+inserts it into the \emph{device list}.
+
+If an \emph{assign} is to be created, the {\tt AssignLock()}\key{AssignLock()},
+{\tt AssignLate()}\key{AssignLate()} or {\tt AssignPath()}\key{AssignPath()}
+functions are better alternatives and should be preferred as they perform
+a more sophisticated initialization.
+
+\begin{verbatim}
+newdlist = MakeDosEntry(name, type)
+D0                       D1    D2
+
+struct DosList *MakeDosEntry(STRPTR, LONG)
+\end{verbatim}
+
+This function allocates a {\tt DosList} structure and initializes its
+{\tt dol\_Type} to {\tt type}. The {\tt type} argument shall be one of
+the values from table~\ref{table:doslisttypes}. The function also
+makes a copy of {\tt name} and initializes the {\tt dol\_Name} to a
+\emph{BSTR} copy of {\tt name}, which is a {\tt NUL} terminated C string.
+
+Note that this function performs only minimal initialization of the
+{\tt DosList} structure. All other members except {\tt dol\_Type} and
+{\tt dol\_Name} are initialized to $0$.
+
+This function either returns the allocated structure, or {\tt NULL}
+for failure. In the latter case, {\tt IoErr()} is set to {\tt
+  ERROR\_NO\_FREE\_STORE}. On success, {\tt IoErr()} remains
+unaltered.
+
+\subsection{Releasing a Device List Entry} \label{sec:releaseentry}
+
+The {\tt FreeDosEntry()}\mkey{FreeDosEntry()} function releases
+a {\tt DosList} structure allocated by {\tt MakeDosEntry()}\key{MakeDosEntry()}.
+The {\tt DosList} shall be already removed from the \emph{device list} by
+\emph{RemDosEntry()}. While this call releases the memory holding the
+name of the entry, and also the {\tt DosList} structure itself, it
+does not release any other resources. They shall be released by the
+caller of this function. Furthermore, this function shall not be
+called if the {\tt DosList} structure was allocated by any other means
+than {\tt MakeDosEntry()}.
+
+\begin{verbatim}
+FreeDosEntry(dlist)
+               D1
+
+void FreeDosEntry(struct DosList *)
+\end{verbatim}
+
+This function releases the {\tt DosList} structure pointed to by
+{\tt dlist} and its name, but only these two resources, and no other
+resources.
+
+If {\tt dol\_Type} is {\tt DLT\_DEVICE}, corresponding to
+\emph{handlers} or \emph{file systems}, this function should better
+not be called at all as the means of how the {\tt DosList} was
+allocated is unclear. In such a case, a memory leak is the least
+dangerous side effect.
+
+If {\tt dol\_Type} is {\tt DLT\_DIRECTORY} or {\tt DLT\_LATE}, then
+{\tt dol\_Lock} should be unlocked. If {\tt dol\_List} is non-{\tt
+  NULL}, then each entry of the {\tt AssignList} structure shall be
+released, along with the lock kept within. For {\tt DLT\_LATE} and
+{\tt DLT\_NONBINDING}, the {\tt dol\_AssignName} function shall also
+be released. The following code segment releases all resources for
+\emph{assigns}:
+
+\begin{verbatim}
+    struct AssignList *al,*next;
+    UnLock(dol->dol_Lock);
+    al = dol->dol_misc.dol_assign.dol_List;
+    while(al) {
+        next = al->al_Next;
+        UnLock(al->al_Lock);
+        FreeVec(al);
+        al = next;
+    }
+    FreeVec(dol->dol_misc.dol_assign.dol_AssignName);
+    FreeDosEntry(dol);
+\end{verbatim}
+
+The above code reflects the way how resources were originally
+allocated by the \emph{dos.library}.
+
+If the type is {\tt DLT\_VOLUME}, it is up to the \emph{file system}
+to release any resources it allocated along with the {\tt DosList}. It is file
+system dependent which resources can or should be released. {\tt
+  DosList} entries of this type should only be touched by the
+\emph{file system} that created them.
+
+This function cannot fail, and it does not touch {\tt IoErr()}.
+
 %%% For later.
 
 The {\tt DateStamp} structure reads as follows:
