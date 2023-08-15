@@ -2067,7 +2067,7 @@ Unfortunately, this function may not work reliable for \emph{file
 \emph{RAM-Handler} does not interpret {\tt newmode} correctly for {\tt
   CHANGE\_FH}.
 
-\subsection{Comparing two Locks}
+\subsection{Comparing two Locks} \label{sec:samelock}
 
 The {\tt SameLock()}\mkey{SameLock()} function compares two locks and
 returns information whether they are identical, or at least correspond
@@ -3921,10 +3921,8 @@ While there the structure is called a {\tt DeviceNode}, it is still a
 particular incarnation of a {\tt DosList} and may be savely used here.
 
 \emph{Assigns} \emph{shall not} be added to the \emph{device list}
-through this function, but rather through
-{\tt AssignLock()}\key{AssignLock()}, {\tt AssignPath()}\key{AssignPath()}
-or {\tt AssignLate()}\key{AssignLate()}, depending on the nature of the
-required assign.  This avoids memory management problems when
+through this function, but rather through the functions in
+section~\ref{sec:assigns}. This avoids memory management problems when
 releasing or changing assigns.
 
 Particular care needs to be taken if this function is called from
@@ -4021,13 +4019,10 @@ AmigaOs offers multiple functions to create {\tt DosList}
 structures. The {\tt MakeDosEntry()}\key{MakeDosEntry()} function is a
 low-level function that allocates a {\tt DosList} but only performs
 minimal intialization of the structure. For \emph{assigns}, the
-functions {\tt AssignLock()}\key{AssignLock()}, {\tt
-  AssignLate()}\key{AssignLate()} or {\tt
-  AssignPath()}\key{AssignPath()} provide better alternatives as they
-include complete initialization of the {\tt DosList}. To initialize
-{\tt DosList}s for \emph{handlers} and \emph{file systems}, the
-\emph{expansion.library} function {\tt
-  MakeDosNode()}\key{MakeDosNode()}.
+functions in section~\ref{sec:assigns} shall be used as they include
+complete initialization of the {\tt DosList}, and for \emph{handlers}
+and \emph{file systems}, the \emph{expansion.library} function
+{\tt MakeDosNode()}\key{MakeDosNode()} is a proper alternative.
 
 Releasing {\tt DosList}s along with all its resources is unfortunately
 much harder. For \emph{assigns}, the algorithm in
@@ -4053,10 +4048,9 @@ The {\tt MakeDosEntry()}\mkey{MakeDosEntry()} creates an empty
 initializations. It does not accquire any additional resources, and neither
 inserts it into the \emph{device list}.
 
-If an \emph{assign} is to be created, the {\tt AssignLock()}\key{AssignLock()},
-{\tt AssignLate()}\key{AssignLate()} or {\tt AssignPath()}\key{AssignPath()}
-functions are better alternatives and should be preferred as they perform
-a more sophisticated initialization.
+If an \emph{assign} is to be created, the functions in
+section~\ref{sec:assigns} are better alternatives and should be
+preferred as they perform a more sophisticated initialization.
 
 \begin{verbatim}
 newdlist = MakeDosEntry(name, type)
@@ -4141,6 +4135,187 @@ system dependent which resources can or should be released. {\tt
 \emph{file system} that created them.
 
 This function cannot fail, and it does not touch {\tt IoErr()}.
+
+\section{Creating and Updating Assigns} \label{sec:assigns}
+
+While {\tt MakeDosEntry()}\key{MakeDosEntry()} creates a {\tt DosList}
+entry for the \emph{device list}, it only performs minimal
+initialization of the structure. For \emph{assigns}, specifically, the
+\emph{dos.library} provides specialized functions that allocate,
+initialize and enqueue {\tt DosList} structures representing assigns
+in a single call and are thus easier to use.
+
+\subsection{Create and Add a Regular Assign}
+
+The {\tt AssignAdd()}\mkey{AssignAdd()} function creates a new assign
+to a directory from a \emph{lock}, and then enqueues it into the
+\emph{device list}.
+
+\begin{verbatim}
+success = AssignLock(name,lock)
+D0                    D1   D2
+
+BOOL AssignLock(STRPTR,BPTR)
+\end{verbatim}
+This function creates a (regular) \emph{assign} onto the directory
+identified by {\tt lock}. The \emph{assign} created under the name as
+given by {\tt name}. The name shall not include a trailing colon
+(``{\tt :}'') that separates the \emph{assign} name from the rest of
+the path. The lock shall be a \emph{shared lock}.
+
+If the function is successful, it returns a non-zero result code. The
+{\tt lock} is then absorbed into the \emph{assign} and shall no longer
+be used by the calling program. On success, {\tt IoErr()} is not altered.
+
+On error, the function returns $0$ and the {\tt lock} remains
+available to the caller. {\tt IoErr()}\key{IoErr()} is set to an error code
+identifying the cause of the failure.
+{\tt ERROR\_NO\_FREE\_STORE}\key{ERROR\_NO\_FREE\_STORE} is
+returned if the function run out of memory. If a {\tt DosList} of the
+same name (regardless of which type) already exists, the error code is
+{\tt ERROR\_OBJECT\_EXISTS}\key{ERROR\_OBJECT\_EXISTS}.
+
+\subsection{Create a Non-Binding Assign}
+
+The {\tt AssignPath()}\mkey{AssignPath()} function creates a
+\emph{non-binding assign} and adds it to the \emph{device list}. This
+type of assign binds to a path independent of the volume the path is
+located on; that is, the \emph{assign} resolves to whatever
+\emph{volume}, \emph{handler} or even other \emph{assign} matches the
+path.
+
+\begin{verbatim}
+success = AssignLate(name,path)
+D0                    D1   D2
+
+BOOL AssignLate(STRPTR,STRPTR)
+\end{verbatim}
+This function creates a \emph{non-binding} assign whose name is given
+by the first argument, and which resolves to the path given as second
+argument, and then adds the \emph{assign} to the \emph{device
+  list}. The {\tt name} shall not contain a trailing colon (``{\tt
+  :}''). While not a formal requirement of the function or
+\emph{non-binding assigns}, the {\tt path} should better be an
+absolute path as otherwise resolution of the created \emph{assign} can
+be very confusing --- it is then resolved relative to the current
+directory of the calling process.
+
+If the function is successful, it returns a non-zero result code. On
+success, {\tt IoErr()} is not altered.
+
+On error, the function returns $0$ and {\tt IoErr()}\key{IoErr()} is set to an
+error code identifying the cause of the failure. {\tt
+  ERROR\_NO\_FREE\_STORE}\key{ERROR\_NO\_FREE\_STORE} is returned if the function run out of
+memory. If a {\tt DosList} of the same name (regardless of which type)
+already exists, the error code is {\tt ERROR\_OBJECT\_EXISTS}\key{ERROR\_OBJECT\_EXISTS}.
+
+\subsection{Create a Late Assign}
+
+The {\tt AssignLate()}\mkey{AssignLate()} function creates a
+\emph{late assign} whose target is initially given by a path; but
+after its first resolution, the \emph{assign} reverts to a
+\emph{regular assigns} such that the target of the \emph{assign} will
+point to the same directory of the volume from that point on. This has
+the advantage that the target of the assign does not need to be
+available at creation time of the assign, yet remains unchanged after
+its first usage.
+
+\begin{verbatim}
+success = AssignLate(name,path)
+D0                    D1   D2
+
+BOOL AssignLate(STRPTR,STRPTR)
+\end{verbatim}
+This function creates a \emph{late binding assign} of the name {\tt
+  name} pointing to {\tt path} as its destination and adds it to the
+\emph{device list}. The {\tt name} shall not contain a trailing colon
+(``{\tt :}''). While not explicitly required by this function, the
+{\tt path} should better be an absolute path as otherwise
+resolving the \emph{assign} can be very confusing. The {\tt path}
+is then relative to the current directory of the process using
+the \emph{assign} the first time.
+
+If the function is successful, it returns a non-zero result code. On
+success, {\tt IoErr()} is not altered.
+
+On error, the function returns $0$ and {\tt IoErr()}\key{IoErr()} is
+set to an error code identifying the cause of the failure. {\tt
+  ERROR\_NO\_FREE\_STORE}\key{ERROR\_NO\_FREE\_STORE} is returned if
+the function run out of memory.  If a {\tt DosList} of the same name
+(regardless of which type) already exists, the error code is {\tt
+  ERROR\_OBJECT\_EXISTS}\key{ERROR\_OBJECT\_EXISTS}.
+
+\subsection{Add a Directory to a Multi-Assign}
+
+The {\tt AssignAdd()}\mkey{AssignAdd()} function adds a directory,
+identified by a \emph{lock}, to an already existing \emph{regular} or
+\emph{multi-assign}. On success, a \emph{regular assign} is then
+converted into a \emph{multi-assign}.
+
+\begin{verbatim}
+success = AssignAdd(name,lock)
+D0                   D1   D2
+
+BOOL AssignAdd(STRPTR,BPTR)
+\end{verbatim}
+This function adds the {\tt lock} at the end of the target directory
+list of the \emph{assign} identified by {\tt name}. The {\tt name}
+does not contain a trailing colon (``{\tt :}'').
+
+A {\tt DosList} of the given {\tt name} shall already when entering
+this function, and this {\tt DosList} shall be a \emph{regular
+  assign}. Attempting to add a directory to a \emph{handler},
+\emph{file system}, \emph{volume} or any other type of \emph{assign}
+fails.
+
+On success, the function returns a non-zero result code. In such a
+case, the {\tt lock} is absorbed into the \emph{assign} and shall no
+longer be used by the caller. The \emph{assign} is converted into a
+\emph{multi-assign} on access if it is not already one. The {\tt lock}
+is added at the end of the directory list, i.e. the new directory is
+scanned last when resolving the \emph{assign}.
+
+On error, the function returns $0$ and the {\tt lock} remains
+available to the caller. Unfortunately, this function does not set
+{\tt IoErr()}\key{IoErr()} consistently, i.e. it is unclear on failure
+what caused the error, i.e. whether the function run out of memory,
+whether no fitting \emph{device list} entry was found, or whether the
+entry found was not a \emph{regular assign}.
+
+\subsection{Remove a Directory From a Multi-Assign}
+
+The {\tt RemAssignList()}\mkey{RemAssignList()} function removes a
+directory, represented by a {\tt lock}, from a {\tt multi-assign}. If
+only a single directory remains in the \emph{multi-assign}, it is
+converted into a \emph{regular assign}. If the \emph{assign} was a
+regular assign, and the only directory is removed from it, the
+\emph{assign} itself is removed from the \emph{device list} and
+released, destroying it and releasing all resources.
+
+\begin{verbatim}
+success = RemAssignList(name,lock)
+D0                       D1   D2
+
+BOOL RemAssignList(STRPTR,BPTR)
+\end{verbatim}
+This function removes the directory identified by {\tt lock} from a
+\emph{regular} or \emph{multi-assign} identified by {\tt name}. The
+name shall not contain a trailing colon (``{\tt :}''). If only a
+single directory remains in the \emph{assign}, it is converted to a
+\emph{regular assign}. If no directory remains at all, the
+\emph{assign} is deleted and removed from the \emph{device list}. The
+{\tt lock} remains available to the caller, regardless of the
+result code. Note that the {\tt lock} passed in does not need to be
+identical to the \emph{lock} contained in the \emph{assign}, but it
+needs to be a \emph{lock} on the same directory. This function uses
+{\tt SameLock()}\key{SameLock()} function to compare the two locks.
+
+On success, the function returns a non-zero result code in {\tt
+  success}.  On error, the function returns $0$. Unfortunately, it
+does not set {\tt IoErr()} consistently in all cases, and thus, the
+cause of an error cannot be determined upon return. Possible causes
+of error are that {\tt name} does not exist, or that it is not a
+\emph{assign} or a \emph{multi-assign}.
 
 %%% For later.
 
