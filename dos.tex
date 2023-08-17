@@ -4426,6 +4426,256 @@ system dependent which resources can or should be released. {\tt
 
 This function cannot fail, and it does not touch {\tt IoErr()}.
 
+%%% The section on assigns goes here and is missing.
+\chapter{Processes}
+
+\emph{Processes}\mkey{Process} are extensions of exec \emph{tasks}, and as
+such scheduled by exec. The most important extensions are that processes
+include a message port in the form of a \emph{MsgPort} structure for
+inter-process communication to \emph{handlers}, a current directory to
+resolve relative paths, and the last input/output error as returned by the
+{\tt IoErr()}\key{IoErr()} function.
+\smallskip{}
+
+\emph{Processes} are represented by the {\tt Process} structure documented
+in {\tt dos/dosextens.h}. It reads as follows:
+\begin{verbatim}
+struct Process {
+    struct  Task    pr_Task;
+    struct  MsgPort pr_MsgPort; /* This is BPTR address from DOS functions  */
+    WORD    pr_Pad;		/* Remaining variables on 4 byte boundaries */
+    BPTR    pr_SegList;		/* Array of seg lists used by this process  */
+    LONG    pr_StackSize;	/* Size of process stack in bytes	    */
+    APTR    pr_GlobVec;		/* Global vector for this process (BCPL)    */
+    LONG    pr_TaskNum;		/* CLI task number of zero if not a CLI	    */
+    BPTR    pr_StackBase;	/* Ptr to high memory end of process stack  */
+    LONG    pr_Result2;		/* Value of secondary result from last call */
+    BPTR    pr_CurrentDir;	/* Lock associated with current directory   */
+    BPTR    pr_CIS;		/* Current CLI Input Stream		    */
+    BPTR    pr_COS;		/* Current CLI Output Stream		    */
+    APTR    pr_ConsoleTask;	/* Console handler process for current window*/
+    APTR    pr_FileSystemTask;	/* File handler process for current drive   */
+    BPTR    pr_CLI;		/* pointer to CommandLineInterface	    */
+    APTR    pr_ReturnAddr;	/* pointer to previous stack frame	    */
+    APTR    pr_PktWait;		/* Function to be called when awaiting msg  */
+    APTR    pr_WindowPtr;	/* Window for error printing		    */
+
+    /* following definitions are new with 2.0 */
+    BPTR    pr_HomeDir;		/* Home directory of executing program	    */
+    LONG    pr_Flags;		/* flags telling dos about process	    */
+    void    (*pr_ExitCode)();	/* code to call on exit of program or NULL  */
+    LONG    pr_ExitData;	/* Passed as an argument to pr_ExitCode.    */
+    UBYTE   *pr_Arguments;	/* Arguments passed to the process at start */
+    struct MinList pr_LocalVars; /* Local environment variables		    */
+    ULONG   pr_ShellPrivate;	/* for the use of the current shell	    */
+    BPTR    pr_CES;		/* Error stream - if NULL, use pr_COS	    */
+};  /* Process */
+\end{verbatim}
+
+The members of this structure are as follows:
+\smallskip{}
+
+{\tt pr\_Task} is the exec task structure defined in {\tt exec/task.h}. It
+is required by the exec scheduler. The only difference between an exec
+{\tt Task} and a {\tt Process} is that {\tt pr\_Task.tc\_Node.ln\_Type} is set
+to {\tt NT\_PROCESS} instead to {\tt NT\_TASK}. 
+\smallskip{}
+
+{\tt pr\_MsgPort} is a message port structure as defined in {\tt
+  exec/ports.h}. This port is used by many functions of the
+\emph{dos.library} to communicate with \emph{handlers} and \emph{file
+systems}. Details of the communication protocol are given in
+section~\ref{sec:handlers}.
+\smallskip{}
+
+{\tt pr\_Pad} is unused and only included in the structure to ensure that
+all following members are aligned to 32-bit boundaries.
+\smallskip{}
+
+{\tt pr\_SegList} contains an array of \emph{segments} containing AmigaDOS
+functions (and not, in general, as one may assume) the \emph{segments} of
+the process itself. Segments are explained in more detail in
+section~\ref{sec:segments}. The segments contained in this vector are
+instead used to build the \emph{Global Vector} of processes using BCPL
+linkage. As BPCL is phased out, this vector is of no particular importance
+today anymore, and can be ignored for almost all purposes. The only
+exception is the \emph{Shell} which shall prepare this vector to ensure that
+commands written in BCPL function properly. More on this in
+section~\ref{sec:shell}.
+
+{\tt pr\_StackSize} is the size of the process stack in bytes. It is always
+a multiple of 4 bytes long.
+\smallskip{}
+
+{\tt pr\_GlobVec} is another BCPL legacy. It contains the \emph{Global
+Vector} of the process. For binaries using the BCPL linkages, this is a
+custom-build array of global data and function entry points of the binary
+and from {\tt pr\_SegList}. For C and assembler binaries, the \emph{Global
+Vector} is the system shared vector; it contains \emph{dos.library} global
+data required by some of its functions, such as base pointers to system
+libraries.
+\smallskip{}
+
+{\tt pr\_TaskNum} is an integer allocated by the system for processes that
+execute a shell, or are execute binary that has been launched by the
+shell. The number here corresponds to the integer printed by the {\tt
+  Status} command. Note that AmigaDOS does not use task numbers consistenty,
+i.e. processes that are started from the workbench or have been created by
+some other means are not identified by a task number. In such a case, this
+member remains~$0$.
+\smallskip{}
+
+{\tt pr\_StackBase} is a \emph{BPTR} to the lower end of the stack. While
+it is initialized, it is not used by the \emph{dos.library} at all.
+\smallskip{}
+
+{\tt pr\_Result2} is the secondary result code set by many functions of the
+\emph{dos.library}. The value stored here is delivered by {\tt IoErr()}\key{IoErr()}.
+\smallskip{}
+
+{\tt pr\_CurrentDir} is the \emph{lock} representing the current directory
+of the process. All relative paths are resolved from this \emph{lock},
+i.e. they are relative to {\tt pr\_Result2}. If this member is {\tt ZERO},
+the currrent directory is the root directory of the file system stored in
+{\tt pr\_FileSystemTask}. As the latter is (unless altered) the file system
+of the boot volume, this is usually identical to the directory identified by
+the {\tt SYS} assign.
+\smallskip{}
+
+{\tt pr\_CIS} is \emph{file handle} of the standard input stream of the
+process. It is also returned by {\tt Input()}\key{Input()}. It can be {\tt
+  ZERO} in case the process does not have a standard input stream. This is
+\emph{not} equivalent to a {\tt NIL:} input handle --- in fact, any attempt
+to read from a non-existing input stream will crash. Processes started from
+the workbench do not have an input stream, unless one is installed here with
+{\tt SelectInput()}\key{SelectInput()}.
+\smallskip{}
+
+{\tt pr\_COS} is the \emph{file handle} of the standard output stream of the
+process. It is also returned by the {\tt Output()}\key{Output()} function of
+the \emph{dos.library}. It can be {\tt ZERO} in case the process does not
+have a standard output stream, which is not equivalent to a {\tt NIL:} file
+handle. Any attempt to output to {\tt ZERO} will crash the system. Processes
+started from the workbench do not have an output stream, unless one is
+installed with {\tt SelectOutput()}\key{SelectOutput()}.
+\smallskip{}
+
+{\tt pr\_ConsoleTask} is the \emph{MsgPort} of the console within which this
+process is run, if such a console exists. This \emph{handler} is contacted
+when opening ``{\tt *}'' or a path relative to {\tt CONSOLE:}. Processes
+started from the workbench do not have a console, unless one is installed
+with {\tt SetConsoleTask()}\key{SetConsoleTask()}.
+\smallskip{}
+
+{\tt pr\_FilesSystemTask} is the \emph{MsgPort} of the file system that is
+contacted in case a relative path is to be resolved relative to the {\tt
+  ZERO} lock. This member is initialized to the \emph{MsgPort} of the file
+system the system was booted from, but can be changed by {\tt
+  SetFileSysTask()}\key{SetFileSysTask()}. This member is also returned by
+{\tt GetFileSysTask()}\key{SetFileSysTask()}
+\smallskip{}
+
+{\tt pr\_CLI} is a \emph{BPTR} to the {\tt CommandLineInterface}
+\key{CommandLineInterface} structure containing information on the Shell
+this process is running in. If this process is not part of a Shell, this
+member is {\tt ZERO}. This is for example the case for programs started from
+the workbench, or \emph{handler} or \emph{file system}.
+\smallskip{}
+
+{\tt pr\_ReturnAddr} is another \emph{BCPL} legacy and should not be used by
+new implementations. It is the value to which the stack pointer is restored
+by the {\tt Exit()}\key{Exit()} function. AmigaDOS stores here the default
+process shutdown code which releases system resources accquired by AmigaDOS
+when creating the process; it does not, however, release any other resources
+obtained by user code. In principle, custom startup code could deposit here
+a stack pointer to release all resources by the user, though this mechanism
+is rarely used.
+\smallskip{}
+
+{\tt pr\_PktWait} is a function that is called when waiting for
+inter-process communication, in particular when waiting for a returning
+packet set out to a handler. If this is {\tt NULL}, the system default
+function is used. For details, see the {\tt DoPkt()}\key{DoPkt()} function
+and section~\ref{sec:handlers}.
+\smallskip{}
+
+{\tt pr\_WindowPtr} is, unlike what the name suggests, a pointer to a {\tt
+  Screen} structure, see {\tt intuition/screens.h}, on which error
+requesters will appear. If this is {\tt NULL}, error requesters appear on
+the workbench screen, and if this is set to {\tt (APTR)(-1L)}, error
+requesters will be suppressed at all, and the implied reponse to them is to
+cancel an operation. This error requester is specified in more detail with
+the {\tt ErrorReport()}\key{ErrorReport()} function.
+\smallskip{}
+
+{\tt pr\_HomeDir} is the \emph{lock} to the directory containing the binary
+that is currently executed as this process, if such a directory exists. It
+is {\tt ZERO} if the binary is resident. This \emph{lock} is filled in by
+the Shell or the Workbench when loading and starting a process. It is used
+to resolve paths relative to the {\tt PROGDIR} pseudo-assign, see
+section~\ref{table:specialassigns}. If this lock is {\tt ZERO}, any attempt
+to resolve a path within {\tt PROGDIR:} will create a request to inserted a
+volume {\tt PROGDIR:}, which is probably not a very useful reaction of
+AmigaDOS.
+\smallskip{}
+
+{\tt pr\_Flags} are system-use only flags that shall not be used or
+interpreted. They are used by the system process shutdown code to identify
+which resources need to be released, but future systems may find additional
+uses for this member.
+\smallskip{}
+
+{\tt pr\_ExitCode()} is a pointer to a function that is called by AmigaDOS
+as part of the process shutdown code, and as such quite more useful that
+{\tt pr\_ReturnAddr}. Thie function prototype is as follows:
+
+\begin{verbatim}
+returncode = ExitFunc(rc,exitdata)
+D0                    D0 D1
+
+LONG ExitFunc(LONG,LONG)
+\end{verbatim}
+
+The value of {\tt rc} is the return code process, i.e. the value left in
+register {\tt D0} when the code drops off the final {\tt RTS}, and {\tt
+  exitdata} is taken from {\tt pr\_ExitData}. The {\tt returncode} is a
+modified version of the process return code that is, however, ignored.
+\smallskip{}
+
+{\tt pr\_ExitData} is used as argument for the {\tt pr\_ExitCode()}
+function, see above.
+\smallskip{}
+
+{\tt pr\_Arguments} is a pointer to the command line arguments of the
+process if it corresponds to a command started from the Shell. This is a
+{\tt NUL} terminated string. This argument string can also be found in
+register {\tt A0} for programs started from the Shell, or in the buffer of
+{\tt pr\_CIS}. The {\tt ReadArgs()}\key{ReadArgs()} function takes it from
+the latter source, and not from {\tt pr\_Arguments}.
+\smallskip{}
+
+{\tt pr\_LocalVars} is a {\tt MinList} structure, as defined in {\tt
+  exec/lists.h}, that contains local variables specific to the shell within
+which the process is executed, if any. The structure of such variables is
+defined in {\tt dos/var.h}. This structure is specified in
+section~\ref{sec:shell}.
+\smallskip{}
+
+{\tt pr\_ShellPrivate} is reserved for the Shell and its value shall not be
+used, modified or interpreted. It is currently unused, but can be used by
+future releases.
+\smallskip{}
+
+{\tt pr\_CES} is the \emph{file handle} to be used for error output. This
+stream gues usually to the console the process runs in, if such a console
+exists. This handle can be chaned by {\tt SelectError()}\key{SelectError()}.
+If {\tt pr\_CES} is {\tt NULL}, processes should fall back to {\tt pr\_COS}
+for printing errors. Preferably, processes should use the
+{ErrorOutput()}\key{ErrorOutput()} function to obtain an error stream,
+though.
+\smallskip{}
+
+
 %%% For later.
 
 The {\tt DateStamp} structure reads as follows:
