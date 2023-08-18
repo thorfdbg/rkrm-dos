@@ -4933,6 +4933,49 @@ been launched and, depending on its priority, may already be running. On
 failure, the function returns {\tt NULL}. Unfortunately, it does not set
 {\tt IoErr()} consistently on failure.
 
+\subsection{Create a Process (Legacy)}
+
+The {\tt CreateProc()}\mkey{CreateProc()} function creates a process from a
+segment list, a name, a priority and a stack size. It is a legacy call that
+is not as flexible as {\tt CreateNewProc()}\key{CreateNewProc()}, and only
+exists for backwards compatibility reasons.
+
+\begin{verbatim}
+process = CreateProc( name, pri, seglist, stackSize )
+D0                    D1    D2   D3       D4
+
+struct MsgPort *CreateProc(STRPTR, LONG, BPTR, LONG)
+\end{verbatim}
+
+This function creates a process of the name {\tt name} running at priority
+{\tt pri}. The process starts at the first byte of the first segment of the
+segment list passed in as {\tt seglist}, and a stack size of {\tt stackSize}
+bytes will be allocated for the process.
+\smallskip{}
+
+The process is initialized as follows: {\tt pr\_ConsoleTask} and
+{\tt pr\_WindowPtr} are copied from the calling process, or are set
+to {\tt NULL} respective~$0$ if called from the task. The member
+{\tt pr\_FileSysTask} is also copied from the calling process, or
+is initialized from the default file system from the
+\emph{dos.library} if called from a task.
+\smallskip{}
+
+Input, output and error file handles are set to {\tt ZERO}, and no shell
+environment is created either. The current directory and home directory are
+also left at {\tt ZERO}. No arguments are provided to the called function,
+and no shell variables are copied.
+\smallskip{}
+
+If the call succeeds, the returned value {\tt process} is a pointer to the
+\emph{MsgPort} of the created process. It is \emph{not} a pointer to a
+process itself.
+\smallskip{}
+
+On failure, the function returns {\tt NULL}. Unfortunately, it does not set
+{\tt IoErr()} consistently in case of failure, thus the cause of the problem
+cannot be easily identified.
+
 
 %%% For later.
 
