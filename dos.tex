@@ -1282,7 +1282,7 @@ adjustment, i.e. the position of the end-of-file location.
   the {\tt mode} set to {\tt OFFSET\_CURRENT}. However, whether this
   strategy succeeds is file system dependent.}
 
-\section{Buffered Input and Output}
+\section{Buffered Input and Output} \label{sec:bufferedio}
 
 AmigaDOS also offers buffered input and output functions that stores
 data in an intermediate buffer. AmigaDOS then transfers data only in
@@ -4427,7 +4427,7 @@ system dependent which resources can or should be released. {\tt
 This function cannot fail, and it does not touch {\tt IoErr()}.
 
 %%% The section on assigns goes here and is missing.
-\chapter{Processes}
+\chapter{Processes} \label{sec:process}
 
 \emph{Processes}\mkey{Process} are extensions of exec \emph{tasks}, and as
 such scheduled by exec. The most important extensions are that processes
@@ -4700,7 +4700,238 @@ If {\tt pr\_CES} is {\tt NULL}, processes should fall back to {\tt pr\_COS}
 for printing errors. Preferably, processes should use the
 {ErrorOutput()}\key{ErrorOutput()} function to obtain an error stream,
 though.
+
+\section{Creating Processes}
+
+AmigaDOS provides several functions to create functions: {\tt
+  CreateNewProc()}\key{CreateNewProc()} is the revised and most flexible
+function for launching a process, taking many parameters in the form of a
+tag list. The legacy function{\tt CreateProc()}\key{CreateProc()} supports
+less options, but available under all Os versions. Shells as created by the
+{\tt System()}\key{System()} function implicitly also create processes, but
+are not discussed here, but in section~\ref{sec:shell}. Therefore, {\tt
+  System()} shares a couple of options with {\tt CreateNewProc()}.
 \smallskip{}
+
+There is surprisingly not a single function to delete processes. Processes
+die whenever their execution drops off at the end of the {\tt main()}
+function, or whenever execution reaches the final {\tt RTS} instruction of
+the main program function. The {\tt Exit()}\key{Exit()} function also
+terminates a process, but shall be called from within the process, and is
+typically not suitable as it does not release resouces accquired by the
+program itself, but only those allocated by the system itself.
+
+\subsection{Creating a New Process from a TagList}
+
+The {\tt CreateNewProc()}\mkey{CreateNewProc()} function takes a {\tt
+  TagItem} array as defined in {\tt utility/tagitem.h} and launches a new
+process from this list. The tags this function takes are defined in {\tt
+  dos/dostags.h}.
+
+\begin{verbatim}
+process = CreateNewProc(tags)
+D0                       D1
+
+struct Process *CreateNewProc(struct TagItem *)
+
+process = CreateNewProcTagList(tags)
+D0                              D1
+
+struct Process *CreateNewProcTagList(struct TagItem *)
+
+process = CreateNewProcTags(Tag1, ...)
+
+struct Process *CreateNewProcTags(ULONG, ...)
+\end{verbatim}
+
+The above functions are all equivalent, just the calling conventions are
+different. For {\tt CreateNewProcTags()}, the {\tt TagList} is created by
+the compiler on the stack and a pointer is then implicitly passed into the
+function. The following tags are recognized by the function:
+\smallskip{}
+
+{\tt NP\_Seglist} takes a \emph{BPTR} to a segment list as returned by {\tt
+  LoadSeg()} and launches the process at the first byte of the first segment
+of the list.
+\smallskip{}
+
+{\tt NP\_FreeSeglist} is a boolean indicator that defines whether the
+segment provided to {\tt NP\_Seglist} is released when the process
+terminates. Unlike what the official documentation claims, the default value
+of this tag is {\tt DOSFALSE}, i.e. the segment is \emph{not} released.
+\smallskip{}
+
+{\tt NP\_Entry} is mutually exclusive to {\tt NP\_Seglist} and defines an
+absolute address (and not a segment) as entry point of the process to be
+created. If this tag is provided, then {\tt NP\_FreeSeglist} shall
+\emph{not} be set a non-zero value. Either {\tt NP\_Entry} or {\tt
+  NP\_Seglist} shall be included.
+\smallskip{}
+     
+{\tt NP\_Input} sets the input file handle, i.e. {\tt pr\_CIS} of the
+process to be created. This tag takes a \emph{BPTR} to a \emph{file
+handle}. The default is \emph{not} to set the input file handle, e.g. to
+leave it {\tt ZERO}.
+\smallskip{}
+
+{\tt NP\_CloseInput} selects whether the input file handle, if provided,
+will be closed when the process terminates. If non-zero, the input file handle
+will be closed, otherwise it remains opened. The default is to close the
+input file handle.
+\smallskip{}
+
+{\tt NP\_Output} sets the output file handle, i.e. {\tt pr\_COS} of the
+process to be created. This tag takes a \emph{BPTR} to a \emph{file
+handle}. The default is to leave the output at {\tt ZERO}.
+\smallskip{}
+
+{\tt NP\_CloseOutput} selects whether the output file handle, if
+provided, will be closed when the process terminates. If non-zero, the
+output file handle will be closed, otherwise it remains open. The default is
+to close the output file handle.
+\smallskip{}
+
+{\tt NP\_Error} sets the error file handle, i.e. {\tt pr\_CES} of the
+process to be created. This tag also takes a \emph{BPTR} to a \emph{file
+handle}. The default is to leave the error output handle at {\tt ZERO}.
+\smallskip{}
+
+{\tt NP\_CloseError} selects whether the rror file handle, if provided, will
+be closed when the process terminates. If non-zero, the error file handle
+will be closed, otherwise it remains open. The default is \emph{not} to
+close the error file handle. This (different) default is to ensure backwards
+compatibility.
+\smallskip{}
+
+{\tt NP\_CurrentDir} sets the current directory of the process to be
+created. The argument is a \emph{Lock}. The default is to duplicate the
+current directory of the caller with {\tt DupLock()}\key{DupLock()} if the
+caller is a process, or leave the current directory at {\tt ZERO}.
+The current directory of the process, i.e. {\tt pr\_CurrentDir}, is released
+when the process terminates, unless {\tt NP\_CurrentDir} is set to {\tt ZERO}. 
+\smallskip{}
+
+{\tt NP\_StackSize} sets the stack size of the process to be created in
+bytes. The default is a stack size of $4000$ bytes.
+\smallskip{}
+
+{\tt NP\_Name} is a pointer to a {\tt NUL} terminated string to which the
+task name of the process to be created is set. This string is copied before
+the process is launched, and the copy is released automatically when the
+process terminates. The default process name is ``{\tt New Process}''.
+\smallskip{}
+
+{\tt NP\_Priority} sets the priority of the process to be created. The tag
+value shall be an integer in the range~$-128$ to~$127$, though useful values
+are in the range of~$0$ to~$20$. The default is~$0$.
+\smallskip{}
+
+{\tt NP\_ConsoleTask} specifies a pointer to a \emph{MsgPort} to the handler
+that is responsible for the console of the process to be created. That is,
+if the created process opens ``{\tt *}'' or a path relative to {\tt
+  CONSOLE:}, it will use the specified handler. The default is to use the
+console handler if the caller is a process, or {\tt NULL} if the caller is 
+only a task.
+\smallskip{}
+
+While not explicitly available as a tag, the default file system of the created
+process, i.e. {\tt pr\_FileSystemTask}, is set to the default file system of
+the calling process if the caller is a process, or otherwise use the default
+file system from the \emph{dos.library}. This file system is contacted to
+resolve paths relative to the {\tt ZERO} lock.
+\smallskip{}
+
+{\tt NP\_WindowPtr} specifies a pointer to a {\tt Screen} on which error
+requesters will be displayed, $0$ to display requesters on the workbench, or
+$-1$ to suppress error requesters. It will be installed in the
+{\tt pr\_WindowPtr} of the process to be created. The default is to copy the
+pointer from the calling process, or {\tt NULL} in case the caller is only a
+task.
+\smallskip{}
+
+{\tt NP\_HomeDir} sets the {\tt pr\_HomeDir} \emph{lock} which is used to
+resolve paths relative to the {\tt PROGDIR:} pseudo-assign. The default is
+to copy {\tt pr\_HomeDir} of the calling process, or {\tt ZERO} in case the
+caller is a task. This \emph{lock} is released when the process terminates,
+i.e. the \emph{lock} provided as argument here remains available to the
+caller, and shall be released by the caller in one way or another.
+\smallskip{}
+
+{\tt NP\_CopyVars} determines if the local shell variables in
+{\tt pr\_LocalVars} of the calling process are copied into the variables of the
+process to be created. If set to non-zero, a copy of the variables of the
+calling process are made, otherwise the new process does not receive any
+shell variables by itself. The latter also happens if the caller is a task
+and not a process. The variables are automatically released when the new
+process terminates.
+\smallskip{}
+
+{\tt NP\_Cli} determines whether the new process will receive a new shell
+environment in the form of a {\tt CommandLineInterface} structure. If
+non-zero, a new CLI structure will be created and a \emph{BPTR} to this
+structure will be filled into the {\tt pr\_CLI} member of the process to be
+created. The new shell environment will be a copy of the shell environment
+of the caller if one is present, or a shell environment initialized with all
+defaults. This means that the prompt, the path, and the command name will be
+copied over. If~$0$, no such environment will be created. The latter is also the
+default.
+\smallskip{}
+
+{\tt NP\_Path} provides a chained list of \emph{locks} within which commands
+are searched. This is the same list the {\tt PATH} command adjusts, see
+section~\ref{sec:shell} for details on this structure. This tag only applies
+if {\tt NP\_Cli} is non-zero to create a shell environment. This chained
+list is \emph{not} copied, and will be released when the created process
+terminates; hence, the locks provided here are \emph{no longer} available to
+the caller if {\tt CreateNewProc()} succeeds. If {\tt CreateNewProc()}
+fails, the entire lock list remains a property of the caller and thus needs
+to be potentially released there. The default, if this tag is not provided, is
+to copy the paths of the caller if the calling process has a non-zero
+{\tt pr\_CLI} structure.
+\smallskip{}
+
+{\tt NP\_CommandName} provides the name of the command being executed within
+the shell environment if {\tt NP\_Cli} indicates that one is to be
+created. The default is to copy the command name of the shell environment of
+the calling process if one exists, or to leave the command name empty if
+none is provided. The command name is copied into the shell environment of
+the process being created and thus remains available to the caller. More on
+the shell environment is found in section~\ref{sec:shell}.
+\smallskip{}
+
+{\tt NP\_Arguments} provides command line arguments for the process to be
+created. This is a {\tt NUL} terminated string that is copied into the
+process to be created, and will also be released there. If provided, the
+arguments are copied in {\tt pr\_Arguments} of the process to be created,
+and will also be loaded into registers {\tt A0} and its length into
+{\tt D0}. If {\tt NP\_Arguments} are non-zero, a non-{\tt ZERO} {\tt
+  NP\_Input} file handle shall also provided. This is because the arguments
+are also copied into the buffer associated to the input \emph{file handle}
+to make them available to {\tt ReadArgs()}\key{ReadArgs()}, or any other
+function that performs buffered read from {\tt pr\_CIS}, see
+section~\ref{sec:bufferedio} for details.
+\smallskip{}
+
+{\tt NP\_ExitCode} determines a pointer to function that is called when the
+created process terminates. This pointer is filled into {\tt
+  pr\_ExitCode}. See section~\ref{sec:process} for the description and the
+signature of this function.
+\smallskip{}
+
+{\tt NP\_ExitData} provides an argument that will be passed into the {\tt
+  NP\_ExitCode} function in register {\tt D1} when the process terminates.
+\smallskip{}
+
+While the official documentation also mentiones the tags {\tt
+  NP\_NotifyOnDeath} and {\tt NP\_Synchronous}, these tags are currently
+ignored and do not perform any function.
+\medskip{}
+
+The {\tt CreateNewProc()} function returns on success a pointer to the
+{\tt Process} structure just created. At this stage, the process has already
+been launched and, depending on its priority, may already be running. On
+failure, the function returns {\tt NULL}. Unfortunately, it does not set
+{\tt IoErr()} consistently on failure.
 
 
 %%% For later.
