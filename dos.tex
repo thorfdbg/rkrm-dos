@@ -4843,10 +4843,16 @@ resolve paths relative to the {\tt ZERO} lock.
 
 {\tt NP\_WindowPtr} specifies a pointer to a {\tt Screen} on which error
 requesters will be displayed, $0$ to display requesters on the workbench, or
-$-1$ to suppress error requesters. It will be installed in the
-{\tt pr\_WindowPtr} of the process to be created. The default is to copy the
-pointer from the calling process, or {\tt NULL} in case the caller is only a
-task.
+$-1$ to suppress error requesters. It will be installed in the {\tt
+  pr\_WindowPtr} of the process to be created. The default is to copy the
+pointer from the calling process if the window pointer of the parent is $0$
+or $-1$. The tag does not copy any other value of {\tt pr\_WindowPtr} from
+the parent. To set the {\tt pr\_WindowPtr} of the created process to the
+value of the calling process, the tag must be explicitly provided. If called
+from a task and not a process, the default is {\tt NULL}. The reason why
+{\tt pr\_WindowPtr} is not explicitly copied is that the caller shall ensure
+that the screen is not closed while any pointers are still pointing to its
+structure.
 \smallskip{}
 
 {\tt NP\_HomeDir} sets the {\tt pr\_HomeDir} \emph{lock} which is used to
