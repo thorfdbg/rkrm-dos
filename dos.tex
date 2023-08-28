@@ -4593,19 +4593,30 @@ the workbench, or \emph{handler} or \emph{file system}.
 \smallskip{}
 
 {\tt pr\_ReturnAddr} is another \emph{BCPL} legacy and should not be used by
-new implementations. It is the value to which the stack pointer is restored
-by the {\tt Exit()}\key{Exit()} function. The cleanup function called by
-{\tt Exit()} is found at {\tt BADDR(pr\_ReturnAddr - 1)} because the BCPL
-stack shrinks towards lower addresses. AmigaDOS stores here the default
-process shutdown code which releases system resources accquired by AmigaDOS
-when creating the process, which is the same function that is called if the
-process ``falls off its final function with {\tt RTS}''. This cleanup
-process does not, however, release any other resources obtained by user
-code. In principle, custom startup code could deposit here a stack pointer
-to release all resources by the user, though this mechanism is rarely used.
-For C, the {\tt exit()} function provided by the C library of the compiler
-should be used instead.
+new implementations. It points to the BCPL stack frame of the process or the
+command overloading the process, and used there to restore the previous
+stack frame for the {\tt Exit()}\key{Exit()} function. This is typically the
+process cleanup code for processes initialized by {\tt
+  CreateProc()}\key{CreateProc()} or {\tt
+  CreateNewProc()}\key{CreateNewProc()}, or the shell command shutdown code
+placed there by {\tt RunCommand()}. This cleanup process does not, however,
+release any other resources obtained by user code. BCPL code or custom
+startup code could deposit here pointer to a BCPL stack frame for a custom
+shutdown mechanism.
 \smallskip{}
+
+The BCPL stack frame is described by the following (undocumented) structure:
+\mkey{BCPL stack frame}
+\begin{verbatim}
+struct BCPLStackFrame {
+       ULONG bpsf_StackSize;
+       APTR  bpsf_PreviousStack;
+};
+\end{verbatim}
+where {\tt bpsf\_StackSize} is the stack size of the current (active) stack,
+and {\tt bpsf\_PreviousStack} the stack of the caller; to restore the
+previous stack, this value is placed in the CPU register {\tt A7}.
+\medskip{}
 
 {\tt pr\_PktWait} is a function that is called when waiting for
 inter-process communication, in particular when waiting for a returning
@@ -4701,7 +4712,7 @@ for printing errors. Preferably, processes should use the
 {ErrorOutput()}\key{ErrorOutput()} function to obtain an error stream,
 though.
 
-\section{Creating Processes}
+\section{Creating and Terminating Processes}
 
 AmigaDOS provides several functions to create functions: {\tt
   CreateNewProc()}\key{CreateNewProc()} is the revised and most flexible
@@ -4981,6 +4992,168 @@ process itself.
 On failure, the function returns {\tt NULL}. Unfortunately, it does not set
 {\tt IoErr()} consistently in case of failure, thus the cause of the problem
 cannot be easily identified.
+
+\subsection{Terminating a Process}
+
+The {\tt Exit()}\mkey{Exit()} function terminates the calling process or the
+calling command line executable. In the latter case, control is returned to
+the calling shell, in the former case, the process is removed from the exec
+scheduler.
+\smallskip{}
+
+However, tis function does not release any resources except those implicitly
+allocated when creating the process through {\tt
+  CreateNewProc()}\key{CreateNewProc()}, {\tt
+  CreateProc()}\key{CreateProc()} or {\tt RunCommand()}\key{RunCommand()}
+and the calling shell. As it misses to release resources allocated by you or
+the compiler startup code, this function \emph{should not be used} and
+rather a compiler or language specific shutdown function should be
+preferred. The C standard library provides {\tt exit()} which releases
+resources allocated through this library.
+
+\begin{verbatim}
+Exit( returnCode )
+      D1
+
+void Exit(LONG)
+\end{verbatim}
+
+This call either terminates the calling process, in which case the argument
+is ignored, or returns to the calling shell, then delivering {\tt
+  returnCode} as result code. It uses the BCPL stack frame pointed to by
+{\tt pr\_ReturnAddr}, removes this stack frame, initializes the new stack
+from the stack frame there and then returns to whatever created the
+stack frame. This is typically either the process shutdown code of AmigaDOS, or
+the shell command shutdown code installed by {\tt RunCommand()}. In the
+former code, {\tt pr\_ExitCode()} may be used to implement additional
+cleanup activities.
+\smallskip{}
+
+This function is a BCPL legacy function that is also part of the
+\emph{Global Vector}; BCPL programs would typically overload its entry in
+this vector to implement a custom shutdown mechanism.
+
+\section{Process Properties Accessor Functions}
+
+The most important members of the process structure described in
+section~\ref{sec:process} are accessible through getter and setter
+functions. They implicitly relate to the calling process, and are the
+preferred way of getting access to the {\tt Process} structure.
+
+\subsection{Retrieve the Process Input File Handle}
+
+The {\tt Input()}\mkey{Input()} function returns the input file handle of
+the calling proces if one is installed. If no input file handle is provided,
+the function returns {\tt ZERO}.
+
+\begin{verbatim}
+file = Input()
+D0
+
+BPTR Input(void)
+\end{verbatim}
+
+This function returns a \emph{BPTR} to the input \emph{file handle} of the
+calling process, or {\tt ZERO} if none is defined. This is approximately
+identical to {\tt stdin} of ANSI-C. Depending on process creation, this file
+handle can be closed by the process shutdown code or the calling shell and
+thus should in general not be closed explicitly. It can be changed through
+{\tt SelectInput()}\key{SelectInput()}.
+
+\subsection{Replace the Input File Handle}
+
+The {\tt SelectInput()}\mkey{SelectInput()} function replaces the input
+\emph{file handle} of the calling process with its argument and returns the
+previously used input handle.
+
+\begin{verbatim}
+old_fh = SelectInput(fh)
+D0                   D1
+
+BPTR SelectInput(BPTR)
+\end{verbatim}
+
+This call replaces the input \emph{file handle} of the calling process with
+the file handle given by {\tt fh} and returns the previously used input
+\emph{file handle}.
+
+\subsection{Retrieve the Ouput File Handle}
+
+The {\tt Output()}\mkey{Output()} function returns the output file handle of
+the calling proces if one is installed. If no output file handle is provided,
+the function returns {\tt ZERO}.
+
+\begin{verbatim}
+file = Output()
+D0
+
+BPTR Output(void)
+\end{verbatim}
+
+This function returns a \emph{BPTR} to the output \emph{file handle} of the
+calling process, or {\tt ZERO} if none is defined. This is approximately
+identical to {\tt stdout} of ANSI-C. Depending on process creation, this file
+handle can be closed by the process shutdown code or the calling shell and
+thus should in general not be closed explicitly. It can be changed through
+{\tt SelectOutput()}\key{SelectOutput()}.
+
+\subsection{Replace the Output File Handle}
+
+The {\tt SelectOutput()}\mkey{SelectOutput()} function replaces the output
+\emph{file handle} of the calling process with its argument and returns the
+previously used output handle.
+
+\begin{verbatim}
+old_fh = SelectOutput(fh)
+D0                    D1
+
+BPTR SelectOutput(BPTR)
+\end{verbatim}
+
+This call replaces the output \emph{file handle} of the calling process with
+the file handle given by {\tt fh} and returns the previously used output
+\emph{file handle}.
+
+\subsection{Retrieve the Error File Handle}
+
+The {\tt ErrorOutput()}\mkey{ErrorOutput()} function returns the file handle
+through which diagnostic or error outputs should be printed. It uses either
+{\tt pr\_CES} if this handle is non-{\tt ZERO}, or {\tt pr\_COS} if the
+former is {\tt ZERO}. If neither an error ouptut nor a regular output is
+provided, this function returns {\tt ZERO}.
+
+\begin{verbatim}
+file = ErrorOutput()
+D0
+
+BPTR ErrorOutput(void)
+\end{verbatim}
+
+This function returns a \emph{BPTR} to the error \emph{file handle} of the
+calling process, or falls back to the \emph{BPTR} of the output \emph{file
+handle} if the former is not available. This is the file handle through
+which diagnostic output should be printed and is therefore approximately
+identical to {\tt stderr} of ANSI-C. Depending on process creation, this file
+handle can be closed by the process shutdown code or the calling shell and
+thus should in general not be closed explicitly. It can be changed through
+{\tt SelectError()}\key{SelectError()}.
+
+\subsection{Replace the Error File Handle}
+
+The {\tt SelectError()}\mkey{SelectError()} function replaces the error
+\emph{file handle} of the calling process with its argument and returns the
+previously used error handle.
+
+\begin{verbatim}
+old_fh = SelectError(fh)
+D0                   D1
+
+BPTR SelectError(BPTR)
+\end{verbatim}
+
+This call replaces the error \emph{file handle} of the calling process with
+the file handle given by {\tt fh} and returns the previously used error
+\emph{file handle}.
 
 
 %%% For later.
