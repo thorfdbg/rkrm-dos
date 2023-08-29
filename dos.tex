@@ -5157,11 +5157,28 @@ This call replaces the error \emph{file handle} of the calling process with
 the file handle given by {\tt fh} and returns the previously used error
 \emph{file handle}.
 
-\subsection{Select the Current Directory} \label{sec:currentdir}
+\subsection{Retrieve the Current Directory}
+
+The {\tt GetCurrentDir()}\mkey{GetCurrentDir()} function retruns the current
+directory of the directory, indicated by a \emph{lock} on this object. This
+\emph{lock}, and the \emph{file system} that created the lock are used to
+resolve relative paths, see also section~\ref{sec:paths}.
+
+\begin{verbatim}
+lock = GetCurrentDir(void)
+D0
+
+BPTR GetCurrentDir()
+\end{verbatim}
+
+This function returns the \emph{lock} to the current directory, unlike the
+{\tt CurrentDir()}\key{CurrentDir()} function which also changes it.
+
+\subsection{Replace the Current Directory} \label{sec:currentdir}
 
 The {\tt CurrentDir()}\mkey{CurrentDir()} selects and retrieves the current
 directory of the calling process. The directory is indicated by a
-\emph{lock} to this directory. This \emph{lock}, and the \emph{file system}
+\emph{lock} to this object. This \emph{lock}, and the \emph{file system}
 that created the lock are used to resolve relative paths, see also
 section~\ref{sec:paths}.
 
@@ -5508,6 +5525,31 @@ signals are raised, for example, by the user through the console by pressing
 attempt to start an application icon from a file whose {FIBB\_EXECUTE} is
 set, indicating that the file is not executable. Why the workbench does not
 use the same error code as the \emph{Shell} remains unclear.
+
+\subsection{Setting IoErr}
+
+The {\tt SetIoErr()}\mkey{SetIoErr()} function sets the value returned by
+the next call to {\tt IoErr()}\key{IoErr()} and thus initializes or resets
+the next IO error.
+
+\begin{verbatim}
+oldcode = SetIoErr(code)
+D0                 D1
+
+LONG SetIoErr(LONG);
+\end{verbatim}
+
+This function sets the next value returned by {\tt IoErr()}; this can be
+necessary because some functions of the \emph{dos.library} do not update
+this value in all cases. A particular example are the buffered I/O functions
+introduced in section~\ref{sec:bufferdio} that do not touch {\tt IoErr()} in
+case the input or output operation can be satisfied from the buffer. A good
+practise is to call {\tt SetIoErr(0)} upfront to ensure that these functions
+leave~a $0$ in {\tt IoErr()} on success.
+\smallskip{}
+
+This function returns the previous value of {\tt IoErr()}, and thus the same
+value {\tt IoErr()} would return.
 
 \subsection{Select the Console Handler}
 
