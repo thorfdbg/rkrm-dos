@@ -1043,7 +1043,7 @@ The returned result is {\tt DOSTRUE} in case the handler identified by
 the path is a file system, and as such allows access to multiple files
 on a physical data carrier. Otherwise, it returns {\tt DOSFALSE}.
 
-\section{Unbuffered Input and Output}
+\section{Unbuffered Input and Output} \label{sec:unbuffered}
 
 The functions described in this section read bytes from or write bytes
 to already opened files. These functions are \emph{unbuffered}, that
@@ -2501,9 +2501,9 @@ corresponding flag is $0$, i.e. a particular protection function is
 \emph{not} active.
 \smallskip{}
 
-The {\tt FIBB\_EXECUTE} flag is only interpreted by the \emph{Shell}
-(see section~\ref{sec.shell}); if the bit is $1$, the \emph{Shell}
-refuses to load the file as command.
+The {\tt FIBB\_EXECUTE} flag is only interpreted by the \emph{Shell} (see
+section~\ref{sec.shell}) and the Workbench; if the bit is $1$, the
+\emph{Shell} and the Workbench refuse to load the file as command. 
 \smallskip{}
 
 The {\tt FIBB\_ARCHIVE} flag is typically used by archival
@@ -3055,7 +3055,7 @@ This function returns a boolean success indicator which is non-zero on
 success and $0$ on error. This function always sets {\tt IoErr()},
 either to $0$ on success or to an error code otherwise.
 
-\section{Working with Paths}
+\section{Working with Paths} \label{sec:workpaths}
 
 The \emph{dos.library} contains a couple of support functions that
 help working with paths, see also section~\ref{sec:paths}. What is
@@ -3363,7 +3363,7 @@ This function returns in {\tt success} non-zero if creation of the
 lock succeeded, or $0$ in case of failure. In either case,
 {\tt IoErr()} is set to an error code on failure, or $0$ on success.
 
-\subsection{Resolving Soft-Links}
+\subsection{Resolving Soft-Links} \label{sec:readlink}
 
 The {\tt ReadLink()}\mkey{ReadLink()} function locates the destination
 of a \emph{soft-link} and constructs from the path and directory of
@@ -3888,7 +3888,7 @@ the \emph{device list}; they are released through {\tt
   \emph{assign}. Same as {\tt GetDeviceProc()}, it does not properly handle
   {\tt NIL:} and ``{\tt *}''.}
 
-\subsection{Obtaining the Current Console Handler}
+\subsection{Obtaining the Current Console Handler} \label{sec:getconsoletask}
 
 The {\tt GetConsoleTask()}\mkey{GetConsoleTask()} function returns the
 \emph{MsgPort} of the handler responsible for the console of the
@@ -3907,7 +3907,7 @@ calling process, or {\tt NULL} in case there is no console associated
 to the caller. The latter holds for example for programs started from
 the workbench. It does not alter {\tt IoErr()}.
 
-\subsection{Obtaining the Default File System}
+\subsection{Obtaining the Default File System} \label{sec:getfilesystask}
 
 The {\tt GetFileSysTask()}\mkey{GetFileSysTask()} function returns the
 \emph{MsgPort} of the default \emph{file system} of the caller. The
@@ -5038,7 +5038,9 @@ this vector to implement a custom shutdown mechanism.
 The most important members of the process structure described in
 section~\ref{sec:process} are accessible through getter and setter
 functions. They implicitly relate to the calling process, and are the
-preferred way of getting access to the {\tt Process} structure.
+preferred way of getting access to the {\tt Process} structure. The
+functions listed in this section do not touch {\tt IoErr()} except
+explicitly stated.
 
 \subsection{Retrieve the Process Input File Handle}
 
@@ -5154,6 +5156,411 @@ BPTR SelectError(BPTR)
 This call replaces the error \emph{file handle} of the calling process with
 the file handle given by {\tt fh} and returns the previously used error
 \emph{file handle}.
+
+\subsection{Select the Current Directory} \label{sec:currentdir}
+
+The {\tt CurrentDir()}\mkey{CurrentDir()} selects and retrieves the current
+directory of the calling process. The directory is indicated by a
+\emph{lock} to this directory. This \emph{lock}, and the \emph{file system}
+that created the lock are used to resolve relative paths, see also
+section~\ref{sec:paths}.
+
+\begin{verbatim}
+oldLock = CurrentDir( lock )
+D0                    D1
+
+BPTR CurrentDir(BPTR)
+\end{verbatim}
+This function sets the current directory to {\tt lock} and returns in
+{\tt oldLock} the previously installed current directory. The passed in
+{\tt lock} then becomes part of the process and shall not be released by
+{\tt UnLock()}\key{UnLock()} until another \emph{lock} is installed as current
+directory.
+\smallskip{}
+
+If the current directory is {\tt ZERO}, paths are relative to the root
+directory of the \emph{file system} set in the {\tt pr\_FileSysTask} member
+of the calling process. It may be changed by
+{\tt SetFileSysTask()}\key{SetFileSysTask()} described in
+section~\ref{sec:setfilesystask}. AmigaDOS installs there the \emph{file
+system} of the boot volume, unless a user installs a different
+default \emph{file system}.
+
+\subsection{Return the Latest Error Code} \label{sec:ioerr}
+
+The {\tt IoErr()}\mkey{IoErr()} function returns the secondary result code
+of the most recent AmigaDOS operation. This code is, in case of failure,
+typically an error code indicating the nature of the failure.
+
+\begin{verbatim}
+error = IoErr()
+D0
+
+LONG IoErr(void)
+\end{verbatim}
+This function returns the secondary result code of the last call to the
+\emph{dos.library} that provides such result. Unfortunately, not all
+functions set {\tt IoErr()} consistently; all unbuffered operations in
+section~\ref{sec:unbuffered} provide an error code in case of failure, or
+deliver~$0$ as secondary result in case of success. The buffered functions
+in section~\ref{sec:bufferedio} generally only set a secondary result code
+in case an I/O operation is required, but do not touch {\tt IoErr()} if the
+call can be satisfied from the caller. Whether a function of the
+\emph{dos.library} touches {\tt IoErr()} is stated in the description of the
+corresponding function --- unfortuantely, the \emph{dos.library} does not
+handle {\tt IoErr()} consistently.
+\smallskip{}
+
+Some functions provide a secondary result code different from an error code,
+and thus make such additional return value available through
+{\tt IoErr()}. Such additional return values are also explicitly mentioned in
+the description of the corresponding function. A particular example is
+{\tt DeviceProc()}\key{DeviceProc()}, which returns the (first) lock of a
+regular assign in {\tt IoErr()}, but additional functions exist.
+\medskip{}
+
+Most error codes are defined in {\tt dos/dos.h}, with some additional error
+codes only used by the pattern matcher (see section~\ref{sec:patternmatch})
+in {\tt dos/dosasl.h}. Generally, \emph{handlers} and \emph{file systems}
+can select error codes as they seem fit, the list below provides a general
+indication how the codes are used by the \emph{dos.library} itself, or what
+their suggested usage is:
+\smallskip{}
+
+{\tt ERROR\_NO\_FREE\_STORE}: This error code is set if the system run out
+of memory. Actually, this error code is not set by the \emph{dos.library},
+but rather by the \emph{exec.library} memory allocation functions.
+\smallskip{}
+
+{\tt ERROR\_TASK\_TABLE\_FULL}: This error code is no longer in
+use. Previous releases of AmigaDOS created it if more than~$10$ shell
+processes were about to be created. As this limitation was removed, the
+error code remains currently unused.
+\smallskip{}
+
+{\tt ERROR\_BAD\_TEMPLATE}: This error code indicates that the command line
+template for {\tt ReadArgs()}\key{ReadArgs()} is syntactical incorrect. It
+is also set by the pattern matcher in case the pattern is syntactically
+incorrect.
+\smallskip{}
+
+{\tt ERROR\_BAD\_NUMBER}: This error code indicates that a string could not
+be converted to a number.
+\smallskip{}
+
+{\tt ERROR\_REQUIRED\_ARG\_MISSING}: This error code is set by
+{\tt ReadArgs()}\key{ReadArgs()} if a non-optional argument is not
+provided.
+\smallskip{}
+
+{\tt ERROR\_KEY\_NEEDS\_ARG}: This error code is also used by the argument
+parser {\tt ReadArgs()}\key{ReadArgs()} if an argument key is provided on
+the command line, but a corresponding argument value is missing.
+\smallskip{}
+
+{\tt ERROR\_TOO\_MANY\_ARGS}: This error code can also be set by
+{\tt ReadArgs()}\key{ReadArgs()}; it indicates that more arguments are
+provided than indicated in the template.
+\smallskip{}
+
+{\tt ERROR\_UNMATCHED\_QUOTES}: This error code indicates that a closing
+quote is missing for at least one opening quote. It is also set by the
+argument parser and {\tt ReadItem()}\key{ReadItem()}.
+\smallskip{}
+
+{\tt ERROR\_LINE\_TOO\_LONG}: This error code is a general indicator that a
+user provided buffer is too small to buffer a string. It is for example used
+again by the argument parser and the path manipulation functions in
+section~\ref{sec:workpaths}.
+\smallskip{}
+
+{\tt ERROR\_FILE\_NOT\_OBJECT}: This error code is generated by the \emph{Shell}
+if an attempt is made to execute a file that is neither a script, nor an
+executable nor a file that can be opened by a viewer.
+\smallskip{}
+
+{\tt ERROR\_INVALID\_RESIDENT\_LIBRARY}: While this error code is not in use
+by the \emph{dos.library}, several \emph{handlers} and other Os components
+use it to indicate that a required library or device is not available.
+\smallskip{}
+
+{\tt ERROR\_NO\_DEFAULT\_DIR}: This is error code is also not in use. Its
+intended purpose is unclear.
+\smallskip{}
+
+{\tt ERROR\_OBJECT\_IN\_USE}: This error code is used by multiple Os
+components to indicate that a particular operation cannot be performed
+because the object to be modified is in use. AmigaDOS uses it, for example,
+to indicate that a \emph{lock} was obtained on an object that is supposed to
+be modified or deleted, and thus cannot be modified or removed.
+\smallskip{}
+
+{\tt ERROR\_OBJECT\_EXISTS}: This error code is a generic error indicator
+that an operation could not be performed because another object already
+exists in place, and is used as such by multiple Os components. AmigaDOS
+\emph{file systems} use it, for example, when attempting to create a
+directory, but a file or a directory of the requested name is already
+present. 
+\smallskip{}
+
+{\tt ERROR\_DIR\_NOT\_FOUND}: This error code indicates that the target
+directory is not found. Of the AmigaDOS ROM components, only the shell uses
+it on an attempt to change the working directory to a non-working target
+directory.
+\smallskip{}
+
+{\tt ERROR\_OBJECT\_NOT\_FOUND}: This is a generic error code that indicates
+that the object on which a particular operation is to be performed does not
+exist. It is for example generated on an attempt to open a non-existing file
+or to lock a file or directory that could not be found.
+\smallskip{}
+
+{\tt ERROR\_BAD\_STREAM\_NAME}: This error code is currently not in use by
+AmigaDOS ROM components. Its purpose is unclear.
+\smallskip{}
+
+{\tt ERROR\_OBJECT\_TOO\_LARGE}: This error could be used to indicate that
+an object is beyond the size a \emph{handler} or \emph{file system} is able
+to handle. Note that a full disk (or full storage medium) is indicated by
+{\tt ERROR\_DISK\_FULL}, and not this error. However, currently no AmigaDOS
+component uses this error, even though the FFS should probably return it on
+an attempt to create or access files larger than~2GB.
+\smallskip{}
+
+{\tt ERROR\_ACTION\_NOT\_KNOWN}: This is a generic error code that is
+returned by many \emph{handlers} or \emph{file systems} when an action (in
+the form of a \emph{packet}) is requested the handler does not support or
+understand. For example, this error is created when attempting to create a
+directory on a console handler.
+\smallskip{}
+
+{\tt ERROR\_INVALID\_COMPONENT\_NAME}: This is an error that is raised by
+file systems when providing an invalid path, or a path that contains
+components that are syntactically incorrect. For example, the colon (``{\tt
+  :}'') shall only appear one in a path as separator between the device name
+and the path within the device. A colon within a component is therefore a
+syntactical error. Also, all Amiga ROM file systems do not accept code
+points below {\tt 0x20}, i.e. ASCII control characters.
+\smallskip{}
+
+{\tt ERROR\_INVALID\_LOCK}: This error is raised if a value is passed in as
+a \emph{lock} that is, in fact, not a valid lock of the target \emph{file
+system}. For example, an attempt to use a \emph{file handle} as a lock will
+result in such an error condition. Note, however, that \emph{file systems}
+can, but do not need to check locks for validity. Passing incorrect objects
+to \emph{file systems} can raise multiple error conditions of which this
+error code is probably the most harmless.
+\smallskip{}
+
+{\tt ERROR\_OBJECT\_WRONG\_TYPE}: This error code indicates that a
+particular operation is not applicable to a target object, even though the
+target object is valid and existing. For example, an attempt to open an
+existing directory for reading as a file will raise this error.
+\smallskip{}
+
+{\tt ERROR\_DISK\_NOT\_VALIDATED}: This error indicates that the inserted
+medium is currently not validated, i.e. not checked for consistency. Such a
+consistency check (or validation) may be currently ongoing. This error is
+for example generated  if a write operation is attempted on an FFS volume
+whose validation is still ongoing. In such a case, retrying the operation
+later may solve the problem already.
+\smallskip{}
+
+{\tt ERROR\_DISK\_WRITE\_PROTECTED}: This indicates that an attempt was made
+to write to a medium, e.g. a disk, that is write-protected, or that cannot
+be written to, such as an attempt to write to a CD-ROM.
+\smallskip{}
+
+{\tt ERROR\_RENAME\_ACROSS\_DEVICES}: Generated if an attempt is made to
+move an object to a target directory that is located on a different medium
+or different \emph{file system} than the source directory. This cannot
+succeed, instead the object (and its subobjects) need to be copied manually.
+\smallskip{}
+
+{\tt ERROR\_DIRECTORY\_NOT\_EMPTY}: Indicates that an attempt was made to
+delete a directory that is not empty. First, all the files within a
+directory must be deleted before the directory itself may be deleted.
+\smallskip{}
+
+{\tt ERROR\_TOO\_MANY\_LEVELS}: This error code is generated if too many
+softlinks refer iteratively to other softlinks. In order to avoid an endless
+indirection of softlinks refering to each other, the \emph{dos.library}
+aborts following softlinks after 15 passes; application programs attempting
+to resolve softlinks themselves through {\tt ReadLink()}\key{ReadLink()}
+should implement a similar mechanism, see also section~\ref{sec:readlink}.
+\smallskip{}
+
+{\tt ERROR\_DEVICE\_NOT\_MOUNTED}: This error indicates that an access was
+attempted to either a \emph{handler}, \emph{file system} or \emph{assign}
+that is not known to the system, or to a volume that is currently not
+inserted in any known drive.
+\smallskip{}
+
+{\tt ERROR\_SEEK\_ERROR}: This error is generated by an attempt to {\tt
+  Seek()} to a file position that is either negative, or behind the end of
+the file. It is also signalled if the mode of {\tt Seek()}\key{Seek()} or
+{\tt SetFileSize()}\key{SetFileSize()} is none of the modes indicated in
+table~\ref{table:seekmode}. The FFS also sets this mode if it cannot read
+one of its administration blocks.
+\smallskip{}
+
+{\tt ERROR\_COMMENT\_TOO\_BIG}: This error is raised if the size of the
+comment is too large to be stored in in the metadata of the \emph{file
+system}. Note that while \emph{file systems} shall validate the size of the
+comment, it shall silently truncate file names to the maximal size possible.
+\smallskip{}
+
+{\tt ERROR\_DISK\_FULL}: Generated by \emph{file systems} when an attempt is
+made to write more data to a medium than it is possible to hold, i.e. when
+the target medium is full.
+\smallskip{}
+
+{\tt ERROR\_DELETE\_PROTECTED}: This error is generated by \emph{file
+systems} if an attempt is made to delete a file that is delete protected,
+i.e. whose {\tt FIBB\_DELETE} protection bit is set, see
+table~\ref{table:protectionbits} in section~\ref{sec:fib}.
+\smallskip{}
+
+{\tt ERROR\_WRITE\_PROTECTED}: This error is generated by \emph{file
+systems} if a write is attempted  to a file that is write protected,
+i.e. whose {\tt FIBB\_WRITE} bit is set.
+\smallskip{}
+
+{\tt ERROR\_READ\_PROTECTED}: This error is generated on an attempt to read
+from a while whose {\t FIBB\_READ} bit is set to indicate read protection.
+\smallskip{}
+
+{\tt ERROR\_NOT\_A\_DOS\_DISK}: This error is generated by a \emph{file
+system} on an attempt to read a disk that is not strutured according to the
+requirements of the \emph{file system}, i.e. that is initialized by another
+incompatbile \emph{file system} different from the mounted
+one. Unfortunately, AmigaDOS does not have a control instance that selects
+file systems according to the disk layout.
+\smallskip{}
+
+{\tt ERROR\_NO\_MORE\_ENTRIES}: This secondary result code does not really
+indicate an error condition, it just reports to the caller that the end of a
+directory has been reached when scanning it by
+{\tt ExNext()}\key{ExNext()} or {\tt ExAll()}\key{ExAll()}.
+\smallskip{}
+
+{\tt ERROR\_IS\_SOFT\_LINK}: This error code is generated by
+\emph{file systems} on an attempt to access a \emph{soft link}. For many
+functions, the \emph{dos.library} recognizes this error and then resolves
+the link through {\tt ReadLink()}\key{ReadLink()} within the library, not
+requiring intervention of the caller. However, not all functions of the
+\emph{dos.library} are aware of \emph{soft links}, see
+section~\ref{sec:links} for the list.
+\smallskip{}
+
+{\tt ERROR\_OBJECT\_LINKED}: This error code is currently not used by
+AmigaDOS and its intended use is not known.
+\smallskip{}
+
+{\tt ERROR\_BAD\_HUNK}: Generated by {\tt LoadSeg()}\key{LoadSeg()} and {\tt
+  NewLoadSeg()}\key{NewLoadSeg()}, this error code indicates that the binary
+file includes a hunk type that is not supported or recognized by
+AmigaDOS. The hunk format for binary executables is documented in
+section~\ref{sec:loadseg()}.
+\smallskip{}
+
+{\tt ERROR\_NOT\_IMPLEMENTED}: This error code is not used by any ROM
+component, but several workbench components signal this error indicating
+that the requested function is not supported by this component. For example,
+the {\tt Format} command generates it on an attempt to format a disk with
+long file names if the target file system does not support them.
+\smallskip{}
+
+{\tt ERROR\_RECORD\_NOT\_LOCKED}: Issued by \emph{file systems} and their
+record-locking subsystem if an attempt is made to release a record that is,
+actually, not locked.
+\smallskip{}
+
+{\tt ERROR\_LOCK\_COLLISION}: This error is also created by the
+record-locking subsystem of \emph{file systems} if attempt is made to
+exclusively lock the same region within a file by two write locks.
+\smallskip{}
+
+{\tt ERROR\_LOCK\_TIMEOUT}: Also generated by the record-locking mechanism
+of \emph{file systems} if an attempt was made to exclusively lock a region
+of a file that is exclusively locked already, and the attempt failed because
+the region did not became available before the lock timed out.
+\smallskip{}
+
+{\tt ERROR\_UNLOCK\_ERROR}: This error is curently not generated by any
+\emph{file system}, though could be used to indicate that an attempt to
+unlock a record failed for an unknown reason.
+\smallskip{}
+
+{\tt ERROR\_BUFFER\_OVERFLOW}: This error is raised by the pattern matcher
+and indicates that the buffer allocated in the {\tt AnchorPath} structure is
+too small to keep the fully expanded matching file name, see also
+section~\ref{sec:pattern}.
+\smallskip{}
+
+{\tt ERROR\_BREAK}: This error is also raised by the pattern matcher if it
+received an external signal for aborting a directory scan for objects. Such
+signals are raised, for example, by the user through the console by pressing
+{\tt Ctrl + C} through {\tt Ctrl + F}.
+\smallskip{}
+
+{\tt ERROR\_NOT\_EXECUTABLE}: This error is generated by the workbench on an
+attempt to start an application icon from a file whose {FIBB\_EXECUTE} is
+set, indicating that the file is not executable. Why the workbench does not
+use the same error code as the \emph{Shell} remains unclear.
+
+\subsection{Select the Console Handler}
+
+The {\tt SetConsoleTask()}\mkey{SetConsoleTask()} function selects the
+\emph{handler} responsible for the ``{\tt *}'' file name and {\tt CONSOLE:}
+pseudo-device.
+
+\begin{verbatim}
+oldport = SetConsoleTask(port)
+D0                        D1
+
+struct MsgPort *SetConsoleTask(struct MsgPort *)
+\end{verbatim}
+
+This function selects the \emph{MsgPort} of the console handler. AmigaDOS
+will contact this handler for opening the ``{\tt *}'' as file name, or a
+file relative to the {\tt CONSOLE:} pseudo-device. Note that the argument is
+not a pointer to the \emph{handler} process, but rather to a \emph{MsgPort}
+through which this process can be contacted. It returns the previously used
+console handler \emph{MsgPort}. 
+\smallskip{}
+
+This function is the setter function corresponding to the
+{\tt GetConsoleTask()}\key{GetConsoleTask()} getter function introduced in
+section~\ref{sec:getconsoletask}.
+
+\subsection{Select the Default File System} \label{sec:setfilesystask}
+
+The {\tt SetFileSysTask()}\mkey{SetFileSysTask()} function selects the
+handler responsible for resolving paths relative to the {\tt ZERO} lock.
+
+\begin{verbatim}
+oldport = SetFileSysTask(port)
+D0                        D1
+
+struct MsgPort *SetFileSysTask(struct MsgPort *)
+\end{verbatim}
+
+This function selects the \emph{MsgPort} of the default \emph{file
+system}. AmigaDOS will contact this \emph{file system} if a path relative to
+the {\tt ZERO} lock is resolved, e.g. a relative path name if the current
+directory is {\tt ZERO}. This \emph{file system} should be identical to the
+\emph{file system} of the {\tt SYS:} assign, and should therefore not be
+relaced as otherwise resolving file names may be inconsistent between
+processes.
+\smallskip{}
+
+Note that the argument is not a pointer to the \emph{handler} process, but
+rather to a \emph{MsgPort} through which this process can be contacted. It
+returns the previously used default file system \emph{MsgPort}. This
+function is the setter equivalent of {\tt
+  GetFileSysTask()}\key{GetFileSysTask()} introduced in
+section~\ref{sec:getfilesystask}.
 
 
 %%% For later.
