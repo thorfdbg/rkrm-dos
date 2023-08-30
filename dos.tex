@@ -4427,6 +4427,87 @@ system dependent which resources can or should be released. {\tt
 This function cannot fail, and it does not touch {\tt IoErr()}.
 
 %%% The section on assigns goes here and is missing.
+
+\chapter{Pattern Matching} \label{sec:patternmatch}
+
+Unlike other operating systems, it is neither the file system nor the shell
+that expands wild cards, or patterns. Instead, separate functions exist
+that, given a wildcard, scan a directory or an entire directory tree and
+deliver all files, links and directories that match a given pattern.
+\smallskip{}
+
+The pattern matcher syntax is build on special characters or \emph{tokens}
+that define which names to match. The following tokens are currently
+defined:
+\begin{itemize}
+  \item[{\tt ?}] The question mark matches a single, arbitrary character
+    within a component. When using the pattern matcher for scanning
+    directories, the question mark does not match the component separator,
+    i.e. the slash (``{\tt /}) and the colon (``{\tt :}'') that separates
+    the path from the device name. Note in particular that the question mark
+    also matches the dot (``{\tt .}'') which is not a special character
+    under AmigaDOS.
+  \item[{\tt \#}] The hash mark matches zero or more repeats of the token
+    immediately following it. In particular, the combination ``{\tt \#?}''
+    matches zero or more arbitrary characters. If a group of more than one
+    token is required to describe which combination needs to match, this
+    group needs to be enclosed in brackets.
+  \item[{\tt ()}] The brackets bind tokens together forming a single
+    token. This is particularly useful for the hash mark {\tt \#} as it
+    allows to formulate repeats of longer character or token groups. For
+    example, {\tt \#(ab)} indicates zero or more repeats of the character
+    sequence {\tt ab}, such as {\tt ab}, {\tt abab} or {\tt ababab}.
+  \item[{\tt \textasciitilde{} }] The ASCII tilde (``{\tt \textasciitilde{}}'') matches names that do not
+    match the next token. This is particularly valuable for filtering out
+    the workbench icon files that end on {\tt .info}, i.e. {\tt \textasciitilde{}(\#?.info)}
+    matches all files that do not end with {\tt .info}.
+  \item[{\tt[]}] The square brackets (``{\tt []}'') matches a single
+    character from a range, e.g. {\tt [a-z]} matches a single alphabetic
+    character and {\tt [0-9]} matches a single digit. Multiple ranges and
+    individual characters can be combined, for example {\tt [ab]} matches
+    the characters {\tt a} and {\tt b}, whereas {\tt [a-cx-z]} matches the
+    characters from {\tt a} to {\tt c} and from {\tt x} to {\tt z}. If the
+    minus sign (``{\tt -}'') is supposed to be part of the range, it shall
+    appear first, directly within the bracket, e.g. {\tt [-a-c]} matches the
+    dash and the characters {\tt a} to {\tt c}. If the dash is the last
+    character in the range, all characters up to the end of the ASCII range,
+    i.e. {\tt 0x7f} match, but none of the extended ISO Latin 1 characters
+    match. If the closing square bracket (``{\tt ]}'') is to matched, it
+    shall be escaped by an apostroph (``{\tt '}''), i.e. {\tt [[-']]}
+    matches the opening and the closing bracket. If the pattern matcher is
+    used for scanning directories, the above example does not match the
+    slash (``{\tt /}'') even though its code point lies between the
+    opening and closing bracket because the slash cannot be part of a
+    component name and rather separates components. If the first character
+    of the range is an ASCII tilde (``{\tt \textasciitilde{}}''), then the
+    character class matches all characters \emph{not} in the class,
+    i.e. {\tt [\textasciitilde{}a-z]} matches all characters except
+    alphabetic characters. In all other places, the tilde stands for itself.
+  \item[{\tt '}] The apostroph ({\tt '}) is the escape character of the
+    pattern matcher and indicates that the next character is not a token of
+    the matcher, but rather stands for itself. Thus, {\tt '?} matches the
+    question mark, and only the question mark, and no other character.
+  \item[{\tt \%}] The percent sign (``{\tt \%}'') matches the empty string.
+  \item[{\tt |}] The vertical bar (``{\tt |}'') defines alternatives and
+    matches the token to its left or the token to its right. The
+    alternatives along with the vertical bar shall be enclosed in round
+    brackets to bind them, i.e. {\tt (a|b)} is either the character {\tt a}
+    or {\tt b} and therefore matches the same strings {\tt [ab]} matches. A
+    particular example is {\tt \textasciitilde{}((\#?.info)|.backdrop)}
+    which matches all files not used by the workbench for storing
+    meta-information. 
+\end{itemize}   
+
+\punchline{The Asterisk {\tt *} is not a Wildcard}{Unlike many other
+operating systems, the asterisk (``{\tt *}'') has a (two) other meanings
+under AmigaDOS. It rather refers to the current console as file name, or
+is the escape character for quotation and control sequences; those are
+properties AmigaDOS inherits from the BCPL syntax and TRIPOS. While there
+is a flag in the \emph{dos.library} that makes the asterisk \emph{also}
+available as a wildcard, such usage is discouraged because it can lead to
+situations where the asterisk is interpreted differently than intended ---
+as it has already two other meanings.}
+
 \chapter{Processes} \label{sec:process}
 
 \emph{Processes}\mkey{Process} are extensions of exec \emph{tasks}, and as
