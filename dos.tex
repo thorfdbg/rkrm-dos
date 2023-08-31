@@ -4697,6 +4697,17 @@ necessarily restricted to memory allocation errors.
 scanned directory changes, either by entering a directory recursively, or by
 leaving a directory. It is also cleared if the directory is the same as in
 the previous call.
+\smallskip{}
+
+{\tt APF\_FollowHLinks} may be set by the caller to indicate that hard links
+to directories shall be followed, and such directories shall be recursively
+entered if {\tt APF\_DODIR} is set as well. Otherwise, hard links to
+directories are not entered. Softlinks are neither entered, this this cannot
+be changed by any flag. A potential danger of links is that they may cause
+endless recursion if a link within a directory points to a parent
+directory. Thus, callers should be aware of such situations and store
+directories that have already been analyzed. Otherwise, it is safer to keep
+this flag cleared.
 \medskip{}
 
 {\tt ap\_Strlen} is the size of the buffer {\tt ap\_Buf} that contains the
@@ -4723,7 +4734,109 @@ structure and the buffer. The byte size of this additional buffer shall be
 placed in {\tt ap\_Strlen}. If this buffer is not required, {\tt ap\_Strlen}
 shall be set to~$0$.
 
-\section{Matching Strings against Patterns}
+\subsection{Starting a Directory Scan}
+
+The {\tt MatchFirst()}\mkey{MatchFirst()} function starts a directory scan,
+locating all objects matching a pattern and potentially entering directories
+recursively.
+
+\begin{verbatim}
+error = MatchFirst(pat, AnchorPath)
+D0                 D1       D2
+
+LONG MatchFirst(STRPTR, struct AnchorPath *)
+\end{verbatim}
+
+This function starts a directory scan, locating all objects matching the
+pattern {\tt pat}. This pattern does \emph{not} require pre-parsing
+(e.g. the functions in section~\ref{sec:stringpat}), {\tt MatchFirst()}
+performs the parsing.
+\smallskip{}
+
+{\tt AnchorPath} shall be a pointer to an {\tt AnchorPath} structure
+allocated and initialized by the caller. In particular, {\tt ap\_BreakBits}
+shall be initialized to a signal mask on which the scan terminates, {\tt
+  ap\_FoundBreak} to~$0$, and {\tt ap\_Strlen} to the size of the buffer
+{\tt ap\_Buf} which is filled by the path name of the matching objects. If
+this path name is not required, {\tt ap\_Strlen} shall be set to~$0$. {\tt
+  ap\_Flags} shall be set to the flags you need, see the parent section.
+\smallskip{}
+
+Unlike many other functions, {\tt MatchFirst()} returns an error code
+directly, and not a success/failure indicator. That is,~$0$ indicates
+success. In particular, if {\tt ERROR\_BREAK} is returned in case any of the
+signal bits in {\tt ap->ap\_BreakBits} have been received during the scan.
+\smallskip{}
+
+On success, {\tt ap->ap\_Info.fib\_FileName} contains the name of the first
+matched object, the directory represented as a \emph{lock} containing the
+object is available in {\tt ap->ap\_Current->an\_Lock}. You would typically set
+the current directory to this lock, then access this object, then revert the
+lock. This lock \emph{shall not} be released; this is performed by the
+pattern matcher itself as needed.
+\smallskip{}
+
+If the full path of the matching object is needed, an additional buffer
+shall be allocated at the end of the {\tt AnchorPath}, and the size of the
+buffer shall be placed into {\tt ap\_Strlen}. The function then fills in the
+path into {\tt ap\_Buf}.
+\smallskip{}
+
+If the matching object is a directory, i.e.
+{\tt ap->ap\_Info.fib\_DirEntryType} is positive and not equal to
+{\tt ST\_SOFTLINK}, the caller may request to enter this directory
+by setting {\tt APF\_DODIR} in {\tt ap->ap\_Flags}.
+
+\subsection{Continuing a Directory Scan}
+
+The {\tt MatchNext()}\mkey{MatchNext()} function continues a directory scan
+initiated by {\tt MatchFirst()}\key{MatchNext()}, returning the next
+matching object, or an error.
+
+\begin{verbatim}
+error = MatchNext(AnchorPath)
+D0                    D1
+
+LONG MatchNext(struct AnchorPath *)
+\end{verbatim}
+
+This function takes an existing {\tt AnchorPath} structure, as prepared by a
+previous {\tt MatchFirst()} or {\tt MatchNext()} function, and finds the
+next matching object. Unlike most other functions of the \emph{dos.library},
+this function returns an error code on failure and~$0$ for success. It does
+\emph{not} return a boolean success indictor. In particular, if
+{\tt ERROR\_BREAK} is returned in case any of the signal bits in
+{\tt ap->ap\_BreakBits} have been received.
+\smallskip{}
+
+As for {\tt MatchFirst()}, this call fills {\tt ap->ap\_Info} with meta
+information on the found object, in particular its file name, and
+{\tt ap->ap\_Current->an\_Lock} the lock of the directory containing the
+object. As for {\tt MatchFirst()}, {\tt APF\_DODIR} can be set to enter
+directories recursively, and {\tt ap->ap\_Buf} will be filled with the
+full path of the found object if {\tt ap->ap\_Strlen} is non-zero.
+
+\subsection{Terminating a Directory Scan}
+
+The {\tt MatchEnd()}\mkey{MatchEnd()} function terminates a running scan,
+and releases all resources associated with the scan. It does not release the
+{\tt AnchorPath} structure.
+
+\begin{verbatim}
+MatchEnd(AnchorPath)
+             D1
+
+VOID MatchEnd(struct AnchorPath *)
+\end{verbatim}
+
+This function ends a directory scan started by
+{\tt MatchFirst()}\key{MatchFirst()} and releases all resources associated
+to the scan. This function shall be called regardless whether the scan is
+aborted due to exhaustion (i.e. {\tt ERROR\_NO\_MORE\_ENTRIES}, by error, or
+by choice of the scanning program (i.e. the desired object has been detected
+and no further matches are required).
+
+\section{Matching Strings against Patterns} \label{sec:stringpat}
 
 While the prime purpose of the pattern matcher is to scan directories, it
 can also be used to check whether an arbitrary string matches a wildcard,
