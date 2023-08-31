@@ -4508,6 +4508,375 @@ available as a wildcard, such usage is discouraged because it can lead to
 situations where the asterisk is interpreted differently than intended ---
 as it has already two other meanings.}
 
+Pattern matching works in in two steps: In the first step, the pattern is
+tokenized into an internal representation, which is then later on used to
+perform the actual match of a string against a wildcard. The directory
+scanning function {\tt MatchFirst()}\key{MatchFirst()} performs this
+conversion internally, and thus no additional preparation is required by the
+caller in this case. However, if the pattern matcher is used to search for
+strings or wildcards within a text file, the pattern tokenizers {\tt
+  ParsePattern()}\key{ParsePattern()} or its case-insensitive counterpart
+{\tt ParsePatternNoCase()}\key{ParsePatternNoCase()} shall be called first.
+
+\punchline{Only ISO-Latin Codepoints}{The pre-parsing step that prepares
+  from the input pattern its tokenized version uses the code points {\tt
+    0x80} to {\tt 0x9f} for tokenized versions of wild-cards and other
+  instructions for the pattern matcher. This is identical to the extended
+  ISO-Latin control sequence region, and does not represent printable
+  charactes.  While file names on AmigaDOS \emph{file systems} may in
+  principle include such code-points, patterns of the pattern matcher
+  \emph{shall not} contain unprintable code points from the region {\tt
+    0x00} to {\tt 0x1f} or from {\tt 0x80} to {\tt 0x9f}. These regions are
+  reserved for the pattern matcher.}
+
+\section{Scanning Directories}
+
+The prime purpose of the pattern matcher is to scan a directory, or even a
+tree of directories, identifying all \emph{file system} objects such as
+files, links or directories that match a given pattern. The pattern matcher
+can even descend recursively into sub-directories if instructed to do
+so. This service is used by many shell commands stored in the {\tt C:}
+\emph{assign}. The directory scanner requires the following steps:
+\smallskip{}
+
+First, the user shall provide an {\tt AnchorPath} structure. This structure
+contains the state of the directory matcher, including the {\tt
+  FileInfoBlock}\key{FileInfoBlock} structure of the matched object. This
+structure is defined in section~\ref{sec:fib}. Optionally, the {\tt
+  AnchorPath} structure may also contain the complete (relative) path of the
+matched object. This structure shall then be initialized, setting all flags
+required, see below for their definition.
+
+\punchline{Must be Long-Word Aligned}{As the {\tt AnchorPath} structure
+  embedds a {\tt FileInfoBlock} structure that requires long-word alignment,
+  the {\tt AnchorPath} structure shall be aligned to long-word boundaries as
+  well. The simplest way to ensure this is to allocate it with either {\tt
+    AllocMem()} or {\tt AllocVec()}, see also section~\ref{sec:bptrs}.}
+
+Then, with the initialized {\tt AnchorPath} structure, {\tt MatchFirst()}
+shall be called, returning the first match of the pattern if there is
+any. The {\tt AnchorPath} structure then contains all information on the
+found match.
+\smallskip{}
+
+If there is any match, and the match is a directory the caller wants to
+enter recursively, the {\tt APF\_DODIR} flag of the {\tt AnchorPath}
+structure may be set. Then, {\tt MatchNext()} may be called to continue the
+scan, potentially entering this directory. Once the end of a recursively
+entered directory has been reached, {\tt MatchNext()} sets the {\tt
+  APF\_DIDDIR} flag, then reverts back to the parent directory continuing
+the scan there. As {\tt APF\_DIDDIR} is never cleared by the pattern
+matcher, the caller should clear it once the end of a sub-directory had been
+noticed.
+\smallskip{}
+
+The above iterative procedure of {\tt MatchNext()} may continue, either
+until the user or the running program requests termination, or until {\tt
+  MatchNext()} returns an error. Then, finally, the scan is aborted and all
+resources but the {\tt AnchorPath} structure shall be released by calling
+{\tt MatchNext()}.
+\medskip{}
+
+The {\tt AnchorPath} structure is defined in {\tt dos/dosasl.h} and looks as
+follows:
+
+\mkey{AnchorPath}
+\begin{verbatim}
+struct AnchorPath {
+        struct AChain   *ap_Base;
+#define ap_First ap_Base
+        struct AChain   *ap_Last;
+#define ap_Current ap_Last
+        LONG    ap_BreakBits;
+        LONG    ap_FoundBreak;
+        BYTE    ap_Flags;
+        BYTE    ap_Reserved;
+        WORD    ap_Strlen;
+        struct  FileInfoBlock ap_Info;
+        UBYTE   ap_Buf[1];
+};
+\end{verbatim}
+
+The members of this structure are as follows:
+\smallskip{}
+
+{\tt ap\_Base} and {\tt ap\_Last} are pointers to an {\tt AChain} structure
+that is also defined in {\tt dos/dosasl.h}. This structure is allocated and
+released by the \emph{dos.library}, transparently to the caller. The {\tt
+  AChain} structure describes a directory in the potentially recursive scan
+through a directory tree. {\tt ap\_Base} describes the topmost directory at
+which the scan started, whereas {\tt ap\_Last} describes the directory which
+is currently being scanned.
+\smallskip{}
+
+The {\tt AChain} structure is also defined in {\tt dos/dosasl.h}:
+
+\mkey{AChain}
+\begin{verbatim}
+struct AChain {
+	struct AChain *an_Child;
+	struct AChain *an_Parent;
+	BPTR	an_Lock;
+	struct FileInfoBlock an_Info;
+	BYTE	an_Flags;
+	UBYTE	an_String[1];
+};
+\end{verbatim}
+
+{\tt an\_Child} and {\tt an\_Parent} are only used internally and shall not
+be interpreted by the caller.
+\smallskip{}
+
+{\tt an\_Lock} is a lock to the directory described by this {\tt AChain}
+structure. In particular, {\tt ap\_Last->an\_Lock} is a \emph{lock} to the
+directory that is currently being scanned, and {\tt ap\_Base->an\_Lock} a
+lock to the topmost directory at which the scan started. These two locks
+have been obtained and will be unlocked by the \emph{dos.library}; they may
+be used by the caller provided they are not unlocked manually.
+\smallskip{}
+
+{\tt an\_Info} is only used internally and is the {\tt
+  FileInfoBlock}\key{FileInfoBlock} of the directory being describes by the
+{\tt AChain} structure, see section~\ref{sec:fib}.
+\smallskip{}
+
+{\tt an\_Flags} is only used internally, and {\tt an\_String} can contain
+potentially the path to the directory; both shall not be modified or
+interreted by the caller.
+\medskip{}
+
+{\tt ap\_BreakBits} of the {\tt AnchorPath} structure shall be initialized
+to the signal mask upon which {\tt MatchNext()} aborts a directory
+scan. This is typically a combination of signal masks found in
+{\tt dos/dos.h}, e.g. {\tt SIGBREAKF\_CTRL\_C} to abort on {\tt Ctrl-C} in
+the console.
+\smallskip{}
+
+{\tt ap\_FoundBreak} contains, if {\tt MatchNext()} aborts with
+{\tt ERROR\_BREAK}, the signal mask that caused the abortion.
+\smallskip{}
+
+{\tt ap\_Flags} contains multiple flags that can be set or inspected by the
+caller while scanning a directory. In particular:
+\smallskip{}
+
+{\tt APF\_DOWILD} while documented, is not used nor set at all by the
+pattern matcher.
+\smallskip{}
+
+{\tt APF\_ITSWILD} is set by {\tt MatchFirst()} if the pattern includes a
+wildcard and more than a single \emph{file system} object may
+match. Otherwise, no directory scan is performed. The user may also set this
+flag to enforce a scan. This may resolve situations in which matching an
+explicit path without a wildcard is not possible because the object is
+locked exclusively.
+\smallskip{}
+
+{\tt APF\_DODIR} may be set or reset by the caller of {\tt MatchNext()} to
+enforce entering a directory recursively, or avoid entering a
+directory. This flag is cleared by {\tt MatchNext()} when entering a
+directory, and it shall only be set by the caller if a match describes a
+directory.
+\smallskip{}
+
+{\tt APF\_DIDDIR} is set by {\tt MatchNext()} if the end of a recursively
+entered directory has been reached, and thus the parent directory is
+re-entered. As this flag is never cleared by the pattern matcher, it should
+be cleared by the caller.
+\smallskip{}
+
+{\tt APF\_NOMEMERR} is an internal flag that should not be interpreted; it
+is set if an error is encountered while scanning a directory. It is not
+necessarily restricted to memory allocation errors.
+\smallskip{}
+
+{\tt APF\_DODOT} is, even though documented, not actually used.
+\smallskip{}
+
+{\tt APF\_DirChanged} is a flag that is set by {\tt MatchNext()} if the
+scanned directory changes, either by entering a directory recursively, or by
+leaving a directory. It is also cleared if the directory is the same as in
+the previous call.
+\medskip{}
+
+{\tt ap\_Strlen} is the size of the buffer {\tt ap\_Buf} that contains the
+full path of the matched entry. This buffer shall be allocated by the user
+at the end of the {\tt AnchorPath} structure. Unlike what the name suggests,
+this is not a string length, but the byte size of the buffer, including the
+terminating {\tt NUL} byte of a string. If the full path of the match does
+not fit into this buffer, it is truncated \emph{without} proper string
+termination and the error code {\tt ERROR\_BUFFER\_OVERFLOW} is returned. If
+the full path is not required, this member shall be set to~$0$.
+\smallskip{}
+
+{\tt ap\_Info} contains the {\tt FileInfoBlock}\key{FileInfoBlock} of the
+matched entry, including all metadata the file system has available for
+it. Note that {\tt fib\_FileFile} only contains the name of the object, not
+its full path.
+\smallskip{}
+
+{\tt ap\_Buf} is filled with the full path to the matched object if {\tt
+  ap\_Strlen} is non-zero. This buffer shall be allocated by the caller at
+the end of the {\tt AnchorPath} structure, i.e. for a buffer of $l$ bytes,
+in total {\tt sizeof(AnchorPath)+l-1} bytes are required to store the
+structure and the buffer. The byte size of this additional buffer shall be
+placed in {\tt ap\_Strlen}. If this buffer is not required, {\tt ap\_Strlen}
+shall be set to~$0$.
+
+\section{Matching Strings against Patterns}
+
+While the prime purpose of the pattern matcher is to scan directories, it
+can also be used to check whether an arbitrary string matches a wildcard,
+for example to scan for a pattern within a text document. This requires two
+steps: In the first step, the wildcard is preparsed, generating a tokenized
+version of the pattern. The second step checks whether a given input string
+matches the pattern. You would typically tokenize the pattern once, and then
+use it to match multiple strings to the pattern.
+\smallskip{}
+
+Two versions of the tokenizer and pattern matcher exist: One pair that is
+case-sensitive, and the second pair is case-insensitive. Note that AmigaDOS
+file names are case-insensitive, so the {\tt MatchFirst()}\key{MatchFirst()}
+and {\tt MatchNext()}\key{MatchNext()} functions internally only use the
+second piar.
+\smallskip{}
+
+The buffer for the tokenized version of the pattern shall be allocated by
+the caller. It requires a buffer that is at least {\tt 2 + (n << 1)} bytes
+large, where $n$ is the length of the input wildcard. 
+
+\subsection{Tokenizing a Case-Sensitive Pattern}
+
+The {\tt ParsePattern()}\mkey{ParsePattern()} function tokenizes a pattern
+for case-sensitive string matching. This tokenized version is then later on
+used to test a string for a match.
+
+\begin{verbatim}
+IsWild = ParsePattern(Source, Dest, DestLength)
+d0                      D1     D2      D3
+
+LONG ParsePattern(STRPTR, STRPTR, LONG)
+\end{verbatim}
+
+This function tokenizes a wildcard pattern in {\tt Source}, generating a
+tokenized version of the pattern in {\tt Dest}. The size (capacity) of the
+target buffer is {\tt DestLength} bytes. This size shall be at least
+{\tt 2 + (n << 1)} bytes large, where {\tt n} is the length of the input
+pattern. However, as future implementations can require larger buffers, the
+result code shall be checked nevertheless for error conditions. The result
+code {\tt IsWild} is one of the following:
+\smallskip{}
+
+{\tt 1} is returned if the source contained wildcards.
+\smallskip{}
+
+{\tt 0} is returned if the source contains no wildcards. In this case, the
+tokenized pattern may still be used to match a string against the pattern,
+though a simple string comparison would also work.
+\smallskip{}
+
+{\tt -1} is returned in case of an error, either because the input pattern
+is ill-formed, or because {\tt DestLength} is too short. In such a case,
+{\tt IoErr()} should be used to obtain the reason of the failure.
+
+\subsection{Tokenizing a Case-Insensitive Pattern}
+
+The {\tt ParsePatternNoCase()}\mkey{ParsePatternNoCase()} function tokenizes
+a pattern for case-insensitive string matching. This tokenized version is then
+later on used to test a string for a match. This version is suitable for
+matching file names, but is otherwise similar to {\tt
+  ParsePattern()}\key{ParsePattern()}.
+
+\begin{verbatim}
+IsWild = ParsePatternNoCase(Source, Dest, DestLength)
+d0                            D1     D2      D3
+
+LONG ParsePatternNoCase(STRPTR, STRPTR, LONG)
+\end{verbatim}
+
+This function tokenizes a wildcard pattern in {\tt Source}, generating a
+tokenized version of the pattern in {\tt Dest}. The size (capacity) of the
+target buffer is {\tt DestLength} bytes. This size shall be at least
+{\tt 2 + (n << 1)} bytes large, where {\tt n} is the length of the input
+pattern. However, as future implementations can require larger buffers, the
+result code shall be checked nevertheless for error conditions. The result
+code {\tt IsWild} is one of the following:
+\smallskip{}
+
+{\tt 1} is returned if the source contained wildcards.
+\smallskip{}
+
+{\tt 0} is returned if the source contains no wildcards. In this case, the
+tokenized pattern may still be used to match a string against the pattern,
+though a simple case-insensitive string comparison would also work.
+\smallskip{}
+
+{\tt -1} is returned in case of an error, either because the input pattern
+is ill-formed, or because {\tt DestLength} is too short. In such a case,
+{\tt IoErr()} should be used to obtain the reason of the failure.
+
+\subsection{Match a String against a Pattern}
+
+The {\tt MatchPattern()}\mkey{MatchPattern()} function matches an input
+string against a tokenized pattern, in a case sensitive way.
+
+\begin{verbatim}
+match = MatchPattern(pat, str)
+D0                   D1   D2
+
+BOOL MatchPattern(STRPTR, STRPTR)
+\end{verbatim}
+
+This function matches the string {\tt str} against the tokenized pattern
+{\tt pat}, returning an indicator whether the string matches the
+pattern. This function is case-sensitive. The pattern {\tt pat} shall have
+been tokenized by {\tt ParsePattern()}.
+\smallskip{}
+
+The result code {\tt match} is non-zero in case the string matches, or~$0$
+in case either the string did not match, or the function run out of
+stack. The latter two cases can be distinguished by {\tt
+  IoErr()}\key{IoErr()}. In case the string did not match, {\tt IoErr()}
+returns~$0$, or a non-zero error code otherwise. A possible error code is
+{\tt ERROR\_TOO\_MANY\_LEVELS} indicating that the pattern matcher run out
+of stack due to too many levels of recursion.
+\smallskip{}
+
+The caller shall have at least~$1500$ bytes of stack space available to
+avoid race conditions, despite the function checking for out-of-stack
+conditions.
+
+\subsection{Match a String against a Pattern ignoring Case}
+
+The {\tt MatchPatternNoCase()}\mkey{MatchPatternNoCase()} function matches
+an input string against a tokenized pattern ignoring the case.
+
+\begin{verbatim}
+match = MatchPatternNoCase(pat, str)
+D0                         D1   D2
+
+BOOL MatchPatternCase(STRPTR, STRPTR)
+\end{verbatim}
+
+This function matches the string {\tt str} against the tokenized pattern
+{\tt pat}, returning an indicator whether the string matches the
+pattern. This function is case-insensitive. The pattern {\tt pat} shall have
+been tokenized by {\tt ParsePatternNoCase()}.
+\smallskip{}
+
+The result code {\tt match} is non-zero in case the string matches, or~$0$
+in case either the string did not match, or the function run out of
+stack. The latter two cases can be distinguished by
+{\tt IoErr()}\key{IoErr()}. In case the string did not match, {\tt IoErr()}
+returns~$0$, or a non-zero error code otherwise. A possible error
+code is {\tt ERROR\_TOO\_MANY\_LEVELS} indicating that the pattern matcher
+run out of stack due to too many levels of recursion.
+\smallskip{}
+
+The caller shall have at least~$1500$ bytes of stack space available to
+avoid race conditions, despite the function checking for out-of-stack
+conditions.
+
 \chapter{Processes} \label{sec:process}
 
 \emph{Processes}\mkey{Process} are extensions of exec \emph{tasks}, and as
@@ -4636,7 +5005,7 @@ the {\tt SYS} assign.
 {\tt pr\_CIS} is \emph{file handle} of the standard input stream of the
 process. It is also returned by {\tt Input()}\key{Input()}. It can be {\tt
   ZERO} in case the process does not have a standard input stream. This is
-\emph{not} equivalent to a {\tt NIL:} input handle --- in fact, any attempt
+\emph{not} equivalenqt to a {\tt NIL:} input handle --- in fact, any attempt
 to read from a non-existing input stream will crash. Processes started from
 the workbench do not have an input stream, unless one is installed here with
 {\tt SelectInput()}\key{SelectInput()}.
