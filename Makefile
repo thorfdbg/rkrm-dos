@@ -21,6 +21,7 @@ DVIPS		=	dvips
 FIG2DEV		=	fig2dev
 EPSTOPDF	=	epstopdf
 TEX		=	latex
+PDFLATEX	=	pdflatex
 MAKEINDEX	=	makeindex
 PRINT		=	lpr
 PROPTIONS	=
@@ -58,8 +59,8 @@ TEXSOURCES	=	$(MAIN).tex
 #	Main make rules
 #
 
-view	:	$(MAIN).dvi
-	@ $(VIEWER) $(MAIN).dvi &
+view	:	$(MAIN).pdf
+	@ $(ACROREAD) $(MAIN).pdf &
 
 gv	:	$(MAIN).ps
 	@ $(GHOSTVIEW) $(MAIN).ps &
@@ -84,6 +85,13 @@ clean	:
 	@ $(TEX) $*.tex
 	@ grep -c '^LaTeX Warning: Label(s) may have changed. Rerun to get cross-references right' $*.log > /dev/null 2>&1 && $(TEX) $*.tex || :
 	@ $(MAKEINDEX) -c $*
+
+%.pdf	:	%.tex %.ind
+	@ $(PDFLATEX) $*.tex
+	@ grep -c '^LaTeX Warning: Label(s) may have changed. Rerun to get cross-references right' $*.log > /dev/null 2>&1 && $(TEX) $*.tex || :
+	@ $(MAKEINDEX) -c $*
+	@ pdftops $*.pdf
+	@ $(PSTOPDF) -dPDFSETTINGS=/prepress $*.ps
 
 %.ind	:	%.idx
 	@ $(MAKEINDEX) -c $*
@@ -120,4 +128,4 @@ clean	:
 
 $(MAIN).dvi	: $(TEXSOURCES) $(TEXFIGURES) $(FIGURES) $(ROTFIGURES) $(PSFIGURES)
 $(MAIN).ps	: $(MAIN).dvi $(PSINCLUDE) $(PSFIGURES)
-$(MAIN).pdf	: $(MAIN).ps
+$(MAIN).pdf	: $(TEXSOURCES) $(TEXFIGURES) $(FIGURES) $(ROTFIGURES) $(PSFIGURES)
