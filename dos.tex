@@ -1,6 +1,7 @@
 \documentclass[10pt,twoside]{book}
 \usepackage{a4}
 \usepackage{times}
+\usepackage{longtable}
 %
 \setlength{\oddsidemargin}{0cm}
 \setlength{\evensidemargin}{0cm}
@@ -66,6 +67,16 @@
 \end{center}%
 }
 %
+\newenvironment{rkrmtabular}[1]%
+{%
+\nopagebreak[5]%
+\begin{center}%
+\refstepcounter{rkrmtablecount}
+{\sfb Table \arabic{rkrmtablecount}: #1} \\[1ex]
+}{%
+\end{center}%
+}
+%
 \newlength{\punchlinewidth}
 \setlength{\punchlinewidth}{\textwidth}
 \addtolength{\punchlinewidth}{-\rightmargin}
@@ -82,7 +93,7 @@
 \newcommand{\punchline}[2]{%
 \bigskip{\setlength{\arrayrulewidth}{1mm}
 \begin{tabular}{|p{\punchlinewidth}}
-{\sfi #1} #2
+{\sfi #1}$\quad$#2
 \end{tabular}
 }\bigskip}
 
@@ -6223,7 +6234,234 @@ function is the setter equivalent of {\tt
   GetFileSysTask()}\key{GetFileSysTask()} introduced in
 section~\ref{sec:getfilesystask}.
 
->>>>>>> d735ef1255bde852d6d31cda9d408dbf44812fca
+\chapter{Binary File Structure}
+
+The AmigaDOS \emph{Hunk} format represents executable and linkable
+object code. While both formats are related, they are not identical;
+executables can be loaded from the shell or the workbench from disk to
+RAM, and then either overload the shell process, or a new process is
+created from them. Object files are created as intermediate compiler
+outputs; typically, each translation unit is compiled into one object
+file which are then, in a final step, linked with a startup code and
+object code libraries to form an executable.
+\smallskip{}
+
+An object code or executable file in this format consists of multiple
+\emph{hunks} (thus, the name). Hunks define either payload data as
+indivisible \emph{sections} of code or data that is initialized or
+loaded from disk, or additional meta-information interpreted by the
+AmigaDOS loader, the {\tt LoadSeg()}\key{LoadSeg()} function. The
+meta-information is used to relocate the loaded data to their final
+position in memory, to define the size of the sections, to select the
+memory type that is allocated for the hunk, or to interrupt or
+terminate the loading process.
+\smallskip{}
+
+
+The hunk format distinguishes three types of \emph{sections}, each
+represented by a hunk: \emph{code hunks} that should contain constant
+data, most notably executable machine code and constant data
+associated to this code, \emph{data hunks} that contain (variable)
+data, and so called \emph{BSS} hunks that contain data that is
+initialized to zero. Thus, the contents of \emph{BSS} hunks is not
+represented on disk.
+
+\punchline{Const is not enforced}{While \emph{code hunks} should
+  contain executable code and other constant data, and \emph{data
+    hunks} should contain variable data, nothing in AmigaDOS is able
+  to enforce these conventions. In principle, \emph{data hunks} may
+  contain executable machine code, and \emph{code hunks} may contain
+  variable data. Note, however, that some third party tools may
+  require programs to follow such conventions. Many commercial
+  compilers structure their object code according to these
+  conventions, or at least do so in their default configuration.}
+
+Additional \emph{hunks} describe how to relocate the loaded code and
+data. Relocation means that data within the hunk is corrected
+according to the addresses this and other hunks are loaded to. The
+relocation process takes an offset into one hunk, and adds to the
+longword at this offset the absolute address of this or any other
+hunk. That is, hunks on disk are represented as if their first byte is
+placed at address~0, and relocation adjusts longwords within hunks to
+the final positions in memory.
+\smallskip{}
+
+An extension of the executable file format is the \emph{overlay
+  format} also supported by {\tt LoadSeg()}\key{LoadSeg()}. Here, only
+a part of the file is loaded into memory, while the remaining parts
+are only loaded on demand, potentially releasing other already loaded
+parts from memory. Overlayed executables thus take less main memory,
+though requires the volume containing the executable available all the
+time.
+\smallskip{}
+
+AmigaDOS also contains a simple run-time binder that is only used by
+compiled BCPL code, or by code that operates under such
+requirements. The purpose of this binder is to populate the BCPL
+\emph{global vector} of the loaded program. While this runtime binder
+implements a legacy protocol, certain parts of AmigaDOS still
+expect. These are \emph{handlers} or \emph{file systems} that use the
+{\tt dol\_GlobVec} value of $0$ or $-2$, or corresponding {\tt
+  GlobVec} entry in the mount list. While new handlers should not use
+this BCPL legacy protocol, the ROM file system (the FFS) and the
+port-handler currently still depend (or require) it, despite not being
+written in BCPL. A second application of this run-time binding procol
+is the shell which also depends on BCPL binding.
+
+\section{Executable File Format}
+
+The hunk format of executable files consists of 4-byte (longword) hunk
+identifiers and subsequent data that is interpreted by the AmigaDOS
+loader according to the introducing hunk identifier. The syntax of
+such a file, and its hunks, is here presented in a pseudo-code, in
+three-column tables.
+\smallskip{}
+
+The first column identifies the number of bits a syntax element
+takes. Bits within a byte are read from most significant to least
+significant bit, and bytes within a structure that extends over
+multiple bytes are read from most significant to least significant
+bit. That is, the binary file format follows the big-endian
+convention. If the first column contains a question mark (``?''), the
+structure is variably-sized, and the number of removed bits is defined
+by the second column, or the section it refers to. If the first column
+is empty, no bits are removed from the file.
+\smallskip{}
+
+The second column either identifies the member of a structure to which
+the value removed from the stream is assigned, or contains pseudo-code
+that describes how to process the values parsed from the stream. These
+syntax elements follow closely the convention of the C language. In
+particular {\tt if ({\it cond})} formulates a condition that is only
+executed if {\it cond} is true, {\tt else} describes code that is
+executed following an {\tt if} clause that is executed if {\it cond}
+is false, and {\tt do} $\ldots$ {\tt while(true)} indicates an endless
+loop that is terminated by a {\tt break} within such a loop. The
+expression {\tt i++} increments an internal state variable {\tt i}.
+\smallskip{}
+
+The following pseudo-code describes the top-level syntax of a binary executable
+file AmigaDOS is able to bring to memory:
+
+\begin{rkrmtabular}{Regular Executable File} \label{table:executable}
+\begin{longtable}{|l|p{6cm}|p{6cm}|} \hline
+{\bf Size} & {\bf Code} & {\bf Syntax} \\ \hline \hline
+? & \tt HUNK\_HEADER & See section~\ref{sec:hunk_header} for details \\ \hline
+ & \tt $i = t_{\mbox{num}}$ & Start with the first hunk, $t_{\mbox{num}}$ is defined in the {\tt HUNK\_HEADER} \\ \hline
+ & \tt do \{ & Repeat until all hunks done \\ \hline
+2  & \tt $\quad$ $\hat{m}_t[i]$ & These two bits are unused, but some utilities set it identical to $m_t[i]$, the memory type of the hunk, see~\ref{sec:hunk_header} \\ \hline
+30 & \tt $\quad$ h & This is the hunk type \\ \hline
+& \tt $\quad$ if (h < 0x03e8) ERROR\_BAD\_HUNK & Hunk types $<1000$ are invalid \\ \hline
+& \tt $\quad$ if (h > 0x03fd) \{ & Hunk types above this limit are currently not defined \\ \hline
+& \tt $\quad\quad$ if (h \& (1 << HUNKB\_ADVISORY)) \{ & Check for bit $29$, these are advisory hunks \\ \hline
+32 & \tt $\quad\quad\quad$ l & Read length of advisory hunk \\ \hline
+32 $\times$ l & & $l$ long words of hunk contents ignored \\ \hline
+& \tt $\quad\quad$ \} else ERROR\_BAD\_HUNK & Otherwise, it is an invalid hunk \\ \hline
+& \tt $\quad$ if (h == HUNK\_END) break & Terminate loading, see~\ref{sec:hunk_end} \\ \hline
+& \tt $\quad$ else if (h == HUNK\_BREAK) break & Terminate loading an overlay, see~\ref{sec:hunk_break} \\ \hline
+? & \tt $\quad$ else if (h == HUNK\_NAME) parse\_NAME & See section~\ref{sec:hunk_name} \\ \hline
+? & \tt $\quad$ else if (h == HUNK\_CODE) {parse\_CODE;i++} & See section~\ref{sec:hunk_code} \\ \hline
+? & \tt $\quad$ else if (h == HUNK\_DATA) {parse\_DATA;i++} & See section~\ref{sec:hunk_data} \\ \hline
+? & \tt $\quad$ else if (h == HUNK\_BSS) {parse\_BSS;i++} & See section~\ref{sec:hunk_bss} \\ \hline
+? & \tt $\quad$ else if (h == HUNK\_RELOC32) parse\_RELOC32 & See section~\ref{sec:hunk_reloc32} \\ \hline
+? & \tt $\quad$ else if (h == HUNK\_SYMBOL) parse\_SYMBOL & See section~\ref{sec:hunk_symbol} \\ \hline
+? & \tt $\quad$ else if (h == HUNK\_DEBUG) parse\_DEBUG & See section~\ref{sec:hunk_debug} \\ \hline
+? & \tt $\quad$ else if (h == HUNK\_OVERLAY) parse\_OVERLAY & See section~\ref{sec:hunk_overlay} \\ \hline
+? & \tt $\quad$ else if (h == HUNK\_DREL32) parse\_RELOC32SHORT & This is a compatibility kludge for some older versions of the \emph{dos.library}, new tools should use {\tt HUNK\_RELOC32SHORT} instead, see section~\ref{sec:hunk_reloc32short} \\ \hline
+? & \tt $\quad$ else if (h == HUNK\_RELOC32SHORT) parse\_RELOC32SHORT & See section~\ref{sec:hunk_reloc32short} \\ \hline
+? & \tt $\quad$ else if (h == HUNK\_RELRELOC32) parse\_RELRELOC32 & See section~\ref{sec:hunk_relreloc32} \\ \hline
+& \tt $\quad$ else ERROR\_BAD\_HUNK & Everything else is invalid \\ \hline
+& \tt \} while(true) & repeat until all hunks done \\ \hline
+\end{longtable}
+\end{rkrmtabular}
+
+In particular, every executable shall start with the {\tt
+  HUNK\_HEADER} identifier, the big-endian long-word {\tt 0x3f3}. The
+following stream contains long-word identifiers of which the first
+$2$~bits are ignored and masked out. Some tools (e.g. the {\tt Atom}
+tool by CBM) places there memory requirements similar to what is
+indicated in the {\tt HUNK\_HEADER}. They have there, however, no
+effect as the sections are allocated within the {\tt HUNK\_HEADER} and
+not at times the hunk type is encountered.
+\smallskip{}
+
+Bit $29$ ({\tt HUNKB\_ADVISORY}) has a special meaning. If this bit is
+set, and the hunk type is otherwise valid, i.e. larger or equal to
+$1000$, then the hunk contents is ignored. The size of such an
+\emph{advisory} hunk is defined by a long-word following the hunk
+type.
+\smallskip{}
+
+Loading a binary executable terminates on two conditions. Either, if a
+{\tt HUNK\_END} is encountered. This identifies the end of the file,
+closes the binary and returns to the caller with the loaded segment
+list. Or, if a {\tt HUNK\_BREAK} is found. This mechanism is used for
+\emph{overlayed} files. On a {\tt HUNK\_BREAK}, the file remains open,
+and information on the loaded file is injected into the first hunk of
+the loaded data. More information on this mechanism is provided in
+section~\ref{sec:overlays}.
+
+\subsection{HUNK\_HEADER} \label{sec:hunk_header}
+
+The {\tt HUNK\_HEADER}\mkey{HUNK\_HEADER} is the first hunk of every
+executable file. It identifies the number of sections in an
+executable, and the amount of memory to reserve for each section.
+    
+\begin{rkrmtabular}{Hunk Header Syntax} \label{table:hunkheader}
+\begin{tabular}{|l|p{6cm}|p{6cm}|} \hline
+{\bf Size} & {\bf Code} & {\bf Syntax} \\ \hline \hline
+32 & \tt HUNK\_HEADER [0x3f3] & Every executable file shall start with this hunk \\ \hline
+32 & \tt $0$ & Number of resident libraries, BCPL legacy, shall be zero \\ \hline
+32 & \tt $t_{\mbox{size}} \in 1 \ldots 2^{31}-1$ & Number of sections in binary \\ \hline
+32 & \tt $t_{\mbox{num}}$ & First section to load \\ \hline
+32 & \tt $t_{\mbox{max}}$ & Last section to load \\ \hline
+ & \tt for(i=$t_{\mbox{num}}$;$i \le t_{\mbox{max}}$;i++) \{ & Iterate over all hunks \\ \hline
+2  & \tt $\quad m_t[i]$ & Read memory type of the section as 2 bits \\ \hline
+30 & \tt $\quad m_s[i]$ & Read memory size in long words as 30 bits \\ \hline
+ & \tt $\quad$ if ($m[i]$ == 3) \{ & if the memory type is $3$ \\ \hline
+32 ~~& $\quad \quad m_s[i]$ & Memory type is explicitly provided \\ \hline
+ & \tt $\quad$ \tt \} & End of special memory condition \\ \hline
+ & \tt $\quad m_a[i]$ = AllocVec(sizeof(BPTR) + $m_s[i] \times$ sizeof(LONG),$m_t[i] \| $ \mbox{MEMF\_PUBLIC}) &
+Get memory for section \\ \hline
+ & \tt \} & End of loop over sections \\ \hline
+\end{tabular}
+\end{rkrmtabular}
+
+The first member of a {\tt HUNK\_HEADER} shall always be $0$; it was
+used by a legacy mechanism which allowed run-time binding of the
+executable with dynamic libraries. While first versions of AmigaDOS
+inherited this mechanism from TRIPOS, but it was not particularly useful
+as the calling conventions for such libraries did not follow the usual
+conventions of AmigaDOS, i.e. with the library base in register {\tt
+  a6}. Later versions of AmigaDOS, in particular its re-implementation
+as of Kickstart v37, removed support for such libraries. As this
+mechanism is no longer supported, it is not documented here. More
+information is found in~\cite{guru}.
+\smallskip{}
+
+The second entry $t_{\mbox{size}}$ contains the number of sections the
+executable consists of. In case of overlays, it is the total number of
+sections that can be resident in memory at all times. See
+section~\ref{sec:overlays} for more information. This value shall be
+consistent for all {\tt HUNK\_HEADERS} within an overlayed file. In
+regular executables, only a single {\tt HUNK\_HEADER} exists at the
+beginning of the file.
+\smallskip{}
+
+The members $t_{\mbox{num}}$ and $t_{\mbox{max}}$ define the 0-based index of
+the first and last section to load within the branch of the overlay
+tree described by this {\tt HUNK\_HEADER}. For a regular
+(non-overlayed) file and for the root node of the overlay tree,
+$t_{\mbox{num}}$ shall be $0$, that is, the first section to load
+is~$0$, the first index in the section table.
+\smallskip{}
+
+For regular files, $t_{\mbox{max}}$ shall be identical to
+$t_{\mbox{size}}-1$, that is, the last section load is the last entry
+in the section table described by this {\tt HUNK\_HEADER}. For
+overlayed files, the number may be smaller, i.e. not all sections may
+be populated initially and loading may continue later on when
+executing the binary.
 
 %%% For later.
 
