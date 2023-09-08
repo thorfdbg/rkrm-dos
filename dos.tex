@@ -6248,17 +6248,33 @@ object code libraries to form an executable.
 
 An object code or executable file in this format consists of multiple
 \emph{hunks} (thus, the name). Hunks define either payload data as
-indivisible \emph{sections} of code or data that is initialized or
+indivisible \emph{segments} of code or data that is initialized or
 loaded from disk, or additional meta-information interpreted by the
 AmigaDOS loader, the {\tt LoadSeg()}\key{LoadSeg()} function. The
-meta-information is used to relocate the loaded data to their final
+meta-information is used to relocate the payload to their final
 position in memory, to define the size of the sections, to select the
-memory type that is allocated for the hunk, or to interrupt or
+memory type that is allocated for the segment, or to interrupt or
 terminate the loading process.
 \smallskip{}
 
+Loaded executables are represented as singly linked list of segments
+in memory, by a structure that looks as follows:
+\begin{verbatim}
+struct LoadedSegment {
+    BPTR  NextSegment; /* BPTR to next segment or ZERO */
+    ULONG Data[1];     /* Payload data */
+};
+\end{verbatim}
+The above structure is \emph{not} documented and is not identical to
+the {\tt Segment} in {\tt dos/dosextens.h}. The latter describes a
+resident executable, see section~\ref{resident}, but also contains a
+\emph{BPTR} to a segment in the above sense. Each segment of a binary
+is allocated through {\tt AllocVec()} which is sometimes helpful as it
+allows to retrieve size of the segment from the size of the allocated
+memory block.
+\smallskip{}
 
-The hunk format distinguishes three types of \emph{sections}, each
+The hunk format distinguishes three types of \emph{segments}, each
 represented by a hunk: \emph{code hunks} that should contain constant
 data, most notably executable machine code and constant data
 associated to this code, \emph{data hunks} that contain (variable)
@@ -6335,9 +6351,14 @@ syntax elements follow closely the convention of the C language. In
 particular {\tt if ({\it cond})} formulates a condition that is only
 executed if {\it cond} is true, {\tt else} describes code that is
 executed following an {\tt if} clause that is executed if {\it cond}
-is false, and {\tt do} $\ldots$ {\tt while(true)} indicates an endless
-loop that is terminated by a {\tt break} within such a loop. The
-expression {\tt i++} increments an internal state variable {\tt i}.
+is false, and {\tt do} $\ldots$ {\tt while({\it cond})} indicates a
+loop that continues as long as {\tt cond} is non-zero, and that may
+alternatively be terminated by a {\tt break} within the body of the
+loop. The expression {\tt i++} increments an internal state variable
+{\tt i}, and the expression {\tt -{}-j} decrements an internal state
+variable. The value of {\tt i++} is the value of $i$ before the
+increment, and the value of {\tt -{}-j} is the value of $j$ after
+decrementing it.
 \smallskip{}
 
 The following pseudo-code describes the top-level syntax of a binary executable
@@ -6346,18 +6367,17 @@ file AmigaDOS is able to bring to memory:
 \begin{rkrmtabular}{Regular Executable File} \label{table:executable}
 \begin{longtable}{|l|p{6cm}|p{6cm}|} \hline
 {\bf Size} & {\bf Code} & {\bf Syntax} \\ \hline \hline
-? & \tt HUNK\_HEADER & See section~\ref{sec:hunk_header} for details \\ \hline
+? & \tt HUNK\_HEADER & Defines all segments, see section~\ref{sec:hunk_header} for details \\ \hline
  & \tt $i = t_{\mbox{num}}$ & Start with the first hunk, $t_{\mbox{num}}$ is defined in the {\tt HUNK\_HEADER} \\ \hline
  & \tt do \{ & Repeat until all hunks done \\ \hline
 2  & \tt $\quad$ $\hat{m}_t[i]$ & These two bits are unused, but some utilities set it identical to $m_t[i]$, the memory type of the hunk, see~\ref{sec:hunk_header} \\ \hline
-30 & \tt $\quad$ h & This is the hunk type \\ \hline
-& \tt $\quad$ if (h < 0x03e8) ERROR\_BAD\_HUNK & Hunk types $<1000$ are invalid \\ \hline
-& \tt $\quad$ if (h > 0x03fd) \{ & Hunk types above this limit are currently not defined \\ \hline
-& \tt $\quad\quad$ if (h \& (1 << HUNKB\_ADVISORY)) \{ & Check for bit $29$, these are advisory hunks \\ \hline
-32 & \tt $\quad\quad\quad$ l & Read length of advisory hunk \\ \hline
+1  & \tt $\quad$ $a_f$ & Advisory hunk flag. \\ \hline
+29 & \tt $\quad$ h & This is the hunk type \\ \hline
+& \tt $\quad$ if ($a_f$) \{ & Check for bit $29$, these are advisory hunks \\ \hline
+32 & \tt $\quad\quad$ l & Read length of advisory hunk \\ \hline
 32 $\times$ l & & $l$ long words of hunk contents ignored \\ \hline
-& \tt $\quad\quad$ \} else ERROR\_BAD\_HUNK & Otherwise, it is an invalid hunk \\ \hline
-& \tt $\quad$ if (h == HUNK\_END) break & Terminate loading, see~\ref{sec:hunk_end} \\ \hline
+& \tt $\quad$ \} & \\ \hline
+& \tt $\quad$ else if (h == HUNK\_END) break & Terminate loading, see~\ref{sec:hunk_end} \\ \hline
 & \tt $\quad$ else if (h == HUNK\_BREAK) break & Terminate loading an overlay, see~\ref{sec:hunk_break} \\ \hline
 ? & \tt $\quad$ else if (h == HUNK\_NAME) parse\_NAME & See section~\ref{sec:hunk_name} \\ \hline
 ? & \tt $\quad$ else if (h == HUNK\_CODE) {parse\_CODE;i++} & See section~\ref{sec:hunk_code} \\ \hline
@@ -6381,13 +6401,12 @@ following stream contains long-word identifiers of which the first
 $2$~bits are ignored and masked out. Some tools (e.g. the {\tt Atom}
 tool by CBM) places there memory requirements similar to what is
 indicated in the {\tt HUNK\_HEADER}. They have there, however, no
-effect as the sections are allocated within the {\tt HUNK\_HEADER} and
+effect as the segments are allocated within the {\tt HUNK\_HEADER} and
 not at times the hunk type is encountered.
 \smallskip{}
 
 Bit $29$ ({\tt HUNKB\_ADVISORY}) has a special meaning. If this bit is
-set, and the hunk type is otherwise valid, i.e. larger or equal to
-$1000$, then the hunk contents is ignored. The size of such an
+set, then the hunk contents is ignored. The size of such an
 \emph{advisory} hunk is defined by a long-word following the hunk
 type.
 \smallskip{}
@@ -6404,26 +6423,26 @@ section~\ref{sec:overlays}.
 \subsection{HUNK\_HEADER} \label{sec:hunk_header}
 
 The {\tt HUNK\_HEADER}\mkey{HUNK\_HEADER} is the first hunk of every
-executable file. It identifies the number of sections in an
-executable, and the amount of memory to reserve for each section.
+executable file. It identifies the number of segments in an
+executable, and the amount of memory to reserve for each segment.
     
 \begin{rkrmtabular}{Hunk Header Syntax} \label{table:hunkheader}
 \begin{tabular}{|l|p{6cm}|p{6cm}|} \hline
 {\bf Size} & {\bf Code} & {\bf Syntax} \\ \hline \hline
 32 & \tt HUNK\_HEADER [0x3f3] & Every executable file shall start with this hunk \\ \hline
 32 & \tt $0$ & Number of resident libraries, BCPL legacy, shall be zero \\ \hline
-32 & \tt $t_{\mbox{size}} \in 1 \ldots 2^{31}-1$ & Number of sections in binary \\ \hline
-32 & \tt $t_{\mbox{num}}$ & First section to load \\ \hline
-32 & \tt $t_{\mbox{max}}$ & Last section to load \\ \hline
+32 & \tt $t_{\mbox{size}} \in [1,2^{31}-1]$ & Number of segments in binary \\ \hline
+32 & \tt $t_{\mbox{num}} \in [0,t_{\mbox{size}}-1]$ & First segment to load \\ \hline
+32 & \tt $t_{\mbox{max}} \in [t_{\mbox{num}},t_{\mbox{size}}-1]$ & Last segment to load (inclusive) \\ \hline
  & \tt for(i=$t_{\mbox{num}}$;$i \le t_{\mbox{max}}$;i++) \{ & Iterate over all hunks \\ \hline
-2  & \tt $\quad m_t[i]$ & Read memory type of the section as 2 bits \\ \hline
-30 & \tt $\quad m_s[i]$ & Read memory size in long words as 30 bits \\ \hline
+2  & \tt $\quad$ $m_t[i]$ & Read memory type of the segment as 2 bits \\ \hline
+30 & \tt $\quad$ $m_s[i]$ & Read memory size in long words as 30 bits \\ \hline
  & \tt $\quad$ if ($m[i]$ == 3) \{ & if the memory type is $3$ \\ \hline
-32 ~~& $\quad \quad m_s[i]$ & Memory type is explicitly provided \\ \hline
+32 & $\quad \quad m_s[i]$ & Memory type is explicitly provided \\ \hline
  & \tt $\quad$ \tt \} & End of special memory condition \\ \hline
- & \tt $\quad m_a[i]$ = AllocVec(sizeof(BPTR) + $m_s[i] \times$ sizeof(LONG),$m_t[i] \| $ \mbox{MEMF\_PUBLIC}) &
-Get memory for section \\ \hline
- & \tt \} & End of loop over sections \\ \hline
+ & \tt $\quad$ $m_a[i]$ = AllocVec(sizeof(BPTR) + $m_s[i] \times$ sizeof(LONG),$m_t[i] | $ \mbox{MEMF\_PUBLIC}) + sizeof(BPTR) &
+Get memory for segment \\ \hline
+ & \tt \} & End of loop over segments \\ \hline
 \end{tabular}
 \end{rkrmtabular}
 
@@ -6439,9 +6458,9 @@ mechanism is no longer supported, it is not documented here. More
 information is found in~\cite{guru}.
 \smallskip{}
 
-The second entry $t_{\mbox{size}}$ contains the number of sections the
+The second entry $t_{\mbox{size}}$ contains the number of segments the
 executable consists of. In case of overlays, it is the total number of
-sections that can be resident in memory at all times. See
+segments that can be resident in memory at all times. See
 section~\ref{sec:overlays} for more information. This value shall be
 consistent for all {\tt HUNK\_HEADERS} within an overlayed file. In
 regular executables, only a single {\tt HUNK\_HEADER} exists at the
@@ -6449,19 +6468,182 @@ beginning of the file.
 \smallskip{}
 
 The members $t_{\mbox{num}}$ and $t_{\mbox{max}}$ define the 0-based index of
-the first and last section to load within the branch of the overlay
+the first and last segment to load within the branch of the overlay
 tree described by this {\tt HUNK\_HEADER}. For a regular
 (non-overlayed) file and for the root node of the overlay tree,
-$t_{\mbox{num}}$ shall be $0$, that is, the first section to load
-is~$0$, the first index in the section table.
+$t_{\mbox{num}}$ shall be $0$, that is, the first segment to load
+is~$0$, the first index in the segment table.
 \smallskip{}
 
 For regular files, $t_{\mbox{max}}$ shall be identical to
-$t_{\mbox{size}}-1$, that is, the last section load is the last entry
-in the section table described by this {\tt HUNK\_HEADER}. For
-overlayed files, the number may be smaller, i.e. not all sections may
+$t_{\mbox{size}}-1$, that is, the last segment to load is the last entry
+in the segment table described by this {\tt HUNK\_HEADER}. For
+overlayed files, the number may be smaller, i.e. not all segments may
 be populated initially and loading may continue later on when
 executing the binary.
+
+\subsection{HUNK\_CODE} \label{sec:hunk_code}
+
+This hunk should contain executable machine code and constant data. As
+executables are started from the first byte of the first segment, the
+first hunk of an executable should be a {\tt HUNK\_CODE}, and it shall
+start with a valid opcode.
+\smallskip{}
+
+Compilers use typically this hunk to represent the {\tt text} segment,
+i.e. compiled code and constant data.
+
+The structure of this hunk is as follows:
+\begin{rkrmtabular}{Hunk Code Syntax} \label{table:hunk_code}
+\begin{tabular}{|l|p{6cm}|p{6cm}|} \hline
+{\bf Size} & {\bf Code} & {\bf Syntax} \\ \hline \hline
+   & \tt HUNK\_CODE [0x3e9] & A hunk describing a segment of code and constant data \\ \hline
+32 & \tt $l \le m_s[i]$ & Size of the payload\\ \hline
+l $\times$ 32 & \tt Code & $l$ long words of payload \\ \hline
+\end{tabular}
+\end{rkrmtabular}
+
+Note that the size of the payload loaded from the file may be less
+than the size of the allocated segment as defined in {\tt
+  HUNK\_HEADER}. In such a case, all bytes of the segment not included
+in the {\tt HUNK\_CODE} are zero-initialized. Earlier versions of
+AmigaDOS skipped this initialization.
+
+\subsection{HUNK\_DATA} \label{sec:hunk_data}
+
+This hunk should contain variable data, and it should not contain
+executable code. Compilers typically use this hunk to represent
+initialized data.
+\smallskip{}
+
+The structure of this hunk is otherwise identical to {\tt HUNK\_CODE}:
+\begin{rkrmtabular}{Hunk Data Syntax} \label{table:hunk_data}
+\begin{tabular}{|l|p{6cm}|p{6cm}|} \hline
+{\bf Size} & {\bf Code} & {\bf Syntax} \\ \hline \hline
+   & \tt HUNK\_CODE [0x3ea] & A hunk describing a segment of data\\ \hline
+32 & \tt $l \le m_s[i]$ & Size of the payload\\ \hline
+l $\times$ 32 & \tt Code & $l$ long words of payload \\ \hline
+\end{tabular}
+\end{rkrmtabular}
+
+Similar to {\tt HUNK\_CODE}, the size of the payload defined by this
+hunk may be less than the size of the segment allocated by {\tt
+  HUNK\_HEADER}. All excess bytes are zero-initialized all but early
+versions of AmigaDOS.
+
+\subsection{HUNK\_BSS} \label{sec:hunk_bss}
+
+This hunk contains zero-initialized data; it does not define actual payload.
+\smallskip{}
+
+The structure of this hunk is as follows:
+\begin{rkrmtabular}{Hunk BSS Syntax} \label{table:hunk_bss}
+\begin{tabular}{|l|p{6cm}|p{6cm}|} \hline
+{\bf Size} & {\bf Code} & {\bf Syntax} \\ \hline \hline
+   & \tt HUNK\_CODE [0x3eb] & A hunk describing zero-initialized data\\ \hline
+32 & \tt $l \le m_s[i]$ & Size of the payload\\ \hline
+\end{tabular}
+\end{rkrmtabular}
+
+Note that this hunk does not contain any payload; the segment
+allocated from this hunk is always zero-initialized.
+
+\subsection{HUNK\_RELOC32} \label{sec:hunk_reloc32}
+
+This hunk contains relocation information for the previously loaded
+segment; that is, it corrects addresses within this segment by
+adding the absolute address of this or other segments to long words at
+indicated offsets of the previous segments.
+\smallskip{}
+
+The structure of this hunk is as follows:
+\begin{rkrmtabular}{Hunk Reloc32 Syntax} \label{table:hunk_reloc32}
+\begin{tabular}{|l|p{6cm}|p{6cm}|} \hline
+{\bf Size} & {\bf Code} & {\bf Syntax} \\ \hline \hline
+   & \tt HUNK\_RELOC32 [0x3ec] & A hunk containing relocation information\\ \hline
+   & \tt do \{ & Loop over relocation entries \\ \hline
+32 & \tt $\quad$ $c$ & Number of relocation entries \\ \hline
+   & \tt $\quad$ if ($c$ == 0) break; & Terminate the hunk if the count is zero \\ \hline
+32 & \tt $\quad$ $j \in [0,t_{\mbox{size}}-1]$ & Read the hunk to which the relocation is relative to \\ \hline
+   & \tt $\quad$ do \{ & Loop over the relocation entries \\ \hline
+32 & \tt $\quad\quad$ $r_o \in [0,m_s[i] \times 4 - 4]$ & Relocation offset into this hunk as byte address \\ \hline
+   & \tt $\quad\quad$ (UBYTE **)($m_a[i]+r_o$) += $m_a[j]$ & Fixup this hunk by the start
+address of the selected hunk \\ \hline
+   & \tt $\quad$ \} while(-{}-c); & until all entries are used \\ \hline
+   & \tt \} while(true); & until a zero-count is read. \\ \hline
+\end{tabular}
+\end{rkrmtabular}
+
+That is, the hunk consists first of a counter that indicates the
+number of relocation entries, followed by the hunk index relative to
+which an address should be relocated. Then relocation entries follow;
+each long-word defines an offset into the previously loaded segment to
+relocate, that is, to fix up the address.
+
+\subsection{HUNK\_RELOC32SHORT} \label{sec:hunk_reloc32short}
+
+This hunk contains relocation information for the previously loaded
+segment, and is almost similar to {\tt HUNK\_RELOC32}, except that
+hunk indices, counts and offsets are only 16 bits in size. To ensure
+that all hunks start at long-word boundaries, the hunk contains an
+optional padding field at its end to align the next hunk
+appropriately.
+\smallskip{}
+
+The structure of this hunk is as follows:
+\begin{rkrmtabular}{Hunk Reloc32Short Syntax} \label{table:hunk_reloc32short}
+\begin{tabular}{|l|p{6cm}|p{6cm}|} \hline
+{\bf Size} & {\bf Code} & {\bf Syntax} \\ \hline \hline
+   & \tt HUNK\_RELOC32SHORT [0x3fc] & A hunk containing relocation information\\ \hline
+   & \tt $p$=$1$ & Padding count\\ \hline
+   & \tt do \{ & Loop over relocation entries \\ \hline
+16 & \tt $\quad$ $c$ & Number of relocation entries \\ \hline
+   & \tt $\quad$ if ($c$ == 0) break; & Terminate the hunk if the count is zero \\ \hline
+16 & \tt $\quad$ $j \in [0,t_{\mbox{size}}-1]$ & Read the hunk to which the relocation is relative to \\ \hline
+   & \tt $\quad$ $p$ += $c$ & Update padding count \\ \hline
+   & \tt $\quad$ do \{ & Loop over the relocation entries \\ \hline
+16 & \tt $\quad\quad$ $r_o \in [0,m_s[i] \times 4 - 4]$ & Relocation offset into this hunk as byte address \\ \hline
+   & \tt $\quad\quad$ (UBYTE **)($m_a[i]+r_o$) += $m_a[j]$ & Fixup this hunk by the start
+address of the selected hunk \\ \hline
+   & \tt $\quad$ \} while(-{}-c); & until all entries are used \\ \hline
+   & \tt \} while(true); & until a zero-count is read. \\ \hline
+   & \tt if ($p$ \& $1$) \{ & check whether padding is required. \\ \hline
+16 & \tt $\quad$ $d$ & dummy for long-word alignment \\ \hline
+   & \tt \} & \\ \hline
+\end{tabular}
+\end{rkrmtabular}
+
+Due to an oversight, some versions of AmigaDOS do not understand the
+hunk type {\tt 0x3fc} not properly and use instead {\tt 0x3f7}. This
+alternative (but incorrect) hunk type for the short version of the
+relocation hunk is still supported currently.
+
+
+\subsection{HUNK\_RELRELOC32} \label{sec:hunk_relreloc32}
+
+This hunk contains relocation information for 32-bit relative
+displacements the {\tt 68020} and later processors offer. Currently,
+there does not seem to be a compiler that is able to take advantage of
+this hunk.
+\smallskip{}
+
+The structure of this hunk is as follows:
+\begin{rkrmtabular}{Hunk RelReloc32 Syntax} \label{table:hunk_relreloc32}
+\begin{tabular}{|l|p{6cm}|p{6cm}|} \hline
+{\bf Size} & {\bf Code} & {\bf Syntax} \\ \hline \hline
+   & \tt HUNK\_RELRELOC32 [0x3fd] & A hunk containing relocation information\\ \hline
+   & \tt do \{ & Loop over relocation entries \\ \hline
+32 & \tt $\quad$ $c$ & Number of relocation entries \\ \hline
+   & \tt $\quad$ if ($c$ == 0) break; & Terminate the hunk if the count is zero \\ \hline
+32 & \tt $\quad$ $j \in [0,t_{\mbox{size}}-1]$ & Read the hunk to which the relocation is relative to \\ \hline
+   & \tt $\quad$ do \{ & Loop over the relocation entries \\ \hline
+32 & \tt $\quad\quad$ $r_o \in [0,m_s[i] \times 4 - 4]$ & Relocation offset into this hunk as byte address \\ \hline
+   & \tt $\quad\quad$ (UBYTE **)($m_a[i]+r_o$) += $m_a[j] - m_a[i] - r_o$ & Fixup this hunk by the start
+address of the selected hunk \\ \hline
+   & \tt $\quad$ \} while(-{}-c); & until all entries are used \\ \hline
+   & \tt \} while(true); & until a zero-count is read. \\ \hline
+\end{tabular}
+\end{rkrmtabular}
 
 %%% For later.
 
