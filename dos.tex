@@ -47,6 +47,8 @@
 \newcommand{\sfb}{\sffamily\bfseries}
 \newcommand{\cnot}{\symbol{126}}
 \setcounter{secnumdepth}{4}
+\setlength{\LTpre}{0pt}
+\setlength{\LTpost}{0pt}
 %
 %
 \newcounter{rkrmtablecount}
@@ -6237,7 +6239,7 @@ section~\ref{sec:getfilesystask}.
 \chapter{Binary File Structure}
 
 The AmigaDOS \emph{Hunk} format represents executable and linkable
-object code. While both formats are related, they are not identical;
+object files. While both formats are related, they are not identical;
 executables can be loaded from the shell or the workbench from disk to
 RAM, and then either overload the shell process, or a new process is
 created from them. Object files are created as intermediate compiler
@@ -6246,7 +6248,7 @@ file which are then, in a final step, linked with a startup code and
 object code libraries to form an executable.
 \smallskip{}
 
-An object code or executable file in this format consists of multiple
+An object or executable file in this format consists of multiple
 \emph{hunks} (thus, the name). Hunks define either payload data as
 indivisible \emph{segments} of code or data that is initialized or
 loaded from disk, or additional meta-information interpreted by the
@@ -6361,8 +6363,8 @@ increment, and the value of {\tt -{}-j} is the value of $j$ after
 decrementing it.
 \smallskip{}
 
-The following pseudo-code describes the top-level syntax of a binary executable
-file AmigaDOS is able to bring to memory:
+The following pseudo-code describes the top-level syntax of a binary
+executable file AmigaDOS is able to bring to memory:
 
 \begin{rkrmtabular}{Regular Executable File} \label{table:executable}
 \begin{longtable}{|l|p{6cm}|p{6cm}|} \hline
@@ -6373,24 +6375,25 @@ file AmigaDOS is able to bring to memory:
 2  & \tt $\quad$ $\hat{m}_t[i]$ & These two bits are unused, but some utilities set it identical to $m_t[i]$, the memory type of the hunk, see~\ref{sec:hunk_header} \\ \hline
 1  & \tt $\quad$ $a_f$ & Advisory hunk flag. \\ \hline
 29 & \tt $\quad$ h & This is the hunk type \\ \hline
+& \tt $\quad$ if (EOF) break; & Terminate loading on end of file \\ \hline
 & \tt $\quad$ if ($a_f$) \{ & Check for bit $29$, these are advisory hunks \\ \hline
 32 & \tt $\quad\quad$ l & Read length of advisory hunk \\ \hline
 32 $\times$ l & & $l$ long words of hunk contents ignored \\ \hline
 & \tt $\quad$ \} & \\ \hline
-& \tt $\quad$ else if (h == HUNK\_END) break & Terminate loading, see~\ref{sec:hunk_end} \\ \hline
-& \tt $\quad$ else if (h == HUNK\_BREAK) break & Terminate loading an overlay, see~\ref{sec:hunk_break} \\ \hline
-? & \tt $\quad$ else if (h == HUNK\_NAME) parse\_NAME & See section~\ref{sec:hunk_name} \\ \hline
-? & \tt $\quad$ else if (h == HUNK\_CODE) {parse\_CODE;i++} & See section~\ref{sec:hunk_code} \\ \hline
-? & \tt $\quad$ else if (h == HUNK\_DATA) {parse\_DATA;i++} & See section~\ref{sec:hunk_data} \\ \hline
-? & \tt $\quad$ else if (h == HUNK\_BSS) {parse\_BSS;i++} & See section~\ref{sec:hunk_bss} \\ \hline
-? & \tt $\quad$ else if (h == HUNK\_RELOC32) parse\_RELOC32 & See section~\ref{sec:hunk_reloc32} \\ \hline
-? & \tt $\quad$ else if (h == HUNK\_SYMBOL) parse\_SYMBOL & See section~\ref{sec:hunk_symbol} \\ \hline
-? & \tt $\quad$ else if (h == HUNK\_DEBUG) parse\_DEBUG & See section~\ref{sec:hunk_debug} \\ \hline
-? & \tt $\quad$ else if (h == HUNK\_OVERLAY) parse\_OVERLAY & See section~\ref{sec:hunk_overlay} \\ \hline
-? & \tt $\quad$ else if (h == HUNK\_DREL32) parse\_RELOC32SHORT & This is a compatibility kludge for some older versions of the \emph{dos.library}, new tools should use {\tt HUNK\_RELOC32SHORT} instead, see section~\ref{sec:hunk_reloc32short} \\ \hline
-? & \tt $\quad$ else if (h == HUNK\_RELOC32SHORT) parse\_RELOC32SHORT & See section~\ref{sec:hunk_reloc32short} \\ \hline
-? & \tt $\quad$ else if (h == HUNK\_RELRELOC32) parse\_RELRELOC32 & See section~\ref{sec:hunk_relreloc32} \\ \hline
-& \tt $\quad$ else ERROR\_BAD\_HUNK & Everything else is invalid \\ \hline
+& \tt $\quad$ else if (h == HUNK\_END) i++; & Advance to next segment, see~\ref{sec:hunk_end} \\ \hline
+& \tt $\quad$ else if (h == HUNK\_BREAK) break; & Terminate loading an overlay, see~\ref{sec:hunk_break} \\ \hline
+? & \tt $\quad$ else if (h == HUNK\_NAME) parse\_NAME; & See section~\ref{sec:hunk_name} \\ \hline
+? & \tt $\quad$ else if (h == HUNK\_CODE) parse\_CODE; & See section~\ref{sec:hunk_code} \\ \hline
+? & \tt $\quad$ else if (h == HUNK\_DATA) parse\_DATA; & See section~\ref{sec:hunk_data} \\ \hline
+? & \tt $\quad$ else if (h == HUNK\_BSS) parse\_BSS; & See section~\ref{sec:hunk_bss} \\ \hline
+? & \tt $\quad$ else if (h == HUNK\_RELOC32) parse\_RELOC32; & See section~\ref{sec:hunk_reloc32} \\ \hline
+? & \tt $\quad$ else if (h == HUNK\_SYMBOL) parse\_SYMBOL; & See section~\ref{sec:hunk_symbol} \\ \hline
+? & \tt $\quad$ else if (h == HUNK\_DEBUG) parse\_DEBUG; & See section~\ref{sec:hunk_debug} \\ \hline
+? & \tt $\quad$ else if (h == HUNK\_OVERLAY) \{ parse\_OVERLAY; break \} & See section~\ref{sec:hunk_overlay} \\ \hline
+? & \tt $\quad$ else if (h == HUNK\_DREL32) parse\_RELOC32SHORT; & This is a compatibility kludge for some older versions of the \emph{dos.library}, new tools should use {\tt HUNK\_RELOC32SHORT} instead, see section~\ref{sec:hunk_reloc32short} \\ \hline
+? & \tt $\quad$ else if (h == HUNK\_RELOC32SHORT) parse\_RELOC32SHORT; & See section~\ref{sec:hunk_reloc32short} \\ \hline
+? & \tt $\quad$ else if (h == HUNK\_RELRELOC32) parse\_RELRELOC32; & See section~\ref{sec:hunk_relreloc32} \\ \hline
+& \tt $\quad$ else ERROR\_BAD\_HUNK; & Everything else is invalid \\ \hline
 & \tt \} while(true) & repeat until all hunks done \\ \hline
 \end{longtable}
 \end{rkrmtabular}
@@ -6402,22 +6405,23 @@ $2$~bits are ignored and masked out. Some tools (e.g. the {\tt Atom}
 tool by CBM) places there memory requirements similar to what is
 indicated in the {\tt HUNK\_HEADER}. They have there, however, no
 effect as the segments are allocated within the {\tt HUNK\_HEADER} and
-not at times the hunk type is encountered.
+not at times the hunk type is encountered. \key{HUNK\_HEADER}
 \smallskip{}
 
-Bit $29$ ({\tt HUNKB\_ADVISORY}) has a special meaning. If this bit is
-set, then the hunk contents is ignored. The size of such an
-\emph{advisory} hunk is defined by a long-word following the hunk
-type.
+Bit $29$ ({\tt HUNKB\_ADVISORY})\mkey{HUNKB\_ADVISORY} has a special
+meaning. If this bit is set, then the hunk contents is ignored. The
+size of such an \emph{advisory} hunk is defined by a long-word
+following the hunk type.
 \smallskip{}
 
-Loading a binary executable terminates on two conditions. Either, if a
-{\tt HUNK\_END} is encountered. This identifies the end of the file,
-closes the binary and returns to the caller with the loaded segment
-list. Or, if a {\tt HUNK\_BREAK} is found. This mechanism is used for
-\emph{overlayed} files. On a {\tt HUNK\_BREAK}, the file remains open,
-and information on the loaded file is injected into the first hunk of
-the loaded data. More information on this mechanism is provided in
+Loading a binary executable terminates on three conditions. Either, if
+an end of file is encountered. This closes the file handle and returns
+to the caller with the loaded segment list. Or, if a {\tt
+  HUNK\_BREAK}\key{HUNK\_BREAK} or {\tt HUNK\_OVERLAY} are found. This
+mechanism is used for \emph{overlayed} files. In the latter two cases,
+the file remains open, and for {\tt HUNK\_OVERLAY}\key{HUNK\_OVERLAY},
+information on the loaded file is injected into the first hunk of the
+loaded data. More information on this mechanism is provided in
 section~\ref{sec:overlays}.
 
 \subsection{HUNK\_HEADER} \label{sec:hunk_header}
@@ -6472,7 +6476,7 @@ the first and last segment to load within the branch of the overlay
 tree described by this {\tt HUNK\_HEADER}. For a regular
 (non-overlayed) file and for the root node of the overlay tree,
 $t_{\mbox{num}}$ shall be $0$, that is, the first segment to load
-is~$0$, the first index in the segment table.
+is~$0$, the first index in the segment table. 
 \smallskip{}
 
 For regular files, $t_{\mbox{max}}$ shall be identical to
@@ -6487,7 +6491,7 @@ executing the binary.
 This hunk should contain executable machine code and constant data. As
 executables are started from the first byte of the first segment, the
 first hunk of an executable should be a {\tt HUNK\_CODE}, and it shall
-start with a valid opcode.
+start with a valid opcode. \mkey{HUNK\_CODE}
 \smallskip{}
 
 Compilers use typically this hunk to represent the {\tt text} segment,
@@ -6513,7 +6517,7 @@ AmigaDOS skipped this initialization.
 
 This hunk should contain variable data, and it should not contain
 executable code. Compilers typically use this hunk to represent
-initialized data.
+initialized data. \mkey{HUNK\_DATA}
 \smallskip{}
 
 The structure of this hunk is otherwise identical to {\tt HUNK\_CODE}:
@@ -6528,12 +6532,13 @@ l $\times$ 32 & \tt Code & $l$ long words of payload \\ \hline
 
 Similar to {\tt HUNK\_CODE}, the size of the payload defined by this
 hunk may be less than the size of the segment allocated by {\tt
-  HUNK\_HEADER}. All excess bytes are zero-initialized all but early
+  HUNK\_HEADER}. All excess bytes are zero-initialized in all but early
 versions of AmigaDOS.
 
 \subsection{HUNK\_BSS} \label{sec:hunk_bss}
 
-This hunk contains zero-initialized data; it does not define actual payload.
+This hunk contains zero-initialized data; it does not define actual
+payload. \mkey{HUNK\_BSS}
 \smallskip{}
 
 The structure of this hunk is as follows:
@@ -6553,7 +6558,7 @@ allocated from this hunk is always zero-initialized.
 This hunk contains relocation information for the previously loaded
 segment; that is, it corrects addresses within this segment by
 adding the absolute address of this or other segments to long words at
-indicated offsets of the previous segments.
+indicated offsets of the previous segments. \mkey{HUNK\_RELOC32}
 \smallskip{}
 
 The structure of this hunk is as follows:
@@ -6587,7 +6592,7 @@ segment, and is almost similar to {\tt HUNK\_RELOC32}, except that
 hunk indices, counts and offsets are only 16 bits in size. To ensure
 that all hunks start at long-word boundaries, the hunk contains an
 optional padding field at its end to align the next hunk
-appropriately.
+appropriately. \mkey{HUNK\_RELOC32SHORT}
 \smallskip{}
 
 The structure of this hunk is as follows:
@@ -6608,7 +6613,7 @@ address of the selected hunk \\ \hline
    & \tt $\quad$ \} while(-{}-c); & until all entries are used \\ \hline
    & \tt \} while(true); & until a zero-count is read. \\ \hline
    & \tt if ($p$ \& $1$) \{ & check whether padding is required. \\ \hline
-16 & \tt $\quad$ $d$ & dummy for long-word alignment \\ \hline
+16 & \tt $\quad$ & dummy for long-word alignment \\ \hline
    & \tt \} & \\ \hline
 \end{tabular}
 \end{rkrmtabular}
@@ -6624,7 +6629,7 @@ relocation hunk is still supported currently.
 This hunk contains relocation information for 32-bit relative
 displacements the {\tt 68020} and later processors offer. Currently,
 there does not seem to be a compiler that is able to take advantage of
-this hunk.
+this hunk. \mkey{HUNK\_RELRELOC32}
 \smallskip{}
 
 The structure of this hunk is as follows:
@@ -6644,6 +6649,284 @@ address of the selected hunk \\ \hline
    & \tt \} while(true); & until a zero-count is read. \\ \hline
 \end{tabular}
 \end{rkrmtabular}
+
+\subsection{HUNK\_NAME} \label{sec:hunk_name}
+
+This hunk defines a name for the current segment. The AmigaDOS loader
+completely ignores this name, and it does not serve a particular
+purpose for the executable file format. However, linkers that bind
+object files together use the name to decide which segments to merge
+together to a single segment. \mkey{HUNK\_NAME}
+\smallskip{}
+
+The structure of this hunk is as follows:
+\begin{rkrmtabular}{Hunk Name Syntax} \label{table:hunk_name}
+\begin{tabular}{|l|p{6cm}|p{6cm}|} \hline
+{\bf Size} & {\bf Code} & {\bf Syntax} \\ \hline \hline
+   & \tt HUNK\_NAME [0x3e8] & A hunk assigning a name to the current segment\\ \hline
+32 & \tt l & Size of the name in long-words \\ \hline
+32 $\times$ l & \tt $h_n$ & Hunk name \\ \hline
+\end{tabular}
+\end{rkrmtabular}
+
+The size of the name is not given in characters, but in 32-bit
+units. The name is possibly zero-padded to the next 32-bit boundary to
+fill an integer number of long-words. If the name fills an entire
+number of long-words already, it is \emph{not} zero-terminated.
+\smallskip{}
+
+While the specification does not define a maximum size of the name,
+the AmigaDOS loader fails on names longer than 128 character, i.e. 32
+long-words.
+
+\subsection{HUNK\_SYMBOL} \label{sec:hunk_symbol}
+
+This hunk defines symbol names and corresponding symbol offsets or
+values within the currently loaded segment. Again, the AmigaDOS loader
+ignores this hunk, but the linker uses it to resolve symbols with
+external linkage to bind multiple object files together. If the
+symbol information is retained in the executable file, it may be used
+for debugging purposes. \mkey{HUNK\_SYMBOL}
+\smallskip{}
+
+The synax of this hunk reads as follows:
+\begin{rkrmtabular}{Hunk Symbol Syntax} \label{table:hunk_symbol}
+\begin{tabular}{|l|p{6cm}|p{6cm}|} \hline
+{\bf Size} & {\bf Code} & {\bf Syntax} \\ \hline \hline
+   & \tt HUNK\_SYMBOL [0x3f0] & A hunk assigning symbols to positions within a segment\\ \hline
+   & \tt do \{ & Repeat $\ldots$ \\ \hline
+8  & \tt $\quad$ $s_t$ & Symbol type \\ \hline
+24 & \tt $\quad$ $s_l$ & Symbol length in long-words \\ \hline
+   & \tt $\quad$ if ($s_l$ == 0) break & Terminate the hunk \\ \hline
+32 $\times$ l & \tt $\quad$ $s_n$ & Symbol name, potentially zero-padded \\ \hline
+32 & \tt $\quad$ $s_v$ & Symbol value \\ \hline
+   & \tt \} while(true) & until zero-sized symbol \\ \hline
+\end{tabular}
+\end{rkrmtabular}
+
+The length of the symbol name is encoded in long-words, not in
+characters. If it does not fill an integer number of long-words, it is
+zero-padded; the name is not zero-terminated if it does fill an
+integer number of long-words, though.
+\medskip{}
+
+The symbol type $s_t$ defines the nature of the symbol. The symbol
+types are defined in {\tt dos/doshunks.h} and shared with the {\tt
+  HUNK\_EXT} hunk; the latter hunk type shall not appear in an
+executable file, but may only appear in an object file, see
+section~\ref{hunk_ext}.\key{HUNK\_EXT}
+\smallskip{}
+
+The symbol type can be roughly classified into two classes: If bit $7$
+of the type is clear, a symbol is \emph{defined} that may be
+referenced by another object file. If bit $7$ is set, the symbol is
+\emph{referenced} and requires resolution by a symbol definition with
+bit 7 cleared upon linking. Executable files, and thus {\tt
+  HUNK\_SYMBOL}, may only contain symbol definitions as references had
+been resolved by the linker.
+\smallskip{}
+
+The following table contains the symbol types for definitions and
+therefore may appear in both {\tt HUNK\_SYMBOL} as part of executables
+and {\tt HUNK\_EXT}\key{HUNK\_EXT} as part of object files; {\tt
+  HUNK\_SYMBOL} will typically only include the first type of entry,
+i.e. {\tt EXT\_SYMB}:
+\begin{rkrmtabular}{Symbol types in HUNK\_SYMBOL and HUNK\_EXT} \label{table:symboltypes}
+\begin{tabular}{|lc|p{10cm}|} \hline
+\tt EXT\_SYMB & [0x00] & Definition of a symbol, $s_v + m_a[i]$ is the address of the symbol \\ \hline
+
+\tt EXT\_DEF & [0x01] & Relocation definition, $s_v + m_a[i]$ is the
+address of the symbol. References to this symbol are converted into a
+relocation information to the offset $s_v$ in hunk $i$. \\ \hline
+
+\tt EXT\_ABS & [0x02] & Absolute value, $s_v$ is the value of the
+symbol which is substituted into the executable by the linker. No
+relocation information is created, the absolute value is just
+substituted. \\ \hline
+
+\tt EXT\_RES & [0x03] & Not longer supported as it is part of the
+obsolete dynamic library run-time binding interface, see~\cite{guru}
+for more details. \\ \hline
+\end{tabular}
+\end{rkrmtabular}
+
+The next table includes symbol types that identify symbol references,
+i.e. they are referenced within a segment of an object file, though
+not defined there. These types can clearly not be contained within a
+executable binary, but they may appear within an object file and are
+then resolved by corresponding symbol definitions from the above table
+by the linker:
+\begin{rkrmtabular}{Symbol types in HUNK\_EXT} \label{table:extsymboltypes}
+\begin{longtable}{|lc|p{9cm}|} \hline
+\tt EXT\_REF32 & [0x81] & Reference to a 32-bit symbol that is resolved
+by a corresponding {\tt EXT\_ABS} to an absolute value or by a {\tt
+  EXT\_DEF} definition to a relocation information to this or another
+segment. \\ \hline
+
+\tt EXT\_COMMON & [0x82] & Reference to a 32-bit symbol that may be
+resolved by a {\tt EXT\_ABS} or {\tt EXT\_DEF} definition, but if no
+such definition is found, a BSS hunk of the maximal size of all
+references to the symbol is created by the linker. Thus, this type
+generates a zero-initialized object if no definition is found. \\ \hline
+
+\tt EXT\_REF16 & [0x83] & Reference to a 16-bit PC relative offset within
+the same segment. \\ \hline
+
+\tt EXT\_REF8 & [0x84] & Reference to a 8-bit PC relative offset within
+the same segment. \\ \hline
+
+\tt EXT\_DREF32 & [0x85] & 32-bit reference relative to a base register
+(typically {\tt a4}), resolved by the linker through an entry in a {\tt
+  HUNK\_DRELOC32} hunk\key{HUNK\_DRELOC32}.\\ \hline
+
+\tt EXT\_DREF16 & [0x86] & 16-bit reference relative to a base register,
+resolved by the linker through an entry in a {\tt HUNK\_DRELOC16}
+hunk\key{HUNK\_DRELOC16}.\\ \hline
+
+\tt EXT\_DREF8 & [0x87] & 8-bit reference relative to a base register,
+resolved by the linker through an entry in a {\tt HUNK\_DRELOC8} hunk
+\key{HUNK\_DRELOC8}.\\ \hline
+
+\tt EXT\_RELREF32 & [0x88] & 32-bit PC-relative reference for 32-bit
+address, this will be resolved by an {\tt EXT\_DEF} definition into an
+entry into a {\tt HUNK\_RELRELOC32} hunk by the linker.\\ \hline
+
+\tt EXT\_RELCOMMON & [0x89] & 32-bit PC relative common reference for a
+32-bit address. Similar to a {\tt EXT\_COMMON} definition, this will
+be resolved into an {\tt HUNK\_RELRELOC32} entry where potentially
+space for the symbol will be allocated in a BSS segment if no
+corresponding definition is found.\\ \hline
+
+\tt EXT\_ABSREF16 & [0x8a] & 16-bit absolute reference, resolved by
+the linker to a 16-bit value by an {\tt EXT\_ABS} definition. \\ \hline
+
+\tt EXT\_ABSREF8 & [0x8b] & 8-bit absolute reference, resolved by the
+linker to an 8-bit value through an {\tt EXT\_ABS}
+definition. \\ \hline
+\end{longtable}
+\end{rkrmtabular}
+
+\subsection{HUNK\_DEBUG} \label{sec:hunk_debug}
+
+This hunk contains debug information such as function names and line
+number information. Generally, the contents of this hunk is compiler
+or assembler specific, and the AmigaDOS loader does not interpret the
+contents of this hunk at all, it is just skipped over. \mkey{HUNK\_DEBUG}
+\smallskip{}
+
+However, the debug information emitted by the SAS/C compiler for the
+``line-debug'' option is also shared by other development tools such
+as the DevPac assembler and will be documented here. In this format,
+the debug hunk contains for each line of the source file an offset
+into the hunk to the code that was compiled from this line.
+\smallskip{}
+
+The syntax of this hunk is as follows:
+\begin{rkrmtabular}{Hunk Debug Syntax} \label{table:hunk_debug}
+\begin{longtable}{|l|p{6cm}|p{6cm}|} \hline
+{\bf Size} & {\bf Code} & {\bf Syntax} \\ \hline \hline    
+   & HUNK\_DEBUG [0x3f1] & Hunk including debug information \\ \hline
+32 & l > 3 & Size of the hunk in long-words \\ \hline
+\multicolumn{3}{|l|}{Compiler- and configuration specific data for line-debug data:} \\ \hline
+32 & \tt $l_0 = 0$ & This field shall be zero \\ \hline
+32 & \tt $l_1 = {\tt 'LINE'}$ & These four bytes shall contain the
+ASCII characters {\tt 'L','I','N','E'} identifying the type of the
+debug information \\ \hline
+32 & \tt $l_n$ & Size of the source file name in long-words \\ \hline
+32 $\times l_n$ & $n_f$ & source file name that compiled to the current segment in $l_n$ long-words \\ \hline
+   & \tt $l -= 3 + l_n$ & Remove long-words read so far \\ \hline
+   & \tt while($l$ > 0) \{ & Repeat for all entries \\ \hline
+8  & \tt $\quad$ & Dummy byte \\ \hline
+24 & \tt $\quad$ $l_l$ & Line number within the source file \\ \hline
+8  & \tt $\quad$ & Dummy byte \\ \hline
+24 & \tt $\quad$ $l_v$ & Offset into the source file. The source file
+at line $l_l$ is compiled or assembled to the code at at address
+$m_a[i] + l_v$ and following. \\ \hline
+   & \tt $\quad$ $l -= 2$ & Remove the read data \\ \hline
+   & \tt \}; & Loop over the hunk. \\ \hline
+\end{longtable}
+\end{rkrmtabular}
+
+The file name $n_f$ is encoded in $l_n$ long-words, and potentially
+padded with $0$-bytes to fill an integer number of long-words. If it
+already is an integer number of long-words sized, it is \emph{not}
+zero-terminated.
+
+\subsection{HUNK\_END} \label{sec:hunk_end}
+
+This hunk terminates the current segment and advances to the next
+segment, if any. It does not contain any data. \mkey{HUNK\_END}
+
+\begin{rkrmtabular}{Hunk End Syntax} \label{table:hunk_end}
+\begin{tabular}{|l|p{6cm}|p{6cm}|} \hline
+{\bf Size} & {\bf Code} & {\bf Syntax} \\ \hline \hline
+  & \tt HUNK\_END [0x3f2] & Terminate a segment\\ \hline
+\end{tabular}
+\end{rkrmtabular}
+
+\subsection{HUNK\_BREAK} \label{sec:hunk_break}
+
+This hunk terminates the loading process and indicates the end of an
+overlay segments. The hunk itself does not contain any
+data. \mkey{HUNK\_BREAK}
+
+\begin{rkrmtabular}{Hunk Break Syntax} \label{table:hunk_break}
+\begin{tabular}{|l|p{6cm}|p{6cm}|} \hline
+{\bf Size} & {\bf Code} & {\bf Syntax} \\ \hline \hline
+  & \tt HUNK\_BREAK [0x3f6] & Terminate a segment\\ \hline
+\end{tabular}
+\end{rkrmtabular}
+
+\subsection{HUNK\_OVERLAY} \label{sec:hunk_overlay}
+
+This hunk terminates the loading process and indicates the end of the
+main (first) segments. The {\tt HUNK\_OVERLAY} contains meta-data ---
+the overlay table --- for the overlay manager. This table contains
+information where symbols within the overlaid segments are
+located. Section~\ref{sec:overlay} provides more information on
+overlays. The format of the data within this hunk depends on the
+overlay manager which shall be included in the first segment of the
+executable itself as AmigaDOS does not contain a resident overlay
+manager.\mkey{HUNK\_OVERLAY}
+\smallskip{}
+
+The standard AmigaDOS linkers, {\tt ALink} and {\tt BLink} both
+include an overlay manager. Each entry in its overlay table describes
+a symbol that is located in one of the overlay nodes. The format of
+{\tt HUNK\_OVERLAY} for the standard overlay manager reads as follows:
+\begin{rkrmtabular}{Hunk Overlay Syntax} \label{table:hunk_overlay}%
+\begin{longtable}{|l|p{6cm}|p{6cm}|} \hline
+{\bf Size} & {\bf Code} & {\bf Syntax} \\ \hline \hline
+   & \tt HUNK\_OVERLAY [0x3f5] & Overlay table definition\\ \hline
+32 & \tt $l$ & Size of the overlay table, it is $l+1$ long-words large. \\ \hline
+\multicolumn{3}{|l|}{Overlay-manager specific data of $l+1$ long-words.} \\ \hline
+   & \tt while($l \ge 0$) \{ & Repeat over the overlay table \\ \hline
+
+32 & \tt $\quad$ $o_p$ & Absolute file offset of the {\tt
+  HUNK\_HEADER} of the overlay node containing the symbol. \\ \hline
+64 & \tt $\quad$ & Two reserved long-words. \\ \hline
+
+32 & \tt $\quad$ $o_l$ & Depth of the overlay node containing the symbol,
+the root level containing the overlay manager is level~$0$. \\ \hline
+
+32 & \tt $\quad$ $o_n$ & Ordinate of the overlay node, enumerating
+overlay nodes of the same depth. \\ \hline
+
+32 & \tt $\quad$ $o_h$ & Hunk index of the first hunk within
+the overlay node. \\ \hline
+
+32 & \tt $\quad$ $o_s$ & Hunk index of the hunk containing the symbol
+described by this entry in the overlay node. \\ \hline
+
+32 & \tt $\quad$ $o_o$ & Symbol offset within hunk $o_s$ \\ \hline
+   & \tt $\quad$ $l$ -=8 & Remove 8 long words. \\ \hline
+   & \tt \} & End of loop over table \\ \hline
+\end{longtable}
+\end{rkrmtabular}
+
+Note that the overlay table is $l+1$ and not $l$ long-words large,
+i.e. a table only defining a single symbol would be indicated by a
+value of $l=7$.
 
 %%% For later.
 
