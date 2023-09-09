@@ -6236,7 +6236,7 @@ function is the setter equivalent of {\tt
   GetFileSysTask()}\key{GetFileSysTask()} introduced in
 section~\ref{sec:getfilesystask}.
 
-\chapter{Binary File Structure}
+\chapter{Binary File Structure} \label{sec:binary}
 
 The AmigaDOS \emph{Hunk} format represents executable and linkable
 object files. While both formats are related, they are not identical;
@@ -6261,7 +6261,7 @@ terminate the loading process.
 
 Loaded executables are represented as singly linked list of segments
 in memory, by a structure that looks as follows:
-\begin{verbatim}
+\begin{verbatim} 
 struct LoadedSegment {
     BPTR  NextSegment; /* BPTR to next segment or ZERO */
     ULONG Data[1];     /* Payload data */
@@ -6490,7 +6490,7 @@ executing the binary.
 
 This hunk should contain executable machine code and constant data. As
 executables are started from the first byte of the first segment, the
-first hunk of an executable should be a {\tt HUNK\_CODE}, and it shall
+first hunk of an executable should be a {\tt HUNK\_CODE}, and it should
 start with a valid opcode. \mkey{HUNK\_CODE}
 \smallskip{}
 
@@ -6563,7 +6563,7 @@ indicated offsets of the previous segments. \mkey{HUNK\_RELOC32}
 
 The structure of this hunk is as follows:
 \begin{rkrmtabular}{Hunk Reloc32 Syntax} \label{table:hunk_reloc32}
-\begin{tabular}{|l|p{6cm}|p{6cm}|} \hline
+\begin{longtable}{|l|p{6cm}|p{6cm}|} \hline
 {\bf Size} & {\bf Code} & {\bf Syntax} \\ \hline \hline
    & \tt HUNK\_RELOC32 [0x3ec] & A hunk containing relocation information\\ \hline
    & \tt do \{ & Loop over relocation entries \\ \hline
@@ -6576,7 +6576,7 @@ The structure of this hunk is as follows:
 address of the selected hunk \\ \hline
    & \tt $\quad$ \} while(-{}-c); & until all entries are used \\ \hline
    & \tt \} while(true); & until a zero-count is read. \\ \hline
-\end{tabular}
+\end{longtable}
 \end{rkrmtabular}
 
 That is, the hunk consists first of a counter that indicates the
@@ -6597,7 +6597,7 @@ appropriately. \mkey{HUNK\_RELOC32SHORT}
 
 The structure of this hunk is as follows:
 \begin{rkrmtabular}{Hunk Reloc32Short Syntax} \label{table:hunk_reloc32short}
-\begin{tabular}{|l|p{6cm}|p{6cm}|} \hline
+\begin{longtable}{|l|p{6cm}|p{6cm}|} \hline
 {\bf Size} & {\bf Code} & {\bf Syntax} \\ \hline \hline
    & \tt HUNK\_RELOC32SHORT [0x3fc] & A hunk containing relocation information\\ \hline
    & \tt $p$=$1$ & Padding count\\ \hline
@@ -6615,7 +6615,7 @@ address of the selected hunk \\ \hline
    & \tt if ($p$ \& $1$) \{ & check whether padding is required. \\ \hline
 16 & \tt $\quad$ & dummy for long-word alignment \\ \hline
    & \tt \} & \\ \hline
-\end{tabular}
+\end{longtable}
 \end{rkrmtabular}
 
 Due to an oversight, some versions of AmigaDOS do not understand the
@@ -6864,6 +6864,265 @@ segment, if any. It does not contain any data. \mkey{HUNK\_END}
 \end{tabular}
 \end{rkrmtabular}
 
+\section{The AmigaDOS Loader} \label{sec:loader}
+
+The \emph{dos.library} provides service functions for loading and
+releasing binary executables in the \emph{Hunk} format introduced in
+section~\ref{sec:binary}. The functions discussed in this section load
+such binaries into memory, constructing a segment list from the hunks
+found in the files, or release such files. Overlay files are discussed
+separately in section~\ref{sec:overlays} due to their additional
+complexity.
+
+A segment list is a linearly linked list as defined in
+section~\ref{sec:binary}, i.e. the first four bytes of every segment
+form a \emph{BPTR} to the following segment of the loaded binary, or
+{\tt ZERO} for the last segment.
+\smallskip{}
+
+The {\tt seglist} returned from the loader functions may be, for
+example, passed into {\tt CreateNewProc()} as argument to the {\tt
+  NP\_Seglist} tag for starting a new process.
+
+\subsection{Loading an Executable} \label{sec:loadseg}
+
+The {\tt LoadSeg()}\mkey{LoadSeg()} function loads an executable
+binary in the Hunk format and returns a \emph{BPTR} to the first
+segment:
+
+\begin{verbatim}
+seglist = LoadSeg( name )
+D0                 D1
+
+BPTR LoadSeg(STRPTR)
+\end{verbatim}
+This function loads the binary executable named {\tt name} and returns
+a \emph{BPTR} to its first segment in case of success, or {\tt ZERO}
+in case of failure. The {\tt name} is passed into the {\tt
+  Open()}\key{Open()} function and follows the conventions of this
+function for locating the file.
+\smallskip{}
+
+The segment list shall be removed from memory via {\tt
+  UnLoadSeg()}\key{UnloadSeg()}.
+\smallskip{}
+
+This function sets {\tt IoErr()}\key{IoErr()} to an error code in case
+of failure, or~$0$ in case of success.
+
+\subsection{Loading an Executable with Additional Parameters} \label{sec:newloadseg}
+
+The {\tt NewLoadSeg()}\mkey{NewLoadSeg()} function loads an
+executable providing additional data for loading.
+
+\begin{verbatim}
+seglist = NewLoadSeg(file, tags)
+D0                    D1    D2
+
+BPTR NewLoadSeg(STRPTR, struct TagItem *)
+
+seglist = NewLoadSegTagList(file, tags)
+D0                           D1    D2
+
+BPTR NewLoadSegTagList(STRPTR, struct TagItem *)
+
+seglist = NewLoadSegTags(file, ...)
+
+BPTR NewLoadSegTags(STRPTR, ...)
+\end{verbatim}
+
+This function loads a binary executable from {\tt file} and returns a
+\emph{BPTR} to its first segment, similar to {\tt
+  LoadSeg()}\key{LoadSeg()}.
+\smallskip{}
+
+Additional parameters may be provided in the form of a TagList, passed
+in as {\tt tags}. The first two functions are identical and differ
+only by their naming convention; the last function prototype also
+refers to the same entry within the \emph{dos.library}, though uses a
+different calling convention where the second and all following
+arguments form the TagList itself. This TagList is build on the stack,
+and the pointer to this stack-based TagList is passed in.
+\smallskip{}
+
+While this function looks quite useful, AmigaDOS does currently not
+define any tags for this function, and thus no additional
+functionality over \emph{LoadSeg()} is provided.
+\smallskip{}
+
+The segment list returned by this function shall be removed from
+memory via {\tt UnLoadSeg()}\key{UnloadSeg()}, a specialized unloader
+function is not required for this call.
+
+\subsection{Loading an Executable through Call-Back Functions} \label{sec:internalloadseg}
+
+The {\tt InternalLoadSeg()}\mkey{InternalLoadSeg()} function loads a
+binary executable, retrieving data and memory through call-back
+functions. While {\tt LoadSeg()}\key{LoadSeg()} always goes through
+the \emph{dos.library} and the \emph{exec.library} for reading data
+and allocating memory, this function instead calls through
+user-provided functions.
+
+\begin{verbatim}
+seglist = InternalLoadSeg(fh,table,funcs)
+D0                        D0  A0   A1   
+
+BPTR InternalLoadSeg(BPTR,BPTR,struct LoadSegFuncs *)
+\end{verbatim}
+This function loads a binary executable in the hunk format from an
+opaque file handle {\tt fh} through functions in the {\tt funcs}. The
+{\tt table} argument shall be {\tt ZERO} when loading regular binaries
+or the root node of an overlay file, and shall be a \emph{BPTR} to the
+array containing pointers to all segments when loading a non-root
+overlay node, see section~\ref{sec:overlays}.
+\smallskip{}
+
+The {\tt LSFuncs} structure contains function pointers through which
+this function loads data or retrieves memory. It looks as follows:
+\begin{verbatim}
+struct LoadSegFuncs {
+    LONG __asm ReadFunc(register __d1 BPTR fh,
+                        register __a0 APTR buffer,
+                        register __d0 ULONG size,
+                        register __a6 struct DosLibrary *DOSBase);
+    APTR __asm AllocMem(register __d0 ULONG size,
+                        register __d1 ULONG flags,
+                        register __a6 struct ExecBase *SysBase);
+    void __asm FreeMem (register __a1 APTR mem,
+                        register __d0 ULONG size,
+                        register __a6 struct ExecBase *SysBase);
+}
+\end{verbatim}
+The {\tt ReadFunc()} function retrieves {\tt d0} bytes from an opaque
+file handle passed into register {\tt d1} and places the read bytes
+into the buffer pointed to by register {\tt a0}, it shall return the
+number of bytes read in register {\tt d0}, or a negative value in case
+of error. Note that the file handle {\tt d1} need not to be a file
+handle as returned by the {\tt Open()}\key{Open()} function, it is
+only a copy of the {\tt fh} argument provided to {\tt
+  InternalLoadSeg()}. Register {\tt a6} is loaded by a pointer to the
+\emph{dos.library}.
+\smallskip{}
+
+The {\tt AllocMem()} function allocates {\tt d0} bytes of memory,
+using requirement flags from {\tt exec/memory.h} such as {\tt
+  MEMF\_CHIP} to require chip memory or {\tt MEMF\_FAST} for fast
+memory. This function shall return a pointer to the allocated memory
+in register {\tt d0}, or {\tt NULL} in case of failure. Register {\tt a6}
+is loaded with a pointer to the \emph{exec.library}.
+\smallskip{}
+
+The {\tt FreeMem()} function releases a block of {\tt d0} bytes
+pointed to by {\tt a0}. Register {\tt a6} is loaded with a pointer to
+the \emph{exec.library}.
+\medskip{}
+
+The purpose of this function is to load a segment or a binary without
+having access to a file or a \emph{file system}; for example, this
+function could load binaries from ROM-space, or from the Rigit Disk
+Block of a boot partition. In particular, the {\tt fh} argument does
+not need to be a regular \emph{file handle}; it is rather an opaque
+value identifying the source. The {\tt InternalLoadSeg()} function
+does not interpret this argument, but rather passes it into {\tt
+  funcs->ReadFunc()} in register {\tt d1}.
+\smallskip{}
+
+When allocating memory, the {\tt InternalLoadSeg()} function follows
+the conventions of the {\tt AllocVec()} and {\tt FreeVec()} functions
+and stores the number of allocated bytes in the first four bytes of
+the allocated memory block. In specific, the memory allocator and
+memory releaser functions provided in the {\tt LoadSegFuncs} structure
+\emph{do not need} to store the memory sizes, and the exec {\tt
+  AllocMem()} and {\tt FreeMem()} functions satisfy the interfaces for
+{\tt InternalLoadSeg()} function already.
+\smallskip{}
+
+This function does not set {\tt IoErr()}\key{IoErr()} consistently,
+unless the functions within {\tt LoadSegFuncs} do. Callers should also
+call {\tt SetIoErr(0)} upfront this function to identify all errors.
+
+\subsection{Unloading a Binary} \label{sec:unloadseg}
+
+The {\tt UnLoadSeg()}\mkey{UnLoadSeg()} function releases a linked
+list of segments as returned by {\tt LoadSeg()}\key{LoadSeg()} or {\tt
+  NewLoadSeg()}\key{NewLoadSeg()}.
+
+\begin{verbatim}
+success = UnLoadSeg( seglist )
+D0                     D1
+
+BOOL UnLoadSeg(BPTR)
+\end{verbatim}
+This function releases all segments chained together by {\tt
+  LoadSeg()} and {\tt NewLoadSeg()} and returns their memory back into
+the system pool. This function \emph{also} accepts overlayed segments,
+see section~\ref{sec:overlays}, and releases additional resources
+accquired for them.
+\smallskip{}
+
+Segment lists loaded through {\tt
+  InternalLoadSeg()}\key{InternalLoadSeg()} shall be released through
+{\tt InternalUnLoadSeg()}\key{InternalUnLoadSeg()} instead.
+\smallskip{}
+
+This function returns a non-zero result in case of success, or~$0$ in
+case of error. Currently, the only source of error is passing in {\tt
+  ZERO} as segment list, all other cases will indicate success. In
+particular, this function does not attempt to check return codes of
+the function calls required to release resources assoicated to
+overlayed files. This function neither sets {\tt IoErr()}
+consistently, but it cannot fail for regular (non-overlayed) binaries
+unless {\tt ZERO} is passed in as argument.
+
+\subsection{UnLoading a Binary through Call-Back Functions} \label{sec:internalunloadseg}
+
+The {\tt InternalUnLoadSeg()}\mkey{InternalUnLoadSeg()} function
+releases a segment list loaded through {\tt
+  InternalLoadSeg()}\key{InternalLoadSeg()}.
+
+\begin{verbatim}
+success = InternalUnLoadSeg(seglist,FreeFunc)
+D0                          D1       A1
+
+BOOL InternalUnLoadSeg(BPTR,
+                       void __asm (*)(register __a1 APTR,
+                                      register __d0 ULONG,
+                                      register __a6 struct ExecBase 
+                                                    *SysBase))
+\end{verbatim}
+This function releases a segment list created by {\tt
+  InternalLoadSeg()} passed in as {\tt seglist}. To release memory, it
+uses a function pointed to by {\tt a1}. This function expects the
+memory block to release in register {\tt a1} and its size in register
+{\tt d0}. Additionally, register {\tt a6} will be populated by a
+function to the \emph{exec.library}.
+\smallskip{}
+
+This function pointer should be identical to the {\tt FreeMem}
+function pointer in the {\tt LoadSegFuncs} structure provided to {\tt
+  InternalAllocMem()}, or at least shall be able to release memory
+allocated by the {\tt AllocMem} function pointer in the structure.
+Note that the {\tt InternalLoadSeg()} stores the sizes of the
+allocated memory blocks itself and that {\tt FreeFunc} does not need
+to retrieve them.
+\smallskip{}
+
+This function is also able to release overlayed binaries, but then
+closes the file stored in the root node of the overlay tree (see
+section~\ref{sec:overlays}) through the {\tt Close()} function of the
+\emph{dos.library}. It therefore can only release overlayed files that
+were loaded from regular \emph{file handles} obtained through {\tt
+  Open()}\key{Open()}.
+\smallskip{}
+
+This function returns a non-negative result code in case of success,
+or $0$ in case of failure. Currently, the only cause of failure is to
+pass in a {\tt ZERO} segment list, the function does not check of the
+result code of {\tt Close()} on the file handle of overlayed files. It
+therefore neither sets {\tt IoErr()} consistently in case of failure.
+
+\section{Overlays} \label{sec:overlays}
+
 \subsection{HUNK\_BREAK} \label{sec:hunk_break}
 
 This hunk terminates the loading process and indicates the end of an
@@ -6882,7 +7141,7 @@ data. \mkey{HUNK\_BREAK}
 This hunk terminates the loading process and indicates the end of the
 main (first) segments. The {\tt HUNK\_OVERLAY} contains meta-data ---
 the overlay table --- for the overlay manager. This table contains
-information where symbols within the overlaid segments are
+information where symbols within the overlayed segments are
 located. Section~\ref{sec:overlay} provides more information on
 overlays. The format of the data within this hunk depends on the
 overlay manager which shall be included in the first segment of the
