@@ -2,6 +2,7 @@
 \usepackage{a4}
 \usepackage{times}
 \usepackage{longtable}
+\usepackage{forest}
 %
 \setlength{\oddsidemargin}{0cm}
 \setlength{\evensidemargin}{0cm}
@@ -6260,7 +6261,7 @@ terminate the loading process.
 \smallskip{}
 
 Loaded executables are represented as singly linked list of segments
-in memory, by a structure that looks as follows:
+in memory, by a structure that looks as follows: \mkey{LoadedSegment}
 \begin{verbatim} 
 struct LoadedSegment {
     BPTR  NextSegment; /* BPTR to next segment or ZERO */
@@ -6428,9 +6429,10 @@ section~\ref{sec:overlays}.
 
 The {\tt HUNK\_HEADER}\mkey{HUNK\_HEADER} is the first hunk of every
 executable file. It identifies the number of segments in an
-executable, and the amount of memory to reserve for each segment.
+executable, and the amount of memory to reserve for each
+segment.
     
-\begin{rkrmtabular}{Hunk Header Syntax} \label{table:hunkheader}
+\begin{rkrmtabular}{Hunk Header Syntax} \label{table:hunk_header}
 \begin{tabular}{|l|p{6cm}|p{6cm}|} \hline
 {\bf Size} & {\bf Code} & {\bf Syntax} \\ \hline \hline
 32 & \tt HUNK\_HEADER [0x3f3] & Every executable file shall start with this hunk \\ \hline
@@ -6721,16 +6723,16 @@ The symbol type can be roughly classified into two classes: If bit $7$
 of the type is clear, a symbol is \emph{defined} that may be
 referenced by another object file. If bit $7$ is set, the symbol is
 \emph{referenced} and requires resolution by a symbol definition with
-bit 7 cleared upon linking. Executable files, and thus {\tt
-  HUNK\_SYMBOL}, may only contain symbol definitions as references had
-been resolved by the linker.
+bit 7 cleared upon linking. Executable files, and thus symbols within
+{\tt HUNK\_SYMBOL}, may only contain symbol definitions as references
+had been resolved by the linker before.
 \smallskip{}
 
 The following table contains the symbol types for definitions and
-therefore may appear in both {\tt HUNK\_SYMBOL} as part of executables
-and {\tt HUNK\_EXT}\key{HUNK\_EXT} as part of object files; {\tt
-  HUNK\_SYMBOL} will typically only include the first type of entry,
-i.e. {\tt EXT\_SYMB}:
+those may therefore may appear in both {\tt HUNK\_SYMBOL} as part of
+executables and {\tt HUNK\_EXT}\key{HUNK\_EXT} as part of object
+files; actually, {\tt HUNK\_SYMBOL} will typically only include the
+first type of entry, i.e. {\tt EXT\_SYMB}:
 \begin{rkrmtabular}{Symbol types in HUNK\_SYMBOL and HUNK\_EXT} \label{table:symboltypes}
 \begin{tabular}{|lc|p{10cm}|} \hline
 \tt EXT\_SYMB & [0x00] & Definition of a symbol, $s_v + m_a[i]$ is the address of the symbol \\ \hline
@@ -6750,61 +6752,9 @@ for more details. \\ \hline
 \end{tabular}
 \end{rkrmtabular}
 
-The next table includes symbol types that identify symbol references,
-i.e. they are referenced within a segment of an object file, though
-not defined there. These types can clearly not be contained within a
-executable binary, but they may appear within an object file and are
-then resolved by corresponding symbol definitions from the above table
-by the linker:
-\begin{rkrmtabular}{Symbol types in HUNK\_EXT} \label{table:extsymboltypes}
-\begin{longtable}{|lc|p{9cm}|} \hline
-\tt EXT\_REF32 & [0x81] & Reference to a 32-bit symbol that is resolved
-by a corresponding {\tt EXT\_ABS} to an absolute value or by a {\tt
-  EXT\_DEF} definition to a relocation information to this or another
-segment. \\ \hline
-
-\tt EXT\_COMMON & [0x82] & Reference to a 32-bit symbol that may be
-resolved by a {\tt EXT\_ABS} or {\tt EXT\_DEF} definition, but if no
-such definition is found, a BSS hunk of the maximal size of all
-references to the symbol is created by the linker. Thus, this type
-generates a zero-initialized object if no definition is found. \\ \hline
-
-\tt EXT\_REF16 & [0x83] & Reference to a 16-bit PC relative offset within
-the same segment. \\ \hline
-
-\tt EXT\_REF8 & [0x84] & Reference to a 8-bit PC relative offset within
-the same segment. \\ \hline
-
-\tt EXT\_DREF32 & [0x85] & 32-bit reference relative to a base register
-(typically {\tt a4}), resolved by the linker through an entry in a {\tt
-  HUNK\_DRELOC32} hunk\key{HUNK\_DRELOC32}.\\ \hline
-
-\tt EXT\_DREF16 & [0x86] & 16-bit reference relative to a base register,
-resolved by the linker through an entry in a {\tt HUNK\_DRELOC16}
-hunk\key{HUNK\_DRELOC16}.\\ \hline
-
-\tt EXT\_DREF8 & [0x87] & 8-bit reference relative to a base register,
-resolved by the linker through an entry in a {\tt HUNK\_DRELOC8} hunk
-\key{HUNK\_DRELOC8}.\\ \hline
-
-\tt EXT\_RELREF32 & [0x88] & 32-bit PC-relative reference for 32-bit
-address, this will be resolved by an {\tt EXT\_DEF} definition into an
-entry into a {\tt HUNK\_RELRELOC32} hunk by the linker.\\ \hline
-
-\tt EXT\_RELCOMMON & [0x89] & 32-bit PC relative common reference for a
-32-bit address. Similar to a {\tt EXT\_COMMON} definition, this will
-be resolved into an {\tt HUNK\_RELRELOC32} entry where potentially
-space for the symbol will be allocated in a BSS segment if no
-corresponding definition is found.\\ \hline
-
-\tt EXT\_ABSREF16 & [0x8a] & 16-bit absolute reference, resolved by
-the linker to a 16-bit value by an {\tt EXT\_ABS} definition. \\ \hline
-
-\tt EXT\_ABSREF8 & [0x8b] & 8-bit absolute reference, resolved by the
-linker to an 8-bit value through an {\tt EXT\_ABS}
-definition. \\ \hline
-\end{longtable}
-\end{rkrmtabular}
+Additional symbol types representing references used within {\tt
+  HUNK\_EXT}\key{HUNK\_EXT} are documented in
+section~\ref{sec:hunk_ext}.
 
 \subsection{HUNK\_DEBUG} \label{sec:hunk_debug}
 
@@ -6947,7 +6897,7 @@ and the pointer to this stack-based TagList is passed in.
 
 While this function looks quite useful, AmigaDOS does currently not
 define any tags for this function, and thus no additional
-functionality over \emph{LoadSeg()} is provided.
+functionality over {\tt LoadSeg()} is provided.
 \smallskip{}
 
 The segment list returned by this function shall be removed from
@@ -6978,7 +6928,7 @@ overlay node, see section~\ref{sec:overlays}.
 \smallskip{}
 
 The {\tt LSFuncs} structure contains function pointers through which
-this function loads data or retrieves memory. It looks as follows:
+this function loads data or retrieves memory. It looks as follows: \mkey{LoadSegFuncs}
 \begin{verbatim}
 struct LoadSegFuncs {
     LONG __asm ReadFunc(register __d1 BPTR fh,
@@ -7061,8 +7011,10 @@ accquired for them.
 \smallskip{}
 
 Segment lists loaded through {\tt
-  InternalLoadSeg()}\key{InternalLoadSeg()} shall be released through
-{\tt InternalUnLoadSeg()}\key{InternalUnLoadSeg()} instead.
+  InternalLoadSeg()}\key{InternalLoadSeg()} require in general a more
+generic unloader. They shall be be released through {\tt
+  InternalUnLoadSeg()}\key{InternalUnLoadSeg()} instead,
+see~\ref{sec:internalunloadseg}.
 \smallskip{}
 
 This function returns a non-zero result in case of success, or~$0$ in
@@ -7070,9 +7022,7 @@ case of error. Currently, the only source of error is passing in {\tt
   ZERO} as segment list, all other cases will indicate success. In
 particular, this function does not attempt to check return codes of
 the function calls required to release resources assoicated to
-overlayed files. This function neither sets {\tt IoErr()}
-consistently, but it cannot fail for regular (non-overlayed) binaries
-unless {\tt ZERO} is passed in as argument.
+overlayed files.
 
 \subsection{UnLoading a Binary through Call-Back Functions} \label{sec:internalunloadseg}
 
@@ -7101,7 +7051,7 @@ function to the \emph{exec.library}.
 This function pointer should be identical to the {\tt FreeMem}
 function pointer in the {\tt LoadSegFuncs} structure provided to {\tt
   InternalAllocMem()}, or at least shall be able to release memory
-allocated by the {\tt AllocMem} function pointer in the structure.
+allocated by the {\tt AllocMem} function pointer in this structure.
 Note that the {\tt InternalLoadSeg()} stores the sizes of the
 allocated memory blocks itself and that {\tt FreeFunc} does not need
 to retrieve them.
@@ -7123,18 +7073,115 @@ therefore neither sets {\tt IoErr()} consistently in case of failure.
 
 \section{Overlays} \label{sec:overlays}
 
-\subsection{HUNK\_BREAK} \label{sec:hunk_break}
+While regular binary executables are first brought to memory in entity
+and then brought to execution, overlayed binaries only keep a fraction
+of the executable code in memory and then load additional code parts
+as required, potentially releasing other currently unused code parts
+and thus making more memory available.
+\smallskip{}
 
-This hunk terminates the loading process and indicates the end of an
-overlay segments. The hunk itself does not contain any
-data. \mkey{HUNK\_BREAK}
+Overlays are an extension of the AmigaDOS hunk format that splits the
+executable into a root node that is loaded initially and stays
+resident for the lifetime of the program, and one or multiple
+extension or overlay nodes that are loaded and unloaded on
+demand. Locating the overlay nodes, loading them to memory and
+releasing unused nodes is performed by the \emph{overlay manager}, a
+short piece of program.
+\smallskip{}
 
-\begin{rkrmtabular}{Hunk Break Syntax} \label{table:hunk_break}
-\begin{tabular}{|l|p{6cm}|p{6cm}|} \hline
-{\bf Size} & {\bf Code} & {\bf Syntax} \\ \hline \hline
-  & \tt HUNK\_BREAK [0x3f6] & Terminate a segment\\ \hline
-\end{tabular}
-\end{rkrmtabular}
+AmigaDOS does not provide a ROM-resident overlay manager itself,
+i.e. the \emph{dos.library} does not provide an overlay manager
+itself, though it provides services overlay managers may use. Instead,
+the overlay manager is part of the root node of an overlayed binary,
+and thus overlay management is fully under control of the application.
+\smallskip{}
+
+However, the Amiga linker \emph{ALink}, the Software Distillery linker
+\emph{BLink} and the SAS/C linker \emph{SLink} include a standard
+overlay manager, and this manager and its properties are discussed in
+greater detail in this section.
+
+\subsection{The Overlay File Format}
+
+A binary file making use of overlays consists of several nodes, one
+root node and several overlayed nodes. Nodes contain multiple
+segments, defined through {\tt HUNK\_CODE}, {\tt HUNK\_DATA} or {\tt
+  HUNK\_BSS} as in regular (non-overlayed) binary files.
+\smallskip{}
+
+Each node, the root node and all overlayed nodes start with a {\tt
+  HUNK\_HEADER}\key{HUNK\_HEADER} identifying which segments are
+contained in the node. The root node is terminated by a {\tt
+  HUNK\_OVERLAY}\key{HUNK\_OVERLAY} on which loading stops; this hunk
+contains additonal data for the purpose of the overlay manager, and
+therefore the data within this hunk depends on the overlay manager.
+\smallskip{}
+
+Every other overlay node terminates with a {\tt HUNK\_BREAK}, and
+loading stops there as well. This hunk does not contain any data. The
+overall structure of an overlayed binary therefore looks as follows:
+
+\begin{rkrmtable}{Overlay File Format} \label{table:overlayformat}
+{\bf Hunk Type}   & {\bf Description}\\ \hline \hline
+\tt HUNK\_HEADER  & Defines segments for the root node \\ \hline
+\tt HUNK\_CODE    & Contains the overlay manager and other resident code \\ \hline
+\tt \ldots        & Other hunks, such as relocation information \\ \hline
+\tt HUNK\_END     & Terminates the previous segment \\ \hline
+\tt HUNK\_OVERLAY & Metadata for the overlay manager, see~\ref{sec:hunk_overlay} \\ \hline
+\tt do \{         & Repeats over all overlay nodes \\ \hline
+\tt $\quad$ HUNK\_HEADER  & Defines the segments in this overlay node \\ \hline
+{\tt $\quad$ HUNK\_CODE} or {\tt HUNK\_DATA} & First segment of the overlay node \\ \hline
+\tt $\quad$ \ldots & Other hunks of this overlay node \\ \hline
+\tt $\quad$ HUNK\_END    & Terminates the last segment \\ \hline
+\tt $\quad$ HUNK\_BREAK  & Terminates the first overlay node, see~\ref{sec:hunk_break} \\ \hline
+\tt \} while(!end of file); & This pattern repeats until end of file \\ \hline
+\end{rkrmtable}
+
+\subsection{The Hierarchical Overlay Manager}
+
+The overlay manager that comes with the standard Amiga linkers
+\emph{ALink}, \emph{BLink} and \emph{SLink} structures overlay nodes
+into a tree such as the following:
+
+\begin{center}
+\begin{forest}
+  [root
+    [a [b] [c [d] [e]] [f] [g]] [h] [k [l] [m]]
+  ]
+\end{forest}
+\end{center}
+
+Only those nodes that form a path from the root to one of the nodes of
+the tree can be in memory at a time. Thus, for the above example, the
+root node and nodes $a$, $c$ and $e$ can be in memory simultaneously,
+or the root node, and nodes $k$ and $m$ can be loaded at the same
+time, but not the nodes $a$, $g$ and $h$ because they do not form a
+path from the root to one of the nodes.
+\smallskip{}
+
+Thus, in the above example, if nodes $a$ and $f$ are in memory, and
+node $l$ is required, the nodes $a$ and $f$ will be removed from
+memory, and nodes $k$ and $l$ are loaded. Even though $k$ is not
+explicitly requested, it needs to be loaded as it is the parent of
+$l$.
+\medskip{}
+
+Every node in the overlay tree is identified by two numbers: The depth
+\mkey{Level (overlay)} of the node, which identifies the level within
+the tree where a node is located. The root node is at level~$0$, the
+nodes~$a$, $h$ and~$k$ forms level~$1$ in the above example,
+nodes~$b$, $c$, $f$, $g$ and~$l$ and~$m$ form level~$2$, and nodes~$d$
+and~$e$ are level~$3$.
+\smallskip{}
+
+
+The second number is the ordinate number of a node.\mkey{Ordinate
+  (overlay)} The ordinate enumerates nodes from left to right within a
+level, and it starts from~$1$ in the standard overlay manager. In the
+above example, $a$ is at ordinate~$1$, $h$ at ordinate~$2$, and $k$ at
+ordinate~$3$. At level~$2$, node~$b$ has ordinate~$1$, node~$c$
+ordinate~$2$ and so on.
+
 
 \subsection{HUNK\_OVERLAY} \label{sec:hunk_overlay}
 
@@ -7152,20 +7199,20 @@ manager.\mkey{HUNK\_OVERLAY}
 The standard AmigaDOS linkers, {\tt ALink} and {\tt BLink} both
 include an overlay manager. Each entry in its overlay table describes
 a symbol that is located in one of the overlay nodes. The format of
-{\tt HUNK\_OVERLAY} for the standard overlay manager reads as follows:
+{\tt HUNK\_OVERLAY} reads as follows:
 \begin{rkrmtabular}{Hunk Overlay Syntax} \label{table:hunk_overlay}%
 \begin{longtable}{|l|p{6cm}|p{6cm}|} \hline
 {\bf Size} & {\bf Code} & {\bf Syntax} \\ \hline \hline
    & \tt HUNK\_OVERLAY [0x3f5] & Overlay table definition\\ \hline
 32 & \tt $l$ & Size of the overlay table, it is $l+1$ long-words large. \\ \hline
-\multicolumn{3}{|l|}{Overlay-manager specific data of $l+1$ long-words.} \\ \hline
+\multicolumn{3}{|l|}{Format for the standard overlay manager, $l+1$ long-words.} \\ \hline
    & \tt while($l \ge 0$) \{ & Repeat over the overlay table \\ \hline
 
 32 & \tt $\quad$ $o_p$ & Absolute file offset of the {\tt
   HUNK\_HEADER} of the overlay node containing the symbol. \\ \hline
 64 & \tt $\quad$ & Two reserved long-words. \\ \hline
 
-32 & \tt $\quad$ $o_l$ & Depth of the overlay node containing the symbol,
+32 & \tt $\quad$ $o_l$ & Level of the overlay node containing the symbol,
 the root level containing the overlay manager is level~$0$. \\ \hline
 
 32 & \tt $\quad$ $o_n$ & Ordinate of the overlay node, enumerating
@@ -7185,10 +7232,390 @@ described by this entry in the overlay node. \\ \hline
 
 Note that the overlay table is $l+1$ and not $l$ long-words large,
 i.e. a table only defining a single symbol would be indicated by a
-value of $l=7$.
+value of $l=7$. While the payload data of {\tt HUNK\_OVERLAY} is
+always $l+1$ long-words large, with $l$ indicated in the first
+long-word of the hunk, the format of the subsequent data is specific
+to the overlay manager used.
+\medskip{}
+
+Irrespective of the overlay manager used, the AmigaDOS loader injects
+overlay-specific data into the first segment loaded from disk, that
+is, into the root-node. The data placed there is also required to
+release all resources associated to overlays and is expected there by
+{\tt UnLoadSeg()}\key{UnLoadSeg()} and {\tt
+  InternalUnLoadSeg()}\key{InternalUnLoadSeg()}.
+\smallskip{}
+
+The first bytes of the root node shall therefore form the following
+structure:
+\begin{verbatim}
+struct OverlayHeader {
+    UWORD         oh_Jump[2];      /* Forms a branch to the startup code */
+    LONG          oh_Magic;        /* Shall be 0x0000abcd                */
+    BPTR          oh_FileHandle;   /* Filled by the loader with the fh   */
+    struct OVTab *oh_OVTab;        /* Overlay table from HUNK_OVERLAY    */
+    BPTR          oh_Segments;     /* Array of segment BPTRs             */
+    BPTR          oh_GV;           /* standard Global Vector             */
+};
+\end{verbatim}
+As said earlier, this structure is expected to be present at the start
+of the first hunk of the root node. The members {\tt oh\_FileHandle}
+to {\tt oh\_GV} are filled in by the AmigaDOS loader, i.e. {\tt
+  LoadSeg()} and related functions, but {\tt oh\_Jump} and {\tt
+  oh\_Magic} shall be part of the segment itself.
+\smallskip{}
+
+{\tt oh\_Jump} form valid {\tt 68K} opcodes, and shall contain a jump
+or branch branch around this structure. This is because loaded
+binaries are executed from the first byte of the first segment
+loaded. Otherwise, the CPU would run into the data of the structure
+which likely forms invalid or illegal opcodes. The AmigaDOS Loader
+itself does not interpret the values here, just expects them to be
+present.
+\smallskip{}
+
+{\tt oh\_Magic} shall contain the ``magic'' long-word {\tt
+  0xabcd}. This value is neither filled or interpreted by the loader,
+but nevertheless shall be present. It is, however, checked by {\tt
+  UnLoadSeg()}\key{UnLoadSeg()} and used there as an identifier for
+the {\tt OverlayHeader} structure. If this identifier is not present,
+{\tt UnLoadSeg()} will not be able to release resources associated to
+overlays.
+\smallskip{}
+
+{\tt oh\_FileHandle} will be filled by the AmigaDOS loader with a
+\emph{BPTR} to the \emph{FileHandle} from which the root node has been
+loaded, or with the first argument of {\tt
+  InternalLoadSeg()}\key{InternalLoadSeg()}. This handle is used by
+the overload manager to load all subsequent overlay nodes. Also, {\tt
+  UnLoadSeg()}\key{UnLoadSeg()} and related functions call {\tt
+  Close()}\key{Close()} on the handle stored here as the file needs to
+stay open for the life time of the loaded program.
+\smallskip{}
+
+{\tt oh\_OVTab} is filled by the AmigaDOS loader to a pointer to the
+payload data of {\tt HUNK\_OVERLAY}. The standard overlay manager
+stores here for every externally referenced symbol in an overlay
+node a structure that describes the position of this symbol in the overlay node:
+\mkey{OVTab}
+\begin{verbatim}
+struct OVTab {
+    ULONG ot_FilePosition; /* File position of HUNK_HEADER of the node */
+    ULONG ot_Reserved[2];  /* Not in use                               */
+    ULONG ot_Level;        /* Level of the overlay node                */
+    ULONG ot_Ordinate;     /* Ordinate of the overlay node             */
+    ULONG ot_FirstHunk;    /* First segment of the overlay node        */
+    ULONG ot_SymbolHunk;   /* Segment containing the referenced symbol */
+    ULONG ot_SymbolOffset; /* Offset of the segment within the segment */
+}
+\end{verbatim}
+The purpose of this structure is that it allows the overlay manager on
+a reference to such an external symbol to find and load the overlay
+node containing the symbol, and then resolve references to it. How
+exactly it does so is explained in more detail in
+section~\ref{sec:stdoverlay}. The elements of this structure are
+already briefly introduced in table~\ref{table:hunk_overlay}.
+\smallskip{}
+
+{\tt oh\_Segments} is filled by the AmigaDOS loader to a \emph{BPTR}
+to the segment table of the loaded binary. The size of this table is
+taken from $t_{\mbox{size}}$ in the {\tt HUNK\_HEADER}\key{HUNK\_HEADER} of the root
+node, see table~\ref{table:hunk_header}. Each element in this array
+contains a \emph{BPTR} to a segment of the loaded binary, and it is
+indexed by the segment number, counting from~$0$ for the first segment
+of the root node.
+\smallskip{}
+
+When parsing a {\tt HUNK\_HEADER}, the array entries $t_{\mbox{num}}$
+to $t_{\mbox{max}}$ will be populated with the \emph{BPTR}s to the
+segments allocated of the node described by this hunk, and when
+unloading an overlay node, the corresponding segments will be
+unlinked, released and then cleared out.
+\medskip{}
+
+{\tt oh\_GV} is, finally, filled with the Global Vector of the
+\emph{dos.library} containing all regular functions in the library, as
+required by BCPL code. Overlay managers implemented in C or assembler
+will not make use of it and instead call vectors of the
+\emph{dos.library} through the \emph{dos.library} base address loaded
+in register {\tt a6}.
+
+\subsection{HUNK\_BREAK} \label{sec:hunk_break}
+
+This hunk terminates the loading process and indicates the end of an
+overlay node. The hunk itself does not contain any
+data. \mkey{HUNK\_BREAK}
+
+\begin{rkrmtabular}{Hunk Break Syntax} \label{table:hunk_break}
+\begin{tabular}{|l|p{6cm}|p{6cm}|} \hline
+{\bf Size} & {\bf Code} & {\bf Syntax} \\ \hline \hline
+  & \tt HUNK\_BREAK [0x3f6] & Terminate a segment\\ \hline
+\end{tabular}
+\end{rkrmtabular}
+
+\subsection{Loading an Overload Node} \label{sec:loadsegoverload}
+
+The {\tt LoadSeg()}\key{LoadSeg()} function is not only able to load
+the root segments of an overlayed binary, it can also be used for
+loading an overlayed node and all segments within it. For that, the
+file pointer shall first be placed with {\tt Seek()}\key{Seek()} to
+the file offset of the {\tt HUNK\_HEADER} of the overlayed node. This
+file offset may, for the standard hierarchical overlay manager, be
+taken from the {\tt ot\_FilePosition} of the overlay table.
+
+\begin{verbatim}
+seglist = LoadSeg( name ,table, fh)
+D0                 D1    D2     D3
+
+BPTR LoadSeg(STRPTR ,BPTR, BPTR)
+\end{verbatim}
+For overlayed node loading, the first argument {\tt name} shall be
+{\tt NULL}, which is used as an indicator to this function to
+interpret two additional (usually hidden) arguments.
+\smallskip{}
+
+{\tt table} is a \emph{BPTR} to the segment table, and may be taken
+from {\tt oh\_Segments}. It contains \emph{BPTRs} to all allocated
+segments, see section~\ref{sec:hunk_overlay}.
+\smallskip{}
+
+{\tt fh} is a \emph{BPTR} to the \emph{FileHandle} from which the
+overlay node is to be loaded. This handle may be taken from
+{\tt oh\_FileHandle}, see section~\ref{sec:hunk_overlay}.
+\smallskip{}
+
+While this function allocates and loads the segments in the overlayed
+node, it does not attempt to release already allocated segments
+populating the same entries in the segment table; it is instead up to
+the overlay manager to clean up the segment table upfront,
+see~\ref{sec:unloadnode}. The information which segments will be
+populated by an overlay node may be taken from the {\tt ot\_FirstHunk}
+member of the overlay table. Due to the tree structure imposed by the
+hierarhical overlay manager, it has to release all segments from {\tt
+  ot\_FirstHunk} onwards up to the end of the table, unlink the
+segments contained therein, and then load another overlay node through
+{\tt LoadSeg()}.
+\smallskip{}
+
+Note that this function populates the same offset in the
+\emph{dos.library} as the regular {\tt LoadSeg()}\key{LoadSeg()}
+function; the function distinguishes loading regular binaries through
+a file name from loading overlay nodes by the first argument.
+\smallskip{}
+
+As the regular {\tt LoadSeg()} call, this function returns the
+\emph{BPTR} to the first segment loaded on success, links all loaded
+segments together, populates the segment table, and then sets {\tt
+  IoErr()}\key{IoErr()} to~$0$. On error, it returns {\tt ZERO} and
+installs an error code in {\tt IoErr()}.
+
+\subsection{Loading an Overlay Node through Call-Back Functions}
+
+The {\tt InternalLoadSeg()}\key{InternalLoadSeg()} function can also load
+an overlay node.
+
+\begin{verbatim}
+seglist = InternalLoadSeg(fh,table,funcs)
+D0                        D0  A0   A1   
+
+BPTR InternalLoadSeg(BPTR,BPTR,struct LoadSegFuncs *)
+\end{verbatim}
+
+The {\tt fh} argument is an opaque file handle that is suitable for
+the {\tt ReadFunc()} provided by the {\tt funcs} structure. The
+corresponding file pointer shall first be placed to the file offset of
+the {\tt HUNK\_HEADER} of the overlayed node, e.g. by a functionality
+similar to {\tt Seek()}\key{Seek()} for regular
+\emph{FileHandles}. This file offset may, for the standard
+hierarchical overlay manager, be taken from the {\tt ot\_FilePosition}
+within the overlay table.
+\smallskip{}
+
+The {\tt table} shall be the \emph{BPTR} to the segment table; this
+may be taken from {\tt oh\_Segments}. This argument determines whether
+a regular binary load is requested, or an overlay node is to be
+loaded. In the latter case, this argument is non-{\tt ZERO}.
+\smallskip{}
+
+Like {\tt LoadSeg()}\key{LoadSeg()}, this function does not release
+segments in populated entries in the segment list, it is up to the
+overlay manager to unload these segments. The information which
+entries of the segment table will be populated by an overlay node may
+be taken from the {\tt ot\_FirstHunk} member of the overlay table, see
+also~\ref{sec:loadsegoverload}.
+\smallskip{}
+
+The {\tt funcs} argument points to a {\tt LoadSegFuncs} structure as
+defined in section~\ref{sec:internalloadseg} and contains functions for
+reading data and allocating and releasing memory.
+\smallskip{}
+
+This function does not set {\tt IoErr()} consistently, unless the
+functions in the {\tt LoadSegFuncs} structure do. The function returns
+the segment of the first segment of the overlay node on success, or
+{\tt ZERO} on error.
+
+\subsection{Unloading Overlay Nodes} \label{sec:unloadnode}
+
+Unloading overlay nodes (and \emph{not} the root node) of an overlayed
+binary requires some manipulation of the segment table as the
+\emph{dos.library} does not provide a function for such
+operation. This algorithm is part of the overlay manager, but its
+implementation within the standard hierarchical overlay manager
+documented here for completeness. Other custom overlay managers
+perform potentially different algorithms.
+\smallskip{}
+
+First, it finds the previous segment upfront the segment to be
+unloaded, and cleans there the {\tt NextSegment} pointer to unlink all
+following segments.  Then these following segments are released
+through {\tt FreeVec()} or whatever memory release function is
+appropriate.
+\smallskip{}
+
+The following sample code releases the overlay node starting at
+segment $i > 0$ from a segment table of an overlay header:
+\begin{verbatim}
+void UnloadOverlayNode(struct OverlayHeader *oh,ULONG i)
+{
+  BPTR *segtbl  = (BPTR *)BADDR(oh->oh_Segments);
+  BPTR *segment = (BPTR *)BADDR(segtbl[i - 1]); 
+  BPTR  next;
+
+  /* Release the linkage from the last loaded to
+  ** the first segment to release */
+  *segment = NULL;
+
+  do {
+    /* Get the segment to release */
+    if (segment = (BPTR *)BADDR(segtbl[i++])) {
+      next      = *segment;
+      FreeVec(segment);
+    } else break;
+    /* Repeat until the last segment */
+  } while(next);
+}
+\end{verbatim}
+Note that a previous segment always exists because the root node
+populates at least entry~$0$ of the segment table. The above loop
+makes use of the fact that the first long-word of a segment is a
+\emph{BPTR} to the next segment, and this linkage is {\tt ZERO} for
+the final node.
+\smallskip{}
+
+If a custom memory allocator has been used for loading overlay nodes
+through {\tt InternalLoadSeg()}\key{InternalLoadSeg()}, the {\tt
+  FreeVec()} in the above function is replaced by the corresponding
+memory release function.
+
+\subsection{Unloading Overlay Binaries}
+
+To unload the root node, and thus unload the entire program including
+all overlay nodes, {\tt UnLoadSeg()}\key{UnLoadSeg()} on the first
+segment of the root node is sufficient if neither custom I/O nor a
+custom memory allocator has been used to load the binary, independent
+on which overlay manager has been used. {\tt UnLoadSeg()} will detect
+the overlay manager from the magic value in {\tt oh\_Magic} and will
+then not only release the segments, but also close the overlay file
+handle and release the segment table.
+\smallskip{}
+
+If {\tt InternalLoadSeg()}\key{InternalLoadSeg()} has been used for
+loading the root node through custom I/O functions or with a custom
+memory allocator, {\tt InternalUnLoadSeg()}\key{InternalUnLoadSeg()}
+shall be used instead to release the root node. Unfortunately, it
+\emph{always} uses {\tt Close()}\key{Close()} on {\tt oh\_FileHandle},
+even if {\tt oh\_FileHandle} does not correspond to a
+\emph{FileHandle} as returned by {\tt Open()}\key{Open()},
+e.g. because {\tt ReadFunc()} upon loading the overlay program pointed
+to a custom I/O function. The best strategy in this case is probably
+to close {\tt oh\_FileHandle} manually upfront with whatever method is
+appropriate, then zero it out manually and then finally call into {\tt
+  InternalUnLoadSeg()} to perform all the necessary cleanup steps.
+This strategy works because {\tt Close()} on a {\tt ZERO}
+file handle performs no operation and is legit.
+
+\subsection{Internal Working of the Overlay Manager}
+
+% Describe the trampoline functions to symbols and how they
+% are replaced and patched.
+
+\section{Structures within Hunks}
+
+\subsection{Version and Stack Cookies}
+
+% Describe $VER and $STACK
+
+\subsection{Runtime binding for BCPL programs}
+
+% Describe the hunk-internal format that is used to populate
+% the hunks
+
+\section{Object File Format}
+
+% Describe how object code looks like, including additional hunks
+
+\section{HUNK\_EXT} \label{sec:hunk_ext}
+
+The next table includes symbol types that identify symbol references,
+i.e. they are referenced within a segment of an object file, though
+not defined there. These types can clearly not be contained within a
+executable binary, but they may appear within an object file and are
+then resolved by corresponding symbol definitions from the above table
+by the linker:
+\begin{rkrmtabular}{Symbol types in HUNK\_EXT} \label{table:extsymboltypes}
+\begin{longtable}{|lc|p{9cm}|} \hline
+\tt EXT\_REF32 & [0x81] & Reference to a 32-bit symbol that is resolved
+by a corresponding {\tt EXT\_ABS} to an absolute value or by a {\tt
+  EXT\_DEF} definition to a relocation information to this or another
+segment. \\ \hline
+
+\tt EXT\_COMMON & [0x82] & Reference to a 32-bit symbol that may be
+resolved by a {\tt EXT\_ABS} or {\tt EXT\_DEF} definition, but if no
+such definition is found, a BSS hunk of the maximal size of all
+references to the symbol is created by the linker. Thus, this type
+generates a zero-initialized object if no definition is found. \\ \hline
+
+\tt EXT\_REF16 & [0x83] & Reference to a 16-bit PC relative offset within
+the same segment. \\ \hline
+
+\tt EXT\_REF8 & [0x84] & Reference to a 8-bit PC relative offset within
+the same segment. \\ \hline
+
+\tt EXT\_DREF32 & [0x85] & 32-bit reference relative to a base register
+(typically {\tt a4}), resolved by the linker through an entry in a {\tt
+  HUNK\_DRELOC32} hunk\key{HUNK\_DRELOC32}.\\ \hline
+
+\tt EXT\_DREF16 & [0x86] & 16-bit reference relative to a base register,
+resolved by the linker through an entry in a {\tt HUNK\_DRELOC16}
+hunk\key{HUNK\_DRELOC16}.\\ \hline
+
+\tt EXT\_DREF8 & [0x87] & 8-bit reference relative to a base register,
+resolved by the linker through an entry in a {\tt HUNK\_DRELOC8} hunk
+\key{HUNK\_DRELOC8}.\\ \hline
+
+\tt EXT\_RELREF32 & [0x88] & 32-bit PC-relative reference for 32-bit
+address, this will be resolved by an {\tt EXT\_DEF} definition into an
+entry into a {\tt HUNK\_RELRELOC32} hunk by the linker.\\ \hline
+
+\tt EXT\_RELCOMMON & [0x89] & 32-bit PC relative common reference for a
+32-bit address. Similar to a {\tt EXT\_COMMON} definition, this will
+be resolved into an {\tt HUNK\_RELRELOC32} entry where potentially
+space for the symbol will be allocated in a BSS segment if no
+corresponding definition is found.\\ \hline
+
+\tt EXT\_ABSREF16 & [0x8a] & 16-bit absolute reference, resolved by
+the linker to a 16-bit value by an {\tt EXT\_ABS} definition. \\ \hline
+
+\tt EXT\_ABSREF8 & [0x8b] & 8-bit absolute reference, resolved by the
+linker to an 8-bit value through an {\tt EXT\_ABS}
+definition. \\ \hline
+\end{longtable}
+\end{rkrmtabular}
 
 %%% For later.
 
+\section{Miscellaneous Functions}
 The {\tt DateStamp} structure reads as follows:
 
 \begin{verbatim}
