@@ -6778,8 +6778,8 @@ The syntax of this hunk is as follows:
    & HUNK\_DEBUG [0x3f1] & Hunk including debug information \\ \hline
 32 & l > 3 & Size of the hunk in long-words \\ \hline
 \multicolumn{3}{|l|}{Compiler- and configuration specific data for line-debug data:} \\ \hline
-32 & \tt $l_0 = 0$ & This field shall be zero \\ \hline
-32 & \tt $l_1 = {\tt 'LINE'}$ & These four bytes shall contain the
+32 & \tt $0$ & This field shall be zero \\ \hline
+32 & \tt 'LINE' & These four bytes shall contain the
 ASCII characters {\tt 'L','I','N','E'} identifying the type of the
 debug information \\ \hline
 32 & \tt $l_n$ & Size of the source file name in long-words \\ \hline
@@ -7206,26 +7206,33 @@ a symbol that is located in one of the overlay nodes. The format of
    & \tt HUNK\_OVERLAY [0x3f5] & Overlay table definition\\ \hline
 32 & \tt $l$ & Size of the overlay table, it is $l+1$ long-words large. \\ \hline
 \multicolumn{3}{|l|}{Format for the standard overlay manager, $l+1$ long-words.} \\ \hline
+32 & \tt $o_d$ & Number of levels in the overlay tree, including the root node \\ \hline
+   & \tt for($i$ = 1;$i$ < $o_d$;i++) \{ & For all nodes, excluding the root node \\ \hline
+32 & \tt $\quad$ $0$ & Currently loaded ordinate, shall be zero \\ \hline
+   & \tt \} & That is, $o_d-1$ zeros \\ \hline
+   & \tt $l -= o_d$ & Count removed long-words \\ \hline
+   & \tt $s  = 0$   & Start with symbol $0$ \\ \hline
    & \tt while($l \ge 0$) \{ & Repeat over the overlay table \\ \hline
 
-32 & \tt $\quad$ $o_p$ & Absolute file offset of the {\tt
+32 & \tt $\quad$ $o_p[s]$ & Absolute file offset of the {\tt
   HUNK\_HEADER} of the overlay node containing the symbol. \\ \hline
 64 & \tt $\quad$ & Two reserved long-words. \\ \hline
 
-32 & \tt $\quad$ $o_l$ & Level of the overlay node containing the symbol,
+32 & \tt $\quad$ $o_l[s]$ & Level of the overlay node containing the symbol,
 the root level containing the overlay manager is level~$0$. \\ \hline
 
-32 & \tt $\quad$ $o_n$ & Ordinate of the overlay node, enumerating
+32 & \tt $\quad$ $o_n[s]$ & Ordinate of the overlay node, enumerating
 overlay nodes of the same depth. \\ \hline
 
-32 & \tt $\quad$ $o_h$ & Hunk index of the first hunk within
+32 & \tt $\quad$ $o_h[s]$ & Hunk index of the first hunk within
 the overlay node. \\ \hline
 
-32 & \tt $\quad$ $o_s$ & Hunk index of the hunk containing the symbol
+32 & \tt $\quad$ $o_s[s]$ & Hunk index of the hunk containing the symbol
 described by this entry in the overlay node. \\ \hline
 
-32 & \tt $\quad$ $o_o$ & Symbol offset within hunk $o_s$ \\ \hline
+32 & \tt $\quad$ $o_o[s]$ & Symbol offset within hunk $o_s$ \\ \hline
    & \tt $\quad$ $l$ -=8 & Remove 8 long words. \\ \hline
+   & \tt $\quad$ $s++$   & Advance to next symbol. \\ \hline
    & \tt \} & End of loop over table \\ \hline
 \end{longtable}
 \end{rkrmtabular}
@@ -7295,11 +7302,17 @@ stay open for the life time of the loaded program.
 
 {\tt oh\_OVTab} is filled by the AmigaDOS loader to a pointer to the
 payload data of {\tt HUNK\_OVERLAY}. The standard overlay manager
-stores here for every externally referenced symbol in an overlay
-node a structure that describes the position of this symbol in the overlay node:
+stores here for every externally referenced symbol in an overlay node
+a structure that records for each tree level the ordinate of the
+currently loaded overlay node, and for all externally referenced
+symbols the position of the symbol within the overlay tree:
 \mkey{OVTab}
 \begin{verbatim}
 struct OVTab {
+    ULONG ot_TreeDepth;    /* Depth of the tree, including the root    */
+    ULONG ot_LoadedOrd[];  /* The loaded ordinate, indexed by level-1  */
+}
+struct SymTab {
     ULONG ot_FilePosition; /* File position of HUNK_HEADER of the node */
     ULONG ot_Reserved[2];  /* Not in use                               */
     ULONG ot_Level;        /* Level of the overlay node                */
@@ -7307,14 +7320,22 @@ struct OVTab {
     ULONG ot_FirstHunk;    /* First segment of the overlay node        */
     ULONG ot_SymbolHunk;   /* Segment containing the referenced symbol */
     ULONG ot_SymbolOffset; /* Offset of the segment within the segment */
-}
+} []                       /* For each symbol */
 \end{verbatim}
-The purpose of this structure is that it allows the overlay manager on
-a reference to such an external symbol to find and load the overlay
-node containing the symbol, and then resolve references to it. How
-exactly it does so is explained in more detail in
-section~\ref{sec:stdoverlay}. The elements of this structure are
-already briefly introduced in table~\ref{table:hunk_overlay}.
+That is, the overlay table starts with the tree depth $o_d$ and an
+array of $o_d-1$ elements where each element stores the ordinate of
+the currently loaded overlay node. If an entry in this array is~$0$,
+no overlay node at this tree level is loaded, otherwise it is the
+$1$-based ordinate of the node.
+\smallskip{}
+
+The ordinate table is followed by the symbol table. The purpose of
+this structure is that it allows the overlay manager on a reference to
+such an external symbol to find and load the overlay node containing
+the symbol, and then resolve references to it. How exactly it does so
+is explained in more detail in section~\ref{sec:stdoverlay}. The
+elements of this structure are already briefly introduced in
+table~\ref{table:hunk_overlay}.
 \smallskip{}
 
 {\tt oh\_Segments} is filled by the AmigaDOS loader to a \emph{BPTR}
@@ -7537,14 +7558,299 @@ file handle performs no operation and is legit.
 
 \subsection{Internal Working of the Overlay Manager}
 
-% Describe the trampoline functions to symbols and how they
-% are replaced and patched.
+Several versions of the hierarchical overlay manager exist. The
+version described here stems from the SAS/C {\tt SLink} utility and is
+designed for the \emph{registerized parameters} configuration within
+which some function arguments are passed in CPU registers. Earlier
+versions require stack-based parameter passing.
+\smallskip{}
+
+When binding objects together to an overlay binary together, the
+linker checks whether a reference to a symbol crosses a boundary of
+overlay nodes. References that go to a parent node or the node itself
+can be resolved by the linker by creating a relocation entry in a {\tt
+  HUNK\_RELOC32} hunk as it can assume that the corresponding segment
+is already loaded.
+\smallskip{}
+
+References to symbols within child nodes receive each a unique integer
+identifier, and an entry in the overlay table in {\tt HUNK\_OVERLAY}
+at the index given by the identifier. The actual call to a function in
+a child node is then replaced to call into a trampoline function that
+looks as follows:
+\begin{verbatim}
+@symX:
+    jsr @ovlyMgr
+    dc.w symbX
+\end{verbatim}
+where {\tt @ovlyMgr} is the entry point of the overlay manager and
+{\tt symbX} is the identifier of the referenced symbol. The overlay
+manager reads the return PC which points to the identifer, and from the
+identifier finds the entry in the symbol table. 
+\smallskip{}
+
+The symbol table contains both the ordinate and the level of the
+symbol with which the overlay manager is able to check whether the
+node containing the symbol is currently loaded. If this is not the
+case, it needs to unload the currently loaded node at this level and
+all its children, and then progresses to loading the required node
+from the file offset in the symbol table, and then progresses to
+updating the overlay table.
+\smallskip{}
+
+If the overlay node containing the symbol is already loaded, or just
+has been loaded, the symbol address is computed from the offset in the
+symbol table and the address of the segment containing the symbol from
+the segment table, and injected into the return address that contained
+a pointer to the symbol identifier. Thus, when returning from the
+overlay manager, the code will continue to execute from the target
+symbol. Other versions of the overlay manager use a trampoline function that
+loads register {\tt d0} with the symbol identifier and thus require
+stack-based function calls.
+\smallskip{}
+
+Regardless of the version of the overlay
+manager, only symbols corresponding to function can be resolved as the
+overlay manager must be called to resolve a symbol. In particular,
+data cannot be referenced across overlay nodes --- instead, an
+accessor function may be used that returns the object to be accessed.
+\medskip{}
+
+The following code provides an overlay manager for register-based
+calls:
+\begin{verbatim}
+        xdef    @ovlyMgr
+;*************************************************
+;** Offsets in the overlay-table                **
+;*************************************************
+        rsreset
+ot_FilePosition:        rs.l 1          ;File position
+ot_reserved:            rs.l 2          ;for whatever
+ot_OverlayLevel:        rs.l 1          ;Overlay-Level
+ot_Ordinate:            rs.l 1          ;Overlay-Ordinate
+ot_InitialHunk:         rs.l 1          ;Initial hunk for loading
+ot_SymbolHunk:          rs.l 1          ;Hunk containing symbol
+ot_SymbolOffset:        rs.l 1          ;Offset of symbol
+ot_len:                 rs.b 0
+
+;*************************************************
+;** Other stuff                                 **
+;*************************************************
+MajikLibWord    =       23456           
+
+       section NTRYHUNK,CODE
+;*************************************************
+;** Manager starts here                         **
+;*************************************************
+Start:
+        bra.w NextModule                ;Jump to the next segment...
+
+;* This next word serves to identify the overlay
+;* supervisor to 'unloader', i.e. UnLoadSeg()
+
+        dc.l       $ABCD                ;Magic longword for UnLoadSeg
+
+;* The next four LWs are filled by the loader (LoadSeg())
+ol_FileHandle:  dc.l 0                  ;Overlay file handle (points to me)
+ol_OverlayTab:  dc.l 0                  ;Overlay table as found in the overlay hunk
+ol_HunkTable:   dc.l 0                  ;BPTR to Overlay hunk table
+ol_GlobVec:     dc.l 0                  ;BPTR to global vector (what for ?)
+
+                dc.l MajikLibWord       ;Majik library word as identifier
+                dc.b 7,"Overlay"        ;Majik identifier
+
+;* the following data is specific to this manger
+
+ol_SysBase:     dc.l 0                  ;additional pointer
+ol_DOSBase:     dc.l 0                  ;to libraries
+
+                dc.b "THOR Overlay Mananger 1.0",0      ;another ID
+
+@ovlyMgr:                               ;Entry-points
+        saveregs d0-d3/a0-a4/a6         ;Saveback register
+
+        moveq #0,d0
+        move.l 10*4(a7),a0
+        move.w (a0),d0                  ;get the overlay reference ID from return address
+
+        move.l ol_OverlayTab(pc),a3     ;get pointer to overlay table
+        move.l a3,a4                    ;to a4
+        add.l (a3),d0                   ;add length
+        lsl.l #2,d0                     ;get offset
+        add.l d0,a3                     ;address of overlay entry
+        move.l ot_OverlayLevel(a3),d0   ;get overlay
+        lsl.l #2,d0
+        adda.l d0,a4
+        move.l ot_Ordinate(a3),d0       ;get required ordinate level
+        cmp.l (a4),d0                   ;compare with current ordinate level
+        beq.s .gotsegment
+                                        ;not correct level
+                                        ;clear all other entries behind this
+        move.l d0,(a4)+                 ;fill with new overlay entries
+
+        moveq #0,d1
+        do                              ;macros in action! ;-)
+         tst.l (a4)                     ;terminate, if end of table found
+         break.s eq
+         move.l d1,(a4)+                ;clear this
+        loop.s
+
+        move.l ot_InitialHunk(a3),d0    ;first hunk number to load
+        add.l ol_HunkTable(pc),d0       ;plus BPTR of hunk table
+        lsl.l #2,d0                     ;address of entry in hunk table
+        move.l d0,a4
+        move.l -4(a4),d0                ;get previous hunk
+        beq.s .noprevious
+        lsl.l #2,d0
+        move.l d0,a2
+        move.l d1,(a2)                  ;unlink fields before loading
+
+                                        ;now free all hunks
+        move.l ol_SysBase(pc),a6
+
+        do
+         move.l (a4)+,d0                ;next hunk ?
+         break.s eq
+         lsl.l #2,d0
+         move.l d0,a1                   ;->a1
+         move.l -(a1),d0                ;get length
+         jsr FreeMem(a6)                ;free this hunk
+        loop.s                          ;and now the next
+.retry:
+        move.l ol_DOSBase(pc),a6
+        move.l ol_FileHandle(pc),d1     ;get our stream
+        move.l ot_FilePosition(a3),d2   ;get file position
+        moveq #-1,d3                    ;relative to beginning of file
+        jsr Seek(a6)                    ;seek to this position
+        tst.l d0                        ;found something ?
+        bmi.s .loaderror                ;what to do on failure ?
+
+                                        ;now call the loader
+        move.l ol_HunkTable(pc),d2      ;hunk table
+        moveq #0,d1                     ;no file (is overlay)
+        move.l ol_FileHandle(pc),d3     ;filehandle
+        jsr LoadSeg(a6)                 ;load this stuff
+        tst.l d0                        ;found
+        beq.s .loaderror
+        move.l d0,(a2)                  ;add new chain
+
+                                        ;found this stuff
+.gotsegment:
+        move.l ot_SymbolHunk(a3),d0     ;get hunk # containing symbol
+        add.l ol_HunkTable(pc),d0
+        lsl.l #2,d0                     ;get APTR to hunk
+        move.l d0,a4
+        move.l (a4),d0                  ;BPTR to hunk
+        lsl.l #2,d0
+        add.l ot_SymbolOffset(a3),d0    ;Offset
+
+        move.l d0,10*4(a7)              ;Set RETURN-Address
+
+        loadregs
+        rts
+
+;*************************************************
+;** Go here if we find an error                	**
+;*************************************************
+.loaderror:
+        saveregs d7/a5
+        move.l ol_SysBase(pc),a6
+        move.l #$0700000C,d7
+        move.l $114(a6),a5
+        jsr Alert(a6)                   ;Post alert
+        loadregs
+        bra.s .retry                    ;Retry or die
+
+.noprevious:
+        move.l ol_SysBase(pc),a6
+        move.l #$8700000C,d7            ;dead end !
+        move.l $114(a6),a5
+        jsr Alert(a6)                   ;Post alert
+        bra.s .noprevious
+
+
+;*************************************************
+;** NextModule                                  **
+;** Open stuff absolutely necessary and         **
+;** continue with main program code             **
+;*************************************************
+NextModule:
+                                        ;why safe registers ?
+        move.l a0,a2
+        move.l d0,d2                    ;keep arguments (BCPL stuff is not kept)
+        lea ol_SysBase(pc),a3
+        move.l ExecBase,a6
+        move.l a6,(a3)                  ;fill in Sysbase
+        lea DOSName(pc),a1              ;get name of DOS
+        moveq #33,d0                    ;at least 1.2 MUST be used (no support of antique stuff)
+        jsr OpenLibrary(a6)
+        move.l d0,4(a3)                 ;Save back DOS base for loader
+        beq.s .nodosexit                ;exit if no DOS here
+
+        move.l d0,a6                    ;as a service, post this to the main code
+        move.l Start-4(pc),a0           ;Get BPTR of next hunk
+        adda.l a0,a0
+        adda.l a0,a0
+        exg.l a0,a2                     ;move to a2
+        move.l d2,d0                    ;restore argument
+        jsr 4(a2)                       ;jump in
+        move.l d0,d2                    ;Save return code
+
+        move.l ol_SysBase(pc),a6
+        move.l ol_DOSBase(pc),a1
+        jsr CloseLibrary(a6)            ;Close the lib
+
+        move.l d2,d0                    ;Returncode in d0
+        rts
+.nodosexit:
+        move.l #$07038007,d7            ;DOS didn't open
+        move.l $114(a6),a5
+        jsr Alert(a6)
+        moveq #30,d0                    ;Something went really wrong !
+        rts
+
+DOSName:        dc.b "dos.library",0
+\end{verbatim}
 
 \section{Structures within Hunks}
 
-\subsection{Version and Stack Cookies}
+While the AmigaDOS loader, i.e. {\tt LoadSeg()}\key{LoadSeg()} and
+related functions, do not care about the contents of the segments it
+loaded, some other components of AmigaDOS do actually analyze their
+contents.
 
-% Describe $VER and $STACK
+\subsection{The Version Cookie}
+
+The {\tt Version} command scans a ROM-resident modules or all segments
+of a binary for the character sequence {\tt \$VER:} and if such a
+sequence is found, the string following is scanned. The syntax of the
+string consists of the following elements:
+
+\begin{itemize}
+\item[-] The version cookie {\tt \$VER:}
+\item[-] one or multiple blank spaces
+\item[-] a program name, which is output by the {\tt Version} command
+\item[-] a decimal number, representing the \emph{version} of the program
+\item[-] a single dot (``{\tt .}'')
+\item[-] a decimal number, representing the \emph{revision} of the program
+\item[-] one or multiple blank spaces
+\item[-] an opening bracket (``{\tt (}'')
+\item[-] a decimal number, representing the day of the month of the revision
+\item[-] a single dot (``{\tt .}'')
+\item[-] a decimal number, representing the month of the revision
+\item[-] a single dot (``{\tt .}'')
+\item[-] a decimal number, representing the year of the revision
+\item[-] a closing bracket (``{\tt )}'')
+\item[-] an optional comment that is only output if the {\tt FULL} option of the {\tt Version} is given.
+\end{itemize}
+
+If the number representing the year is below $1900$, the {\tt Version}
+command assumes a two-digit year and either adds $200$ if the year is
+below $78$, or $1900$ otherwise. The command then re-formats the date
+according to the currently active locale and prints it to the console,
+along with the program name and, optionally, the comment string.
+
+\subsection{The Stack Cookie}
 
 \subsection{Runtime binding for BCPL programs}
 
