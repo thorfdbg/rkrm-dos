@@ -1903,13 +1903,13 @@ the file, or $-1$ for an error. In the latter case,
 \subsection{BCPL Style Formatted Print to a File}
 
 The {\tt VFWritef()}\mkey{VFwrite()} function formats several
-arguments according to a format string similar to
-{\tt VFPrintf()}\key{VFprintf()}, but uses the formatting syntax of the
+arguments according to a format string similar to {\tt
+  VFPrintf()}\key{VFprintf()}, but uses the formatting syntax of the
 BCPL language. The main purpose of this function is to offer formatted
 output for legacy BCPL programs where this function appears as an
-entry of the BCPL \emph{Global Vector}. New code should not use this
-function but rather depend on {\tt VFPrintf()} which also gets enhanced
-by the \emph{locale.library}.
+entry of the BCPL \emph{Global Vector}\key{Global Vector}. New code
+should not use this function but rather depend on {\tt VFPrintf()}
+which also gets enhanced by the \emph{locale.library}.
 \smallskip{}
 
 The {\tt FWritef()}\mkey{FWritef()} uses the same entry point of the
@@ -1964,9 +1964,10 @@ This function is \emph{not} patched by the \emph{locale.library} and
 therefore is not localized or enhanced.
 \smallskip{}
 
-While the same function can also be found in the BPCL
-\emph{Global Vector}, it there takes BSTRs instead of regular C strings for the
-format string and arguments of the {\tt \%S} and {\tt \%T} formats.
+While the same function can also be found in the BPCL \emph{Global
+  Vector}\key{Global Vector}, it there takes BSTRs instead of regular
+C strings for the format string and arguments of the {\tt \%S} and
+{\tt \%T} formats.
   
 \chapter{Locks} \label{sec:locks}
 
@@ -5125,36 +5126,39 @@ section~\ref{sec:handlers}.
 all following members are aligned to 32-bit boundaries.
 \smallskip{}
 
-{\tt pr\_SegList} contains an array of \emph{segments} containing AmigaDOS
-functions. The first entry in this array is a 32-bit integer indicating the
-number of valid elements, the remaining entries are \emph{BPTRs} to segments
-of AmigaDOS and the loaded binary. Some entries may be {\tt ZERO} indicating
-that the corresponding entry is currently not used. Segments are explained
-in more detail in section~\ref{sec:segments}. Typically, entries $1$ and $2$
-are system segments containing AmigaDOS functions, entry $3$ is used for the
-loaded binary, and entry $4$ the segment of the shell. This, however, only
-reflects the current usage of segments, and later versions of AmigaDOS may
-populate this vector differently. The segments contained in this vector are
-used by the AmigaDOS runtime binder to build the \emph{Global Vector} of
-processes using BCPL linkage. As BPCL is phased out, this vector is of no
-particular importance today anymore, and can be ignored for almost all
-purposes. The only exception is the \emph{Shell} which shall prepare this
-vector to ensure that commands written in BCPL function properly. More on
-this in section~\ref{sec:shell}.
+{\tt pr\_SegList} contains an array of \emph{segments} containing
+AmigaDOS functions. The first entry in this array is a 32-bit integer
+indicating the number of valid elements, the remaining entries are
+\emph{BPTRs} to segments of AmigaDOS and the loaded binary. Some
+entries may be {\tt ZERO} indicating that the corresponding entry is
+currently not used. Segments are explained in more detail in
+section~\ref{sec:segments}. Typically, entries $1$ and $2$ are system
+segments containing AmigaDOS functions, entry $3$ is used for the
+loaded binary, and entry $4$ the segment of the shell. This, however,
+only reflects the current usage of segments, and later versions of
+AmigaDOS may populate this vector differently. The segments contained
+in this vector are used by the AmigaDOS runtime binder to build the
+\emph{Global Vector}\key{Global Vector} of processes using BCPL
+linkage. As BPCL is phased out, this vector is of no particular
+importance today anymore, and can be ignored for almost all
+purposes. The only exception is the \emph{Shell} which shall prepare
+this vector to ensure that commands written in BCPL function
+properly. More on this in section~\ref{sec:shell}.
 
 {\tt pr\_StackSize} is the size of the process stack in bytes. It is always
 a multiple of 4 bytes long.
 \smallskip{}
 
 {\tt pr\_GlobVec} is another BCPL legacy. It contains the \emph{Global
-Vector} of the process. For binaries using the BCPL linkages, this is a
-custom-build array of global data and function entry points from {\tt
-  pr\_SegList}. For C and assembler binaries, the \emph{Global Vector} is
-the system shared vector; it contains \emph{dos.library} global data
-required by some of its functions, such as base pointers to system
-libraries. As no particular advantage can be taken from this vector
-(anymore) as all functions available in it are also available as
-\emph{dos.library} entry points, it should be left alone.
+  Vector} of the process. For binaries using the BCPL linkages, this
+is a custom-build array of global data and function entry points from
+{\tt pr\_SegList}. For C and assembler binaries, the \emph{Global
+  Vector}\key{Global Vector} is the system shared vector; it contains
+\emph{dos.library} global data required by some of its functions, such
+as base pointers to system libraries. As no particular advantage can
+be taken from this vector (anymore) as all functions available in it
+are also available as \emph{dos.library} entry points, it should be
+left alone.
 \smallskip{}
 
 {\tt pr\_TaskNum} is an integer allocated by the system for processes that
@@ -5663,8 +5667,9 @@ cleanup activities.
 \smallskip{}
 
 This function is a BCPL legacy function that is also part of the
-\emph{Global Vector}; BCPL programs would typically overload its entry in
-this vector to implement a custom shutdown mechanism.
+\emph{Global Vector}\key{Global Vector}; BCPL programs would typically
+overload its entry in this vector to implement a custom shutdown
+mechanism.
 
 \section{Process Properties Accessor Functions}
 
@@ -7354,12 +7359,12 @@ unloading an overlay node, the corresponding segments will be
 unlinked, released and then cleared out.
 \medskip{}
 
-{\tt oh\_GV} is, finally, filled with the Global Vector of the
-\emph{dos.library} containing all regular functions in the library, as
-required by BCPL code. Overlay managers implemented in C or assembler
-will not make use of it and instead call vectors of the
-\emph{dos.library} through the \emph{dos.library} base address loaded
-in register {\tt a6}.
+{\tt oh\_GV} is, finally, filled with the \emph{Global
+  Vector}\key{Global Vector} of the \emph{dos.library} containing all
+regular functions in the library, as required by BCPL code. Overlay
+managers implemented in C or assembler will not make use of it and
+instead call vectors of the \emph{dos.library} through the
+\emph{dos.library} base address loaded in register {\tt a6}.
 
 \subsection{HUNK\_BREAK} \label{sec:hunk_break}
 
@@ -7671,7 +7676,7 @@ ol_DOSBase:     dc.l 0                  ;to libraries
 
         moveq #0,d0
         move.l 10*4(a7),a0
-        move.w (a0),d0                  ;get the overlay reference ID from return address
+        move.w (a0),d0                  ;get the overlay reference ID
 
         move.l ol_OverlayTab(pc),a3     ;get pointer to overlay table
         move.l a3,a4                    ;to a4
@@ -7787,7 +7792,7 @@ NextModule:
         move.l d0,4(a3)                 ;Save back DOS base for loader
         beq.s .nodosexit                ;exit if no DOS here
 
-        move.l d0,a6                    ;as a service, post this to the main code
+        move.l d0,a6                    
         move.l Start-4(pc),a0           ;Get BPTR of next hunk
         adda.l a0,a0
         adda.l a0,a0
@@ -7849,13 +7854,178 @@ command assumes a two-digit year and either adds $200$ if the year is
 below $78$, or $1900$ otherwise. The command then re-formats the date
 according to the currently active locale and prints it to the console,
 along with the program name and, optionally, the comment string.
+\smallskip{}
+
+An example for the version cookie is
+\begin{verbatim}
+const char version[] = "$VER: RKRM-Dos 45.3 (12.9.2023) (c) THOR";
+\end{verbatim}
+
+Note that the date follows the convention date of the month, month and
+year, here September 12, 2023. The version in this example is 45, the
+version is 3. The string behind the date is a comment and usually not
+printed by the {\tt Version} command.
 
 \subsection{The Stack Cookie}
 
-\subsection{Runtime binding for BCPL programs}
+The workbench, the shell, and also {\tt
+  GetDeviceProc()}\key{GetDeviceProc()} when loading \emph{handlers}
+scan the loaded binary for the string sequence {\tt \$STACK:}. If this
+string sequence is found, AmigaDOS attempts to read a following
+decimal number, and interprets this as stack size in bytes.
+\smallskip{}
 
-% Describe the hunk-internal format that is used to populate
-% the hunks
+The stack of the program is then, potentially increased to the
+provided size. Note that AmigaDOS also scans alternative sources for a
+stack size: The {\tt Stack} setting in the icon information window of the
+workbench, the {\tt Stack} command of the shell, or the {\tt
+  STACKSIZE} entry in the mount list. The stack size indicated by the
+above stack cookie does not override these settings, it can only
+\emph{increase} the stack size. This allows program authors to ensure
+that the stack of their program has a necessary minimal size, though
+still allows users to increase it if necessary.
+\smallskip{}
+
+An example for the stack cookie is
+\begin{verbatim}
+const char stack[] = "$STACK: 8192";
+\end{verbatim}
+This ensures that the stack size of the program is at least 8192 bytes.
+
+\subsection{Runtime binding of BCPL programs}
+
+BPCL programs depend on a \emph{Global Vector}\mkey{Global Vector}
+that includes function entries and data available to all its
+modules. AmigaDOS includes a runtime binder functionality that creates
+the \emph{Global Vector} from data found in the segments of the loaded
+binary and the \emph{dos.library} \emph{Global Vector}.
+\smallskip{}
+
+Even though this mechanism is deprecated and AmigaDOS has long been
+ported to C and assembler, some components still depend on this legacy
+mechanism, namely all \emph{handlers} and \emph{file systems} mounted
+with the {\tt GLOBVEC = 0} or {\tt GLOBVEC = -2} entry in the mount
+list. While newer \emph{handlers} should not depend on this mechanism
+anymore, the {\tt Port-Handler} mount entry is created in the
+Kickstart ROM as BCPL handler, beyond control of the user. The same
+goes for the {\tt Shell}, which is also initiated as BCPL process.
+\smallskip{}
+
+If the above components --- the {\tt Port-Handler} or the \emph{Shell}\key{Shell}
+--- are attemted to be customized, implementors need to be aware that
+these processes are not started from the first byte of the first
+segment, but from the \emph{Global Vector} entry {\tt \#1}, which
+contains the address of the {\tt START} function from which the
+process is run. All other entries of the vector are of no concern, and
+should not be used anymore.
+\medskip{}
+
+The \emph{Runtime Binder}\mkey{Runtime Binder} of AmigaOs, initiated
+only for BCPL handlers and BCPL processes such as the
+\emph{Shell}\key{Shell}, now scans the segments of such programs for
+information on how to populate the \emph{Global Vector}.
+\smallskip{}
+
+The \emph{first long-word} of the segment, usually the entry point of
+the process, contains the long-word offset from the start of the
+process to the start of the \emph{Global Vector} initialization
+data. This initialization data is \emph{scanned backwards} from the
+given offset towards lower addresses, starting with the long-word
+before the offset.
+\smallskip{}
+
+The first long-word of the initialization data is the required size of
+the \emph{Global Vector} the program requires. This value is only used
+to check the following initializers for validity. The standard system
+global vector currently requires 150 entries, which is a safe choice.
+\smallskip{}
+
+All following entries consist of pairs of long-words, scanned again
+towards smaller addresses, where each pair defines one entry in the
+global vector. The first (higher address) long-word is the offset of
+the function which will populate the \emph{Global Vector}, the second
+(lower) address is the index of the \emph{Global Vector} entry. An
+offset of $0$ terminates the list.
+\medskip{}
+
+The following assembler stub may be used as initial segment of an
+(otherwise C-based) handler that instructs the \emph{Runtime Binder}
+to populate the {\tt START} vector, and then calls into the {\tt
+  @main} function. BCPL unfortunately also uses a custom call syntax,
+register {\tt a6} is the address of the BCPL return code which cleans
+up the BCPL stack frame and returns to the caller.
+
+\begin{verbatim}
+                SECTION text,code
+
+                XREF    @main           ; handler or shell main
+
+G_GLOBMAX       EQU     150             ; size of GV
+G_START         EQU     1               ; BCPL START functions
+G_CLISTART      EQU     133             ; shell startup
+
+CodeHeader:     DC.L    (CodeEnd-CodeHeader)/4 
+
+*               C Startup function, called for GlobVec=-1 or -3
+*               see text below why this works
+CStart:         sub.l   a0,a0           ; no startup message
+                bsr.w   @main           ; need to GetMsg() manually in main
+                rts
+
+                CNOP    0,4
+
+*               BCPL startup function, called for GlobVec=0 or -2
+BCPLStart:      movem.l a0-a6,-(a7)     ; save all these, BCPL uses them
+                lsl.l   #2,d1           ; get startup packet
+                move.l  d1,a0           ; move to a0
+                bsr.w   @main           ; get the ball rolling
+                movem.l (a7)+,a0-a6     ; restore everyone
+                jmp     (a6)            ; BCPL-style return
+
+BCPLTable:      CNOP    0,4
+
+                DC.L    0               ; End of global list
+                DC.L    G_CLISTART,BCPLStart-CodeHeader ;only for the shell
+                DC.L    G_START,BCPLStart-CodeHeader
+                DC.L    G_GLOBMAX       ; max global used (standard value)
+CodeEnd:
+\end{verbatim}
+
+Note that there are other differences for BCPL handlers the {\tt
+  main()} function of the handler needs to take care of, see also
+section~\ref{sec:bcplhandlers}. BCPL handlers do not receive their
+startup message in the process \emph{MsgPort}, but rather receive it
+as first BCPL argument in register {\tt d1}. It is here converted to
+a C-style pointer and provided as first argument to the main function,
+assuming the SAS/C registerized parameters ABI.
+\smallskip{}
+
+The {\tt CStart} label is not called at all if the handler is mounted
+with {\tt GLOBVEC=0} or {\tt GLOBVEC=-2}, and thus would be, in this
+example, not required. It is included here to demonstrate another
+technique, namely \emph{dual use} handlers that can be mounted both as
+C and as BCPL handlers.
+\smallskip{}
+
+The above startup code also allows {\tt GLOBVEC=-1} in the mount
+list. In this case, the code \emph{is} started from the first byte,
+which is, actually, the long-word offset to the BCPL initializer.  In
+this particular case, it also assembles to a harmless {\tt ORI}
+instruction, provided the offset to the end of the code is short
+enough, i.e. below 64K. It is therefore harmless. As the calling
+syntax is different, the main function is now called with a {\tt NULL}
+argument, and then needs to wait for the startup package itself, see
+again section~\ref{sec:bcplhandlers}.
+\smallskip{}
+
+For the \emph{Shell}, in particular, a second entry in the
+\emph{Global Vector} shall be populated, namely the entry {\tt
+  G\_CLISTART} at offset {\tt \#133}. It may point to the same entry
+code, more on this in section~\ref{sec:shell}. As this entry is not
+used for handler startup, it does not hurt to include it in the BCPL
+initializer in either case, and thus the above code may be used as
+universal ``BCPL kludge'' for both the shell and legacy handlers that
+depend on BCPL startup.
 
 \section{Object File Format}
 
