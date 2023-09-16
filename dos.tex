@@ -1,6 +1,8 @@
 \documentclass[10pt,twoside]{book}
 \usepackage{a4}
 \usepackage{times}
+\usepackage{longtable}
+\usepackage{forest}
 %
 \setlength{\oddsidemargin}{0cm}
 \setlength{\evensidemargin}{0cm}
@@ -46,6 +48,8 @@
 \newcommand{\sfb}{\sffamily\bfseries}
 \newcommand{\cnot}{\symbol{126}}
 \setcounter{secnumdepth}{4}
+\setlength{\LTpre}{0pt}
+\setlength{\LTpost}{0pt}
 %
 %
 \newcounter{rkrmtablecount}
@@ -66,6 +70,16 @@
 \end{center}%
 }
 %
+\newenvironment{rkrmtabular}[1]%
+{%
+\nopagebreak[5]%
+\begin{center}%
+\refstepcounter{rkrmtablecount}
+{\sfb Table \arabic{rkrmtablecount}: #1} \\[1ex]
+}{%
+\end{center}%
+}
+%
 \newlength{\punchlinewidth}
 \setlength{\punchlinewidth}{\textwidth}
 \addtolength{\punchlinewidth}{-\rightmargin}
@@ -82,7 +96,7 @@
 \newcommand{\punchline}[2]{%
 \bigskip{\setlength{\arrayrulewidth}{1mm}
 \begin{tabular}{|p{\punchlinewidth}}
-{\sfi #1} #2
+{\sfi #1}$\quad$#2
 \end{tabular}
 }\bigskip}
 
@@ -1889,13 +1903,13 @@ the file, or $-1$ for an error. In the latter case,
 \subsection{BCPL Style Formatted Print to a File}
 
 The {\tt VFWritef()}\mkey{VFwrite()} function formats several
-arguments according to a format string similar to
-{\tt VFPrintf()}\key{VFprintf()}, but uses the formatting syntax of the
+arguments according to a format string similar to {\tt
+  VFPrintf()}\key{VFprintf()}, but uses the formatting syntax of the
 BCPL language. The main purpose of this function is to offer formatted
 output for legacy BCPL programs where this function appears as an
-entry of the BCPL \emph{Global Vector}. New code should not use this
-function but rather depend on {\tt VFPrintf()} which also gets enhanced
-by the \emph{locale.library}.
+entry of the BCPL \emph{Global Vector}\key{Global Vector}. New code
+should not use this function but rather depend on {\tt VFPrintf()}
+which also gets enhanced by the \emph{locale.library}.
 \smallskip{}
 
 The {\tt FWritef()}\mkey{FWritef()} uses the same entry point of the
@@ -1950,9 +1964,10 @@ This function is \emph{not} patched by the \emph{locale.library} and
 therefore is not localized or enhanced.
 \smallskip{}
 
-While the same function can also be found in the BPCL
-\emph{Global Vector}, it there takes BSTRs instead of regular C strings for the
-format string and arguments of the {\tt \%S} and {\tt \%T} formats.
+While the same function can also be found in the BPCL \emph{Global
+  Vector}\key{Global Vector}, it there takes BSTRs instead of regular
+C strings for the format string and arguments of the {\tt \%S} and
+{\tt \%T} formats.
   
 \chapter{Locks} \label{sec:locks}
 
@@ -2187,7 +2202,7 @@ Unfortunately, this function may not work reliable for \emph{file
 \emph{RAM-Handler} does not interpret {\tt newmode} correctly for {\tt
   CHANGE\_FH}.
 
-\subsection{Comparing two Locks}
+\subsection{Comparing two Locks} \label{sec:samelock}
 
 The {\tt SameLock()}\mkey{SameLock()} function compares two locks and
 returns information whether they are identical, or at least correspond
@@ -4189,10 +4204,8 @@ particular incarnation of a {\tt DosList} and may be savely used here.
 \medskip{}
 
 \emph{Assigns} \emph{shall not} be added to the \emph{device list}
-through this function, but rather through
-{\tt AssignLock()}\key{AssignLock()}, {\tt AssignPath()}\key{AssignPath()}
-or {\tt AssignLate()}\key{AssignLate()}, depending on the nature of the
-required assign.  This avoids memory management problems when
+through this function, but rather through the functions in
+section~\ref{sec:assigns}. This avoids memory management problems when
 releasing or changing assigns.
 \smallskip{}
 
@@ -4295,15 +4308,10 @@ AmigaOs offers multiple functions to create {\tt DosList}
 structures. The {\tt MakeDosEntry()}\key{MakeDosEntry()} function is a
 low-level function that allocates a {\tt DosList} but only performs
 minimal intialization of the structure. For \emph{assigns}, the
-functions {\tt AssignLock()}\key{AssignLock()}, {\tt
-  AssignLate()}\key{AssignLate()} or {\tt
-  AssignPath()}\key{AssignPath()} provide better alternatives as they
-include complete initialization of the {\tt DosList}. To initialize
-{\tt DosList}s for \emph{handlers} and \emph{file systems}, the
-\emph{expansion.library} function {\tt
-  MakeDosNode()}\key{MakeDosNode()}.
-\smallskip{}
-
+functions in section~\ref{sec:assigns} shall be used as they include
+complete initialization of the {\tt DosList}, and for \emph{handlers}
+and \emph{file systems}, the \emph{expansion.library} function
+{\tt MakeDosNode()}\key{MakeDosNode()} is a proper alternative.
 Releasing {\tt DosList}s along with all its resources is unfortunately
 much harder. For \emph{assigns}, the algorithm in
 section~\ref{sec:releaseentry} provides a workable function based on
@@ -4331,10 +4339,9 @@ initializations. It does not accquire any additional resources, and neither
 inserts it into the \emph{device list}.
 \smallskip{}
 
-If an \emph{assign} is to be created, the {\tt AssignLock()}\key{AssignLock()},
-{\tt AssignLate()}\key{AssignLate()} or {\tt AssignPath()}\key{AssignPath()}
-functions are better alternatives and should be preferred as they perform
-a more sophisticated initialization.
+If an \emph{assign} is to be created, the functions in
+section~\ref{sec:assigns} are better alternatives and should be
+preferred as they perform a more sophisticated initialization.
 
 \begin{verbatim}
 newdlist = MakeDosEntry(name, type)
@@ -4426,10 +4433,187 @@ system dependent which resources can or should be released. {\tt
 
 This function cannot fail, and it does not touch {\tt IoErr()}.
 
-%%% The section on assigns goes here and is missing.
+\section{Creating and Updating Assigns} \label{sec:assigns}
+While {\tt MakeDosEntry()}\key{MakeDosEntry()} creates a {\tt DosList}
+entry for the \emph{device list}, it only performs minimal
+initialization of the structure. For \emph{assigns}, specifically, the
+\emph{dos.library} provides specialized functions that allocate,
+initialize and enqueue {\tt DosList} structures representing assigns
+in a single call and are thus easier to use.
+
+\subsection{Create and Add a Regular Assign}
+
+The {\tt AssignAdd()}\mkey{AssignAdd()} function creates a new assign
+to a directory from a \emph{lock}, and then enqueues it into the
+\emph{device list}.
+
+\begin{verbatim}
+success = AssignLock(name,lock)
+D0                    D1   D2
+
+BOOL AssignLock(STRPTR,BPTR)
+\end{verbatim}
+This function creates a (regular) \emph{assign} onto the directory
+identified by {\tt lock}. The \emph{assign} created under the name as
+given by {\tt name}. The name shall not include a trailing colon
+(``{\tt :}'') that separates the \emph{assign} name from the rest of
+the path. The lock shall be a \emph{shared lock}.
+
+If the function is successful, it returns a non-zero result code. The
+{\tt lock} is then absorbed into the \emph{assign} and shall no longer
+be used by the calling program. On success, {\tt IoErr()} is not altered.
+
+On error, the function returns $0$ and the {\tt lock} remains
+available to the caller. {\tt IoErr()}\key{IoErr()} is set to an error code
+identifying the cause of the failure.
+{\tt ERROR\_NO\_FREE\_STORE}\key{ERROR\_NO\_FREE\_STORE} is
+returned if the function run out of memory. If a {\tt DosList} of the
+same name (regardless of which type) already exists, the error code is
+{\tt ERROR\_OBJECT\_EXISTS}\key{ERROR\_OBJECT\_EXISTS}.
+
+\subsection{Create a Non-Binding Assign}
+
+The {\tt AssignPath()}\mkey{AssignPath()} function creates a
+\emph{non-binding assign} and adds it to the \emph{device list}. This
+type of assign binds to a path independent of the volume the path is
+located on; that is, the \emph{assign} resolves to whatever
+\emph{volume}, \emph{handler} or even other \emph{assign} matches the
+path.
+
+\begin{verbatim}
+success = AssignLate(name,path)
+D0                    D1   D2
+
+BOOL AssignLate(STRPTR,STRPTR)
+\end{verbatim}
+This function creates a \emph{non-binding} assign whose name is given
+by the first argument, and which resolves to the path given as second
+argument, and then adds the \emph{assign} to the \emph{device
+  list}. The {\tt name} shall not contain a trailing colon (``{\tt
+  :}''). While not a formal requirement of the function or
+\emph{non-binding assigns}, the {\tt path} should better be an
+absolute path as otherwise resolution of the created \emph{assign} can
+be very confusing --- it is then resolved relative to the current
+directory of the calling process.
+
+If the function is successful, it returns a non-zero result code. On
+success, {\tt IoErr()} is not altered.
+
+On error, the function returns $0$ and {\tt IoErr()}\key{IoErr()} is set to an
+error code identifying the cause of the failure. {\tt
+  ERROR\_NO\_FREE\_STORE}\key{ERROR\_NO\_FREE\_STORE} is returned if the function run out of
+memory. If a {\tt DosList} of the same name (regardless of which type)
+already exists, the error code is {\tt ERROR\_OBJECT\_EXISTS}\key{ERROR\_OBJECT\_EXISTS}.
+
+\subsection{Create a Late Assign}
+
+The {\tt AssignLate()}\mkey{AssignLate()} function creates a
+\emph{late assign} whose target is initially given by a path; but
+after its first resolution, the \emph{assign} reverts to a
+\emph{regular assigns} such that the target of the \emph{assign} will
+point to the same directory of the volume from that point on. This has
+the advantage that the target of the assign does not need to be
+available at creation time of the assign, yet remains unchanged after
+its first usage.
+
+\begin{verbatim}
+success = AssignLate(name,path)
+D0                    D1   D2
+
+BOOL AssignLate(STRPTR,STRPTR)
+\end{verbatim}
+This function creates a \emph{late binding assign} of the name {\tt
+  name} pointing to {\tt path} as its destination and adds it to the
+\emph{device list}. The {\tt name} shall not contain a trailing colon
+(``{\tt :}''). While not explicitly required by this function, the
+{\tt path} should better be an absolute path as otherwise
+resolving the \emph{assign} can be very confusing. The {\tt path}
+is then relative to the current directory of the process using
+the \emph{assign} the first time.
+
+If the function is successful, it returns a non-zero result code. On
+success, {\tt IoErr()} is not altered.
+
+On error, the function returns $0$ and {\tt IoErr()}\key{IoErr()} is
+set to an error code identifying the cause of the failure. {\tt
+  ERROR\_NO\_FREE\_STORE}\key{ERROR\_NO\_FREE\_STORE} is returned if
+the function run out of memory.  If a {\tt DosList} of the same name
+(regardless of which type) already exists, the error code is {\tt
+  ERROR\_OBJECT\_EXISTS}\key{ERROR\_OBJECT\_EXISTS}.
+
+\subsection{Add a Directory to a Multi-Assign}
+
+The {\tt AssignAdd()}\mkey{AssignAdd()} function adds a directory,
+identified by a \emph{lock}, to an already existing \emph{regular} or
+\emph{multi-assign}. On success, a \emph{regular assign} is then
+converted into a \emph{multi-assign}.
+
+\begin{verbatim}
+success = AssignAdd(name,lock)
+D0                   D1   D2
+
+BOOL AssignAdd(STRPTR,BPTR)
+\end{verbatim}
+This function adds the {\tt lock} at the end of the target directory
+list of the \emph{assign} identified by {\tt name}. The {\tt name}
+does not contain a trailing colon (``{\tt :}'').
+
+A {\tt DosList} of the given {\tt name} shall already when entering
+this function, and this {\tt DosList} shall be a \emph{regular
+  assign}. Attempting to add a directory to a \emph{handler},
+\emph{file system}, \emph{volume} or any other type of \emph{assign}
+fails.
+
+On success, the function returns a non-zero result code. In such a
+case, the {\tt lock} is absorbed into the \emph{assign} and shall no
+longer be used by the caller. The \emph{assign} is converted into a
+\emph{multi-assign} on access if it is not already one. The {\tt lock}
+is added at the end of the directory list, i.e. the new directory is
+scanned last when resolving the \emph{assign}.
+
+On error, the function returns $0$ and the {\tt lock} remains
+available to the caller. Unfortunately, this function does not set
+{\tt IoErr()}\key{IoErr()} consistently, i.e. it is unclear on failure
+what caused the error, i.e. whether the function run out of memory,
+whether no fitting \emph{device list} entry was found, or whether the
+entry found was not a \emph{regular assign}.
+
+\subsection{Remove a Directory From a Multi-Assign}
+
+The {\tt RemAssignList()}\mkey{RemAssignList()} function removes a
+directory, represented by a {\tt lock}, from a {\tt multi-assign}. If
+only a single directory remains in the \emph{multi-assign}, it is
+converted into a \emph{regular assign}. If the \emph{assign} was a
+regular assign, and the only directory is removed from it, the
+\emph{assign} itself is removed from the \emph{device list} and
+released, destroying it and releasing all resources.
+
+\begin{verbatim}
+success = RemAssignList(name,lock)
+D0                       D1   D2
+
+BOOL RemAssignList(STRPTR,BPTR)
+\end{verbatim}
+This function removes the directory identified by {\tt lock} from a
+\emph{regular} or \emph{multi-assign} identified by {\tt name}. The
+name shall not contain a trailing colon (``{\tt :}''). If only a
+single directory remains in the \emph{assign}, it is converted to a
+\emph{regular assign}. If no directory remains at all, the
+\emph{assign} is deleted and removed from the \emph{device list}. The
+{\tt lock} remains available to the caller, regardless of the
+result code. Note that the {\tt lock} passed in does not need to be
+identical to the \emph{lock} contained in the \emph{assign}, but it
+needs to be a \emph{lock} on the same directory. This function uses
+{\tt SameLock()}\key{SameLock()} function to compare the two locks.
+
+On success, the function returns a non-zero result code in {\tt
+  success}.  On error, the function returns $0$. Unfortunately, it
+does not set {\tt IoErr()} consistently in all cases, and thus, the
+cause of an error cannot be determined upon return. Possible causes
+of error are that {\tt name} does not exist, or that it is not a
+\emph{assign} or a \emph{multi-assign}.
 
 \chapter{Pattern Matching} \label{sec:patternmatch}
-
 Unlike other operating systems, it is neither the file system nor the shell
 that expands wild cards, or patterns. Instead, separate functions exist
 that, given a wildcard, scan a directory or an entire directory tree and
@@ -5055,36 +5239,39 @@ section~\ref{sec:handlers}.
 all following members are aligned to 32-bit boundaries.
 \smallskip{}
 
-{\tt pr\_SegList} contains an array of \emph{segments} containing AmigaDOS
-functions. The first entry in this array is a 32-bit integer indicating the
-number of valid elements, the remaining entries are \emph{BPTRs} to segments
-of AmigaDOS and the loaded binary. Some entries may be {\tt ZERO} indicating
-that the corresponding entry is currently not used. Segments are explained
-in more detail in section~\ref{sec:segments}. Typically, entries $1$ and $2$
-are system segments containing AmigaDOS functions, entry $3$ is used for the
-loaded binary, and entry $4$ the segment of the shell. This, however, only
-reflects the current usage of segments, and later versions of AmigaDOS may
-populate this vector differently. The segments contained in this vector are
-used by the AmigaDOS runtime binder to build the \emph{Global Vector} of
-processes using BCPL linkage. As BPCL is phased out, this vector is of no
-particular importance today anymore, and can be ignored for almost all
-purposes. The only exception is the \emph{Shell} which shall prepare this
-vector to ensure that commands written in BCPL function properly. More on
-this in section~\ref{sec:shell}.
+{\tt pr\_SegList} contains an array of \emph{segments} containing
+AmigaDOS functions. The first entry in this array is a 32-bit integer
+indicating the number of valid elements, the remaining entries are
+\emph{BPTRs} to segments of AmigaDOS and the loaded binary. Some
+entries may be {\tt ZERO} indicating that the corresponding entry is
+currently not used. Segments are explained in more detail in
+section~\ref{sec:segments}. Typically, entries $1$ and $2$ are system
+segments containing AmigaDOS functions, entry $3$ is used for the
+loaded binary, and entry $4$ the segment of the shell. This, however,
+only reflects the current usage of segments, and later versions of
+AmigaDOS may populate this vector differently. The segments contained
+in this vector are used by the AmigaDOS runtime binder to build the
+\emph{Global Vector}\key{Global Vector} of processes using BCPL
+linkage. As BPCL is phased out, this vector is of no particular
+importance today anymore, and can be ignored for almost all
+purposes. The only exception is the \emph{Shell} which shall prepare
+this vector to ensure that commands written in BCPL function
+properly. More on this in section~\ref{sec:shell}.
 
 {\tt pr\_StackSize} is the size of the process stack in bytes. It is always
 a multiple of 4 bytes long.
 \smallskip{}
 
 {\tt pr\_GlobVec} is another BCPL legacy. It contains the \emph{Global
-Vector} of the process. For binaries using the BCPL linkages, this is a
-custom-build array of global data and function entry points from {\tt
-  pr\_SegList}. For C and assembler binaries, the \emph{Global Vector} is
-the system shared vector; it contains \emph{dos.library} global data
-required by some of its functions, such as base pointers to system
-libraries. As no particular advantage can be taken from this vector
-(anymore) as all functions available in it are also available as
-\emph{dos.library} entry points, it should be left alone.
+  Vector} of the process. For binaries using the BCPL linkages, this
+is a custom-build array of global data and function entry points from
+{\tt pr\_SegList}. For C and assembler binaries, the \emph{Global
+  Vector}\key{Global Vector} is the system shared vector; it contains
+\emph{dos.library} global data required by some of its functions, such
+as base pointers to system libraries. As no particular advantage can
+be taken from this vector (anymore) as all functions available in it
+are also available as \emph{dos.library} entry points, it should be
+left alone.
 \smallskip{}
 
 {\tt pr\_TaskNum} is an integer allocated by the system for processes that
@@ -5593,8 +5780,9 @@ cleanup activities.
 \smallskip{}
 
 This function is a BCPL legacy function that is also part of the
-\emph{Global Vector}; BCPL programs would typically overload its entry in
-this vector to implement a custom shutdown mechanism.
+\emph{Global Vector}\key{Global Vector}; BCPL programs would typically
+overload its entry in this vector to implement a custom shutdown
+mechanism.
 
 \section{Process Properties Accessor Functions}
 
@@ -6167,9 +6355,1856 @@ function is the setter equivalent of {\tt
   GetFileSysTask()}\key{GetFileSysTask()} introduced in
 section~\ref{sec:getfilesystask}.
 
+\chapter{Binary File Structure} \label{sec:binary}
+
+The AmigaDOS \emph{Hunk} format represents executable and linkable
+object files. While both formats are related, they are not identical;
+executables can be loaded from the shell or the workbench from disk to
+RAM, and then either overload the shell process, or a new process is
+created from them. Object files are created as intermediate compiler
+outputs; typically, each translation unit is compiled into one object
+file which are then, in a final step, linked with a startup code and
+object code libraries to form an executable.
+\smallskip{}
+
+An object or executable file in this format consists of multiple
+\emph{hunks} (thus, the name). Hunks define either payload data as
+indivisible \emph{segments} of code or data that is initialized or
+loaded from disk, or additional meta-information interpreted by the
+AmigaDOS loader, the {\tt LoadSeg()}\key{LoadSeg()} function. The
+meta-information is used to relocate the payload to their final
+position in memory, to define the size of the sections, to select the
+memory type that is allocated for the segment, or to interrupt or
+terminate the loading process.
+\smallskip{}
+
+Loaded executables are represented as singly linked list of segments
+in memory, by a structure that looks as follows: \mkey{LoadedSegment}
+\begin{verbatim} 
+struct LoadedSegment {
+    BPTR  NextSegment; /* BPTR to next segment or ZERO */
+    ULONG Data[1];     /* Payload data */
+};
+\end{verbatim}
+The above structure is \emph{not} documented and is not identical to
+the {\tt Segment} in {\tt dos/dosextens.h}. The latter describes a
+resident executable, see section~\ref{resident}, but also contains a
+\emph{BPTR} to a segment in the above sense. Each segment of a binary
+is allocated through {\tt AllocVec()} which is sometimes helpful as it
+allows to retrieve size of the segment from the size of the allocated
+memory block.
+\smallskip{}
+
+The hunk format distinguishes three types of \emph{segments}, each
+represented by a hunk: \emph{code hunks} that should contain constant
+data, most notably executable machine code and constant data
+associated to this code, \emph{data hunks} that contain (variable)
+data, and so called \emph{BSS} hunks that contain data that is
+initialized to zero. Thus, the contents of \emph{BSS} hunks is not
+represented on disk.
+
+\punchline{Const is not enforced}{While \emph{code hunks} should
+  contain executable code and other constant data, and \emph{data
+    hunks} should contain variable data, nothing in AmigaDOS is able
+  to enforce these conventions. In principle, \emph{data hunks} may
+  contain executable machine code, and \emph{code hunks} may contain
+  variable data. Note, however, that some third party tools may
+  require programs to follow such conventions. Many commercial
+  compilers structure their object code according to these
+  conventions, or at least do so in their default configuration.}
+
+Additional \emph{hunks} describe how to relocate the loaded code and
+data. Relocation means that data within the hunk is corrected
+according to the addresses this and other hunks are loaded to. The
+relocation process takes an offset into one hunk, and adds to the
+longword at this offset the absolute address of this or any other
+hunk. That is, hunks on disk are represented as if their first byte is
+placed at address~0, and relocation adjusts longwords within hunks to
+the final positions in memory.
+\smallskip{}
+
+An extension of the executable file format is the \emph{overlay
+  format} also supported by {\tt LoadSeg()}\key{LoadSeg()}. Here, only
+a part of the file is loaded into memory, while the remaining parts
+are only loaded on demand, potentially releasing other already loaded
+parts from memory. Overlayed executables thus take less main memory,
+though requires the volume containing the executable available all the
+time.
+\smallskip{}
+
+AmigaDOS also contains a simple run-time binder that is only used by
+compiled BCPL code, or by code that operates under such
+requirements. The purpose of this binder is to populate the BCPL
+\emph{global vector} of the loaded program. While this runtime binder
+implements a legacy protocol, certain parts of AmigaDOS still
+expect. These are \emph{handlers} or \emph{file systems} that use the
+{\tt dol\_GlobVec} value of $0$ or $-2$, or corresponding {\tt
+  GlobVec} entry in the mount list. While new handlers should not use
+this BCPL legacy protocol, the ROM file system (the FFS) and the
+port-handler currently still depend (or require) it, despite not being
+written in BCPL. A second application of this run-time binding procol
+is the shell which also depends on BCPL binding.
+
+\section{Executable File Format}
+
+The hunk format of executable files consists of 4-byte (longword) hunk
+identifiers and subsequent data that is interpreted by the AmigaDOS
+loader according to the introducing hunk identifier. The syntax of
+such a file, and its hunks, is here presented in a pseudo-code, in
+three-column tables.
+\smallskip{}
+
+The first column identifies the number of bits a syntax element
+takes. Bits within a byte are read from most significant to least
+significant bit, and bytes within a structure that extends over
+multiple bytes are read from most significant to least significant
+bit. That is, the binary file format follows the big-endian
+convention. If the first column contains a question mark (``?''), the
+structure is variably-sized, and the number of removed bits is defined
+by the second column, or the section it refers to. If the first column
+is empty, no bits are removed from the file.
+\smallskip{}
+
+The second column either identifies the member of a structure to which
+the value removed from the stream is assigned, or contains pseudo-code
+that describes how to process the values parsed from the stream. These
+syntax elements follow closely the convention of the C language. In
+particular {\tt if ({\it cond})} formulates a condition that is only
+executed if {\it cond} is true, {\tt else} describes code that is
+executed following an {\tt if} clause that is executed if {\it cond}
+is false, and {\tt do} $\ldots$ {\tt while({\it cond})} indicates a
+loop that continues as long as {\tt cond} is non-zero, and that may
+alternatively be terminated by a {\tt break} within the body of the
+loop. The expression {\tt i++} increments an internal state variable
+{\tt i}, and the expression {\tt -{}-j} decrements an internal state
+variable. The value of {\tt i++} is the value of $i$ before the
+increment, and the value of {\tt -{}-j} is the value of $j$ after
+decrementing it.
+\smallskip{}
+
+The following pseudo-code describes the top-level syntax of a binary
+executable file AmigaDOS is able to bring to memory:
+
+\begin{rkrmtabular}{Regular Executable File} \label{table:executable}
+\begin{longtable}{|l|p{6cm}|p{6cm}|} \hline
+{\bf Size} & {\bf Code} & {\bf Syntax} \\ \hline \hline
+? & \tt HUNK\_HEADER & Defines all segments, see section~\ref{sec:hunk_header} for details \\ \hline
+ & \tt $i = t_{\mbox{num}}$ & Start with the first hunk, $t_{\mbox{num}}$ is defined in the {\tt HUNK\_HEADER} \\ \hline
+ & \tt do \{ & Repeat until all hunks done \\ \hline
+2  & \tt $\quad$ $\hat{m}_t[i]$ & These two bits are unused, but some utilities set it identical to $m_t[i]$, the memory type of the hunk, see~\ref{sec:hunk_header} \\ \hline
+1  & \tt $\quad$ $a_f$ & Advisory hunk flag. \\ \hline
+29 & \tt $\quad$ h & This is the hunk type \\ \hline
+& \tt $\quad$ if (EOF) break; & Terminate loading on end of file \\ \hline
+& \tt $\quad$ if ($a_f$) \{ & Check for bit $29$, these are advisory hunks \\ \hline
+32 & \tt $\quad\quad$ l & Read length of advisory hunk \\ \hline
+32 $\times$ l & & $l$ long words of hunk contents ignored \\ \hline
+& \tt $\quad$ \} & \\ \hline
+& \tt $\quad$ else if (h == HUNK\_END) i++; & Advance to next segment, see~\ref{sec:hunk_end} \\ \hline
+& \tt $\quad$ else if (h == HUNK\_BREAK) break; & Terminate loading an overlay, see~\ref{sec:hunk_break} \\ \hline
+? & \tt $\quad$ else if (h == HUNK\_NAME) parse\_NAME; & See section~\ref{sec:hunk_name} \\ \hline
+? & \tt $\quad$ else if (h == HUNK\_CODE) parse\_CODE; & See section~\ref{sec:hunk_code} \\ \hline
+? & \tt $\quad$ else if (h == HUNK\_DATA) parse\_DATA; & See section~\ref{sec:hunk_data} \\ \hline
+? & \tt $\quad$ else if (h == HUNK\_BSS) parse\_BSS; & See section~\ref{sec:hunk_bss} \\ \hline
+? & \tt $\quad$ else if (h == HUNK\_RELOC32) parse\_RELOC32; & See section~\ref{sec:hunk_reloc32} \\ \hline
+? & \tt $\quad$ else if (h == HUNK\_SYMBOL) parse\_SYMBOL; & See section~\ref{sec:hunk_symbol} \\ \hline
+? & \tt $\quad$ else if (h == HUNK\_DEBUG) parse\_DEBUG; & See section~\ref{sec:hunk_debug} \\ \hline
+? & \tt $\quad$ else if (h == HUNK\_OVERLAY) \{ parse\_OVERLAY; break \} & See section~\ref{sec:hunk_overlay} \\ \hline
+? & \tt $\quad$ else if (h == HUNK\_DREL32) parse\_RELOC32SHORT; & This is a compatibility kludge for some older versions of the \emph{dos.library}, new tools should use {\tt HUNK\_RELOC32SHORT} instead, see section~\ref{sec:hunk_reloc32short} \\ \hline
+? & \tt $\quad$ else if (h == HUNK\_RELOC32SHORT) parse\_RELOC32SHORT; & See section~\ref{sec:hunk_reloc32short} \\ \hline
+? & \tt $\quad$ else if (h == HUNK\_RELRELOC32) parse\_RELRELOC32; & See section~\ref{sec:hunk_relreloc32} \\ \hline
+& \tt $\quad$ else ERROR\_BAD\_HUNK; & Everything else is invalid \\ \hline
+& \tt \} while(true) & repeat until all hunks done \\ \hline
+\end{longtable}
+\end{rkrmtabular}
+
+In particular, every executable shall start with the {\tt
+  HUNK\_HEADER} identifier, the big-endian long-word {\tt 0x3f3}. The
+following stream contains long-word identifiers of which the first
+$2$~bits are ignored and masked out. Some tools (e.g. the {\tt Atom}
+tool by CBM) places there memory requirements similar to what is
+indicated in the {\tt HUNK\_HEADER}. They have there, however, no
+effect as the segments are allocated within the {\tt HUNK\_HEADER} and
+not at times the hunk type is encountered. \key{HUNK\_HEADER}
+\smallskip{}
+
+Bit $29$ ({\tt HUNKB\_ADVISORY})\mkey{HUNKB\_ADVISORY} has a special
+meaning. If this bit is set, then the hunk contents is ignored. The
+size of such an \emph{advisory} hunk is defined by a long-word
+following the hunk type.
+\smallskip{}
+
+Loading a binary executable terminates on three conditions. Either, if
+an end of file is encountered. This closes the file handle and returns
+to the caller with the loaded segment list. Or, if a {\tt
+  HUNK\_BREAK}\key{HUNK\_BREAK} or {\tt HUNK\_OVERLAY} are found. This
+mechanism is used for \emph{overlayed} files. In the latter two cases,
+the file remains open, and for {\tt HUNK\_OVERLAY}\key{HUNK\_OVERLAY},
+information on the loaded file is injected into the first hunk of the
+loaded data. More information on this mechanism is provided in
+section~\ref{sec:overlays}.
+
+\subsection{HUNK\_HEADER} \label{sec:hunk_header}
+
+The {\tt HUNK\_HEADER}\mkey{HUNK\_HEADER} is the first hunk of every
+executable file. It identifies the number of segments in an
+executable, and the amount of memory to reserve for each
+segment.
+    
+\begin{rkrmtabular}{Hunk Header Syntax} \label{table:hunk_header}
+\begin{tabular}{|l|p{6cm}|p{6cm}|} \hline
+{\bf Size} & {\bf Code} & {\bf Syntax} \\ \hline \hline
+32 & \tt HUNK\_HEADER [0x3f3] & Every executable file shall start with this hunk \\ \hline
+32 & \tt $0$ & Number of resident libraries, BCPL legacy, shall be zero \\ \hline
+32 & \tt $t_{\mbox{size}} \in [1,2^{31}-1]$ & Number of segments in binary \\ \hline
+32 & \tt $t_{\mbox{num}} \in [0,t_{\mbox{size}}-1]$ & First segment to load \\ \hline
+32 & \tt $t_{\mbox{max}} \in [t_{\mbox{num}},t_{\mbox{size}}-1]$ & Last segment to load (inclusive) \\ \hline
+ & \tt for(i=$t_{\mbox{num}}$;$i \le t_{\mbox{max}}$;i++) \{ & Iterate over all hunks \\ \hline
+2  & \tt $\quad$ $m_t[i]$ & Read memory type of the segment as 2 bits \\ \hline
+30 & \tt $\quad$ $m_s[i]$ & Read memory size in long words as 30 bits \\ \hline
+ & \tt $\quad$ if ($m[i]$ == 3) \{ & if the memory type is $3$ \\ \hline
+32 & $\quad \quad m_s[i]$ & Memory type is explicitly provided \\ \hline
+ & \tt $\quad$ \tt \} & End of special memory condition \\ \hline
+ & \tt $\quad$ $m_a[i]$ = AllocVec(sizeof(BPTR) + $m_s[i] \times$ sizeof(LONG),$m_t[i] | $ \mbox{MEMF\_PUBLIC}) + sizeof(BPTR) &
+Get memory for segment \\ \hline
+ & \tt \} & End of loop over segments \\ \hline
+\end{tabular}
+\end{rkrmtabular}
+
+The first member of a {\tt HUNK\_HEADER} shall always be $0$; it was
+used by a legacy mechanism which allowed run-time binding of the
+executable with dynamic libraries. While first versions of AmigaDOS
+inherited this mechanism from TRIPOS, but it was not particularly useful
+as the calling conventions for such libraries did not follow the usual
+conventions of AmigaDOS, i.e. with the library base in register {\tt
+  a6}. Later versions of AmigaDOS, in particular its re-implementation
+as of Kickstart v37, removed support for such libraries. As this
+mechanism is no longer supported, it is not documented here. More
+information is found in~\cite{guru}.
+\smallskip{}
+
+The second entry $t_{\mbox{size}}$ contains the number of segments the
+executable consists of. In case of overlays, it is the total number of
+segments that can be resident in memory at all times. See
+section~\ref{sec:overlays} for more information. This value shall be
+consistent for all {\tt HUNK\_HEADERS} within an overlayed file. In
+regular executables, only a single {\tt HUNK\_HEADER} exists at the
+beginning of the file.
+\smallskip{}
+
+The members $t_{\mbox{num}}$ and $t_{\mbox{max}}$ define the 0-based index of
+the first and last segment to load within the branch of the overlay
+tree described by this {\tt HUNK\_HEADER}. For a regular
+(non-overlayed) file and for the root node of the overlay tree,
+$t_{\mbox{num}}$ shall be $0$, that is, the first segment to load
+is~$0$, the first index in the segment table. 
+\smallskip{}
+
+For regular files, $t_{\mbox{max}}$ shall be identical to
+$t_{\mbox{size}}-1$, that is, the last segment to load is the last entry
+in the segment table described by this {\tt HUNK\_HEADER}. For
+overlayed files, the number may be smaller, i.e. not all segments may
+be populated initially and loading may continue later on when
+executing the binary.
+
+\subsection{HUNK\_CODE} \label{sec:hunk_code}
+
+This hunk should contain executable machine code and constant data. As
+executables are started from the first byte of the first segment, the
+first hunk of an executable should be a {\tt HUNK\_CODE}, and it should
+start with a valid opcode. \mkey{HUNK\_CODE}
+\smallskip{}
+
+Compilers use typically this hunk to represent the {\tt text} segment,
+i.e. compiled code and constant data.
+
+The structure of this hunk is as follows:
+\begin{rkrmtabular}{Hunk Code Syntax} \label{table:hunk_code}
+\begin{tabular}{|l|p{6cm}|p{6cm}|} \hline
+{\bf Size} & {\bf Code} & {\bf Syntax} \\ \hline \hline
+   & \tt HUNK\_CODE [0x3e9] & A hunk describing a segment of code and constant data \\ \hline
+32 & \tt $l \le m_s[i]$ & Size of the payload\\ \hline
+l $\times$ 32 & \tt Code & $l$ long words of payload \\ \hline
+\end{tabular}
+\end{rkrmtabular}
+
+Note that the size of the payload loaded from the file may be less
+than the size of the allocated segment as defined in {\tt
+  HUNK\_HEADER}. In such a case, all bytes of the segment not included
+in the {\tt HUNK\_CODE} are zero-initialized. Earlier versions of
+AmigaDOS skipped this initialization.
+
+\subsection{HUNK\_DATA} \label{sec:hunk_data}
+
+This hunk should contain variable data, and it should not contain
+executable code. Compilers typically use this hunk to represent
+initialized data. \mkey{HUNK\_DATA}
+\smallskip{}
+
+The structure of this hunk is otherwise identical to {\tt HUNK\_CODE}:
+\begin{rkrmtabular}{Hunk Data Syntax} \label{table:hunk_data}
+\begin{tabular}{|l|p{6cm}|p{6cm}|} \hline
+{\bf Size} & {\bf Code} & {\bf Syntax} \\ \hline \hline
+   & \tt HUNK\_CODE [0x3ea] & A hunk describing a segment of data\\ \hline
+32 & \tt $l \le m_s[i]$ & Size of the payload\\ \hline
+l $\times$ 32 & \tt Code & $l$ long words of payload \\ \hline
+\end{tabular}
+\end{rkrmtabular}
+
+Similar to {\tt HUNK\_CODE}, the size of the payload defined by this
+hunk may be less than the size of the segment allocated by {\tt
+  HUNK\_HEADER}. All excess bytes are zero-initialized in all but early
+versions of AmigaDOS.
+
+\subsection{HUNK\_BSS} \label{sec:hunk_bss}
+
+This hunk contains zero-initialized data; it does not define actual
+payload. \mkey{HUNK\_BSS}
+\smallskip{}
+
+The structure of this hunk is as follows:
+\begin{rkrmtabular}{Hunk BSS Syntax} \label{table:hunk_bss}
+\begin{tabular}{|l|p{6cm}|p{6cm}|} \hline
+{\bf Size} & {\bf Code} & {\bf Syntax} \\ \hline \hline
+   & \tt HUNK\_CODE [0x3eb] & A hunk describing zero-initialized data\\ \hline
+32 & \tt $l \le m_s[i]$ & Size of the payload\\ \hline
+\end{tabular}
+\end{rkrmtabular}
+
+Note that this hunk does not contain any payload; the segment
+allocated from this hunk is always zero-initialized.
+
+\subsection{HUNK\_RELOC32} \label{sec:hunk_reloc32}
+
+This hunk contains relocation information for the previously loaded
+segment; that is, it corrects addresses within this segment by
+adding the absolute address of this or other segments to long words at
+indicated offsets of the previous segments. \mkey{HUNK\_RELOC32}
+\smallskip{}
+
+The structure of this hunk is as follows:
+\begin{rkrmtabular}{Hunk Reloc32 Syntax} \label{table:hunk_reloc32}
+\begin{longtable}{|l|p{6cm}|p{6cm}|} \hline
+{\bf Size} & {\bf Code} & {\bf Syntax} \\ \hline \hline
+   & \tt HUNK\_RELOC32 [0x3ec] & A hunk containing relocation information\\ \hline
+   & \tt do \{ & Loop over relocation entries \\ \hline
+32 & \tt $\quad$ $c$ & Number of relocation entries \\ \hline
+   & \tt $\quad$ if ($c$ == 0) break; & Terminate the hunk if the count is zero \\ \hline
+32 & \tt $\quad$ $j \in [0,t_{\mbox{size}}-1]$ & Read the hunk to which the relocation is relative to \\ \hline
+   & \tt $\quad$ do \{ & Loop over the relocation entries \\ \hline
+32 & \tt $\quad\quad$ $r_o \in [0,m_s[i] \times 4 - 4]$ & Relocation offset into this hunk as byte address \\ \hline
+   & \tt $\quad\quad$ (UBYTE **)($m_a[i]+r_o$) += $m_a[j]$ & Fixup this hunk by the start
+address of the selected hunk \\ \hline
+   & \tt $\quad$ \} while(-{}-c); & until all entries are used \\ \hline
+   & \tt \} while(true); & until a zero-count is read. \\ \hline
+\end{longtable}
+\end{rkrmtabular}
+
+That is, the hunk consists first of a counter that indicates the
+number of relocation entries, followed by the hunk index relative to
+which an address should be relocated. Then relocation entries follow;
+each long-word defines an offset into the previously loaded segment to
+relocate, that is, to fix up the address.
+
+\subsection{HUNK\_RELOC32SHORT} \label{sec:hunk_reloc32short}
+
+This hunk contains relocation information for the previously loaded
+segment, and is almost similar to {\tt HUNK\_RELOC32}, except that
+hunk indices, counts and offsets are only 16 bits in size. To ensure
+that all hunks start at long-word boundaries, the hunk contains an
+optional padding field at its end to align the next hunk
+appropriately. \mkey{HUNK\_RELOC32SHORT}
+\smallskip{}
+
+The structure of this hunk is as follows:
+\begin{rkrmtabular}{Hunk Reloc32Short Syntax} \label{table:hunk_reloc32short}
+\begin{longtable}{|l|p{6cm}|p{6cm}|} \hline
+{\bf Size} & {\bf Code} & {\bf Syntax} \\ \hline \hline
+   & \tt HUNK\_RELOC32SHORT [0x3fc] & A hunk containing relocation information\\ \hline
+   & \tt $p$=$1$ & Padding count\\ \hline
+   & \tt do \{ & Loop over relocation entries \\ \hline
+16 & \tt $\quad$ $c$ & Number of relocation entries \\ \hline
+   & \tt $\quad$ if ($c$ == 0) break; & Terminate the hunk if the count is zero \\ \hline
+16 & \tt $\quad$ $j \in [0,t_{\mbox{size}}-1]$ & Read the hunk to which the relocation is relative to \\ \hline
+   & \tt $\quad$ $p$ += $c$ & Update padding count \\ \hline
+   & \tt $\quad$ do \{ & Loop over the relocation entries \\ \hline
+16 & \tt $\quad\quad$ $r_o \in [0,m_s[i] \times 4 - 4]$ & Relocation offset into this hunk as byte address \\ \hline
+   & \tt $\quad\quad$ (UBYTE **)($m_a[i]+r_o$) += $m_a[j]$ & Fixup this hunk by the start
+address of the selected hunk \\ \hline
+   & \tt $\quad$ \} while(-{}-c); & until all entries are used \\ \hline
+   & \tt \} while(true); & until a zero-count is read. \\ \hline
+   & \tt if ($p$ \& $1$) \{ & check whether padding is required. \\ \hline
+16 & \tt $\quad$ & dummy for long-word alignment \\ \hline
+   & \tt \} & \\ \hline
+\end{longtable}
+\end{rkrmtabular}
+
+Due to an oversight, some versions of AmigaDOS do not understand the
+hunk type {\tt 0x3fc} not properly and use instead {\tt 0x3f7}. This
+alternative (but incorrect) hunk type for the short version of the
+relocation hunk is still supported currently.
+
+
+\subsection{HUNK\_RELRELOC32} \label{sec:hunk_relreloc32}
+
+This hunk contains relocation information for 32-bit relative
+displacements the {\tt 68020} and later processors offer. Currently,
+there does not seem to be a compiler that is able to take advantage of
+this hunk. \mkey{HUNK\_RELRELOC32}
+\smallskip{}
+
+The structure of this hunk is as follows:
+\begin{rkrmtabular}{Hunk RelReloc32 Syntax} \label{table:hunk_relreloc32}
+\begin{tabular}{|l|p{6cm}|p{6cm}|} \hline
+{\bf Size} & {\bf Code} & {\bf Syntax} \\ \hline \hline
+   & \tt HUNK\_RELRELOC32 [0x3fd] & A hunk containing relocation information\\ \hline
+   & \tt do \{ & Loop over relocation entries \\ \hline
+32 & \tt $\quad$ $c$ & Number of relocation entries \\ \hline
+   & \tt $\quad$ if ($c$ == 0) break; & Terminate the hunk if the count is zero \\ \hline
+32 & \tt $\quad$ $j \in [0,t_{\mbox{size}}-1]$ & Read the hunk to which the relocation is relative to \\ \hline
+   & \tt $\quad$ do \{ & Loop over the relocation entries \\ \hline
+32 & \tt $\quad\quad$ $r_o \in [0,m_s[i] \times 4 - 4]$ & Relocation offset into this hunk as byte address \\ \hline
+   & \tt $\quad\quad$ (UBYTE **)($m_a[i]+r_o$) += $m_a[j] - m_a[i] - r_o$ & Fixup this hunk by the start
+address of the selected hunk \\ \hline
+   & \tt $\quad$ \} while(-{}-c); & until all entries are used \\ \hline
+   & \tt \} while(true); & until a zero-count is read. \\ \hline
+\end{tabular}
+\end{rkrmtabular}
+
+\subsection{HUNK\_NAME} \label{sec:hunk_name}
+
+This hunk defines a name for the current segment. The AmigaDOS loader
+completely ignores this name, and it does not serve a particular
+purpose for the executable file format. However, linkers that bind
+object files together use the name to decide which segments to merge
+together to a single segment. \mkey{HUNK\_NAME}
+\smallskip{}
+
+The structure of this hunk is as follows:
+\begin{rkrmtabular}{Hunk Name Syntax} \label{table:hunk_name}
+\begin{tabular}{|l|p{6cm}|p{6cm}|} \hline
+{\bf Size} & {\bf Code} & {\bf Syntax} \\ \hline \hline
+   & \tt HUNK\_NAME [0x3e8] & A hunk assigning a name to the current segment\\ \hline
+32 & \tt l & Size of the name in long-words \\ \hline
+32 $\times$ l & \tt $h_n$ & Hunk name \\ \hline
+\end{tabular}
+\end{rkrmtabular}
+
+The size of the name is not given in characters, but in 32-bit
+units. The name is possibly zero-padded to the next 32-bit boundary to
+fill an integer number of long-words. If the name fills an entire
+number of long-words already, it is \emph{not} zero-terminated.
+\smallskip{}
+
+While the specification does not define a maximum size of the name,
+the AmigaDOS loader fails on names longer than 128 character, i.e. 32
+long-words.
+
+\subsection{HUNK\_SYMBOL} \label{sec:hunk_symbol}
+
+This hunk defines symbol names and corresponding symbol offsets or
+values within the currently loaded segment. Again, the AmigaDOS loader
+ignores this hunk, but the linker uses it to resolve symbols with
+external linkage to bind multiple object files together. If the
+symbol information is retained in the executable file, it may be used
+for debugging purposes. \mkey{HUNK\_SYMBOL}
+\smallskip{}
+
+The synax of this hunk reads as follows:
+\begin{rkrmtabular}{Hunk Symbol Syntax} \label{table:hunk_symbol}
+\begin{tabular}{|l|p{6cm}|p{6cm}|} \hline
+{\bf Size} & {\bf Code} & {\bf Syntax} \\ \hline \hline
+   & \tt HUNK\_SYMBOL [0x3f0] & A hunk assigning symbols to positions within a segment\\ \hline
+   & \tt do \{ & Repeat $\ldots$ \\ \hline
+8  & \tt $\quad$ $s_t$ & Symbol type \\ \hline
+24 & \tt $\quad$ $s_l$ & Symbol length in long-words \\ \hline
+   & \tt $\quad$ if ($s_l$ == 0) break & Terminate the hunk \\ \hline
+32 $\times$ l & \tt $\quad$ $s_n$ & Symbol name, potentially zero-padded \\ \hline
+32 & \tt $\quad$ $s_v$ & Symbol value \\ \hline
+   & \tt \} while(true) & until zero-sized symbol \\ \hline
+\end{tabular}
+\end{rkrmtabular}
+
+The length of the symbol name is encoded in long-words, not in
+characters. If it does not fill an integer number of long-words, it is
+zero-padded; the name is not zero-terminated if it does fill an
+integer number of long-words, though.
+\medskip{}
+
+The symbol type $s_t$ defines the nature of the symbol. The symbol
+types are defined in {\tt dos/doshunks.h} and shared with the {\tt
+  HUNK\_EXT} hunk; the latter hunk type shall not appear in an
+executable file, but may only appear in an object file, see
+section~\ref{hunk_ext}.\key{HUNK\_EXT}
+\smallskip{}
+
+The symbol type can be roughly classified into two classes: If bit $7$
+of the type is clear, a symbol is \emph{defined} that may be
+referenced by another object file. If bit $7$ is set, the symbol is
+\emph{referenced} and requires resolution by a symbol definition with
+bit 7 cleared upon linking. Executable files, and thus symbols within
+{\tt HUNK\_SYMBOL}, may only contain symbol definitions as references
+had been resolved by the linker before.
+\smallskip{}
+
+The following table contains the symbol types for definitions and
+those may therefore may appear in both {\tt HUNK\_SYMBOL} as part of
+executables and {\tt HUNK\_EXT}\key{HUNK\_EXT} as part of object
+files; actually, {\tt HUNK\_SYMBOL} will typically only include the
+first type of entry, i.e. {\tt EXT\_SYMB}:
+\begin{rkrmtabular}{Symbol types in HUNK\_SYMBOL and HUNK\_EXT} \label{table:symboltypes}
+\begin{tabular}{|lc|p{10cm}|} \hline
+\tt EXT\_SYMB & [0x00] & Definition of a symbol, $s_v + m_a[i]$ is the address of the symbol \\ \hline
+
+\tt EXT\_DEF & [0x01] & Relocation definition, $s_v + m_a[i]$ is the
+address of the symbol. References to this symbol are converted into a
+relocation information to the offset $s_v$ in hunk $i$. \\ \hline
+
+\tt EXT\_ABS & [0x02] & Absolute value, $s_v$ is the value of the
+symbol which is substituted into the executable by the linker. No
+relocation information is created, the absolute value is just
+substituted. \\ \hline
+
+\tt EXT\_RES & [0x03] & Not longer supported as it is part of the
+obsolete dynamic library run-time binding interface, see~\cite{guru}
+for more details. \\ \hline
+\end{tabular}
+\end{rkrmtabular}
+
+Additional symbol types representing references used within {\tt
+  HUNK\_EXT}\key{HUNK\_EXT} are documented in
+section~\ref{sec:hunk_ext}.
+
+\subsection{HUNK\_DEBUG} \label{sec:hunk_debug}
+
+This hunk contains debug information such as function names and line
+number information. Generally, the contents of this hunk is compiler
+or assembler specific, and the AmigaDOS loader does not interpret the
+contents of this hunk at all, it is just skipped over. \mkey{HUNK\_DEBUG}
+\smallskip{}
+
+However, the debug information emitted by the SAS/C compiler for the
+``line-debug'' option is also shared by other development tools such
+as the DevPac assembler and will be documented here. In this format,
+the debug hunk contains for each line of the source file an offset
+into the hunk to the code that was compiled from this line.
+\smallskip{}
+
+The syntax of this hunk is as follows:
+\begin{rkrmtabular}{Hunk Debug Syntax} \label{table:hunk_debug}
+\begin{longtable}{|l|p{6cm}|p{6cm}|} \hline
+{\bf Size} & {\bf Code} & {\bf Syntax} \\ \hline \hline    
+   & HUNK\_DEBUG [0x3f1] & Hunk including debug information \\ \hline
+32 & l > 3 & Size of the hunk in long-words \\ \hline
+\multicolumn{3}{|l|}{Compiler- and configuration specific data for line-debug data:} \\ \hline
+32 & \tt $0$ & This field shall be zero \\ \hline
+32 & \tt 'LINE' & These four bytes shall contain the
+ASCII characters {\tt 'L','I','N','E'} identifying the type of the
+debug information \\ \hline
+32 & \tt $l_n$ & Size of the source file name in long-words \\ \hline
+32 $\times l_n$ & $n_f$ & source file name that compiled to the current segment in $l_n$ long-words \\ \hline
+   & \tt $l -= 3 + l_n$ & Remove long-words read so far \\ \hline
+   & \tt while($l$ > 0) \{ & Repeat for all entries \\ \hline
+8  & \tt $\quad$ & Dummy byte \\ \hline
+24 & \tt $\quad$ $l_l$ & Line number within the source file \\ \hline
+8  & \tt $\quad$ & Dummy byte \\ \hline
+24 & \tt $\quad$ $l_v$ & Offset into the source file. The source file
+at line $l_l$ is compiled or assembled to the code at at address
+$m_a[i] + l_v$ and following. \\ \hline
+   & \tt $\quad$ $l -= 2$ & Remove the read data \\ \hline
+   & \tt \}; & Loop over the hunk. \\ \hline
+\end{longtable}
+\end{rkrmtabular}
+
+The file name $n_f$ is encoded in $l_n$ long-words, and potentially
+padded with $0$-bytes to fill an integer number of long-words. If it
+already is an integer number of long-words sized, it is \emph{not}
+zero-terminated.
+
+\subsection{HUNK\_END} \label{sec:hunk_end}
+
+This hunk terminates the current segment and advances to the next
+segment, if any. It does not contain any data. \mkey{HUNK\_END}
+
+\begin{rkrmtabular}{Hunk End Syntax} \label{table:hunk_end}
+\begin{tabular}{|l|p{6cm}|p{6cm}|} \hline
+{\bf Size} & {\bf Code} & {\bf Syntax} \\ \hline \hline
+  & \tt HUNK\_END [0x3f2] & Terminate a segment\\ \hline
+\end{tabular}
+\end{rkrmtabular}
+
+\section{The AmigaDOS Loader} \label{sec:loader}
+
+The \emph{dos.library} provides service functions for loading and
+releasing binary executables in the \emph{Hunk} format introduced in
+section~\ref{sec:binary}. The functions discussed in this section load
+such binaries into memory, constructing a segment list from the hunks
+found in the files, or release such files. Overlay files are discussed
+separately in section~\ref{sec:overlays} due to their additional
+complexity.
+
+A segment list is a linearly linked list as defined in
+section~\ref{sec:binary}, i.e. the first four bytes of every segment
+form a \emph{BPTR} to the following segment of the loaded binary, or
+{\tt ZERO} for the last segment.
+\smallskip{}
+
+The {\tt seglist} returned from the loader functions may be, for
+example, passed into {\tt CreateNewProc()} as argument to the {\tt
+  NP\_Seglist} tag for starting a new process.
+
+\subsection{Loading an Executable} \label{sec:loadseg}
+
+The {\tt LoadSeg()}\mkey{LoadSeg()} function loads an executable
+binary in the Hunk format and returns a \emph{BPTR} to the first
+segment:
+
+\begin{verbatim}
+seglist = LoadSeg( name )
+D0                 D1
+
+BPTR LoadSeg(STRPTR)
+\end{verbatim}
+This function loads the binary executable named {\tt name} and returns
+a \emph{BPTR} to its first segment in case of success, or {\tt ZERO}
+in case of failure. The {\tt name} is passed into the {\tt
+  Open()}\key{Open()} function and follows the conventions of this
+function for locating the file.
+\smallskip{}
+
+The segment list shall be removed from memory via {\tt
+  UnLoadSeg()}\key{UnloadSeg()}.
+\smallskip{}
+
+This function sets {\tt IoErr()}\key{IoErr()} to an error code in case
+of failure, or~$0$ in case of success.
+
+\subsection{Loading an Executable with Additional Parameters} \label{sec:newloadseg}
+
+The {\tt NewLoadSeg()}\mkey{NewLoadSeg()} function loads an
+executable providing additional data for loading.
+
+\begin{verbatim}
+seglist = NewLoadSeg(file, tags)
+D0                    D1    D2
+
+BPTR NewLoadSeg(STRPTR, struct TagItem *)
+
+seglist = NewLoadSegTagList(file, tags)
+D0                           D1    D2
+
+BPTR NewLoadSegTagList(STRPTR, struct TagItem *)
+
+seglist = NewLoadSegTags(file, ...)
+
+BPTR NewLoadSegTags(STRPTR, ...)
+\end{verbatim}
+
+This function loads a binary executable from {\tt file} and returns a
+\emph{BPTR} to its first segment, similar to {\tt
+  LoadSeg()}\key{LoadSeg()}.
+\smallskip{}
+
+Additional parameters may be provided in the form of a TagList, passed
+in as {\tt tags}. The first two functions are identical and differ
+only by their naming convention; the last function prototype also
+refers to the same entry within the \emph{dos.library}, though uses a
+different calling convention where the second and all following
+arguments form the TagList itself. This TagList is build on the stack,
+and the pointer to this stack-based TagList is passed in.
+\smallskip{}
+
+While this function looks quite useful, AmigaDOS does currently not
+define any tags for this function, and thus no additional
+functionality over {\tt LoadSeg()} is provided.
+\smallskip{}
+
+The segment list returned by this function shall be removed from
+memory via {\tt UnLoadSeg()}\key{UnloadSeg()}, a specialized unloader
+function is not required for this call.
+
+\subsection{Loading an Executable through Call-Back Functions} \label{sec:internalloadseg}
+
+The {\tt InternalLoadSeg()}\mkey{InternalLoadSeg()} function loads a
+binary executable, retrieving data and memory through call-back
+functions. While {\tt LoadSeg()}\key{LoadSeg()} always goes through
+the \emph{dos.library} and the \emph{exec.library} for reading data
+and allocating memory, this function instead calls through
+user-provided functions.
+
+\begin{verbatim}
+seglist = InternalLoadSeg(fh,table,funcs)
+D0                        D0  A0   A1   
+
+BPTR InternalLoadSeg(BPTR,BPTR,struct LoadSegFuncs *)
+\end{verbatim}
+This function loads a binary executable in the hunk format from an
+opaque file handle {\tt fh} through functions in the {\tt funcs}. The
+{\tt table} argument shall be {\tt ZERO} when loading regular binaries
+or the root node of an overlay file, and shall be a \emph{BPTR} to the
+array containing pointers to all segments when loading a non-root
+overlay node, see section~\ref{sec:overlays}.
+\smallskip{}
+
+The {\tt LSFuncs} structure contains function pointers through which
+this function loads data or retrieves memory. It looks as follows: \mkey{LoadSegFuncs}
+\begin{verbatim}
+struct LoadSegFuncs {
+    LONG __asm ReadFunc(register __d1 BPTR fh,
+                        register __a0 APTR buffer,
+                        register __d0 ULONG size,
+                        register __a6 struct DosLibrary *DOSBase);
+    APTR __asm AllocMem(register __d0 ULONG size,
+                        register __d1 ULONG flags,
+                        register __a6 struct ExecBase *SysBase);
+    void __asm FreeMem (register __a1 APTR mem,
+                        register __d0 ULONG size,
+                        register __a6 struct ExecBase *SysBase);
+}
+\end{verbatim}
+The {\tt ReadFunc()} function retrieves {\tt d0} bytes from an opaque
+file handle passed into register {\tt d1} and places the read bytes
+into the buffer pointed to by register {\tt a0}, it shall return the
+number of bytes read in register {\tt d0}, or a negative value in case
+of error. Note that the file handle {\tt d1} need not to be a file
+handle as returned by the {\tt Open()}\key{Open()} function, it is
+only a copy of the {\tt fh} argument provided to {\tt
+  InternalLoadSeg()}. Register {\tt a6} is loaded by a pointer to the
+\emph{dos.library}.
+\smallskip{}
+
+The {\tt AllocMem()} function allocates {\tt d0} bytes of memory,
+using requirement flags from {\tt exec/memory.h} such as {\tt
+  MEMF\_CHIP} to require chip memory or {\tt MEMF\_FAST} for fast
+memory. This function shall return a pointer to the allocated memory
+in register {\tt d0}, or {\tt NULL} in case of failure. Register {\tt a6}
+is loaded with a pointer to the \emph{exec.library}.
+\smallskip{}
+
+The {\tt FreeMem()} function releases a block of {\tt d0} bytes
+pointed to by {\tt a0}. Register {\tt a6} is loaded with a pointer to
+the \emph{exec.library}.
+\medskip{}
+
+The purpose of this function is to load a segment or a binary without
+having access to a file or a \emph{file system}; for example, this
+function could load binaries from ROM-space, or from the Rigit Disk
+Block of a boot partition. In particular, the {\tt fh} argument does
+not need to be a regular \emph{file handle}; it is rather an opaque
+value identifying the source. The {\tt InternalLoadSeg()} function
+does not interpret this argument, but rather passes it into {\tt
+  funcs->ReadFunc()} in register {\tt d1}.
+\smallskip{}
+
+When allocating memory, the {\tt InternalLoadSeg()} function follows
+the conventions of the {\tt AllocVec()} and {\tt FreeVec()} functions
+and stores the number of allocated bytes in the first four bytes of
+the allocated memory block. In specific, the memory allocator and
+memory releaser functions provided in the {\tt LoadSegFuncs} structure
+\emph{do not need} to store the memory sizes, and the exec {\tt
+  AllocMem()} and {\tt FreeMem()} functions satisfy the interfaces for
+{\tt InternalLoadSeg()} function already.
+\smallskip{}
+
+This function does not set {\tt IoErr()}\key{IoErr()} consistently,
+unless the functions within {\tt LoadSegFuncs} do. Callers should also
+call {\tt SetIoErr(0)} upfront this function to identify all errors.
+
+\subsection{Unloading a Binary} \label{sec:unloadseg}
+
+The {\tt UnLoadSeg()}\mkey{UnLoadSeg()} function releases a linked
+list of segments as returned by {\tt LoadSeg()}\key{LoadSeg()} or {\tt
+  NewLoadSeg()}\key{NewLoadSeg()}.
+
+\begin{verbatim}
+success = UnLoadSeg( seglist )
+D0                     D1
+
+BOOL UnLoadSeg(BPTR)
+\end{verbatim}
+This function releases all segments chained together by {\tt
+  LoadSeg()} and {\tt NewLoadSeg()} and returns their memory back into
+the system pool. This function \emph{also} accepts overlayed segments,
+see section~\ref{sec:overlays}, and releases additional resources
+accquired for them.
+\smallskip{}
+
+Segment lists loaded through {\tt
+  InternalLoadSeg()}\key{InternalLoadSeg()} require in general a more
+generic unloader. They shall be be released through {\tt
+  InternalUnLoadSeg()}\key{InternalUnLoadSeg()} instead,
+see~\ref{sec:internalunloadseg}.
+\smallskip{}
+
+This function returns a non-zero result in case of success, or~$0$ in
+case of error. Currently, the only source of error is passing in {\tt
+  ZERO} as segment list, all other cases will indicate success. In
+particular, this function does not attempt to check return codes of
+the function calls required to release resources assoicated to
+overlayed files.
+
+\subsection{UnLoading a Binary through Call-Back Functions} \label{sec:internalunloadseg}
+
+The {\tt InternalUnLoadSeg()}\mkey{InternalUnLoadSeg()} function
+releases a segment list loaded through {\tt
+  InternalLoadSeg()}\key{InternalLoadSeg()}.
+
+\begin{verbatim}
+success = InternalUnLoadSeg(seglist,FreeFunc)
+D0                          D1       A1
+
+BOOL InternalUnLoadSeg(BPTR,
+                       void __asm (*)(register __a1 APTR,
+                                      register __d0 ULONG,
+                                      register __a6 struct ExecBase 
+                                                    *SysBase))
+\end{verbatim}
+This function releases a segment list created by {\tt
+  InternalLoadSeg()} passed in as {\tt seglist}. To release memory, it
+uses a function pointed to by {\tt a1}. This function expects the
+memory block to release in register {\tt a1} and its size in register
+{\tt d0}. Additionally, register {\tt a6} will be populated by a
+function to the \emph{exec.library}.
+\smallskip{}
+
+This function pointer should be identical to the {\tt FreeMem}
+function pointer in the {\tt LoadSegFuncs} structure provided to {\tt
+  InternalAllocMem()}, or at least shall be able to release memory
+allocated by the {\tt AllocMem} function pointer in this structure.
+Note that the {\tt InternalLoadSeg()} stores the sizes of the
+allocated memory blocks itself and that {\tt FreeFunc} does not need
+to retrieve them.
+\smallskip{}
+
+This function is also able to release overlayed binaries, but then
+closes the file stored in the root node of the overlay tree (see
+section~\ref{sec:overlays}) through the {\tt Close()} function of the
+\emph{dos.library}. It therefore can only release overlayed files that
+were loaded from regular \emph{file handles} obtained through {\tt
+  Open()}\key{Open()}.
+\smallskip{}
+
+This function returns a non-negative result code in case of success,
+or $0$ in case of failure. Currently, the only cause of failure is to
+pass in a {\tt ZERO} segment list, the function does not check of the
+result code of {\tt Close()} on the file handle of overlayed files. It
+therefore neither sets {\tt IoErr()} consistently in case of failure.
+
+\section{Overlays} \label{sec:overlays}
+
+While regular binary executables are first brought to memory in entity
+and then brought to execution, overlayed binaries only keep a fraction
+of the executable code in memory and then load additional code parts
+as required, potentially releasing other currently unused code parts
+and thus making more memory available.
+\smallskip{}
+
+Overlays are an extension of the AmigaDOS hunk format that splits the
+executable into a root node that is loaded initially and stays
+resident for the lifetime of the program, and one or multiple
+extension or overlay nodes that are loaded and unloaded on
+demand. Locating the overlay nodes, loading them to memory and
+releasing unused nodes is performed by the \emph{overlay manager}, a
+short piece of program.
+\smallskip{}
+
+AmigaDOS does not provide a ROM-resident overlay manager itself,
+i.e. the \emph{dos.library} does not provide an overlay manager
+itself, though it provides services overlay managers may use. Instead,
+the overlay manager is part of the root node of an overlayed binary,
+and thus overlay management is fully under control of the application.
+\smallskip{}
+
+However, the Amiga linker \emph{ALink}, the Software Distillery linker
+\emph{BLink} and the SAS/C linker \emph{SLink} include a standard
+overlay manager, and this manager and its properties are discussed in
+greater detail in this section.
+
+\subsection{The Overlay File Format}
+
+A binary file making use of overlays consists of several nodes, one
+root node and several overlayed nodes. Nodes contain multiple
+segments, defined through {\tt HUNK\_CODE}, {\tt HUNK\_DATA} or {\tt
+  HUNK\_BSS} as in regular (non-overlayed) binary files.
+\smallskip{}
+
+Each node, the root node and all overlayed nodes start with a {\tt
+  HUNK\_HEADER}\key{HUNK\_HEADER} identifying which segments are
+contained in the node. The root node is terminated by a {\tt
+  HUNK\_OVERLAY}\key{HUNK\_OVERLAY} on which loading stops; this hunk
+contains additonal data for the purpose of the overlay manager, and
+therefore the data within this hunk depends on the overlay manager.
+\smallskip{}
+
+Every other overlay node terminates with a {\tt HUNK\_BREAK}, and
+loading stops there as well. This hunk does not contain any data. The
+overall structure of an overlayed binary therefore looks as follows:
+
+\begin{rkrmtable}{Overlay File Format} \label{table:overlayformat}
+{\bf Hunk Type}   & {\bf Description}\\ \hline \hline
+\tt HUNK\_HEADER  & Defines segments for the root node \\ \hline
+\tt HUNK\_CODE    & Contains the overlay manager and other resident code \\ \hline
+\tt \ldots        & Other hunks, such as relocation information \\ \hline
+\tt HUNK\_END     & Terminates the previous segment \\ \hline
+\tt HUNK\_OVERLAY & Metadata for the overlay manager, see~\ref{sec:hunk_overlay} \\ \hline
+\tt do \{         & Repeats over all overlay nodes \\ \hline
+\tt $\quad$ HUNK\_HEADER  & Defines the segments in this overlay node \\ \hline
+{\tt $\quad$ HUNK\_CODE} or {\tt HUNK\_DATA} & First segment of the overlay node \\ \hline
+\tt $\quad$ \ldots & Other hunks of this overlay node \\ \hline
+\tt $\quad$ HUNK\_END    & Terminates the last segment \\ \hline
+\tt $\quad$ HUNK\_BREAK  & Terminates the first overlay node, see~\ref{sec:hunk_break} \\ \hline
+\tt \} while(!end of file); & This pattern repeats until end of file \\ \hline
+\end{rkrmtable}
+
+\subsection{The Hierarchical Overlay Manager}
+
+The overlay manager that comes with the standard Amiga linkers
+\emph{ALink}, \emph{BLink} and \emph{SLink} structures overlay nodes
+into a tree such as the following:
+
+\begin{center}
+\begin{forest}
+  [root
+    [a [b] [c [d] [e]] [f] [g]] [h] [k [l] [m]]
+  ]
+\end{forest}
+\end{center}
+
+Only those nodes that form a path from the root to one of the nodes of
+the tree can be in memory at a time. Thus, for the above example, the
+root node and nodes $a$, $c$ and $e$ can be in memory simultaneously,
+or the root node, and nodes $k$ and $m$ can be loaded at the same
+time, but not the nodes $a$, $g$ and $h$ because they do not form a
+path from the root to one of the nodes.
+\smallskip{}
+
+Thus, in the above example, if nodes $a$ and $f$ are in memory, and
+node $l$ is required, the nodes $a$ and $f$ will be removed from
+memory, and nodes $k$ and $l$ are loaded. Even though $k$ is not
+explicitly requested, it needs to be loaded as it is the parent of
+$l$.
+\medskip{}
+
+Every node in the overlay tree is identified by two numbers: The depth
+\mkey{Level (overlay)} of the node, which identifies the level within
+the tree where a node is located. The root node is at level~$0$, the
+nodes~$a$, $h$ and~$k$ forms level~$1$ in the above example,
+nodes~$b$, $c$, $f$, $g$ and~$l$ and~$m$ form level~$2$, and nodes~$d$
+and~$e$ are level~$3$.
+\smallskip{}
+
+
+The second number is the ordinate number of a node.\mkey{Ordinate
+  (overlay)} The ordinate enumerates nodes from left to right within a
+level, and it starts from~$1$ in the standard overlay manager. In the
+above example, $a$ is at ordinate~$1$, $h$ at ordinate~$2$, and $k$ at
+ordinate~$3$. At level~$2$, node~$b$ has ordinate~$1$, node~$c$
+ordinate~$2$ and so on.
+
+
+\subsection{HUNK\_OVERLAY} \label{sec:hunk_overlay}
+
+This hunk terminates the loading process and indicates the end of the
+main (first) segments. The {\tt HUNK\_OVERLAY} contains meta-data ---
+the overlay table --- for the overlay manager. This table contains
+information where symbols within the overlayed segments are
+located. Section~\ref{sec:overlay} provides more information on
+overlays. The format of the data within this hunk depends on the
+overlay manager which shall be included in the first segment of the
+executable itself as AmigaDOS does not contain a resident overlay
+manager.\mkey{HUNK\_OVERLAY}
+\smallskip{}
+
+The standard AmigaDOS linkers, {\tt ALink} and {\tt BLink} both
+include an overlay manager. Each entry in its overlay table describes
+a symbol that is located in one of the overlay nodes. The format of
+{\tt HUNK\_OVERLAY} reads as follows:
+\begin{rkrmtabular}{Hunk Overlay Syntax} \label{table:hunk_overlay}%
+\begin{longtable}{|l|p{6cm}|p{6cm}|} \hline
+{\bf Size} & {\bf Code} & {\bf Syntax} \\ \hline \hline
+   & \tt HUNK\_OVERLAY [0x3f5] & Overlay table definition\\ \hline
+32 & \tt $l$ & Size of the overlay table, it is $l+1$ long-words large. \\ \hline
+\multicolumn{3}{|l|}{Format for the standard overlay manager, $l+1$ long-words.} \\ \hline
+32 & \tt $o_d$ & Number of levels in the overlay tree, including the root node \\ \hline
+   & \tt for($i$ = 1;$i$ < $o_d$;i++) \{ & For all nodes, excluding the root node \\ \hline
+32 & \tt $\quad$ $0$ & Currently loaded ordinate, shall be zero \\ \hline
+   & \tt \} & That is, $o_d-1$ zeros \\ \hline
+   & \tt $l -= o_d$ & Count removed long-words \\ \hline
+   & \tt $s  = 0$   & Start with symbol $0$ \\ \hline
+   & \tt while($l \ge 0$) \{ & Repeat over the overlay table \\ \hline
+
+32 & \tt $\quad$ $o_p[s]$ & Absolute file offset of the {\tt
+  HUNK\_HEADER} of the overlay node containing the symbol. \\ \hline
+64 & \tt $\quad$ & Two reserved long-words. \\ \hline
+
+32 & \tt $\quad$ $o_l[s]$ & Level of the overlay node containing the symbol,
+the root level containing the overlay manager is level~$0$. \\ \hline
+
+32 & \tt $\quad$ $o_n[s]$ & Ordinate of the overlay node, enumerating
+overlay nodes of the same depth. \\ \hline
+
+32 & \tt $\quad$ $o_h[s]$ & Hunk index of the first hunk within
+the overlay node. \\ \hline
+
+32 & \tt $\quad$ $o_s[s]$ & Hunk index of the hunk containing the symbol
+described by this entry in the overlay node. \\ \hline
+
+32 & \tt $\quad$ $o_o[s]$ & Symbol offset within hunk $o_s$ \\ \hline
+   & \tt $\quad$ $l$ -=8 & Remove 8 long words. \\ \hline
+   & \tt $\quad$ $s++$   & Advance to next symbol. \\ \hline
+   & \tt \} & End of loop over table \\ \hline
+\end{longtable}
+\end{rkrmtabular}
+
+Note that the overlay table is $l+1$ and not $l$ long-words large,
+i.e. a table only defining a single symbol would be indicated by a
+value of $l=7$. While the payload data of {\tt HUNK\_OVERLAY} is
+always $l+1$ long-words large, with $l$ indicated in the first
+long-word of the hunk, the format of the subsequent data is specific
+to the overlay manager used.
+\medskip{}
+
+Irrespective of the overlay manager used, the AmigaDOS loader injects
+overlay-specific data into the first segment loaded from disk, that
+is, into the root-node. The data placed there is also required to
+release all resources associated to overlays and is expected there by
+{\tt UnLoadSeg()}\key{UnLoadSeg()} and {\tt
+  InternalUnLoadSeg()}\key{InternalUnLoadSeg()}.
+\smallskip{}
+
+The first bytes of the root node shall therefore form the following
+structure:
+\begin{verbatim}
+struct OverlayHeader {
+    UWORD         oh_Jump[2];      /* Forms a branch to the startup code */
+    LONG          oh_Magic;        /* Shall be 0x0000abcd                */
+    BPTR          oh_FileHandle;   /* Filled by the loader with the fh   */
+    struct OVTab *oh_OVTab;        /* Overlay table from HUNK_OVERLAY    */
+    BPTR          oh_Segments;     /* Array of segment BPTRs             */
+    BPTR          oh_GV;           /* standard Global Vector             */
+};
+\end{verbatim}
+As said earlier, this structure is expected to be present at the start
+of the first hunk of the root node. The members {\tt oh\_FileHandle}
+to {\tt oh\_GV} are filled in by the AmigaDOS loader, i.e. {\tt
+  LoadSeg()} and related functions, but {\tt oh\_Jump} and {\tt
+  oh\_Magic} shall be part of the segment itself.
+\smallskip{}
+
+{\tt oh\_Jump} form valid {\tt 68K} opcodes, and shall contain a jump
+or branch branch around this structure. This is because loaded
+binaries are executed from the first byte of the first segment
+loaded. Otherwise, the CPU would run into the data of the structure
+which likely forms invalid or illegal opcodes. The AmigaDOS Loader
+itself does not interpret the values here, just expects them to be
+present.
+\smallskip{}
+
+{\tt oh\_Magic} shall contain the ``magic'' long-word {\tt
+  0xabcd}. This value is neither filled or interpreted by the loader,
+but nevertheless shall be present. It is, however, checked by {\tt
+  UnLoadSeg()}\key{UnLoadSeg()} and used there as an identifier for
+the {\tt OverlayHeader} structure. If this identifier is not present,
+{\tt UnLoadSeg()} will not be able to release resources associated to
+overlays.
+\smallskip{}
+
+{\tt oh\_FileHandle} will be filled by the AmigaDOS loader with a
+\emph{BPTR} to the \emph{FileHandle} from which the root node has been
+loaded, or with the first argument of {\tt
+  InternalLoadSeg()}\key{InternalLoadSeg()}. This handle is used by
+the overload manager to load all subsequent overlay nodes. Also, {\tt
+  UnLoadSeg()}\key{UnLoadSeg()} and related functions call {\tt
+  Close()}\key{Close()} on the handle stored here as the file needs to
+stay open for the life time of the loaded program.
+\smallskip{}
+
+{\tt oh\_OVTab} is filled by the AmigaDOS loader to a pointer to the
+payload data of {\tt HUNK\_OVERLAY}. The standard overlay manager
+stores here for every externally referenced symbol in an overlay node
+a structure that records for each tree level the ordinate of the
+currently loaded overlay node, and for all externally referenced
+symbols the position of the symbol within the overlay tree:
+\mkey{OVTab}
+\begin{verbatim}
+struct OVTab {
+    ULONG ot_TreeDepth;    /* Depth of the tree, including the root    */
+    ULONG ot_LoadedOrd[];  /* The loaded ordinate, indexed by level-1  */
+}
+struct SymTab {
+    ULONG ot_FilePosition; /* File position of HUNK_HEADER of the node */
+    ULONG ot_Reserved[2];  /* Not in use                               */
+    ULONG ot_Level;        /* Level of the overlay node                */
+    ULONG ot_Ordinate;     /* Ordinate of the overlay node             */
+    ULONG ot_FirstHunk;    /* First segment of the overlay node        */
+    ULONG ot_SymbolHunk;   /* Segment containing the referenced symbol */
+    ULONG ot_SymbolOffset; /* Offset of the segment within the segment */
+} []                       /* For each symbol */
+\end{verbatim}
+That is, the overlay table starts with the tree depth $o_d$ and an
+array of $o_d-1$ elements where each element stores the ordinate of
+the currently loaded overlay node. If an entry in this array is~$0$,
+no overlay node at this tree level is loaded, otherwise it is the
+$1$-based ordinate of the node.
+\smallskip{}
+
+The ordinate table is followed by the symbol table. The purpose of
+this structure is that it allows the overlay manager on a reference to
+such an external symbol to find and load the overlay node containing
+the symbol, and then resolve references to it. How exactly it does so
+is explained in more detail in section~\ref{sec:stdoverlay}. The
+elements of this structure are already briefly introduced in
+table~\ref{table:hunk_overlay}.
+\smallskip{}
+
+{\tt oh\_Segments} is filled by the AmigaDOS loader to a \emph{BPTR}
+to the segment table of the loaded binary. The size of this table is
+taken from $t_{\mbox{size}}$ in the {\tt HUNK\_HEADER}\key{HUNK\_HEADER} of the root
+node, see table~\ref{table:hunk_header}. Each element in this array
+contains a \emph{BPTR} to a segment of the loaded binary, and it is
+indexed by the segment number, counting from~$0$ for the first segment
+of the root node.
+\smallskip{}
+
+When parsing a {\tt HUNK\_HEADER}, the array entries $t_{\mbox{num}}$
+to $t_{\mbox{max}}$ will be populated with the \emph{BPTR}s to the
+segments allocated of the node described by this hunk, and when
+unloading an overlay node, the corresponding segments will be
+unlinked, released and then cleared out.
+\medskip{}
+
+{\tt oh\_GV} is, finally, filled with the \emph{Global
+  Vector}\key{Global Vector} of the \emph{dos.library} containing all
+regular functions in the library, as required by BCPL code. Overlay
+managers implemented in C or assembler will not make use of it and
+instead call vectors of the \emph{dos.library} through the
+\emph{dos.library} base address loaded in register {\tt a6}.
+
+\subsection{HUNK\_BREAK} \label{sec:hunk_break}
+
+This hunk terminates the loading process and indicates the end of an
+overlay node. The hunk itself does not contain any
+data. \mkey{HUNK\_BREAK}
+
+\begin{rkrmtabular}{Hunk Break Syntax} \label{table:hunk_break}
+\begin{tabular}{|l|p{6cm}|p{6cm}|} \hline
+{\bf Size} & {\bf Code} & {\bf Syntax} \\ \hline \hline
+  & \tt HUNK\_BREAK [0x3f6] & Terminate a segment\\ \hline
+\end{tabular}
+\end{rkrmtabular}
+
+\subsection{Loading an Overload Node} \label{sec:loadsegoverload}
+
+The {\tt LoadSeg()}\key{LoadSeg()} function is not only able to load
+the root segments of an overlayed binary, it can also be used for
+loading an overlayed node and all segments within it. For that, the
+file pointer shall first be placed with {\tt Seek()}\key{Seek()} to
+the file offset of the {\tt HUNK\_HEADER} of the overlayed node. This
+file offset may, for the standard hierarchical overlay manager, be
+taken from the {\tt ot\_FilePosition} of the overlay table.
+
+\begin{verbatim}
+seglist = LoadSeg( name ,table, fh)
+D0                 D1    D2     D3
+
+BPTR LoadSeg(STRPTR ,BPTR, BPTR)
+\end{verbatim}
+For overlayed node loading, the first argument {\tt name} shall be
+{\tt NULL}, which is used as an indicator to this function to
+interpret two additional (usually hidden) arguments.
+\smallskip{}
+
+{\tt table} is a \emph{BPTR} to the segment table, and may be taken
+from {\tt oh\_Segments}. It contains \emph{BPTRs} to all allocated
+segments, see section~\ref{sec:hunk_overlay}.
+\smallskip{}
+
+{\tt fh} is a \emph{BPTR} to the \emph{FileHandle} from which the
+overlay node is to be loaded. This handle may be taken from
+{\tt oh\_FileHandle}, see section~\ref{sec:hunk_overlay}.
+\smallskip{}
+
+While this function allocates and loads the segments in the overlayed
+node, it does not attempt to release already allocated segments
+populating the same entries in the segment table; it is instead up to
+the overlay manager to clean up the segment table upfront,
+see~\ref{sec:unloadnode}. The information which segments will be
+populated by an overlay node may be taken from the {\tt ot\_FirstHunk}
+member of the overlay table. Due to the tree structure imposed by the
+hierarhical overlay manager, it has to release all segments from {\tt
+  ot\_FirstHunk} onwards up to the end of the table, unlink the
+segments contained therein, and then load another overlay node through
+{\tt LoadSeg()}.
+\smallskip{}
+
+Note that this function populates the same offset in the
+\emph{dos.library} as the regular {\tt LoadSeg()}\key{LoadSeg()}
+function; the function distinguishes loading regular binaries through
+a file name from loading overlay nodes by the first argument.
+\smallskip{}
+
+As the regular {\tt LoadSeg()} call, this function returns the
+\emph{BPTR} to the first segment loaded on success, links all loaded
+segments together, populates the segment table, and then sets {\tt
+  IoErr()}\key{IoErr()} to~$0$. On error, it returns {\tt ZERO} and
+installs an error code in {\tt IoErr()}.
+
+\subsection{Loading an Overlay Node through Call-Back Functions}
+
+The {\tt InternalLoadSeg()}\key{InternalLoadSeg()} function can also load
+an overlay node.
+
+\begin{verbatim}
+seglist = InternalLoadSeg(fh,table,funcs)
+D0                        D0  A0   A1   
+
+BPTR InternalLoadSeg(BPTR,BPTR,struct LoadSegFuncs *)
+\end{verbatim}
+
+The {\tt fh} argument is an opaque file handle that is suitable for
+the {\tt ReadFunc()} provided by the {\tt funcs} structure. The
+corresponding file pointer shall first be placed to the file offset of
+the {\tt HUNK\_HEADER} of the overlayed node, e.g. by a functionality
+similar to {\tt Seek()}\key{Seek()} for regular
+\emph{FileHandles}. This file offset may, for the standard
+hierarchical overlay manager, be taken from the {\tt ot\_FilePosition}
+within the overlay table.
+\smallskip{}
+
+The {\tt table} shall be the \emph{BPTR} to the segment table; this
+may be taken from {\tt oh\_Segments}. This argument determines whether
+a regular binary load is requested, or an overlay node is to be
+loaded. In the latter case, this argument is non-{\tt ZERO}.
+\smallskip{}
+
+Like {\tt LoadSeg()}\key{LoadSeg()}, this function does not release
+segments in populated entries in the segment list, it is up to the
+overlay manager to unload these segments. The information which
+entries of the segment table will be populated by an overlay node may
+be taken from the {\tt ot\_FirstHunk} member of the overlay table, see
+also~\ref{sec:loadsegoverload}.
+\smallskip{}
+
+The {\tt funcs} argument points to a {\tt LoadSegFuncs} structure as
+defined in section~\ref{sec:internalloadseg} and contains functions for
+reading data and allocating and releasing memory.
+\smallskip{}
+
+This function does not set {\tt IoErr()} consistently, unless the
+functions in the {\tt LoadSegFuncs} structure do. The function returns
+the segment of the first segment of the overlay node on success, or
+{\tt ZERO} on error.
+
+\subsection{Unloading Overlay Nodes} \label{sec:unloadnode}
+
+Unloading overlay nodes (and \emph{not} the root node) of an overlayed
+binary requires some manipulation of the segment table as the
+\emph{dos.library} does not provide a function for such
+operation. This algorithm is part of the overlay manager, but its
+implementation within the standard hierarchical overlay manager
+documented here for completeness. Other custom overlay managers
+perform potentially different algorithms.
+\smallskip{}
+
+First, it finds the previous segment upfront the segment to be
+unloaded, and cleans there the {\tt NextSegment} pointer to unlink all
+following segments.  Then these following segments are released
+through {\tt FreeVec()} or whatever memory release function is
+appropriate.
+\smallskip{}
+
+The following sample code releases the overlay node starting at
+segment $i > 0$ from a segment table of an overlay header:
+\begin{verbatim}
+void UnloadOverlayNode(struct OverlayHeader *oh,ULONG i)
+{
+  BPTR *segtbl  = (BPTR *)BADDR(oh->oh_Segments);
+  BPTR *segment = (BPTR *)BADDR(segtbl[i - 1]); 
+  BPTR  next;
+
+  /* Release the linkage from the last loaded to
+  ** the first segment to release */
+  *segment = NULL;
+
+  do {
+    /* Get the segment to release */
+    if (segment = (BPTR *)BADDR(segtbl[i++])) {
+      next      = *segment;
+      FreeVec(segment);
+    } else break;
+    /* Repeat until the last segment */
+  } while(next);
+}
+\end{verbatim}
+Note that a previous segment always exists because the root node
+populates at least entry~$0$ of the segment table. The above loop
+makes use of the fact that the first long-word of a segment is a
+\emph{BPTR} to the next segment, and this linkage is {\tt ZERO} for
+the final node.
+\smallskip{}
+
+If a custom memory allocator has been used for loading overlay nodes
+through {\tt InternalLoadSeg()}\key{InternalLoadSeg()}, the {\tt
+  FreeVec()} in the above function is replaced by the corresponding
+memory release function.
+
+\subsection{Unloading Overlay Binaries}
+
+To unload the root node, and thus unload the entire program including
+all overlay nodes, {\tt UnLoadSeg()}\key{UnLoadSeg()} on the first
+segment of the root node is sufficient if neither custom I/O nor a
+custom memory allocator has been used to load the binary, independent
+on which overlay manager has been used. {\tt UnLoadSeg()} will detect
+the overlay manager from the magic value in {\tt oh\_Magic} and will
+then not only release the segments, but also close the overlay file
+handle and release the segment table.
+\smallskip{}
+
+If {\tt InternalLoadSeg()}\key{InternalLoadSeg()} has been used for
+loading the root node through custom I/O functions or with a custom
+memory allocator, {\tt InternalUnLoadSeg()}\key{InternalUnLoadSeg()}
+shall be used instead to release the root node. Unfortunately, it
+\emph{always} uses {\tt Close()}\key{Close()} on {\tt oh\_FileHandle},
+even if {\tt oh\_FileHandle} does not correspond to a
+\emph{FileHandle} as returned by {\tt Open()}\key{Open()},
+e.g. because {\tt ReadFunc()} upon loading the overlay program pointed
+to a custom I/O function. The best strategy in this case is probably
+to close {\tt oh\_FileHandle} manually upfront with whatever method is
+appropriate, then zero it out manually and then finally call into {\tt
+  InternalUnLoadSeg()} to perform all the necessary cleanup steps.
+This strategy works because {\tt Close()} on a {\tt ZERO}
+file handle performs no operation and is legit.
+
+\subsection{Internal Working of the Overlay Manager}
+
+Several versions of the hierarchical overlay manager exist. The
+version described here stems from the SAS/C {\tt SLink} utility and is
+designed for the \emph{registerized parameters} configuration within
+which some function arguments are passed in CPU registers. Earlier
+versions require stack-based parameter passing.
+\smallskip{}
+
+When binding objects together to an overlay binary together, the
+linker checks whether a reference to a symbol crosses a boundary of
+overlay nodes. References that go to a parent node or the node itself
+can be resolved by the linker by creating a relocation entry in a {\tt
+  HUNK\_RELOC32} hunk as it can assume that the corresponding segment
+is already loaded.
+\smallskip{}
+
+References to symbols within child nodes receive each a unique integer
+identifier, and an entry in the overlay table in {\tt HUNK\_OVERLAY}
+at the index given by the identifier. The actual call to a function in
+a child node is then replaced to call into a trampoline function that
+looks as follows:
+\begin{verbatim}
+@symX:
+    jsr @ovlyMgr
+    dc.w symbX
+\end{verbatim}
+where {\tt @ovlyMgr} is the entry point of the overlay manager and
+{\tt symbX} is the identifier of the referenced symbol. The overlay
+manager reads the return PC which points to the identifer, and from the
+identifier finds the entry in the symbol table. 
+\smallskip{}
+
+The symbol table contains both the ordinate and the level of the
+symbol with which the overlay manager is able to check whether the
+node containing the symbol is currently loaded. If this is not the
+case, it needs to unload the currently loaded node at this level and
+all its children, and then progresses to loading the required node
+from the file offset in the symbol table, and then progresses to
+updating the overlay table.
+\smallskip{}
+
+If the overlay node containing the symbol is already loaded, or just
+has been loaded, the symbol address is computed from the offset in the
+symbol table and the address of the segment containing the symbol from
+the segment table, and injected into the return address that contained
+a pointer to the symbol identifier. Thus, when returning from the
+overlay manager, the code will continue to execute from the target
+symbol. Other versions of the overlay manager use a trampoline function that
+loads register {\tt d0} with the symbol identifier and thus require
+stack-based function calls.
+\smallskip{}
+
+Regardless of the version of the overlay
+manager, only symbols corresponding to function can be resolved as the
+overlay manager must be called to resolve a symbol. In particular,
+data cannot be referenced across overlay nodes --- instead, an
+accessor function may be used that returns the object to be accessed.
+\medskip{}
+
+The following code provides an overlay manager for register-based
+calls:
+\begin{verbatim}
+        xdef    @ovlyMgr
+;*************************************************
+;** Offsets in the overlay-table                **
+;*************************************************
+        rsreset
+ot_FilePosition:        rs.l 1          ;File position
+ot_reserved:            rs.l 2          ;for whatever
+ot_OverlayLevel:        rs.l 1          ;Overlay-Level
+ot_Ordinate:            rs.l 1          ;Overlay-Ordinate
+ot_InitialHunk:         rs.l 1          ;Initial hunk for loading
+ot_SymbolHunk:          rs.l 1          ;Hunk containing symbol
+ot_SymbolOffset:        rs.l 1          ;Offset of symbol
+ot_len:                 rs.b 0
+
+;*************************************************
+;** Other stuff                                 **
+;*************************************************
+MajikLibWord    =       23456           
+
+       section NTRYHUNK,CODE
+;*************************************************
+;** Manager starts here                         **
+;*************************************************
+Start:
+        bra.w NextModule                ;Jump to the next segment...
+
+;* This next word serves to identify the overlay
+;* supervisor to 'unloader', i.e. UnLoadSeg()
+
+        dc.l       $ABCD                ;Magic longword for UnLoadSeg
+
+;* The next four LWs are filled by the loader (LoadSeg())
+ol_FileHandle:  dc.l 0                  ;Overlay file handle (points to me)
+ol_OverlayTab:  dc.l 0                  ;Overlay table as found in the overlay hunk
+ol_HunkTable:   dc.l 0                  ;BPTR to Overlay hunk table
+ol_GlobVec:     dc.l 0                  ;BPTR to global vector (what for ?)
+
+                dc.l MajikLibWord       ;Majik library word as identifier
+                dc.b 7,"Overlay"        ;Majik identifier
+
+;* the following data is specific to this manger
+
+ol_SysBase:     dc.l 0                  ;additional pointer
+ol_DOSBase:     dc.l 0                  ;to libraries
+
+                dc.b "THOR Overlay Mananger 1.0",0      ;another ID
+
+@ovlyMgr:                               ;Entry-points
+        saveregs d0-d3/a0-a4/a6         ;Saveback register
+
+        moveq #0,d0
+        move.l 10*4(a7),a0
+        move.w (a0),d0                  ;get the overlay reference ID
+
+        move.l ol_OverlayTab(pc),a3     ;get pointer to overlay table
+        move.l a3,a4                    ;to a4
+        add.l (a3),d0                   ;add length
+        lsl.l #2,d0                     ;get offset
+        add.l d0,a3                     ;address of overlay entry
+        move.l ot_OverlayLevel(a3),d0   ;get overlay
+        lsl.l #2,d0
+        adda.l d0,a4
+        move.l ot_Ordinate(a3),d0       ;get required ordinate level
+        cmp.l (a4),d0                   ;compare with current ordinate level
+        beq.s .gotsegment
+                                        ;not correct level
+                                        ;clear all other entries behind this
+        move.l d0,(a4)+                 ;fill with new overlay entries
+
+        moveq #0,d1
+        do                              ;macros in action! ;-)
+         tst.l (a4)                     ;terminate, if end of table found
+         break.s eq
+         move.l d1,(a4)+                ;clear this
+        loop.s
+
+        move.l ot_InitialHunk(a3),d0    ;first hunk number to load
+        add.l ol_HunkTable(pc),d0       ;plus BPTR of hunk table
+        lsl.l #2,d0                     ;address of entry in hunk table
+        move.l d0,a4
+        move.l -4(a4),d0                ;get previous hunk
+        beq.s .noprevious
+        lsl.l #2,d0
+        move.l d0,a2
+        move.l d1,(a2)                  ;unlink fields before loading
+
+                                        ;now free all hunks
+        move.l ol_SysBase(pc),a6
+
+        do
+         move.l (a4)+,d0                ;next hunk ?
+         break.s eq
+         lsl.l #2,d0
+         move.l d0,a1                   ;->a1
+         move.l -(a1),d0                ;get length
+         jsr FreeMem(a6)                ;free this hunk
+        loop.s                          ;and now the next
+.retry:
+        move.l ol_DOSBase(pc),a6
+        move.l ol_FileHandle(pc),d1     ;get our stream
+        move.l ot_FilePosition(a3),d2   ;get file position
+        moveq #-1,d3                    ;relative to beginning of file
+        jsr Seek(a6)                    ;seek to this position
+        tst.l d0                        ;found something ?
+        bmi.s .loaderror                ;what to do on failure ?
+
+                                        ;now call the loader
+        move.l ol_HunkTable(pc),d2      ;hunk table
+        moveq #0,d1                     ;no file (is overlay)
+        move.l ol_FileHandle(pc),d3     ;filehandle
+        jsr LoadSeg(a6)                 ;load this stuff
+        tst.l d0                        ;found
+        beq.s .loaderror
+        move.l d0,(a2)                  ;add new chain
+
+                                        ;found this stuff
+.gotsegment:
+        move.l ot_SymbolHunk(a3),d0     ;get hunk # containing symbol
+        add.l ol_HunkTable(pc),d0
+        lsl.l #2,d0                     ;get APTR to hunk
+        move.l d0,a4
+        move.l (a4),d0                  ;BPTR to hunk
+        lsl.l #2,d0
+        add.l ot_SymbolOffset(a3),d0    ;Offset
+
+        move.l d0,10*4(a7)              ;Set RETURN-Address
+
+        loadregs
+        rts
+
+;*************************************************
+;** Go here if we find an error                	**
+;*************************************************
+.loaderror:
+        saveregs d7/a5
+        move.l ol_SysBase(pc),a6
+        move.l #$0700000C,d7
+        move.l $114(a6),a5
+        jsr Alert(a6)                   ;Post alert
+        loadregs
+        bra.s .retry                    ;Retry or die
+
+.noprevious:
+        move.l ol_SysBase(pc),a6
+        move.l #$8700000C,d7            ;dead end !
+        move.l $114(a6),a5
+        jsr Alert(a6)                   ;Post alert
+        bra.s .noprevious
+
+
+;*************************************************
+;** NextModule                                  **
+;** Open stuff absolutely necessary and         **
+;** continue with main program code             **
+;*************************************************
+NextModule:
+                                        ;why safe registers ?
+        move.l a0,a2
+        move.l d0,d2                    ;keep arguments (BCPL stuff is not kept)
+        lea ol_SysBase(pc),a3
+        move.l ExecBase,a6
+        move.l a6,(a3)                  ;fill in Sysbase
+        lea DOSName(pc),a1              ;get name of DOS
+        moveq #33,d0                    ;at least 1.2 MUST be used (no support of antique stuff)
+        jsr OpenLibrary(a6)
+        move.l d0,4(a3)                 ;Save back DOS base for loader
+        beq.s .nodosexit                ;exit if no DOS here
+
+        move.l d0,a6                    
+        move.l Start-4(pc),a0           ;Get BPTR of next hunk
+        adda.l a0,a0
+        adda.l a0,a0
+        exg.l a0,a2                     ;move to a2
+        move.l d2,d0                    ;restore argument
+        jsr 4(a2)                       ;jump in
+        move.l d0,d2                    ;Save return code
+
+        move.l ol_SysBase(pc),a6
+        move.l ol_DOSBase(pc),a1
+        jsr CloseLibrary(a6)            ;Close the lib
+
+        move.l d2,d0                    ;Returncode in d0
+        rts
+.nodosexit:
+        move.l #$07038007,d7            ;DOS didn't open
+        move.l $114(a6),a5
+        jsr Alert(a6)
+        moveq #30,d0                    ;Something went really wrong !
+        rts
+
+DOSName:        dc.b "dos.library",0
+\end{verbatim}
+
+\section{Structures within Hunks}
+
+While the AmigaDOS loader, i.e. {\tt LoadSeg()}\key{LoadSeg()} and
+related functions, do not care about the contents of the segments it
+loaded, some other components of AmigaDOS do actually analyze their
+contents.
+
+\subsection{The Version Cookie}
+
+The {\tt Version} command scans a ROM-resident modules or all segments
+of a binary for the character sequence {\tt \$VER:} and if such a
+sequence is found, the string following is scanned. The syntax of the
+string consists of the following elements:
+
+\begin{itemize}
+\item[-] The version cookie {\tt \$VER:}
+\item[-] one or multiple blank spaces
+\item[-] a program name, which is output by the {\tt Version} command
+\item[-] a decimal number, representing the \emph{version} of the program
+\item[-] a single dot (``{\tt .}'')
+\item[-] a decimal number, representing the \emph{revision} of the program
+\item[-] one or multiple blank spaces
+\item[-] an opening bracket (``{\tt (}'')
+\item[-] a decimal number, representing the day of the month of the revision
+\item[-] a single dot (``{\tt .}'')
+\item[-] a decimal number, representing the month of the revision
+\item[-] a single dot (``{\tt .}'')
+\item[-] a decimal number, representing the year of the revision
+\item[-] a closing bracket (``{\tt )}'')
+\item[-] an optional comment that is only output if the {\tt FULL} option of the {\tt Version} is given.
+\end{itemize}
+
+If the number representing the year is below $1900$, the {\tt Version}
+command assumes a two-digit year and either adds $200$ if the year is
+below $78$, or $1900$ otherwise. The command then re-formats the date
+according to the currently active locale and prints it to the console,
+along with the program name and, optionally, the comment string.
+\smallskip{}
+
+An example for the version cookie is
+\begin{verbatim}
+const char version[] = "$VER: RKRM-Dos 45.3 (12.9.2023) (c) THOR";
+\end{verbatim}
+
+Note that the date follows the convention date of the month, month and
+year, here September 12, 2023. The version in this example is 45, the
+version is 3. The string behind the date is a comment and usually not
+printed by the {\tt Version} command.
+
+\subsection{The Stack Cookie}
+
+The workbench, the shell, and also {\tt
+  GetDeviceProc()}\key{GetDeviceProc()} when loading \emph{handlers}
+scan the loaded binary for the string sequence {\tt \$STACK:}. If this
+string sequence is found, AmigaDOS attempts to read a following
+decimal number, and interprets this as stack size in bytes.
+\smallskip{}
+
+The stack of the program is then, potentially increased to the
+provided size. Note that AmigaDOS also scans alternative sources for a
+stack size: The {\tt Stack} setting in the icon information window of the
+workbench, the {\tt Stack} command of the shell, or the {\tt
+  STACKSIZE} entry in the mount list. The stack size indicated by the
+above stack cookie does not override these settings, it can only
+\emph{increase} the stack size. This allows program authors to ensure
+that the stack of their program has a necessary minimal size, though
+still allows users to increase it if necessary.
+\smallskip{}
+
+An example for the stack cookie is
+\begin{verbatim}
+const char stack[] = "$STACK: 8192";
+\end{verbatim}
+This ensures that the stack size of the program is at least 8192 bytes.
+
+\subsection{Runtime binding of BCPL programs}
+
+BPCL programs depend on a \emph{Global Vector}\mkey{Global Vector}
+that includes function entries and data available to all its
+modules. AmigaDOS includes a runtime binder functionality that creates
+the \emph{Global Vector} from data found in the segments of the loaded
+binary and the \emph{dos.library} \emph{Global Vector}.
+\smallskip{}
+
+Even though this mechanism is deprecated and AmigaDOS has long been
+ported to C and assembler, some components still depend on this legacy
+mechanism, namely all \emph{handlers} and \emph{file systems} mounted
+with the {\tt GLOBVEC = 0} or {\tt GLOBVEC = -2} entry in the mount
+list. While newer \emph{handlers} should not depend on this mechanism
+anymore, the {\tt Port-Handler} mount entry is created in the
+Kickstart ROM as BCPL handler, beyond control of the user. The same
+goes for the {\tt Shell}, which is also initiated as BCPL process.
+\smallskip{}
+
+If the above components --- the {\tt Port-Handler} or the \emph{Shell}\key{Shell}
+--- are attemted to be customized, implementors need to be aware that
+these processes are not started from the first byte of the first
+segment, but from the \emph{Global Vector} entry {\tt \#1}, which
+contains the address of the {\tt START} function from which the
+process is run. All other entries of the vector are of no concern, and
+should not be used anymore.
+\medskip{}
+
+The \emph{Runtime Binder}\mkey{Runtime Binder} of AmigaOs, initiated
+only for BCPL handlers and BCPL processes such as the
+\emph{Shell}\key{Shell}, now scans the segments of such programs for
+information on how to populate the \emph{Global Vector}.
+\smallskip{}
+
+The \emph{first long-word} of the segment, usually the entry point of
+the process, contains the long-word offset from the start of the
+process to the start of the \emph{Global Vector} initialization
+data. This initialization data is \emph{scanned backwards} from the
+given offset towards lower addresses, starting with the long-word
+before the offset.
+\smallskip{}
+
+The first long-word of the initialization data is the required size of
+the \emph{Global Vector} the program requires. This value is only used
+to check the following initializers for validity. The standard system
+global vector currently requires 150 entries, which is a safe choice.
+\smallskip{}
+
+All following entries consist of pairs of long-words, scanned again
+towards smaller addresses, where each pair defines one entry in the
+global vector. The first (higher address) long-word is the offset of
+the function which will populate the \emph{Global Vector}, the second
+(lower) address is the index of the \emph{Global Vector} entry. An
+offset of $0$ terminates the list.
+\medskip{}
+
+The following assembler stub may be used as initial segment of an
+(otherwise C-based) handler that instructs the \emph{Runtime Binder}
+to populate the {\tt START} vector, and then calls into the {\tt
+  @main} function. BCPL unfortunately also uses a custom call syntax,
+register {\tt a6} is the address of the BCPL return code which cleans
+up the BCPL stack frame and returns to the caller.
+
+\begin{verbatim}
+                SECTION text,code
+
+                XREF    @main           ; handler or shell main
+
+G_GLOBMAX       EQU     150             ; size of GV
+G_START         EQU     1               ; BCPL START functions
+G_CLISTART      EQU     133             ; shell startup
+
+CodeHeader:     DC.L    (CodeEnd-CodeHeader)/4 
+
+*               C Startup function, called for GlobVec=-1 or -3
+*               see text below why this works
+CStart:         sub.l   a0,a0           ; no startup message
+                bsr.w   @main           ; need to GetMsg() manually in main
+                rts
+
+                CNOP    0,4
+
+*               BCPL startup function, called for GlobVec=0 or -2
+BCPLStart:      movem.l a0-a6,-(a7)     ; save all these, BCPL uses them
+                lsl.l   #2,d1           ; get startup packet
+                move.l  d1,a0           ; move to a0
+                bsr.w   @main           ; get the ball rolling
+                movem.l (a7)+,a0-a6     ; restore everyone
+                jmp     (a6)            ; BCPL-style return
+
+BCPLTable:      CNOP    0,4
+
+                DC.L    0               ; End of global list
+                DC.L    G_CLISTART,BCPLStart-CodeHeader ;only for the shell
+                DC.L    G_START,BCPLStart-CodeHeader
+                DC.L    G_GLOBMAX       ; max global used (standard value)
+CodeEnd:
+\end{verbatim}
+
+Note that there are other differences for BCPL handlers the {\tt
+  main()} function of the handler needs to take care of, see also
+section~\ref{sec:bcplhandlers}. BCPL handlers do not receive their
+startup message in the process \emph{MsgPort}, but rather receive it
+as first BCPL argument in register {\tt d1}. It is here converted to
+a C-style pointer and provided as first argument to the main function,
+assuming the SAS/C registerized parameters ABI.
+\smallskip{}
+
+The {\tt CStart} label is not called at all if the handler is mounted
+with {\tt GLOBVEC=0} or {\tt GLOBVEC=-2}, and thus would be, in this
+example, not required. It is included here to demonstrate another
+technique, namely \emph{dual use} handlers that can be mounted both as
+C and as BCPL handlers.
+\smallskip{}
+
+The above startup code also allows {\tt GLOBVEC=-1} in the mount
+list. In this case, the code \emph{is} started from the first byte,
+which is, actually, the long-word offset to the BCPL initializer.  In
+this particular case, it also assembles to a harmless {\tt ORI}
+instruction, provided the offset to the end of the code is short
+enough, i.e. below 64K. It is therefore harmless. As the calling
+syntax is different, the main function is now called with a {\tt NULL}
+argument, and then needs to wait for the startup package itself, see
+again section~\ref{sec:bcplhandlers}.
+\smallskip{}
+
+For the \emph{Shell}, in particular, a second entry in the
+\emph{Global Vector} shall be populated, namely the entry {\tt
+  G\_CLISTART} at offset {\tt \#133}. It may point to the same entry
+code, more on this in section~\ref{sec:shell}. As this entry is not
+used for handler startup, it does not hurt to include it in the BCPL
+initializer in either case, and thus the above code may be used as
+universal ``BCPL kludge'' for both the shell and legacy handlers that
+depend on BCPL startup.
+
+\section{Object File Format}
+
+% Describe how object code looks like, including additional hunks
+
+\section{HUNK\_EXT} \label{sec:hunk_ext}
+
+The next table includes symbol types that identify symbol references,
+i.e. they are referenced within a segment of an object file, though
+not defined there. These types can clearly not be contained within a
+executable binary, but they may appear within an object file and are
+then resolved by corresponding symbol definitions from the above table
+by the linker:
+\begin{rkrmtabular}{Symbol types in HUNK\_EXT} \label{table:extsymboltypes}
+\begin{longtable}{|lc|p{9cm}|} \hline
+\tt EXT\_REF32 & [0x81] & Reference to a 32-bit symbol that is resolved
+by a corresponding {\tt EXT\_ABS} to an absolute value or by a {\tt
+  EXT\_DEF} definition to a relocation information to this or another
+segment. \\ \hline
+
+\tt EXT\_COMMON & [0x82] & Reference to a 32-bit symbol that may be
+resolved by a {\tt EXT\_ABS} or {\tt EXT\_DEF} definition, but if no
+such definition is found, a BSS hunk of the maximal size of all
+references to the symbol is created by the linker. Thus, this type
+generates a zero-initialized object if no definition is found. \\ \hline
+
+\tt EXT\_REF16 & [0x83] & Reference to a 16-bit PC relative offset within
+the same segment. \\ \hline
+
+\tt EXT\_REF8 & [0x84] & Reference to a 8-bit PC relative offset within
+the same segment. \\ \hline
+
+\tt EXT\_DREF32 & [0x85] & 32-bit reference relative to a base register
+(typically {\tt a4}), resolved by the linker through an entry in a {\tt
+  HUNK\_DRELOC32} hunk\key{HUNK\_DRELOC32}.\\ \hline
+
+\tt EXT\_DREF16 & [0x86] & 16-bit reference relative to a base register,
+resolved by the linker through an entry in a {\tt HUNK\_DRELOC16}
+hunk\key{HUNK\_DRELOC16}.\\ \hline
+
+\tt EXT\_DREF8 & [0x87] & 8-bit reference relative to a base register,
+resolved by the linker through an entry in a {\tt HUNK\_DRELOC8} hunk
+\key{HUNK\_DRELOC8}.\\ \hline
+
+\tt EXT\_RELREF32 & [0x88] & 32-bit PC-relative reference for 32-bit
+address, this will be resolved by an {\tt EXT\_DEF} definition into an
+entry into a {\tt HUNK\_RELRELOC32} hunk by the linker.\\ \hline
+
+\tt EXT\_RELCOMMON & [0x89] & 32-bit PC relative common reference for a
+32-bit address. Similar to a {\tt EXT\_COMMON} definition, this will
+be resolved into an {\tt HUNK\_RELRELOC32} entry where potentially
+space for the symbol will be allocated in a BSS segment if no
+corresponding definition is found.\\ \hline
+
+\tt EXT\_ABSREF16 & [0x8a] & 16-bit absolute reference, resolved by
+the linker to a 16-bit value by an {\tt EXT\_ABS} definition. \\ \hline
+
+\tt EXT\_ABSREF8 & [0x8b] & 8-bit absolute reference, resolved by the
+linker to an 8-bit value through an {\tt EXT\_ABS}
+definition. \\ \hline
+\end{longtable}
+\end{rkrmtabular}
 
 %%% For later.
 
+\section{Miscellaneous Functions}
 The {\tt DateStamp} structure reads as follows:
 
 \begin{verbatim}
