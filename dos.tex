@@ -6630,8 +6630,8 @@ l $\times$ 32 & \tt Code & $l$ long words of payload \\ \hline
 Note that the size of the payload loaded from the file may be less
 than the size of the allocated segment as defined in {\tt
   HUNK\_HEADER}. In such a case, all bytes of the segment not included
-in the {\tt HUNK\_CODE} are zero-initialized. Earlier versions of
-AmigaDOS skipped this initialization.
+in the {\tt HUNK\_CODE} are zero-initialized. AmigaDOS versions earlier than
+v37 skipped this initialization.
 
 \subsection{HUNK\_DATA} \label{sec:hunk_data}
 
@@ -6652,8 +6652,8 @@ l $\times$ 32 & \tt Code & $l$ long words of payload \\ \hline
 
 Similar to {\tt HUNK\_CODE}, the size of the payload defined by this
 hunk may be less than the size of the segment allocated by {\tt
-  HUNK\_HEADER}. All excess bytes are zero-initialized in all but early
-versions of AmigaDOS.
+  HUNK\_HEADER}. Excess bytes are zero-initialized in all AmigaDOS
+releases from v37 onwards.
 
 \subsection{HUNK\_BSS} \label{sec:hunk_bss}
 
@@ -6666,12 +6666,19 @@ The structure of this hunk is as follows:
 \begin{tabular}{|l|p{6cm}|p{6cm}|} \hline
 {\bf Size} & {\bf Code} & {\bf Syntax} \\ \hline \hline
    & \tt HUNK\_CODE [0x3eb] & A hunk describing zero-initialized data\\ \hline
-32 & \tt $l \le m_s[i]$ & Size of the payload\\ \hline
+32 & \tt $l \le m_s[i]$ & Size of the segment in long-words\\ \hline
 \end{tabular}
 \end{rkrmtabular}
 
 Note that this hunk does not contain any payload; the segment
 allocated from this hunk is always zero-initialized.
+\smallskip{}
+
+Due to a defect in AmigaDOS prior release v37, the BSS segment will not be
+completely initialized to zero if the segment size is larger than 256K,
+i.e. if $l > 2^{16}$. Also, these releases do not initialize long words
+beyond the $l^{\mbox{\tiny th}}$ long-word to zero, i.e. the excess bytes
+included if $l < m_s[i]$.
 
 \subsection{HUNK\_RELOC32} \label{sec:hunk_reloc32}
 
@@ -6704,6 +6711,12 @@ number of relocation entries, followed by the hunk index relative to
 which an address should be relocated. Then relocation entries follow;
 each long-word defines an offset into the previously loaded segment to
 relocate, that is, to fix up the address.
+\smallskip{}
+
+For AmigaDOS versions 37 and up (Kickstart 2.0 and later), the number of
+relocation entries~$c$ shall not be larger than $2^{16}$. This is a known
+defect of the loader that has currently not yet fixed. If more relocation
+entries are needed, they shall be split into multiple chunks.
 
 \subsection{HUNK\_RELOC32SHORT} \label{sec:hunk_reloc32short}
 
@@ -6742,14 +6755,19 @@ Due to an oversight, some versions of AmigaDOS do not understand the
 hunk type {\tt 0x3fc} not properly and use instead {\tt 0x3f7}. This
 alternative (but incorrect) hunk type for the short version of the
 relocation hunk is still supported currently.
+\smallskip{}
 
+For AmigaDOS versions 37 and up (Kickstart 2.0 and later), the number of
+relocation entries~$c$ shall not be larger than $2^{16}$. This is a known
+defect of the loader that has currently not yet fixed. If more relocation
+entries are needed, they shall be split into multiple chunks.
 
 \subsection{HUNK\_RELRELOC32} \label{sec:hunk_relreloc32}
 
-This hunk contains relocation information for 32-bit relative
-displacements the {\tt 68020} and later processors offer. Currently,
-there does not seem to be a compiler that is able to take advantage of
-this hunk. \mkey{HUNK\_RELRELOC32}
+This hunk contains relocation information for 32-bit relative displacements
+the {\tt 68020} and later processors offer. Its purpose is to adjust the
+offsets of a 32-bit wide PC-relative branches between
+segments. \mkey{HUNK\_RELRELOC32}
 \smallskip{}
 
 The structure of this hunk is as follows:
@@ -6769,6 +6787,18 @@ address of the selected hunk \\ \hline
    & \tt \} while(true); & until a zero-count is read. \\ \hline
 \end{tabular}
 \end{rkrmtabular}
+
+For AmigaDOS versions 37 and up (Kickstart 2.0 and later), the number of
+relocation entries~$c$ shall not be larger than $2^{16}$. This is a known
+defect of the loader that has currently not yet fixed. If more relocation
+entries are needed, they shall be split into multiple chunks.
+\smallskip{}
+
+Due to another defect, the $r_o$ entry, i.e. the relocation offset, is only
+read as a 16-bit displacement, which limits the usefulness of this hunk. It
+is therefore recommended not to depend on this hunk type at all and avoid
+32-bit wide branches between segments. Luckely, the support for this hunk
+type is very limited.
 
 \subsection{HUNK\_NAME} \label{sec:hunk_name}
 
@@ -6796,7 +6826,7 @@ number of long-words already, it is \emph{not} zero-terminated.
 \smallskip{}
 
 While the specification does not define a maximum size of the name,
-the AmigaDOS loader fails on names longer than 128 character, i.e. 32
+the AmigaDOS loader fails on names longer than 127 character, i.e. 31
 long-words.
 
 \subsection{HUNK\_SYMBOL} \label{sec:hunk_symbol}
@@ -6827,7 +6857,9 @@ The synax of this hunk reads as follows:
 The length of the symbol name is encoded in long-words, not in
 characters. If it does not fill an integer number of long-words, it is
 zero-padded; the name is not zero-terminated if it does fill an
-integer number of long-words, though.
+integer number of long-words, though. The AmigaDOS loader is currently
+limiting the maximum size of the symbol name to 127 characters,
+i.e. $s_i < 32$.
 \medskip{}
 
 The symbol type $s_t$ defines the nature of the symbol. The symbol
