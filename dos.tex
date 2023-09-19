@@ -7407,12 +7407,12 @@ The first bytes of the root node shall therefore form the following
 structure:
 \begin{verbatim}
 struct OverlayHeader {
-    UWORD         oh_Jump[2];      /* Forms a branch to the startup code */
-    LONG          oh_Magic;        /* Shall be 0x0000abcd                */
-    BPTR          oh_FileHandle;   /* Filled by the loader with the fh   */
-    struct OVTab *oh_OVTab;        /* Overlay table from HUNK_OVERLAY    */
-    BPTR          oh_Segments;     /* Array of segment BPTRs             */
-    BPTR          oh_GV;           /* standard Global Vector             */
+    UWORD         oh_Jump[2];   /* Forms a branch to the startup code */
+    LONG          oh_Magic;     /* Shall be 0x0000abcd                */
+    BPTR          oh_FileHandle;/* Filled by the loader with the fh   */
+    struct OVTab *oh_OVTab;     /* Overlay table from HUNK_OVERLAY    */
+    BPTR          oh_Segments;  /* Array of segment BPTRs             */
+    BPTR          oh_GV;        /* standard Global Vector             */
 };
 \end{verbatim}
 As said earlier, this structure is expected to be present at the start
@@ -7459,18 +7459,18 @@ symbols the position of the symbol within the overlay tree:
 \mkey{OVTab}
 \begin{verbatim}
 struct OVTab {
-    ULONG ot_TreeDepth;    /* Depth of the tree, including the root    */
-    ULONG ot_LoadedOrd[];  /* The loaded ordinate, indexed by level-1  */
+    ULONG ot_TreeDepth;   /* Depth of the tree, including the root    */
+    ULONG ot_LoadedOrd[]; /* The loaded ordinate, indexed by level-1  */
 }
 struct SymTab {
-    ULONG ot_FilePosition; /* File position of HUNK_HEADER of the node */
-    ULONG ot_Reserved[2];  /* Not in use                               */
-    ULONG ot_Level;        /* Level of the overlay node                */
-    ULONG ot_Ordinate;     /* Ordinate of the overlay node             */
-    ULONG ot_FirstHunk;    /* First segment of the overlay node        */
-    ULONG ot_SymbolHunk;   /* Segment containing the referenced symbol */
-    ULONG ot_SymbolOffset; /* Offset of the segment within the segment */
-} []                       /* For each symbol */
+    ULONG ot_FilePosition;/* File position of HUNK_HEADER of the node */
+    ULONG ot_Reserved[2]; /* Not in use                               */
+    ULONG ot_Level;       /* Level of the overlay node                */
+    ULONG ot_Ordinate;    /* Ordinate of the overlay node             */
+    ULONG ot_FirstHunk;   /* First segment of the overlay node        */
+    ULONG ot_SymbolHunk;  /* Segment containing the referenced symbol */
+    ULONG ot_SymbolOffset;/* Offset of the segment within the segment */
+} []                      /* Repeats for each symbol */
 \end{verbatim}
 That is, the overlay table starts with the tree depth $o_d$ and an
 array of $o_d-1$ elements where each element stores the ordinate of
@@ -8181,6 +8181,38 @@ resolved within the translation unit because the corresponding symbol is
 defined in another unit. The linker then combines multiple object codes,
 resolving all unreferenced symbol, and generates an executable binary file
 as output.
+\smallskip{}
+
+The overall structure of an object file is depicted in table~\ref{table:objfile}:
+\begin{rkrmtabular}{Object File Format} \label{table:objfile}
+\begin{longtable}{|l|p{6cm}|p{6cm}|} \hline
+{\bf Size} & {\bf Code} & {\bf Syntax} \\ \hline \hline
+? & \tt HUNK\_UNIT & Defines the start of a translation unit, see~\ref{sec:hunk_unit} \\ \hline
+  & \tt do \{ & Multiple segments follow \\ \hline
+32 & \tt $\quad$ $h_t$ & Read the next hunk type \\ \hline
+   & \tt $\quad$ if ($h_t$ == HUNK\_NAME) parse\_NAME & Assigns an name, and defines hunks to be merged, see~\ref{sec:hunk_name} \\ \hline
+   & \tt $\quad$ else if ($h_t$ == HUNK\_CODE) parse\_CODE & Code and constant data, see~\ref{sec:hunk_code} \\ \hline
+   & \tt $\quad$ else if ($h_t$ == HUNK\_DATA) parse\_DATA & Data, see~\ref{sec:hunk_data} \\ \hline
+   & \tt $\quad$ else if ($h_t$ == HUNK\_BSS) parse\_BSS & Zero-initialized data, see~\ref{sec:hunk_bss} \\ \hline
+   & \tt $\quad$ else do \{ & Loop over auxiliary information \\ \hline
+   & \tt $\quad\quad$ if ($h_t$ == HUNK\_RELOC32) parse\_RELOC32 & 32-bit relocation, see~\ref{sec:hunk_reloc32} \\ \hline
+   & \tt $\quad\quad$ else if ($h_t$ == HUNK\_RELOC32SHORT) parse\_RELOC32SHORT & 32-bit relocation, see~\ref{sec:hunk_reloc32short} \\ \hline
+   & \tt $\quad\quad$ else if ($h_t$ == HUNK\_RELRELOC32) parse\_RELRELOC32 & 32-bit PC-relative relocation, see~\ref{sec:hunk_relreloc32} \\ \hline
+   & \tt $\quad\quad$ else if ($h_t$ == HUNK\_RELOC16) parse\_RELOC16 & 16-bit PC-relative relocation, see~\ref{sec:hunk_reloc16} \\ \hline
+   & \tt $\quad\quad$ else if ($h_t$ == HUNK\_RELOC8) parse\_RELOC8 & 8-bit PC-relative relocation, see~\ref{sec:hunk_reloc16} \\ \hline
+   & \tt $\quad\quad$ else if ($h_t$ == HUNK\_DRELOC32) parse\_RELOC32 & 32-bit base-relative relocation, see~\ref{sec:hunk_dreloc32} \\ \hline
+   & \tt $\quad\quad$ else if ($h_t$ == HUNK\_DRELOC16) parse\_RELOC16 & 16-bit base-relative relocation, see~\ref{sec:hunk_dreloc16} \\ \hline
+   & \tt $\quad\quad$ else if ($h_t$ == HUNK\_DRELOC8) parse\_RELOC8 & 8-bit base-relative relocation, see~\ref{sec:hunk_dreloc8} \\ \hline
+   & \tt $\quad\quad$ else if ($h_t$ == HUNK\_EXT) parse\_EXT & External symbol definition, see~\ref{sec:hunk_ext} \\ \hline
+   & \tt $\quad\quad$ else if ($h_t$ == HUNK\_SYMBOL) parse\_SYMBOL & Symbol definition, see~\ref{sec:hunk_symbol} \\ \hline
+   & \tt $\quad\quad$ else if ($h_t$ == HUNK\_DEBUG) parse\_DEBUG & Debug information, see~\ref{sec:hunk_debug} \\ \hline
+   & \tt $\quad\quad$ else if ($h_t$ == HUNK\_END) break & abort this segment \\ \hline
+   & \tt $\quad\quad$ else ERROR\_INVALID\_HUNK & an error \\ \hline
+32 & \tt $\quad\quad$ $h_t$ & Read next hunk type \\ \hline
+   & \tt $\quad$ \} while(true) & Repeated until {\tt HUNK\_END} \\ \hline
+   & \tt \} while(!EOF) & Repeated with the next hunk until the file ends \\ \hline 
+\end{longtable}
+\end{rkrmtabular}
 
 \subsection{HUNK\_UNIT} \label{sec:hunk_unit}
 
