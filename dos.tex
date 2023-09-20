@@ -6631,7 +6631,8 @@ Note that the size of the payload loaded from the file may be less
 than the size of the allocated segment as defined in {\tt
   HUNK\_HEADER}. In such a case, all bytes of the segment not included
 in the {\tt HUNK\_CODE} are zero-initialized. AmigaDOS versions earlier than
-v37 skipped this initialization.
+v37 skipped this initialization. Due to a bug in the loader in later
+versions, the initialization is also skipped of the hunk length~$l$ is~$0$.
 
 \subsection{HUNK\_DATA} \label{sec:hunk_data}
 
@@ -6653,7 +6654,8 @@ l $\times$ 32 & \tt Code & $l$ long words of payload \\ \hline
 Similar to {\tt HUNK\_CODE}, the size of the payload defined by this
 hunk may be less than the size of the segment allocated by {\tt
   HUNK\_HEADER}. Excess bytes are zero-initialized in all AmigaDOS
-releases from v37 onwards.
+releases from v37 onwards. Due to a bug in the loader in later
+versions, the initialization is also skipped of the hunk length~$l$ is~$0$.
 
 \subsection{HUNK\_BSS} \label{sec:hunk_bss}
 
@@ -6752,15 +6754,9 @@ address of the selected hunk \\ \hline
 \end{rkrmtabular}
 
 Due to an oversight, some versions of AmigaDOS do not understand the
-hunk type {\tt 0x3fc} not properly and use instead {\tt 0x3f7}. This
+hunk type {\tt 0x3fc} properly and use instead {\tt 0x3f7}. This
 alternative (but incorrect) hunk type for the short version of the
 relocation hunk is still supported currently.
-\smallskip{}
-
-For AmigaDOS versions 37 and up (Kickstart 2.0 and later), the number of
-relocation entries~$c$ shall not be larger than $2^{16}$. This is a known
-defect of the loader that has currently not yet fixed. If more relocation
-entries are needed, they shall be split into multiple chunks.
 
 \subsection{HUNK\_RELRELOC32} \label{sec:hunk_relreloc32}
 
@@ -6826,7 +6822,7 @@ number of long-words already, it is \emph{not} zero-terminated.
 \smallskip{}
 
 While the specification does not define a maximum size of the name,
-the AmigaDOS loader fails on names longer than 127 character, i.e. 31
+the AmigaDOS loader fails on names longer than 124 character, i.e. 31
 long-words.
 
 \subsection{HUNK\_SYMBOL} \label{sec:hunk_symbol}
@@ -6858,7 +6854,7 @@ The length of the symbol name is encoded in long-words, not in
 characters. If it does not fill an integer number of long-words, it is
 zero-padded; the name is not zero-terminated if it does fill an
 integer number of long-words, though. The AmigaDOS loader is currently
-limiting the maximum size of the symbol name to 127 characters,
+limiting the maximum size of the symbol name to 124 characters,
 i.e. $s_i < 32$.
 \medskip{}
 
@@ -8172,7 +8168,7 @@ initializer in either case, and thus the above code may be used as
 universal ``BCPL kludge'' for both the shell and legacy handlers that
 depend on BCPL startup.
 
-\section{Object File Format}
+\section{Object File Format} \label{sec:objfile}
 
 Object files are intermediate output files of a compiler or assembler,
 generated from one translation unit, i.e. typically one source code
@@ -8187,13 +8183,15 @@ The overall structure of an object file is depicted in table~\ref{table:objfile}
 \begin{rkrmtabular}{Object File Format} \label{table:objfile}
 \begin{longtable}{|l|p{6cm}|p{6cm}|} \hline
 {\bf Size} & {\bf Code} & {\bf Syntax} \\ \hline \hline
-? & \tt HUNK\_UNIT & Defines the start of a translation unit, see~\ref{sec:hunk_unit} \\ \hline
-  & \tt do \{ & Multiple segments follow \\ \hline
-32 & \tt $\quad$ $h_t$ & Read the next hunk type \\ \hline
-   & \tt $\quad$ if ($h_t$ == HUNK\_NAME) parse\_NAME & Assigns an name, and defines hunks to be merged, see~\ref{sec:hunk_name} \\ \hline
-   & \tt $\quad$ else if ($h_t$ == HUNK\_CODE) parse\_CODE & Code and constant data, see~\ref{sec:hunk_code} \\ \hline
+?  & \tt HUNK\_UNIT & Defines the start of a translation unit, see~\ref{sec:hunk_unit} \\ \hline
+   & \tt do \{ & Multiple segments follow \\ \hline
+?  & \tt $\quad$ HUNK\_NAME & Name of the hunk, defines hunks to merge, see~\ref{sec:hunk_name} \\ \hline
+2  & \tt $\quad$ $m_t$ & Read the memory type of the next hunk \\ \hline
+30 & \tt $\quad$ $h_t$ & Read the next hunk type \\ \hline
+   & \tt $\quad$ if ($h_t$ == HUNK\_CODE) parse\_CODE & Code and constant data, see~\ref{sec:hunk_code} \\ \hline
    & \tt $\quad$ else if ($h_t$ == HUNK\_DATA) parse\_DATA & Data, see~\ref{sec:hunk_data} \\ \hline
    & \tt $\quad$ else if ($h_t$ == HUNK\_BSS) parse\_BSS & Zero-initialized data, see~\ref{sec:hunk_bss} \\ \hline
+   & \tt $\quad$ else if ($m_t$ != 0) ERROR\_BAD\_HUNK & Upper bits shall be 0 for all other hunks \\ \hline
    & \tt $\quad$ else do \{ & Loop over auxiliary information \\ \hline
    & \tt $\quad\quad$ if ($h_t$ == HUNK\_RELOC32) parse\_RELOC32 & 32-bit relocation, see~\ref{sec:hunk_reloc32} \\ \hline
    & \tt $\quad\quad$ else if ($h_t$ == HUNK\_RELOC32SHORT) parse\_RELOC32SHORT & 32-bit relocation, see~\ref{sec:hunk_reloc32short} \\ \hline
@@ -8408,7 +8406,7 @@ definitions, but also symbol references. The linker uses this hunk to
 resolve symbols with external linkage.\mkey{HUNK\_EXT}
 \smallskip{}
 
-The synax of this hunk reads as follows:
+The syntax of this hunk reads as follows:
 \begin{rkrmtabular}{Hunk EXT Syntax} \label{table:hunk_ext}
 \begin{longtable}{|l|p{6cm}|p{6cm}|} \hline
 {\bf Size} & {\bf Code} & {\bf Syntax} \\ \hline \hline
@@ -8435,9 +8433,7 @@ The synax of this hunk reads as follows:
 The length of the symbol name is encoded in long-words, not in
 characters. If it does not fill an integer number of long-words, it is
 zero-padded; the name is not zero-terminated if it does fill an
-integer number of long-words, though. The AmigaDOS loader is currently
-limiting the maximum size of the symbol name to 127 characters,
-i.e. $s_i < 32$.
+integer number of long-words, though.
 \medskip{}
 
 The symbol type $s_t$ defines the nature of the symbol. The symbol
@@ -8514,11 +8510,51 @@ from another translation unit.
 \smallskip{}
 
 Common symbols are symbols that are defined in multiple translation
-units. The size of the symbol required by the translation $s_c$. The
-linker then allocates space of a size that is determined by the maximum of
-all $s_c$ values found for the same symbol in all translation units. The
-symbol will then be created within a BSS segment by the linker without an
-explicit symbol definition.
+units. The size of the symbol required by the translation $s_c$. If no
+corresponding symbol definition is found, the linker then allocates space of
+a size that is determined by the maximum of all $s_c$ values found for the
+same symbol in all translation units. The symbol will then be created within
+a BSS segment by the linker without an explicit symbol definition. This
+mechanism is mostly used by FORTRAN and is therefore rarely used. It is
+likely that many linkers do not support such symbols.
+
+\section{Link Library File Format}
+
+Link Library files are collections of small compiled or assembled program
+sections that provide multiple commonly used symbols or functions. Unliky
+AmigaOs libraries, which are loaded dynamically at run time, link libraries
+resolve undefined symbols at link time; functions or symbols within them
+become a permanent part of the generated executable.
+\smallskip{}
+
+The \emph{amiga.lib} is a typical example for a link library. It contains
+functions such as {\tt CreateExtIO()}. While newer versions of the
+\emph{exec.library} contains with {\tt CreateIORequest()} a similar
+function, some manual work was required for creating an {\tt IORequest}
+structure in exec versions prior v37. To ease development, it was made
+available in a (static) library whose functions are merged with the compiled
+code.
+\smallskip{}
+
+Link libraries come in two forms: Old-style non-indexed libraries, and
+indexed libraries that are faster to process.
+
+\subsection{Non-indexed Link Libraries}
+
+Old-style or non-indexed link libraries are simply a concatenation of object
+files in the form presented in section~\ref{sec:objfile} and
+table~\ref{table:objfile}. Then, of course, one translation unit as
+introduced by {\tt HUNK\_UNIT} \ref{HUNK_UNIT} is not necessarily terminated
+by an {\tt EOF} as specified in table~\ref{table:objfile}, but possibly by
+the subsequent program unit, starting with another {\tt HUNK\_UNIT}.
+\smallskip{}
+
+Non-indexed link libraries do not require any tools beyond a compiler or
+assembler for buliding them. The AmigaDOS {\tt JOIN} command is sufficient
+to build them. The drawback of such libraries is that they are slow to
+process as the linker needs to scan the entire library to find a specific
+symbol.
+
 
 %%% For later.
 
