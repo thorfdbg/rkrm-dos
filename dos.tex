@@ -8212,6 +8212,15 @@ The overall structure of an object file is depicted in table~\ref{table:objfile}
 \end{longtable}
 \end{rkrmtabular}
 
+Since there is no {\tt HUNK\_HEADER}\key{HUNK\_HEADER} in object files, the
+memory attributes for the hunk are instead stored in the topmost two bits of
+the hunk type itself. Unlike in {\tt HUNK\_HEADER}, there is no documented
+way how to indicate a memory type beyond {\tt MEMF\_CHIP} and
+{\tt MEMF\_FAST}. As the interpretation of object files is up to the linker,
+a suggested implementation strategy is to set the topmost two bits and store
+the memory type in the following long-word, similar to how
+{\tt HUNK\_HEADER} expects it.
+
 \subsection{HUNK\_UNIT} \label{sec:hunk_unit}
 
 This hunk identifies a translation unit and provides it a unique name. This
@@ -8537,16 +8546,13 @@ code.
 \smallskip{}
 
 Link libraries come in two forms: Old-style non-indexed libraries, and
-indexed libraries that are faster to process.
-
-\subsection{Non-indexed Link Libraries}
-
-Old-style or non-indexed link libraries are simply a concatenation of object
-files in the form presented in section~\ref{sec:objfile} and
-table~\ref{table:objfile}. Then, of course, one translation unit as
-introduced by {\tt HUNK\_UNIT} \ref{HUNK_UNIT} is not necessarily terminated
-by an {\tt EOF} as specified in table~\ref{table:objfile}, but possibly by
-the subsequent program unit, starting with another {\tt HUNK\_UNIT}.
+indexed libraries that are faster to process. Old-style or non-indexed link
+libraries are simply a concatenation of object files in the form presented
+in section~\ref{sec:objfile} and table~\ref{table:objfile}. Then, of course,
+one translation unit as introduced by {\tt HUNK\_UNIT} \ref{HUNK_UNIT} is
+not necessarily terminated by an {\tt EOF} as specified in
+table~\ref{table:objfile}, but possibly by the subsequent program unit,
+starting with another {\tt HUNK\_UNIT}.
 \smallskip{}
 
 Non-indexed link libraries do not require any tools beyond a compiler or
@@ -8554,8 +8560,167 @@ assembler for buliding them. The AmigaDOS {\tt JOIN} command is sufficient
 to build them. The drawback of such libraries is that they are slow to
 process as the linker needs to scan the entire library to find a specific
 symbol.
+\medskip{}
 
+Indexed libraries are faster to parse as they contain a compressed index of
+all symbols defined in the library. It consists at its topmost level of two
+hunks: one containing the program units, and a symbol table with an index
+that are repeated until the end of the file.
+\smallskip{}
 
+The overall format of indexed libraries is depicted in
+table~\ref{table:indexedlib}.
+\begin{rkrmtabular}{Indexed Library} \label{table:indexedlib}
+\begin{tabular}{|l|p{6cm}|p{6cm}|} \hline
+{\bf Size} & {\bf Code} & {\bf Syntax} \\ \hline \hline
+   & \tt do \{ & Multiple repetitions of the following \\ \hline
+?  & \tt $\quad$ HUNK\_LIB [0x3fa] & Object code modules, see section~\ref{sec:hunk_lib} \\ \hline
+?  & \tt $\quad$ HUNK\_INDEX [0x3fb] & Indicies into {\tt HUNK\_LIB}, see section~\ref{sec:hunk_index} \\ \hline
+   & \tt \} while(!EOF) & Until the end of the file \\ \hline
+\end{tabular}
+\end{rkrmtabular}
+
+\subsection{HUNK\_LIB} \label{sec:hunk_lib}
+
+The {\tt HUNK\_LIB} hunk contains the actual playload in the form of
+multiple code, data or BSS hunks along with their relocation, symbol and
+debug information. It looks almost like the contents of a {\tt HUNK\_UNIT}
+hunk, with a couple of changes noted below.
+\smallskip{}
+
+Table~\ref{table:hunk_lib} depicts the syntax of this hunk.
+\begin{rkrmtabular}{Hunk LIB Format} \label{table:hunk_lib}
+\begin{longtable}{|l|p{6cm}|p{6cm}|} \hline
+{\bf Size} & {\bf Code} & {\bf Syntax} \\ \hline \hline
+?  & \tt HUNK\_LIB [0x3fa] & Identifies the start of an indexed library \\ \hline
+32 & \tt $l$ & Length of this hunk in long-words not including the header and this length field \\ \hline
+   & \tt do \{ & Multiple segments follow \\ \hline
+2  & \tt $\quad$ $m_t$ & Read the memory type of the next hunk \\ \hline
+30 & \tt $\quad$ $h_t$ & Read the next hunk type \\ \hline
+   & \tt $\quad$ if ($h_t$ == HUNK\_CODE) parse\_CODE & Code and constant data, see~\ref{sec:hunk_code} \\ \hline
+   & \tt $\quad$ else if ($h_t$ == HUNK\_DATA) parse\_DATA & Data, see~\ref{sec:hunk_data} \\ \hline
+   & \tt $\quad$ else if ($h_t$ == HUNK\_BSS) parse\_BSS & Zero-initialized data, see~\ref{sec:hunk_bss} \\ \hline
+   & \tt $\quad$ else if ($m_t$ != 0) ERROR\_BAD\_HUNK & Upper bits shall be 0 for all other hunks \\ \hline
+   & \tt $\quad$ else do \{ & Loop over auxiliary information \\ \hline
+   & \tt $\quad\quad$ if ($h_t$ == HUNK\_RELOC32) parse\_RELOC32 & 32-bit relocation, see~\ref{sec:hunk_reloc32} \\ \hline
+   & \tt $\quad\quad$ else if ($h_t$ == HUNK\_RELOC32SHORT) parse\_RELOC32SHORT & 32-bit relocation, see~\ref{sec:hunk_reloc32short} \\ \hline
+   & \tt $\quad\quad$ else if ($h_t$ == HUNK\_RELRELOC32) parse\_RELRELOC32 & 32-bit PC-relative relocation, see~\ref{sec:hunk_relreloc32} \\ \hline
+   & \tt $\quad\quad$ else if ($h_t$ == HUNK\_RELOC16) parse\_RELOC16 & 16-bit PC-relative relocation, see~\ref{sec:hunk_reloc16} \\ \hline
+   & \tt $\quad\quad$ else if ($h_t$ == HUNK\_RELOC8) parse\_RELOC8 & 8-bit PC-relative relocation, see~\ref{sec:hunk_reloc16} \\ \hline
+   & \tt $\quad\quad$ else if ($h_t$ == HUNK\_DRELOC32) parse\_RELOC32 & 32-bit base-relative relocation, see~\ref{sec:hunk_dreloc32} \\ \hline
+   & \tt $\quad\quad$ else if ($h_t$ == HUNK\_DRELOC16) parse\_RELOC16 & 16-bit base-relative relocation, see~\ref{sec:hunk_dreloc16} \\ \hline
+   & \tt $\quad\quad$ else if ($h_t$ == HUNK\_DRELOC8) parse\_RELOC8 & 8-bit base-relative relocation, see~\ref{sec:hunk_dreloc8} \\ \hline
+   & \tt $\quad\quad$ else if ($h_t$ == HUNK\_EXT) parse\_EXT & External symbol definition, see~\ref{sec:hunk_ext} \\ \hline
+   & \tt $\quad\quad$ else if ($h_t$ == HUNK\_SYMBOL) parse\_SYMBOL & Symbol definition, see~\ref{sec:hunk_symbol} \\ \hline
+   & \tt $\quad\quad$ else if ($h_t$ == HUNK\_DEBUG) parse\_DEBUG & Debug information, see~\ref{sec:hunk_debug} \\ \hline
+   & \tt $\quad\quad$ else if ($h_t$ == HUNK\_END) break & abort this segment \\ \hline
+   & \tt $\quad\quad$ else ERROR\_INVALID\_HUNK & an error \\ \hline
+32 & \tt $\quad\quad$ $h_t$ & Read next hunk type \\ \hline
+   & \tt $\quad$ \} while(true) & Repeated until {\tt HUNK\_END} \\ \hline
+   & \tt \} while(!EOF) & Repeated with the next hunk until the file ends \\ \hline 
+\end{longtable}
+\end{rkrmtabular}
+
+Additional restrictions arise for the {\tt HUNK\_EXT}\key{HUNK\_EXT}
+hunk; as symbol definitions are included in the {\tt HUNK\_INDEX}\key{HUNK\_INDEX} hunk,
+they shall be removed from this hunk; the corresponding symbol typtes to be removed are listed in
+table~\ref{table:symboltypes}. Unlike symbol definitions, symbol references
+as given by table~\ref{table:extsymboltypes} shall be retained as only the
+reference, but not the type of the reference is included in {\tt HUNK\_INDEX}.
+\smallskip{}
+
+The translation unit name and the hunk names shall also stripped,
+i.e. neither {\tt HUNK\_UNIT} nor {\tt HUNK\_NAME} shall be included in
+{\tt HUNK\_LIB}. The corresponding names are also defined in
+{\tt HUNK\_INDEX} by means of the string table included there.
+\smallskip{}
+
+Due to restrictions of {\tt HUNK\_INDEX}, the size of a {\tt HUNK\_LIB}
+shall not exceed $2^16$ long-words and shall be split over multiple
+{\tt HUNK\_LIB}, {\tt HUNK\_INDEX} pairs otherwise.
+
+\subsection{HUNK\_INDEX}
+
+The {\tt HUNK\_INDEX} hunk contains a string table and indices into the
+preceeding {\tt HUNK\_LIB}.
+
+Table~\ref{table:hunk_index} depicts the syntax of this hunk.
+\begin{rkrmtabular}{Hunk Index Format} \label{table:hunk_index}
+\begin{longtable}{|l|p{6cm}|p{6cm}|} \hline
+{\bf Size} & {\bf Code} & {\bf Syntax} \\ \hline \hline
+32 & \tt HUNK\_INDEX [0x3fb] & Defines symbols and references into the library \\ \hline
+32 & \tt $l$   & Length of this hunk in long-words \\ \hline
+16 & \tt $s_l$ & Length of the string table in {\bf bytes} \\ \hline 
+   & \tt do \{ & Repeat over the strings \\ \hline
+?  & \tt $\quad$ $s_y[i]$ & A {\tt NUL}-terminated (C-style) string \\ \hline
+   & \tt $\quad$ $s_l$ -= strlen($s_y[i]$)+1 & Remove from the length of the symbol table \\ \hline
+   & \tt \} while($s_l > 0$) & Repeat until all $s_l$ bytes are parsed \\ \hline
+   & \tt do \{ & Loop over translation units \\ \hline
+16 & \tt $\quad$ $u_o$ & Byte offset of the unit name into the string table \\ \hline
+16 & \tt $\quad$ $h_o$ & Long-word offset of the first hunk of the unit within {\tt HUNK\_LIB} \\ \hline 
+16 & \tt $\quad$ $h_c$ & Number of hunks within the unit \\ \hline
+   & \tt $\quad$ for($j$=0;$j$<$h_c$;$j$++) \{ & Loop over all hunks \\ \hline
+16 & \tt $\quad\quad$ $h_n$ & Byte offset of the hunk name into the string table \\ \hline 
+2  & \tt $\quad\quad$ $m_t$ & Memory type of the hunk \\ \hline
+14 & \tt $\quad\quad$ $h_t$ & (Shortened) hunk type \\ \hline
+16 & \tt $\quad\quad$ $x_c$ & Number of references in the hunk \\ \hline
+   & \tt $\quad\quad$ for($k$=0;$k$<$x_c$;$k$++) \{ & Loop over references \\ \hline
+16 & \tt $\quad\quad\quad$ $x_n$ & Byte offset of the reference name into the string table \\ \hline
+   & \tt $\quad\quad$ \} & \\ \hline
+16 & \tt $\quad\quad$ $d_c$ & Number of definitions in the hunk \\ \hline
+   & \tt $\quad\quad$ for($k$=0;$k$<$d_c$;$k$++) \{ & Loop over definitions \\ \hline 
+16 & \tt $\quad\quad\quad$ $d_n$ & Byte offset of the defined name into the string table \\ \hline   
+16 & \tt $\quad\quad\quad$ $d_o$ & Byte offset into the hunk or absolute value \\ \hline
+ 8 & \tt $\quad\quad\quad$ $a_u$ & Bits 23-16 of {\tt EXT\_ABS} definition \\ \hline 
+ 1 & \tt $\quad\quad\quad$ 0     & This bit shall be $0$ to identify a definition \\ \hline
+ 1 & \tt $\quad\quad\quad$ $a_s$ & Sign bit and bits 30 to 24 of an {\tt EXT\_ABS} definition \\ \hline
+ 6 & \tt $\quad\quad\quad$ $d_t$ & Type of the definition from table~\ref{table:symboltypes} \\ \hline 
+   & \tt $\quad\quad$ \} & \\ \hline
+   & \tt $\quad$ \} & \\ \hline
+   & \tt \} while(!end) & Repeated until the end of hunk is found \\ \hline
+\end{longtable}
+\end{rkrmtabular}
+
+The initial part, the string table, contains all strings that can be used by
+the rest of the hunk. Strings within this table are indexed as byte offset
+from the start of the string, i.e. the first string has offset~$0$. To
+enable unnamed hunks, the first entry in a string table shall be the empty
+string, that is, an isolated $0$-byte.
+\smallskip{}
+
+The rest of {\tt HUNK\_INDEX} contains the offsets into the hunks along with
+symbols referenced and defined within them. The memory type of the hunk is
+again expressed in two bits. The current specification does not define the
+meaning of both bits set. The hunk type itself is abbreviated, i.e. only the
+lower 14 bits of the hunk type are stored.
+\smallskip{}
+
+The first part of the subsequent data defines references, that is, symbols
+that are used but not defined within the hunk. The $x_n$ values define the
+names of these symbols as offsets from the start of the string table. These
+names correspond to symbol types defined in
+table~\ref{table:extsymboltypes}. The precise reference type of the symbols is
+then found in an {\tt HUNK\_EXT} hunk as part of the preceeding
+{\tt HUNK\_LIB} hunk.
+\smallskip{}
+
+Unlike symbol references, symbol definitions are stored directly in the {\tt
+  HUNK\_INDEX} hunk. While $d_n$ identifies the name of the symbol as offset
+into the string table, the $d_o$ value is either the offset of the defined
+symbol within the hunk, or the least significant 16 bits of an {\tt
+  EXT\_ABS} definition. As some absolute values can exceed 16 bits, $a_o$
+stores bits 23 to 16 of the symbol value, and bit $a_s$ is copied into bits
+31 to 24 of the symbol to enable negative values. The type of the symbol
+definition is $d_t$, which shall be a value from
+table~\ref{table:symboltypes}.
+\smallskip{}
+
+As seen from this definition, symbols can only be defined within the first
+64K of a hunk. This is typically not a problem as link libraries typically
+contain short service functions. For absolute values, larger values are
+required, e.g. for the base address of the custom chips, and thus split
+into $a_s$, $a_o$ and $d_o$.
+ 
 %%% For later.
 
 \section{Miscellaneous Functions}
