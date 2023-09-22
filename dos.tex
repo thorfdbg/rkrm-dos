@@ -6562,7 +6562,7 @@ segment.
 2  & \tt $\quad$ $m_t[i]$ & Read memory type of the segment as 2 bits \\ \hline
 30 & \tt $\quad$ $m_s[i]$ & Read memory size in long words as 30 bits \\ \hline
  & \tt $\quad$ if ($m[i]$ == 3) \{ & if the memory type is $3$ \\ \hline
-32 & $\quad \quad m_s[i]$ & Memory type is explicitly provided \\ \hline
+32 & $\quad \quad m_t[i]$ & Memory type is explicitly provided \\ \hline
  & \tt $\quad$ \tt \} & End of special memory condition \\ \hline
  & \tt $\quad$ $m_a[i]$ = AllocVec(sizeof(BPTR) + $m_s[i] \times$ sizeof(LONG),$m_t[i] | $ \mbox{MEMF\_PUBLIC}) + sizeof(BPTR) &
 Get memory for segment \\ \hline
@@ -6573,7 +6573,7 @@ Get memory for segment \\ \hline
 The first member of a {\tt HUNK\_HEADER} shall always be $0$; it was
 used by a legacy mechanism which allowed run-time binding of the
 executable with dynamic libraries. While first versions of AmigaDOS
-inherited this mechanism from TRIPOS, but it was not particularly useful
+inherited this mechanism from TRIPOS, it was not particularly useful
 as the calling conventions for such libraries did not follow the usual
 conventions of AmigaDOS, i.e. with the library base in register {\tt
   a6}. Later versions of AmigaDOS, in particular its re-implementation
@@ -6790,9 +6790,9 @@ defect of the loader that has currently not yet fixed. If more relocation
 entries are needed, they shall be split into multiple chunks.
 \smallskip{}
 
-Due to another defect, the $r_o$ entry, i.e. the relocation offset, is only
-read as a 16-bit displacement, which limits the usefulness of this hunk. It
-is therefore recommended not to depend on this hunk type at all and avoid
+Due to another defect, all elements of this hunk, namely $c$, $r_o$, $j$ and
+$r_o$ are only 16 bit wide, which limits the usefulness of this hunk. It is
+therefore recommended not to depend on this hunk type at all and avoid
 32-bit wide branches between segments. Luckely, the support for this hunk
 type is very limited.
 
@@ -6924,7 +6924,7 @@ The syntax of this hunk is as follows:
    & HUNK\_DEBUG [0x3f1] & Hunk including debug information \\ \hline
 32 & l > 3 & Size of the hunk in long-words \\ \hline
 \multicolumn{3}{|l|}{Compiler- and configuration specific data for line-debug data:} \\ \hline
-32 & \tt $0$ & This field shall be zero \\ \hline
+32 & \tt $h_o$ & Offset of symbols into the hunk \\ \hline
 32 & \tt 'LINE' & These four bytes shall contain the
 ASCII characters {\tt 'L','I','N','E'} identifying the type of the
 debug information \\ \hline
@@ -6947,6 +6947,16 @@ The file name $n_f$ is encoded in $l_n$ long-words, and potentially
 padded with $0$-bytes to fill an integer number of long-words. If it
 already is an integer number of long-words sized, it is \emph{not}
 zero-terminated.
+\smallskip{}
+
+The hunk offset $h_o$ is added to all offsets $l_v$ into the hunk to
+determine the position of a symbol in the hunk.
+\smallskip{}
+
+While~\cite{Bantam} documents the entire hunk contents except the hunk
+length~$l$ to be compiler dependent, it is is recommended for custom
+debug hunks to always include the hunk offset $h_o$ and the ID field ---
+{\tt 'LINE'} in this case --- to simplify linker designs.
 
 \subsection{HUNK\_END} \label{sec:hunk_end}
 
@@ -7636,8 +7646,8 @@ perform potentially different algorithms.
 First, it finds the previous segment upfront the segment to be
 unloaded, and cleans there the {\tt NextSegment} pointer to unlink all
 following segments.  Then these following segments are released
-through {\tt FreeVec()} or whatever memory release function is
-appropriate.
+through {\tt FreeVec()} or, in case a custom allocator was provided for
+{\tt InternalLoadSeg()}, whatever memory release function is appropriate.
 \smallskip{}
 
 The following sample code releases the overlay node starting at
@@ -7923,12 +7933,12 @@ ol_DOSBase:     dc.l 0                  ;to libraries
 NextModule:
                                         ;why safe registers ?
         move.l a0,a2
-        move.l d0,d2                    ;keep arguments (BCPL stuff is not kept)
+        move.l d0,d2                    ;keep arguments
         lea ol_SysBase(pc),a3
         move.l ExecBase,a6
         move.l a6,(a3)                  ;fill in Sysbase
         lea DOSName(pc),a1              ;get name of DOS
-        moveq #33,d0                    ;at least 1.2 MUST be used (no support of antique stuff)
+        moveq #33,d0                    ;at least 1.2 MUST be used
         jsr OpenLibrary(a6)
         move.l d0,4(a3)                 ;Save back DOS base for loader
         beq.s .nodosexit                ;exit if no DOS here
@@ -8110,13 +8120,13 @@ CodeHeader:     DC.L    (CodeEnd-CodeHeader)/4
 *               C Startup function, called for GlobVec=-1 or -3
 *               see text below why this works
 CStart:         sub.l   a0,a0           ; no startup message
-                bsr.w   @main           ; need to GetMsg() manually in main
+                bsr.w   @main           ; need to GetMsg() in main
                 rts
 
                 CNOP    0,4
 
 *               BCPL startup function, called for GlobVec=0 or -2
-BCPLStart:      movem.l a0-a6,-(a7)     ; save all these, BCPL uses them
+BCPLStart:      movem.l a0-a6,-(a7)     ; save for BCPL use
                 lsl.l   #2,d1           ; get startup packet
                 move.l  d1,a0           ; move to a0
                 bsr.w   @main           ; get the ball rolling
@@ -8126,9 +8136,9 @@ BCPLStart:      movem.l a0-a6,-(a7)     ; save all these, BCPL uses them
 BCPLTable:      CNOP    0,4
 
                 DC.L    0               ; End of global list
-                DC.L    G_CLISTART,BCPLStart-CodeHeader ;only for the shell
+                DC.L    G_CLISTART,BCPLStart-CodeHeader ;for the shell
                 DC.L    G_START,BCPLStart-CodeHeader
-                DC.L    G_GLOBMAX       ; max global used (standard value)
+                DC.L    G_GLOBMAX       ; max global used (default)
 CodeEnd:
 \end{verbatim}
 
@@ -8226,7 +8236,8 @@ the memory type in the following long-word, similar to how
 This hunk identifies a translation unit and provides it a unique name. This
 hunk shall be the first hunk of an object file. A translation unit typically
 refers to one source code file that has been processed by the compiler or
-assembler. Typically, the name of the unit is ignored. \mkey{HUNK\_UNIT}
+assembler. Typically, the name of the unit is ignored by
+linkers. \mkey{HUNK\_UNIT}
 \smallskip{}
 
 The structure of this hunk is as follows:
@@ -8256,7 +8267,7 @@ section~\ref{sec:hunk_relreloc32} and
 table~\ref{table:hunk_relreloc32}.\mkey{HUNK\_RELOC16}. Relocation offsets
 are therefore 32 bits long, though the elements to relocate at offset $r_o$
 within the segment are only 16 bits in size, and refer to PC-relative
-addressing modes, such as branches.
+addressing modes, including PC-relative 16-bit wide branches.
 
 \begin{rkrmtabular}{Hunk Reloc16 Syntax} \label{table:hunk_reloc16}
 \begin{tabular}{|l|p{6cm}|p{6cm}|} \hline
@@ -8270,17 +8281,17 @@ This restricts possible displacements to 16 bits, and thus the segment
 containing the 16-bit value to be relocated and the segment the hunk is
 relative to shall be linked together to form a single segment in the final
 output. In the notation of section~\ref{table:hunk_relreloc32}, the segments
-$i$ and $j$ shall thus be merged, and for that shall have the same names as
-assigned by {\tt HUNK\_NAME}\key{HUNK\_NAME}.
+$i$ and $j$ shall thus be merged. To make this happen, their names as
+provided by {\tt HUNK\_NAME}\key{HUNK\_NAME} shall be identical.
 \smallskip{}
 
 However, it may still happen that the joined segment generated by merging
-two or more segments together is too long to allow $16$ displacements. In
-such a case, the relocation can obviously not performed. In such a case,
+two or more segments together is too long to allow 16-bit displacements. In
+such a case, the relocation can obviously not performed. Then
 linkers either abort with a failure, or generate an \emph{automatic link
 vector}\mkey{Automatic Link Vector (ALV)}. The PC-relative branch or jump to
 an out-of-range target symbol is then replaced by the linker with a branch
-or jump to an intermediate ``automatic'' vector, which then performs a
+or jump to an intermediate ``automatic'' vector that performs a
 32-bit absolute jump to the intended target.
 \smallskip{}
 
@@ -8337,12 +8348,13 @@ elements in the \emph{small data model}\mkey{Small data model}.
 \smallskip{}
 
 The format of this hunk is identical to {\tt
-  HUNK\_RELOC32}\key{HUNK\_RELOC32}, see
-section~\ref{sec:hunk_reloc32} and table~\ref{table:hunk_reloc32},
-where each 32-bit wide relocation offset $r_o$ points to a long-word within
-the preceeding data or BSS hunk. The long-word at this offset is then
-adjusted by the position of the first byte of this hunk relative to the
-start of the {\tt \_\_MERGED} hunk into which this hunk is merged.
+  HUNK\_RELOC32}\key{HUNK\_RELOC32}, see section~\ref{sec:hunk_reloc32} and
+table~\ref{table:hunk_reloc32}, where each 32-bit wide relocation offset
+$r_o$ points to a long-word within the preceeding data or BSS hunk. The
+long-word at this offset is then adjusted by the position of the first byte
+of this hunk relative to the start of the target {\tt \_\_MERGED} hunk into
+which this hunk is merged; in some cases, linkers can include an additional
+adjustment, see the next paragraph for details.
 
 \begin{rkrmtabular}{Hunk DReloc32 Syntax} \label{table:hunk_dreloc32}
 \begin{tabular}{|l|p{6cm}|p{6cm}|} \hline
@@ -8358,7 +8370,9 @@ assemblers when implementing the \emph{small data model}\key{Small Data
 base register. Typically, register {\tt a4} is used for this purpose, and it
 is loaded by the compiler startup code to point either to the start of the
 {\tt \_\_MERGED} hunk, or 32K into the hunk such that both negative and
-positive offsets relative to {\tt a4} can be used. The name \emph{small data
+positive offsets relative to {\tt a4} can be used. In the latter case,
+linkers need to subtract an additional 32K displacement from the $r_o$
+offsets when performing relocation. The name \emph{small data
 model} stems for the limitation to 64K of data as the 68000 uses only 16-bit
 for base-relative addressing.
 
@@ -8374,7 +8388,7 @@ section~\ref{sec:hunk_reloc32} and table~\ref{table:hunk_reloc32},
 where each 32-bit wide relocation offset $r_o$ points to a 16-bit word
 within the preceeding data or BSS segment. The word at this offset is then
 adjusted by the position of the first byte of this hunk relative to the
-start of the {\tt \_\_MERGED} hunk into which this hunk is merged.
+start of the {\tt \_\_MERGED} hunk into which this hunk is merged. 
 
 \begin{rkrmtabular}{Hunk DReloc16 Syntax} \label{table:hunk_dreloc16}
 \begin{tabular}{|l|p{6cm}|p{6cm}|} \hline
@@ -8383,6 +8397,14 @@ start of the {\tt \_\_MERGED} hunk into which this hunk is merged.
    & \tt \ldots & See table~\ref{table:hunk_reloc32} \\ \hline
 \end{tabular}
 \end{rkrmtabular}
+
+Similar to the comments made in section~\ref{sec:hunk_dreloc32}, this hunk
+is typically used to resolve symbols that are reached relative through a
+base register, e.g {\tt a4}. As base-relative addressing is restricted to
+16-bit displacements for the 68000, linkers typically adjust the base
+register to point 32K into the {\_\_MERGED} hunk if this hunk exceeds 32K in
+size. In such a case, they need to include an additional negative offset of
+-32K in $r_0$ when performing relocation.
 
 \subsection{HUNK\_DRELOC8} \label{sec:hunk_dreloc8}
 
@@ -8524,8 +8546,8 @@ corresponding symbol definition is found, the linker then allocates space of
 a size that is determined by the maximum of all $s_c$ values found for the
 same symbol in all translation units. The symbol will then be created within
 a BSS segment by the linker without an explicit symbol definition. This
-mechanism is mostly used by FORTRAN and is therefore rarely used. It is
-likely that many linkers do not support such symbols.
+mechanism is mostly used by FORTRAN and is therefore rarely used. SAS/C can
+also be configured to emit common symbols as well.
 
 \section{Link Library File Format}
 
@@ -8636,7 +8658,7 @@ i.e. neither {\tt HUNK\_UNIT} nor {\tt HUNK\_NAME} shall be included in
 \smallskip{}
 
 Due to restrictions of {\tt HUNK\_INDEX}, the size of a {\tt HUNK\_LIB}
-shall not exceed $2^16$ long-words and shall be split over multiple
+shall not exceed $2^{16}$ long-words and shall be split over multiple
 {\tt HUNK\_LIB}, {\tt HUNK\_INDEX} pairs otherwise.
 
 \subsection{HUNK\_INDEX}
