@@ -1314,7 +1314,7 @@ read or written in smaller units.
   {\tt SetVBuf()}\key{SetVBuf()}. A suggested buffer size is 4096 bytes
   which corresponds to a disk block of modern hard drives.}
 
-\subsection{Buffered Read}
+\subsection{Buffered Read From a File}
 
 The {\tt FRead()}\mkey{FRead()} function reads multiple equally-sized
 records from a file through a buffer, and returns the number of
@@ -1348,7 +1348,7 @@ function, and then use {\tt IoErr()} to learn if any error occured if
 the number of records read is smaller than the number of records
 requested.
 
-\subsection{Buffered Write}
+\subsection{Buffered Write to a File}
 
 The {\tt FWrite()}\mkey{FWrite()} function writes multiple equally-sized
 records to a file through a buffer, and returns the number of
@@ -1383,6 +1383,15 @@ instead use {\tt SetIoErr(0)} to clear the error state before calling
 this function, and then use {\tt IoErr()} to learn if any error
 occured if the number of records written is smaller than the number of
 records passed in.
+
+\subsection{Buffered Write to the Output Stream}
+% TODO
+\begin{verbatim}
+count = WriteChars(buf, buflen)
+D0                 D1
+
+LONG WriteChars(STRPTR, LONG)
+\end{verbatim}
 
 \subsection{Adjusting the Buffer}
 
@@ -1534,6 +1543,16 @@ for implicit buffer flushes.
 This function returns $0$ on success, or {\tt ENDSTREAMCH} on an
 error. The latter constant is defined in {\tt dos/stdio.h} and equals
 to $-1$.
+
+\subsection{Print a String to the Output Stream}
+%TODO
+
+\begin{verbatim}
+error = PutStr(str)
+D0             D1
+
+LONG PutStr(STRPTR)
+\end{verbatim}
 
 \subsection{Read a Character from a File}
 
@@ -1859,7 +1878,7 @@ This is only necessary if the first access to the file is an
 The functions in this section print strings formatted to a file. Both
 files use the internal buffer of the \emph{file handle}.
 
-\subsection{Print Formatted String using C-Syntax}
+\subsection{Print Formatted String using C-Syntax to a File}
 
 The {\tt VFPrintf()}\mkey{VFPrintf()} function prints multiple
 datatypes using a format string that closely reessembles the syntax of
@@ -1899,6 +1918,20 @@ As {\tt RawDoFmt()}\key{RawDoFmt()} is also patched by the
 The result {\tt count} delivers the number of characters written to
 the file, or $-1$ for an error. In the latter case,
 {\tt IoErr}\key{IoErr()} provides an error code.
+
+\subsection{Print Formatted String using C-Syntax to the Output String}
+% TOOD
+
+\begin{verbatim}
+count = VPrintf(fmt, argv)
+D0              D1   D2
+
+LONG VPrintf(STRPTR, LONG *)
+
+count = Printf(fmt, ...)
+
+LONG Printf(STRPTR, ...)
+\end{verbatim}
 
 \subsection{BCPL Style Formatted Print to a File}
 
@@ -2230,6 +2263,16 @@ and callers cannot depend on its value. Furthermore, the function does
 not compare a {\tt ZERO} lock with lock on the boot volume, e.g {\tt
   SYS:} as identical. It is recommended not to pass in the {\tt ZERO}
 lock for either {\tt lock1} or {\tt lock2}.
+
+\subsection{Compare to Locks for the Device}
+% TODO
+
+\begin{verbatim}
+same = SameDevice(lock1, lock2)
+D0		   D1     D2
+
+BOOL SameDevice( BPTR, BPTR )
+\end{verbatim}
 
 \section{Locks and Files}
 
@@ -3008,6 +3051,16 @@ This function returns non-zero on success and $0$ on error. In either
 case, the function sets {\tt IoErr()}\key{IoErr()} to $0$ on success
 or to an error code otherwise.
 
+\subsection{Seting Protection Bits} 
+% TODO
+
+\begin{verbatim}
+success = SetProtection( name, mask )
+D0			 D1    D2
+
+BOOL SetProtection (STRPTR, LONG)
+\end{verbatim}
+
 \subsection{Set the Modification Date} \label{sec:setfiledate}
 
 The {\tt SetFileDate()}\mkey{SetFileDate()} function sets the
@@ -3120,6 +3173,17 @@ requested. The {\tt ZERO} lock is correctly interpreted, and resolves
 into the string {\tt SYS:}. The {\tt lock} remains valid after the
 call.
 
+\subsection{Find the Path from a File Handle}
+
+% TODO
+
+\begin{verbatim}
+success = NameFromFH(fh, buffer, len)
+D0                   D1    D2    D3
+
+BOOL NameFromFH(BPTR, STRPTR, LONG)
+\end{verbatim}
+
 \subsection{Append a Component to a Path}
 
 The {\tt AddPart()}\mkey{AddPart()} adds an absolute or relative path
@@ -3212,6 +3276,15 @@ return a pointer to this slash, but {\tt FilePart()} would advance
 beyond this slash. That is, the ``file part'' of a path that
 explicitly indicates a directory is empty, though the ``path part'' is
 the same path without the trailing slash.
+
+\subsection{Extract a Component From a Path}
+%TODO
+\begin{verbatim}
+newpos = SplitName(name, separator, buf, oldpos, size)
+D0                  D1      D2      D3     D4     D5
+
+WORD SplitName(STRPTR, UBYTE, STRPTR, WORD, LONG)
+\end{verbatim}
 
 \section{Links} \label{sec:links}
 
@@ -3432,6 +3505,110 @@ The function returns non-zero in case of success, or $0$ in case of
 error. In either case, {\tt IoErr()}\key{IoErr()} is set to ether $0$
 on succes, or an error code otherwise.
 
+\chapter{File System Support Functions} \label{sec:filesysmisc}
+
+% TODO
+
+\subsection{Adjusting File System Buffers}
+
+\begin{verbatim}
+success = AddBuffers(filesystem, number)
+D0		       D1          D2
+
+BOOL AddBuffers(STRPTR, LONG)
+\end{verbatim}
+
+\subsection{Get Information on the State of the Medium}
+
+\begin{verbatim}
+success = Info( lock, parameterBlock )
+D0		D1    D2
+
+BOOL Info(BPTR, struct InfoData *)
+\end{verbatim}
+
+\subsection{Inhibiting a File System}
+
+\begin{verbatim}
+success = Inhibit(filesystem, flag)
+D0                    D1       D2
+
+BOOL Inhibit(STRPTR,LONG)
+\end{verbatim}
+
+\subsection{Change the Name of a Volume}
+
+\begin{verbatim}
+success = Relabel(volumename,name)
+D0                    D1      D2
+
+BOOL Relabel(STRPTR,STRPTR)
+\end{verbatim}
+
+\subsection{Initializing a File System}
+
+\begin{verbatim}
+success = Format(filesystem, volumename, dostype)
+D0                   D1          D2         D3
+
+BOOL Format(STRPTR, STRPTR, ULONG)
+\end{verbatim}
+
+\subsection{Request Notification on File or Directory Changes}
+%TODO
+\begin{verbatim}
+success = StartNotify(notifystructure)
+D0                          D1
+
+BOOL StartNotify(struct NotifyRequest *)
+\end{verbatim}
+
+\subsection{Canceling a Notification Request}
+%TODO
+\begin{verbatim}
+EndNotify(notifystructure)
+		D1
+
+void EndNotify(struct NotifyRequest *)
+\end{verbatim}
+
+\subsection{Locking a Portion of a File}
+
+\begin{verbatim}
+success = LockRecord(fh,offset,length,mode,timeout)
+D0                   D1   D2     D3    D4    D5
+
+BOOL LockRecord(BPTR,ULONG,ULONG,ULONG,ULONG)
+\end{verbatim}
+
+\subsection{Unlocking a Portion of a File}
+
+\begin{verbatim}
+success = UnLockRecord(fh,offset,length)
+D0		       D1   D2     D3
+
+BOOL UnLockRecord(BPTR,ULONG,ULONG)
+\end{verbatim}
+
+\subsection{Locking Multiple Portions of a File}
+
+\begin{verbatim}
+success = LockRecords(record_array,timeout)
+D0                       D1           D2
+
+BOOL LockRecords(struct RecordLock *,ULONG)
+\end{verbatim}
+
+\subsection{Unlocking Multiple Records of a File}
+
+\begin{verbatim}
+success = UnLockRecords(record_array)
+D0		             D1
+
+BOOL UnLockRecords(struct RecordLock *)
+\end{verbatim}
+
+  
 \chapter{Administration of Volumes, Devices and Assigns} \label{sec:devicelist}
 
 The \emph{dos.library} is just a layer of AmigaDOS that provides a
@@ -6355,6 +6532,45 @@ function is the setter equivalent of {\tt
   GetFileSysTask()}\key{GetFileSysTask()} introduced in
 section~\ref{sec:getfilesystask}.
 
+\subsection{Retrieve the Lock to the Program Directory}
+% TODO
+
+\begin{verbatim}
+lock = GetProgramDir()
+D0
+
+BPTR GetProgramDir(void)
+\end{verbatim}
+
+\subsection{Set the Program Directory}
+% TODO
+\begin{verbatim}
+oldlock = SetProgramDir(lock)
+D0		         D1
+
+BPTR SetProgramDir(BPTR)
+\end{verbatim}
+
+\subsection{Retrieve Command Line Arguments}
+% TODO
+
+\begin{verbatim}
+ptr = GetArgStr()
+D0
+
+STRPTR GetArgStr(void)
+\end{verbatim}
+
+\subsection{Set the Command Line Arguments}
+% TODO
+
+\begin{verbatim}
+oldptr = SetArgStr(ptr)
+D0		   D1
+
+STRPTR SetArgStr(STRPTR)
+\end{verbatim}
+
 \chapter{Binary File Structure} \label{sec:binary}
 
 The AmigaDOS \emph{Hunk} format represents executable and linkable
@@ -8019,6 +8235,14 @@ printed by the {\tt Version} command.
 
 \subsection{The Stack Cookie}
 
+% TODO
+\begin{verbatim}
+stack = ScanStackToken(segment, defaultstack)
+D0			  D1         D2
+
+LONG ScanStackToken(BPTR segment, LONG defaultstack)
+\end{verbatim}
+
 The workbench, the shell, and also {\tt
   GetDeviceProc()}\key{GetDeviceProc()} when loading \emph{handlers}
 scan the loaded binary for the string sequence {\tt \$STACK:}. If this
@@ -8744,8 +8968,341 @@ required, e.g. for the base address of the custom chips, and thus split
 into $a_s$, $a_o$ and $d_o$.
  
 %%% For later.
+\chapter{Handlers, Devices and File Systems}
+
+% TODO
+
+\subsection{Send a Packet to a Handler and Wait for Reply}
+
+\begin{verbatim}
+result1 = DoPkt(port,action,arg1,arg2,arg3,arg4,arg5)
+D0               D1    D2    D3   D4   D5   D6   D7
+
+LONG DoPkt(struct MsgPort *,LONG,LONG,LONG,LONG,LONG,LONG)
+\end{verbatim}
+
+\subsection{Send a Packet to a Handler Asynchronously}
+
+\begin{verbatim}
+SendPkt(packet, port, replyport)
+	 D1     D2	D3
+
+void SendPkt(struct DosPacket *,struct MsgPort *,struct MsgPort *)
+\end{verbatim}
+
+\subsection{Wait for a Packet to Arrive}
+
+\begin{verbatim}
+packet = WaitPkt()
+D0
+
+struct DosPacket *WaitPkt(void);
+\end{verbatim}
+
+\subsection{Aborting a Packet}
+
+\begin{verbatim}
+AbortPkt(port, pkt)
+	  D1    D2
+
+void AbortPkt(struct MsgPort *, struct DosPacket *)
+\end{verbatim}
+
+\subsection{Reply a Packet to its Caller}
+
+\begin{verbatim}
+ReplyPkt(packet, result1, result2)
+	   D1      D2       D3
+
+void ReplyPkt(struct DosPacket *, LONG, LONG)
+\end{verbatim}
+
+\chapter{The AmigaDOS Shell}
+% TODO
+
+\subsection{Start Programs in a Shell}
+%TODO
+\begin{verbatim}
+error = SystemTagList(command, tags)
+D0		        D1      D2 
+
+LONG SystemTagList(STRPTR, struct TagItem *)
+
+error = System(command, tags)
+D0		 D1      D2 
+
+LONG System(STRPTR, struct TagItem *)
+
+error = SystemTags(command, Tag1, ...)
+
+LONG SystemTags(STRPTR, ULONG, ...)
+\end{verbatim}
+
+\subsection{Executing a Program in a Shell (Legacy)}
+
+\begin{verbatim}
+success = Execute( commandString, input, output )
+D0		   D1		  D2	 D3
+
+BOOL Execute(STRPTR, BPTR, BPTR)
+\end{verbatim}
+
+\subsection{Retrieving the CLI}
+
+\begin{verbatim}
+cli_ptr = Cli()
+D0
+
+struct CommandLineInterface *Cli(void)
+\end{verbatim}
+
+\subsection{Obtaining the Name of the Current Directory}
+
+\begin{verbatim}
+success = GetCurrentDirName(buf, len)
+D0                          D1   D2
+
+BOOL GetCurrentDirName(STRPTR, LONG)
+\end{verbatim}
+
+\subsection{Set the Current Directory Name}
+
+\begin{verbatim}
+success = SetCurrentDirName(name)
+D0                        D1
+
+BOOL SetCurrentDirName(STRPTR)
+\end{verbatim}
+
+\subsection{Obtaining the Current Program Name}
+
+\begin{verbatim}
+success = GetProgramName(buf, len)
+D0                       D1   D2
+
+BOOL GetProgramName(STRPTR, LONG)
+\end{verbatim}
+
+\subsection{Set the Current Program Name}
+
+\begin{verbatim}
+success = SetProgramName(name)
+D0                        D1
+
+BOOL SetProgramName(STRPTR)
+\end{verbatim}
+
+\subsection{Obtaining the Shell Prompt}
+
+\begin{verbatim}
+success = GetPrompt(buf, len)
+D0                  D1   D2
+
+BOOL GetPrompt(STRPTR, LONG)
+\end{verbatim}
+
+\subsection{Setting the Shell Prompt}
+
+\begin{verbatim}
+success = SetPrompt(name)
+D0                D1
+
+BOOL SetPrompt(STRPTR)
+\end{verbatim}
+
+\subsection{Runs a Command Overloading the Calling Process}
+
+\begin{verbatim}
+rc = RunCommand(seglist, stacksize, argptr, argsize)
+D0                D1         D2       D3      D4
+
+LONG RunCommand(BPTR, ULONG, STRPTR, ULONG)
+\end{verbatim}
+
+\subsection{Finding a Shell}
+
+\begin{verbatim}
+proc = FindCliProc(num)
+D0             D1
+
+struct Process *FindCliProc(ULONG)
+\end{verbatim}
+
+\subsection{Retrieve the Size of the Shell Process Table}
+
+\begin{verbatim}
+number = MaxCli()
+D0
+
+LONG MaxCli(void)
+\end{verbatim}
+
+\subsection{Request a Function of the Shell}
+
+\begin{verbatim}
+ptr = DoShellMethodTagList(method, tags)
+D0                           D0     A0
+
+APTR DoShellMethodTagList(ULONG, struct TagItem *)
+
+ptr = DoShellMethod(method, Tag1, ...)
+
+APTR DoShellMethod(ULONG, ULONG, ...)
+\end{verbatim}
+
+\subsection{Read a Shell Variable}
+
+\begin{verbatim}
+len = GetVar( name, buffer, size, flags ) 
+D0	       D1     D2     D3    D4
+
+LONG GetVar( STRPTR, STRPTR, LONG, ULONG ) 
+\end{verbatim}
+
+\subsection{Setting a Shell Variable}
+
+\begin{verbatim}
+success = SetVar( name, buffer, size, flags ) 
+D0	           D1     D2     D3    D4
+
+BOOL SetVar(STRPTR, STRPTR, LONG, ULONG ) 
+\end{verbatim}
+
+\subsection{Finding a Shell Variable}
+
+\begin{verbatim}
+var = FindVar( name, type ) 
+D0		D1    D2
+
+struct LocalVar * FindVar(STRPTR, ULONG ) 
+\end{verbatim}
+
+\subsection{Deleting a Shell Variable}
+
+\begin{verbatim}
+success = DeleteVar( name, flags ) 
+D0		      D1    D2
+
+BOOL DeleteVar(STRPTR, ULONG ) 
+\end{verbatim}
+
+\section{Parsing Arguments}
+
+\subsection{Parsing Command Line Arguments}
+
+\begin{verbatim}
+result = ReadArgs(template, array, rdargs)
+D0                   D1      D2      D3
+
+struct RDArgs * ReadArgs(STRPTR, LONG *, struct RDArgs *)
+\end{verbatim}
+
+\subsection{Reading a Single Argument from the Command Line}
+
+\begin{verbatim}
+value = ReadItem(buffer, maxchars, input)
+D0                D1        D2      D3
+
+LONG ReadItem(STRPTR, LONG, struct CSource *)
+\end{verbatim}
+
+\subsection{Finding an Argument}
+
+\begin{verbatim}
+index = FindArg(template, keyword)
+D0                D1        D2
+
+LONG FindArg(STRPTR, STRPTR)
+\end{verbatim}
+
+\subsection{Releasing the Argument Parser}
+
+\begin{verbatim}
+FreeArgs(rdargs)
+           D1
+
+void FreeArgs(struct RDArgs *)
+\end{verbatim}
+
+
+\subsection{Initializing a new Shell}
+
+\begin{verbatim}
+flags = CliInitRun( packet )
+D0		      A0
+
+LONG CliInitRun( struct DosPacket * )
+\end{verbatim}
+
+\subsection{Finding a Resident Command}
+
+\begin{verbatim}
+segment = FindSegment(name, start, system)
+D0		       D1     D2     D3
+
+struct Segment *FindSegment(STRPTR, struct Segment *, LONG)
+\end{verbatim}
+
+\subsection{Adding a Resident Command}
+
+\begin{verbatim}
+success = AddSegment(name, seglist, type)
+D0		      D1     D2      D3
+
+BOOL AddSegment(STRPTR, BPTR, LONG)
+\end{verbatim}
+
+\subsection{Removing a Resident Command}
+
+\begin{verbatim}
+success = RemSegment(segment)
+D0		        D1
+
+BOOL RemSegment(struct Segment *)
+\end{verbatim}
 
 \section{Miscellaneous Functions}
+
+% TODO
+
+\subsection{Allocating a DOS Object}
+
+\begin{verbatim}
+ptr = AllocDosObject(type, tags)
+D0                    D1    D2
+
+void *AllocDosObject(ULONG, struct TagItem *)
+
+ptr = AllocDosObjectTagList(type, tags)
+D0                 	     D1    D2
+
+void *AllocDosObjectTagList(ULONG, struct TagItem *)
+
+ptr = AllocDosObjectTags(type, Tag1, ...)
+
+void *AllocDosObjectTags(ULONG, ULONG, ...)
+\end{verbatim}
+
+\subsection{Releasing a DOS Object}
+
+\begin{verbatim}
+FreeDosObject(type, ptr)
+	       D1   D2
+
+void FreeDosObject(ULONG, void *)
+\end{verbatim}
+
+\subsection{Checking for Signals}
+
+\begin{verbatim}
+signals = CheckSignal(mask)
+D0		      D1
+
+ULONG CheckSignal(ULONG)
+\end{verbatim}
+
+\subsection{Obtaining the Time and Date}
+
 The {\tt DateStamp} structure reads as follows:
 
 \begin{verbatim}
@@ -8765,8 +9322,87 @@ is $1/50^{\mbox{\tiny th}}$ of a second, regardless whether the
 machine is a PAL or NTSC system. This constant is also defined as
 {\tt TICKS\_PER\_SECOND} in {\tt dos/dos.h}.
 
+\subsection{Comparing two Times and Dates}
+
+\begin{verbatim}
+result = CompareDates(date1,date2)
+D0                     D1     D2
+
+LONG CompareDates(struct DateStamp *,struct DateStamp *)
+\end{verbatim}
+
+\subsection{Converting a Time and Date to a String}
+
+\begin{verbatim}
+success = DateToStr( datetime )
+D0                      D1
+
+BOOL DateToStr(struct DateTime *)
+\end{verbatim}
+
+\subsection{Convert a String to a Date and Time}
+
+\begin{verbatim}
+success = StrToDate( datetime )
+D0                      D1
+
+BOOL StrToDate( struct DateTime * )
+\end{verbatim}
+
+\subsection{Delaying Program Execution}
+
+\begin{verbatim}
+Delay( ticks )
+       D1
+
+void Delay(ULONG)
+\end{verbatim}
 
 
+\subsection{Display an Error Requester}
+
+\begin{verbatim}
+status = ErrorReport(code, type, arg1, device)
+D0                    D1    D2    D3     D4
+
+BOOL ErrorReport(LONG, LONG, ULONG, struct MsgPort *)
+\end{verbatim}
+
+\subsection{Generating an Error Message}
+
+\begin{verbatim}
+len = Fault(code, header, buffer, len)
+D0           D1     D2      D3    D4
+
+LONG Fault(LONG, STRPTR, STRPTR, LONG)
+\end{verbatim}
+
+\subsection{Printing an Error Message}
+
+\begin{verbatim}
+success = PrintFault(code, header)
+D0                    D1     D2   
+
+BOOL PrintFault(LONG, STRPTR)
+\end{verbatim}
+
+\subsection{Printing a String to the Error Stream}
+
+\begin{verbatim}
+error = PutErrStr(str)
+D0                D1
+
+LONG PutErrStr(STRPTR)
+\end{verbatim}
+
+\subsection{Receive Information when a Volume is Request}
+
+\begin{verbatim}
+res = VolumeRequestHook(volume)
+D0			  D1
+
+LONG VolumeRequestHook(UBYTE *volume)
+\end{verbatim}
 
 \begin{thebibliography}{99}
 \bibitem{Bantam} Commodore-Amiga Inc:
