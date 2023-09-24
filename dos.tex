@@ -983,7 +983,7 @@ D0               D1
 BOOL Close(BPTR)
 \end{verbatim}
 
-The {\tt file} is a BPTR to {\tt FileHandle} identifying the file. The
+The {\tt file} is a BPTR to a \emph{FileHandle} identifying the file. The
 return code indicates whether the file system could successfully close
 the file and write back any data. If the result code is {\tt DOSFALSE},
 an error code can be obtained through {\tt IoErr()} described in
@@ -1385,13 +1385,25 @@ occured if the number of records written is smaller than the number of
 records passed in.
 
 \subsection{Buffered Write to the Output Stream}
-% TODO
+
+The {\tt WriteChars()}\mkey{WriteChars()} writes an array of bytes buffered
+to the output stream. 
+
 \begin{verbatim}
 count = WriteChars(buf, buflen)
-D0                 D1
+D0                 D1   D2
 
 LONG WriteChars(STRPTR, LONG)
 \end{verbatim}
+
+This function is equivalent to {\tt FWrite(Output(),buf,1,buflen)}, that is,
+the bytes in the buffer {\tt buf} of size {\tt buflen} is writing to the
+output stream, and the number of characters written is returned. Therefore,
+this function has similar quirks concerning error reporting as {\tt
+  FWrite()}\key{FWrite()}: It does not set {\tt IoErr()}\key{IoErr()}
+consistently, namely only when the buffer is written to the stream. It
+neither returns~$-1$ on an error. It is therefore recommended to reset the
+error upfront with {\tt SetIoErr(0)}\key{SetIoErr()}.
 
 \subsection{Adjusting the Buffer}
 
@@ -1540,12 +1552,15 @@ buffer, or may be written out immediately. See
 for implicit buffer flushes.
 \smallskip{}
 
-This function returns $0$ on success, or {\tt ENDSTREAMCH} on an
-error. The latter constant is defined in {\tt dos/stdio.h} and equals
-to $-1$.
+This function returns $0$ on success, or {\tt ENDSTREAMCH} on an error. The
+latter constant is defined in {\tt dos/stdio.h} and equals to~$-1$. The
+error code {\tt IoErr()}\key{IoErr()} is only adjusted when the buffer is
+flushed.
 
-\subsection{Print a String to the Output Stream}
-%TODO
+\subsection{Write a String Buffered to the Output Stream}
+
+The {\tt PutStr()}\mkey{PutStr()} function writes a {\tt NUL}-terminated
+string to the output. No newline is appended.
 
 \begin{verbatim}
 error = PutStr(str)
@@ -1553,6 +1568,13 @@ D0             D1
 
 LONG PutStr(STRPTR)
 \end{verbatim}
+
+This function is equivalent to {\tt FPuts(Output(),str)}, that is, it writes
+the {\tt NUL}-terminated string pointed to by {\tt str} to the output. It
+returns~$0$ on success and~$-1$ on error. The {\tt IoErr()}\key{IoErr()} is
+only adjusted when the buffer of the {\tt Output()}\key{OutPut()}
+\emph{FileHandle} is flushed. When this happens depends on the buffer mode
+installed by {\tt SetVBuf()}\key{SetVBuf()}.
 
 \subsection{Read a Character from a File}
 
@@ -2265,7 +2287,10 @@ not compare a {\tt ZERO} lock with lock on the boot volume, e.g {\tt
 lock for either {\tt lock1} or {\tt lock2}.
 
 \subsection{Compare to Locks for the Device}
-% TODO
+
+The {\tt SameDevice()}\mkey{SameDevice()} function attempts to check whether
+two locks refer to two file systems that reside on the same physical device,
+even if on potentially different partitions.
 
 \begin{verbatim}
 same = SameDevice(lock1, lock2)
@@ -2273,6 +2298,32 @@ D0		   D1     D2
 
 BOOL SameDevice( BPTR, BPTR )
 \end{verbatim}
+
+The {\tt SameDevice()} function takes two \emph{Lock}s {\tt lock1} and {\tt
+  lock2} and checks whether they were created by file systems that operate
+on the same physical device, even if the two \emph{Lock}s refer to different
+file sytems or different partitions. Only the \emph{exec device} and the
+corresponding unit is compared, that is, this function is not able to
+determine whether whether the locks refer to file systems on the same or
+different physical volumes.
+\smallskip{}
+
+This function returns a non-zero result if the resonsible file systems
+operate on the same \emph{exec device}, and it returns~$0$ otherwise. If
+the function is not able to identify the file sytems, or cannot identify the
+lower level exec {\tt device} on which the file systems operate, the
+function also returns~$0$.
+\smallskip{}
+
+A possible use case of this function is to determine whether the involved
+\emph{file systems} can operate in parallel without imposing speed penalties
+due to conflicting medium accesses. Thus, copy functions may be optimized
+depending on the result as no intermediate buffering need to be used if
+source and destination are on different physical devices.
+\smallskip{}
+
+This function does not set {\tt IoErr()}\key{IoErr()}, even if it cannot
+determine the device a file system operates on.
 
 \section{Locks and Files}
 
@@ -2556,19 +2607,22 @@ protection bits are currently defined in {\tt dos/dos.h}:
 The flags {\tt FIBB\_DELETE} to {\tt FIBB\_READ} are shown inverted in
 the output of most tools, i.e. they are shown active if the
 corresponding flag is $0$, i.e. a particular protection function is
-\emph{not} active.
+\emph{not} active. The {\tt FIBB\_READ} and {\t FIBB\_WRITE} bits were
+ignored by early implementations of the ROM \emph{file system}. This was
+fixed in release 36.
 \smallskip{}
 
 The {\tt FIBB\_EXECUTE} flag is only interpreted by the \emph{Shell} (see
 section~\ref{sec.shell}) and the Workbench; if the bit is $1$, the
-\emph{Shell} and the Workbench refuse to load the file as command. 
+\emph{Shell} and the Workbench refuse to load the file as command or
+program.
 \smallskip{}
 
-The {\tt FIBB\_ARCHIVE} flag is typically used by archival
-software. Such software will set this flag upon archiving the flag,
-whereas the file system will reset the flag when writing to a file, or
-when creating new files. The archiving software is thus able to learn
-which files had been altered since the last backup.
+The {\tt FIBB\_ARCHIVE} flag is typically used by archival software. Such
+software will set this flag upon archiving the flag, whereas the file system
+will reset the flag when writing to or modifying a file, or when creating
+new files. The archiving software is thus able to learn which files had been
+altered since the last backup.
 \smallskip{}
 
 The {\tt FIBB\_PURE} flag inidicates an additional property of
@@ -3051,8 +3105,11 @@ This function returns non-zero on success and $0$ on error. In either
 case, the function sets {\tt IoErr()}\key{IoErr()} to $0$ on success
 or to an error code otherwise.
 
-\subsection{Seting Protection Bits} 
-% TODO
+\subsection{Setting Protection Bits}
+
+The {\tt SetProtection()}\mkey{SetProtection()} function modifies the
+protection bits of a \emph{file system} object, i.e. either a file or a
+directory.
 
 \begin{verbatim}
 success = SetProtection( name, mask )
@@ -3060,6 +3117,18 @@ D0			 D1    D2
 
 BOOL SetProtection (STRPTR, LONG)
 \end{verbatim}
+
+This function sets the protection bits of the file system object {\tt name}
+in the current directory to the combination given by {\tt mask}. The
+protection bits are defined in {\tt dos/dos.h} and their function is listed.
+in table~\ref{table:protectionbits}. The {\tt mask} value corresponds to
+what {\tt Examine()}\key{Examine()} returns in the {\tt FileInfoBlock}
+structure in {\tt fib\_Protection}, see also section~\ref{sec:fib}.
+\smallskip{}
+
+This function returns a non-zero result code on success, or zero on
+error. In either case, {\tt IoErr()}\key{IoErr()} is altered, either to~$0$
+on success or to an error code otherwise.
 
 \subsection{Set the Modification Date} \label{sec:setfiledate}
 
@@ -3175,7 +3244,9 @@ call.
 
 \subsection{Find the Path from a File Handle}
 
-% TODO
+The {\tt NameFromFH()}\mkey{NameFromFH()} function constructs a path name
+from a \emph{file handle}, i.e. it finds a path that is suitable to identify
+the file identified by the passed in \emph{file handle}.
 
 \begin{verbatim}
 success = NameFromFH(fh, buffer, len)
@@ -3183,6 +3254,17 @@ D0                   D1    D2    D3
 
 BOOL NameFromFH(BPTR, STRPTR, LONG)
 \end{verbatim}
+
+This function takes a \emph{file handle} in {\tt fh} and from that
+constructs an absolute path of the openend file in the supplied {\tt buffer}
+capable of storing {\tt len} bytes, including a terminating {\tt NUL} byte.
+\smallskip{}
+
+On success, the function returns a non-zero return code and sets
+{\tt IoErr()}\key{IoErr()} to 0. On error, it returns~$0$ and sets
+{\tt IoErr()} to an error code. In particular, if the supplied buffer
+is not large enough, it is set to {\tt ERROR\_LINE\_TOO\_LONG}. Even in the
+latter case, the created path is {\tt NUL} terminated, though not useful.
 
 \subsection{Append a Component to a Path}
 
@@ -3278,13 +3360,49 @@ explicitly indicates a directory is empty, though the ``path part'' is
 the same path without the trailing slash.
 
 \subsection{Extract a Component From a Path}
-%TODO
+
+The {\tt SplitName()}\mkey{SplitName()} function extracts a component
+starting at a given offset from a path and delivers the component in a
+buffer. It also returns a new position at which to continue parsing a path.
+By iteratively calling {\tt SplitName()}, a path can be resolved directory
+by directory, walking the \emph{file system} tree from top to bottom.
+
 \begin{verbatim}
 newpos = SplitName(name, separator, buf, oldpos, size)
 D0                  D1      D2      D3     D4     D5
 
 WORD SplitName(STRPTR, UBYTE, STRPTR, WORD, LONG)
 \end{verbatim}
+
+This function scans a path as given by {\tt name} starting from position
+{\tt oldpos}. It copies all characters starting from this position into the
+buffer {\tt buf} which is {\tt size} bytes large, terminating either at the
+end of the path, or at {\tt separator}, or when {\tt buf} runs full. The
+component string constructed in {\tt buf} is {\tt NUL}-terminated in either
+case. If the provided separator is found, the separator is not copied into
+{\tt buf}. 
+\smallskip{}
+
+If no separator is found, the function returns~$-1$ as {\tt newpos}
+indicating that the entire path has been scanned. Otherwise, it returns the
+offset into {\tt name} at which the next component starts, i.e. the offset
+behind the found separator. These return values are also valid even in case
+the found component was too large to fit into {\tt buf} and it had to be
+truncated.
+\smallskip{}
+
+This function does not set error codes, even in case {\tt buf} was too
+small to hold the copied component.
+\smallskip{}
+
+The intended purpose of this function is to walk a path component by
+component, identifying the names of the directories as scanning
+proceeds. That is, if result code {\tt newpos} is not negative, it should be
+passed back into this function as {\tt oldpos} for a subsequent scan which
+then extracts the next component of the path. The main user of this function
+are therefore \emph{file systems} when locating an object in the file system
+tree. For most AmigaDOS \emph{file systems} the sparator is therefore the
+forwards slash (``{\tt /}'').
 
 \section{Links} \label{sec:links}
 
