@@ -2023,6 +2023,194 @@ While the same function can also be found in the BPCL \emph{Global
   Vector}\key{Global Vector}, it there takes BSTRs instead of regular
 C strings for the format string and arguments of the {\tt \%S} and
 {\tt \%T} formats.
+
+\section{Record Locking}
+
+While locks control access to a \emph{file system} object in total,
+record locks provide access control on portions of a file. Unlike
+locks, however, the \emph{file system} does not block read or write
+access to the locked region. Instead, a record lock on a portion of a
+file only prevents another record lock on a region that overlaps with
+the locked region. Record locks therefore require the locking
+processes to follow the same locking protocol.
+\smallskip{}
+
+Record locks are a relatively modern protocol not all file systems
+implement. The Ram-Handler and the Fast File System support it.
+
+\subsection{Locking a Portion of a File}
+
+The {\tt LockRecord}\mkey{LockRecord} function locks a single region
+of a file, potentially waiting for a timeout for the region to become
+available.
+
+\begin{verbatim}
+success = LockRecord(fh,offset,length,mode,timeout)
+D0                   D1   D2     D3    D4    D5
+
+BOOL LockRecord(BPTR,ULONG,ULONG,ULONG,ULONG)
+\end{verbatim}
+
+This function attempts to lock the region of the file identified by
+{\tt fh} starting from the byte offset {\tt offset} and the byte size
+{\tt length}. The {\tt mode} shall be taken from the following
+constants, defined in {\tt dos/record.h}:
+
+\begin{rkrmtable}{Record Locking Modes} \label{table:reclockmode}
+{\bf Record Locking Mode} & {\bf Description}\\ \hline \hline
+{\tt REC\_EXCLUSIVE} & Exclusive access to a region, honoring the timeout\\ \hline
+{\tt REC\_EXCLUSIVE\_IMMED} & Exclusive access to a region, ignoring the timeout\\ \hline
+{\tt REC\_SHARED} & Shared access to a region, honoring the timeout\\ \hline
+{\tt REC\_SHARED\_IMMED} & Shared access to a region, ignoring the timeout\\ \hline
+\end{rkrmtable}
+
+While the same byte within a file can be included in multiple regions
+locked through a shared record lock, only a single exclusive lock can
+be held on each byte of a file. Or put differently, shared regions can
+overlap with each other without failure, exclusivively locked regions
+cannot overlap with shared locked regions or with each other.
+\smallskip{}
+
+For the {\tt REC\_EXCLUSIVE} and {\tt REC\_SHARED} modes, the {\tt
+  timeout} value provides a time limit in ticks,
+i.e. $1/50^{\mbox{\tiny th}}$ of a second, after which an attempt to
+obtain a lock times out. This time limit may also be $0$ in which case
+an attempt to lock a region fails immediately.
+\smallskip{}
+
+The {\tt REC\_EXCLUSIVE\_IMMED} and {\tt REC\_SHARED\_IMMED} modes
+ignore the timeout, i.e. they act as if the timeout is~$0$ and fail as
+soon as they can determine that the requested record cannot be locked.
+\smallskip{}
+
+This function returns~$0$ in case of failure and then returns a
+non-zero error code with {\tt IoErr()}. In case the record lock cannot
+be obtained because the region overlaps with another locked region,
+the error will be {\tt ERROR\_LOCK\_COLLISION}. If the region can be
+locked, the call returns a non-zero result code and sets {\tt IoErr()}\key{IoErr()}
+to~0.
+
+\subsection{Locking Multiple Portions of a File} \label{sec:lockrecords}
+
+The {\tt LockRecords()}\mkey{LockRecords()} function locks multiple
+records at once, potentially within multiple files.
+
+\begin{verbatim}
+success = LockRecords(record_array,timeout)
+D0                       D1           D2
+
+BOOL LockRecords(struct RecordLock *,ULONG)
+\end{verbatim}
+
+This function attempts to lock multiple records at once that are
+included in the the {\tt RecordLock} structure. This structure is
+defined in {\tt dos/record.h} and looks as follows: \mkey{RecordLock}
+\begin{verbatim}
+struct RecordLock {
+        BPTR    rec_FH;         /* filehandle */
+        ULONG   rec_Offset;     /* offset in file */
+        ULONG   rec_Length;     /* length of file to be locked */
+        ULONG   rec_Mode;       /* Type of lock */
+};
+\end{verbatim}
+
+The {\tt record\_array} is a pointer to an array of the above
+structure that is terminated by a {\tt RecordLock} structure with {\tt
+  rec\_FH} equal to {\tt NULL}. The elements of this structure
+correspond to the arguments of the {\tt LockRecord()}\key{LockRecord()} function:
+\smallskip{}
+
+{\tt rec\_FH} is the file handle to the file within which a record is
+to be locked. It shall be {\tt NULL} for the last element in the array.
+\smallskip{}
+
+{\tt rec\_Offset} and {\tt rec\_Length} specify the region in the file to be locked.
+\smallskip{}
+
+{\tt rec\_Mode} specifies the type of the lock that is to be
+obtained. It shall be one of the modes listed in
+table~\ref{table:reclockmode}; the modes are all defined in {\tt dos/record.h}.
+\smallskip{}
+
+The {\tt timeout} specifies how long each of the attempts to obtain a
+lock is supposed to wait for a record to become available if a
+non-immediate record lock is requested. The {\tt timeout} is applied
+to each of the records in the {\tt RecordLock} array sequentially
+until either all records could be locked, or until locking one of the
+records fail. In such a case, the call unlocks all locks obtained so
+far, and then returns with failure.
+\smallskip{}
+
+On failure, i.e. if one of the records cannot be locked, the function
+returns~0 and sets {\tt IoErr()} to an error code. On success, the
+function returns a non-zero result and sets {\tt IoErr()}\key{IoErr()} to~0.
+\smallskip{}
+
+Unlike what the function prototype suggests, this function is
+\emph{not atomic}. Instead, it attempts to lock the records
+sequentially one after another, applying the same timeout for each
+call. Thus, it can happen that another task attempts for a lock of a
+conflicting region while the first caller is executing this
+function. It is therefore recommended to establish an order in which
+records within a file are locked, e.g. from smallest to largest start
+offset. Note that this also implies that the maximal time this
+function may take is given by the number of elements in the
+{\tt record\_array} times {\tt timeout}.
+
+\subsection{Unlocking a Portion of a File}
+
+The {\tt UnLockRecord()}\mkey{UnLockRecord()} function unlocks a
+region of a file, releasing it for further locks. The provided region
+shall be identical to one of the regions locked before, i.e. it is not
+possible to partially unlock a region and leave the remaining bytes of
+the region locked.
+
+\begin{verbatim}
+success = UnLockRecord(fh,offset,length)
+D0		       D1   D2     D3
+
+BOOL UnLockRecord(BPTR,ULONG,ULONG)
+\end{verbatim}
+
+This function unlocks a region of a file locked before by
+{\tt LockRegion()}\key{LockRegion()} or {\tt LockRegions()}\key{LockRegions()}.
+The region starts {\tt offset} bytes within the file identified by {\tt fh} and
+is {\tt length} bytes large.
+\smallskip{}
+
+This function returns~0 on failure and sets an error code that can be
+obtained by {\tt IoErr()}\key{IoErr()}. A possible error code is {\tt
+  ERROR\_RECORD\_NOT\_LOCKED} if an attempt is made to unlock a record
+that is actually not locked, or to partially unlock a record. On
+success, the function returns a non-zero result code and sets {\tt
+  IoErr()} to~0.
+
+\subsection{Unlocking Multiple Records of a File}
+
+The {\tt UnLockRecords()} function unlocks multiple records provided
+in an array of {\tt RecordLock} structures at once, sequentially
+releasing one record after another.
+
+\begin{verbatim}
+success = UnLockRecords(record_array)
+D0		             D1
+
+BOOL UnLockRecords(struct RecordLock *)
+\end{verbatim}
+
+This function releases multiple records provided in an array of
+{\tt RecordLock} structures. The last element of the structure is
+indicated by its {\tt rec\_FH} element set to {\tt NULL}. This
+structure is defined in section~\ref{sec:lockrecords}.
+\smallskip{}
+
+The function calls {\tt UnLockRecord()} in a loop, and is therefore
+\emph{not atomic}. In case unlocking any of these records fails, the
+function returns~0 but attempts to unlock also any remaining records
+in the array. On success, it returns a non-zero result code and sets
+{\tt IoErr()} to~0. Unfortunately, the function does not set {\tt
+  IoErr()} consistently in case of failure as the error code is not
+saved on a failed unlock.
   
 \chapter{Locks} \label{sec:locks}
 
@@ -3688,42 +3876,6 @@ EndNotify(notifystructure)
 		D1
 
 void EndNotify(struct NotifyRequest *)
-\end{verbatim}
-
-\subsection{Locking a Portion of a File}
-
-\begin{verbatim}
-success = LockRecord(fh,offset,length,mode,timeout)
-D0                   D1   D2     D3    D4    D5
-
-BOOL LockRecord(BPTR,ULONG,ULONG,ULONG,ULONG)
-\end{verbatim}
-
-\subsection{Unlocking a Portion of a File}
-
-\begin{verbatim}
-success = UnLockRecord(fh,offset,length)
-D0		       D1   D2     D3
-
-BOOL UnLockRecord(BPTR,ULONG,ULONG)
-\end{verbatim}
-
-\subsection{Locking Multiple Portions of a File}
-
-\begin{verbatim}
-success = LockRecords(record_array,timeout)
-D0                       D1           D2
-
-BOOL LockRecords(struct RecordLock *,ULONG)
-\end{verbatim}
-
-\subsection{Unlocking Multiple Records of a File}
-
-\begin{verbatim}
-success = UnLockRecords(record_array)
-D0		             D1
-
-BOOL UnLockRecords(struct RecordLock *)
 \end{verbatim}
 
   
