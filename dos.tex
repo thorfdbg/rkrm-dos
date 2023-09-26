@@ -1839,7 +1839,7 @@ importance as it clears all function pointers, and in particular the
 \emph{dos.library} that this structure was not allocated through
 itself.
 
-\subsection{An FSkip() Implementation}
+\subsection{An FSkip() Implementation} \label{sec:fskip}
 
 Unlike most unbuffered functions, {\tt Seek()}\key{Seek} can be safely
 mixed with buffered input and output functions. However, this function
@@ -1894,6 +1894,41 @@ UnGetC(file,-1); /* initialize buffer */
 \end{verbatim}
 This is only necessary if the first access to the file is an
 {\tt FSkip()}.
+
+\subsection{An FGet() Implementation}
+
+While the {\tt FRead()}\key{FRead()} function already provides a
+buffered read function, it is not very efficient prior release 47 of
+AmigaDOS. The following simple function provides in such cases a
+faster implementation that even allows inlining:
+
+\begin{verbatim}
+LONG FGet(BPTR f,void *buf,LONG size)
+{
+  struct FileHandle *cis = BADDR(f);
+
+  if (cis->fh_Pos) {
+    LONG end = cis->fh_Pos + size;
+    if (end < cis->fh_End) {
+      memcpy(buf,(UBYTE *)BADDR(cis->fh_Buf) + cis->fh_Pos,(size_t)(size));
+      cis->fh_Pos = end;
+      return size;
+    }
+  }
+
+  return FRead(f,buf,1,size);
+}
+\end{verbatim}
+
+It reads {\tt size} bytes from the file {\tt fh} into the buffer {\tt
+  buf}, and returns the number of bytes read.
+\smallskip{}
+
+As seen from this implementation, the function attempts to satisfy the
+read if a partial buffer is present. If not, the above implementation
+runs into the operating system function. As for the {\tt FSkip()}
+implementation presented in section~\ref{sec:fskip}, the file handle
+requires some preparation by a dummy {\tt UnGetC()}, see there.
 
 \section{Formatted Output}
 
