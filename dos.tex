@@ -3846,6 +3846,236 @@ The function returns non-zero in case of success, or $0$ in case of
 error. In either case, {\tt IoErr()}\key{IoErr()} is set to ether $0$
 on succes, or an error code otherwise.
 
+\section{Notification Requests}
+
+Notification requests allow programs to monitor file or directory
+changes. If so, either a signal or a message can be send to a specific
+task, informing it on the modification. If the notification request is
+issued on a file, any attempt to modify the contents of the file will
+trigger the notification request. However, in order to avoid too many
+request to be send out, the triggering the request is delayed until
+after the corresponding file is closed.
+\smallskip{}
+
+If issued on a directory, attempts to add or remove files or links
+will trigger the request, as well as renaming files. Whether changes
+of metadata such as protection bits or comments are considered
+modifications is not clearly defined and not all versions of all
+AmigaDOS file systems handle it consistently. The most recent version
+of AmigaDOS will consider such modifications sufficient to trigger a
+notification.
+\smallskip{}
+
+A typical application of notification requests is the {\tt IPrefs}
+program which uses such requests to monitor changes of the preferences
+files. If it detects any changes of the preferences, it reloads the
+contents of the files and re-installs the preferences into the
+components it serves, most importantly {\tt intuition}.
+
+\subsection{Request Notification on File or Directory Changes}
+
+The {\tt StartNotify()}\mkey{StartNotify()} function starts monitoring
+a file or directory for changes, and if such modifications are found,
+a signal or a message is send to a task.
+
+\begin{verbatim}
+success = StartNotify(notifystructure)
+D0                          D1
+
+BOOL StartNotify(struct NotifyRequest *)
+\end{verbatim}
+
+This function starts a notification request as described by the {\tt
+  notifystructure} argument. This structure shall be initialized by
+the caller, and is then enqueued in the file system until the
+notification request is terminated by {\tt
+  EndNotify()}\key{EndNotify()}. Once issued, the request shall not be
+touched anymore as the \emph{file system} may access it any time. As
+some field require zero-initialization at this point, it is advisable
+to allocate it through exec with the {\tt MEMF\_CLEAR} flag set.
+\smallskip{}
+
+The {\tt NotifyRequest} structure is defined in {\tt dos/notify.h} and reads as follows:
+\mkey{NotifyRequest}
+\begin{verbatim}
+struct NotifyRequest {
+    UBYTE *nr_Name;
+    UBYTE *nr_FullName;
+    ULONG nr_UserData;
+    ULONG nr_Flags;
+    union {
+        struct {
+            struct MsgPort *nr_Port;
+        } nr_Msg;
+
+        struct {
+           struct Task *nr_Task;
+           UBYTE nr_SignalNum;
+           UBYTE nr_pad[3];
+        } nr_Signal;
+    } nr_stuff;
+    ULONG nr_Reserved[4];
+    /* internal use by handlers */
+    ULONG nr_MsgCount;            
+    struct MsgPort *nr_Handler;
+};
+\end{verbatim}
+
+The elements of this structure shall be initialized as follows:
+\smallskip{}
+
+{\tt nr\_Name}: The path to the object to be monitored, relative to
+the current directory. While it seems plausible that issuing a
+notification request on a not yet existing object will trigger a
+notification once such an object is created, this type of notification
+is currently not supported by AmigaDOS.
+
+{\tt nr\_FullName} is initialized by the file system and shall be left
+alone by the caller. The file system may use it to store the full path
+of the object to monitor.
+
+{\tt nr\_UserData} is free for use by the calling application. It may
+be used to distinguish multiple notification requests that have been
+issued in parallel.
+
+{\tt nr\_Flags} identifies the activity that is performed when a
+change has been detected by a \emph{file system}. Currently, the
+following flags are defined in {\tt dos/notify.h}:
+
+\begin{rkrmtable}{Notification Flags} \label{table:notifyflags}
+{\bf Flag} & {\bf Purpose}\\ \hline \hline
+{\tt NRF\_SEND\_MESSAGE} & Send a message on a file system change \\ \hline
+{\tt NRF\_SEND\_SIGNAL} & Set a signal on a change \\ \hline
+{\tt NRF\_WAIT\_REPLY} & Wait for a reply before notifying again \\ \hline
+{\tt NRF\_NOTIFY\_INITIAL} & Notify immediately when queing the request \\ \hline
+\end{rkrmtable}
+
+All other bits are currently reserved. In specific, bits 16 upwards
+are free for the file system to use.
+\smallskip{}
+
+The flags {\tt NRF\_SEND\_MESSAGE} and {\tt NRF\_SEND\_SIGNAL} are
+mutually exclusive. Exactly one of the two shall be included in the
+request to identify the activity that is performed when the monitored
+object changes.
+\smallskip{}
+
+{\tt NRF\_WAIT\_REPLY} indicates to the file system that it should not
+continue to send a notification message while it has already send one
+message before that has not yet been replied. Thus, setting this flag
+prevents notification requests to pile up at the recepient. However,
+if one or multiple changes were detected while the first request was
+triggered but not yet responded, replying to this first notification
+message will immediately trigger a \emph{single} subsequent request.
+\smallskip{}
+
+{\tt NRF\_NOTIFY\_INITIAL} will instruct the file system to trigger a
+notification message or signal immediately after the request has been
+received. This allows applications to roll both the intial action and
+the response of the notification into a single function --- for
+example, for reading or re-reading a preferences file.
+\medskip{}
+
+{\tt nr\_Port} is only used if the {\tt NRF\_SEND\_MESSAGE} flag is
+set in {\tt nr\_Flags}. It points to a {\tt MsgPort} structure to
+which a {\tt NotifyMessage} is send when a change has been
+detected. This structure is specified at the end of this section.
+\smallskip{}
+
+{\tt nr\_Task} and {\tt nr\_SignalNum} are only used if the {\tt
+  NRF\_SEND\_SIGNAL} flag is set in {\tt nr\_Flags}. {\tt nr\_Task} is
+a pointer to the {\tt Task} that will be informed, and {\tt
+  nr\_SignalNum} the bit number of the signal that is set. It is not a
+bit mask. Clearly, {\tt NRF\_WAIT\_REPLY} does not work in combination
+with signal bits.
+\smallskip{}
+
+{\tt nr\_Pad} are only present for alignment and shall be left alone.
+\smallskip{}
+
+{\tt nr\_Reserved} shall be zero-intialized by the caller and are
+reserved for future extensions.
+\smallskip{}
+
+{\tt nr\_MsgCount} shall not be touched by the caller and reserved
+purely for the purpose of the \emph{file system}. It is there used to
+count the number of messages that have been send out to the client,
+but have not yet been responded. The client, i.e. the caller, shall
+not interpret or modify this member.
+\smallskip{}
+
+{\tt nr\_Handler} shall neither be touched by the caller; it is used
+by AmigaDOS to store the {\tt MsgPort} of the \emph{file system}
+responsible for this notification request, and in particular, which to
+contact for ending a notification request.
+\medskip{}
+
+If {\tt NRF\_SEND\_MESSAGE} is set, then the \emph{file system} sends
+a {\tt NotifyMessage} to {\tt nr\_Port} upon detection of a change;
+this structure is also defined in {\tt dos/notify.h} and looks as
+follows:
+\mkey{NotifyMessage}
+\begin{verbatim}
+struct NotifyMessage {
+    struct Message nm_ExecMessage;
+    ULONG  nm_Class;
+    UWORD  nm_Code;
+    struct NotifyRequest *nm_NReq;
+    ULONG  nm_DoNotTouch;
+    ULONG  nm_DoNotTouch2;
+};
+\end{verbatim}
+
+{\tt nm\_ExecMessage} is a standard {\tt exec} message as documented in {\tt exec/ports.h}.
+\smallskip{}
+
+{\tt nm\_Class} is always set to {\tt NOTIFY\_CLASS}, also defined in
+{\tt dos/notify.h}, to identify this message as notification.
+\smallskip{}
+
+{\tt nm\_Code} is always set to {\tt NOTIFY\_CODE}, again defined in
+{\tt dos/notify.h}. This again may be used to identify notifications.
+\smallskip{}
+
+{\tt nm\_NReq} is a pointer to the {\tt NotifyRequest} through which
+this message was triggered. This may allow clients to identify the
+source of the request and by that the object that has been changed.
+\smallskip{}
+
+{\tt nm\_DoNotTouch} and {\tt nm\_DoNotTouch2} are strictly for use by
+the \emph{file system} and shall not be touched or interpreted by the
+caller or the client.
+\medskip{}
+
+This function returns a boolean success indicator. It returns a
+non-zero result code on success and then sets {\tt
+  IoErr()}\key{IoErr()} to~0. On error, the function returns~0 and
+sets {\tt IoErr()} to a non-zero error code.
+
+\subsection{Canceling a Notification Request}
+
+The {\tt EndNotify()}\mkey{EndNotify()} function cancels an issued
+notification request.
+
+\begin{verbatim}
+EndNotify(notifystructure)
+		D1
+
+void EndNotify(struct NotifyRequest *)
+\end{verbatim}
+
+This function cancels the notification request identified by {\tt
+  notifystructure}. This function shall only be called on notification
+requests that have been successfully issued by {\tt StartNotify()}. If
+caller did not yet reply all {\tt NotifyMessage} messages and some are
+still piled up in the {\tt nr\_Port}, the \emph{file system} will
+manually dequeue them from this port.
+\smallskip{}
+
+Afterwards, the {\tt notifystructure} is again available for the
+caller, for example to either release its memory, or to start another
+notification request.
+
 \chapter{File System Support Functions} \label{sec:filesysmisc}
 
 % TODO
@@ -3893,24 +4123,6 @@ success = Format(filesystem, volumename, dostype)
 D0                   D1          D2         D3
 
 BOOL Format(STRPTR, STRPTR, ULONG)
-\end{verbatim}
-
-\subsection{Request Notification on File or Directory Changes}
-%TODO
-\begin{verbatim}
-success = StartNotify(notifystructure)
-D0                          D1
-
-BOOL StartNotify(struct NotifyRequest *)
-\end{verbatim}
-
-\subsection{Canceling a Notification Request}
-%TODO
-\begin{verbatim}
-EndNotify(notifystructure)
-		D1
-
-void EndNotify(struct NotifyRequest *)
 \end{verbatim}
 
   
@@ -8811,7 +9023,9 @@ containing the 16-bit value to be relocated and the segment the hunk is
 relative to shall be linked together to form a single segment in the final
 output. In the notation of section~\ref{table:hunk_relreloc32}, the segments
 $i$ and $j$ shall thus be merged. To make this happen, their names as
-provided by {\tt HUNK\_NAME}\key{HUNK\_NAME} shall be identical.
+provided by {\tt HUNK\_NAME}\key{HUNK\_NAME} shall be identical; alternatively
+the linker shall be configured to the small data or small code model that
+forcefully merges hunks of the same type.
 \smallskip{}
 
 However, it may still happen that the joined segment generated by merging
@@ -8846,6 +9060,16 @@ table~\ref{table:hunk_relreloc32}.\mkey{HUNK\_RELOC8}. Relocation offsets are
 therefore 32 bits long, though the elements to relocate at offset $r_o$
 within the current segment are only 8 bits in size, and thus refer to short
 branches.
+\smallskip{}
+
+The same restrictions as for {\tt HUNK\_RELOC16} applies, i.e. the
+hunk within which the relocation offset is to be adjusted and the
+target hunk shall be merged to a single hunk as the AmigaDOS loader
+cannot resolve 8-bit relocations. This can be either arranged by
+giving the two hunks the same name, or by configuring the linker to
+the small code or small data model, depending on the type of the
+hunk. This will instruct the linker to merge hunks of the same type.
+\smallskip{}
 
 \begin{rkrmtabular}{Hunk Reloc8 Syntax} \label{table:hunk_reloc8}
 \begin{tabular}{|l|p{6cm}|p{6cm}|} \hline
