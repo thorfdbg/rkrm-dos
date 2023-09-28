@@ -2646,6 +2646,262 @@ This function allows to open files in exclusive mode without deleting
 its contents. For that, obtain an \emph{exclusive lock} on the file to
 be opened, and then call {\tt OpenFromLock()} as second step.
 
+\subsection{Get Information on the State of the Medium}
+
+The {\tt Info()}\mkey{Info()} function returns information on the
+medium on which the locked object is located, and fills an {\tt
+  InfoData} structure with the status of the \emph{file system}. If it
+is instead intended to retrieve information on the currently inserted
+volume, i.e. without requiring a \emph{lock}, direct communication
+with the \emph{file system} on the packet level is required by sending
+a packet type of {\tt ACTION\_DISK\_INFO}, see
+section~\ref{sec:action_disk_info}.
+
+\begin{verbatim}
+success = Info( lock, parameterBlock )
+D0		D1    D2
+
+BOOL Info(BPTR, struct InfoData *)
+\end{verbatim}
+
+The {\tt lock} is a \emph{lock} to an arbitrary object on the volume
+to be querried; its only purpose is to identify it. The function fills
+out an {\tt InfoData} structure that shall be aligned to long-word
+boundaries.
+\smallskip{}
+
+This structure is defined in {\tt dos/dos.h} and reads as follows:
+\mkey{InfoData}
+\begin{verbatim}
+struct InfoData { 
+   LONG	  id_NumSoftErrors;
+   LONG	  id_UnitNumber;
+   LONG	  id_DiskState;
+   LONG	  id_NumBlocks;
+   LONG	  id_NumBlocksUsed;
+   LONG	  id_BytesPerBlock;   
+   LONG	  id_DiskType;		
+   BPTR	  id_VolumeNode;
+   LONG	  id_InUse;
+};
+\end{verbatim}
+The elements of this structure are interpreted as follows:
+\smallskip{}
+
+{\tt id\_NumSoftErrors} counts the number of read or write errors the
+file system detected during its life-time. It is not particularly
+bound to the currently inserted medium.
+\smallskip{}
+
+{\tt id\_UnitNumber} is the unit number of the exec device on which
+the \emph{file system} operates, and hence into which the volume
+identified by the \emph{lock} is inserted.
+\smallskip{}
+
+{\tt id\_DiskState} identifies the status of the file system, whether
+the volume is writable and whether it is consistent. Disk states are
+also defined in {\tt dos/dos.h} and set according to the following table:
+
+\begin{rkrmtable}{Disk States} \label{table:diskstate}
+{\bf Disk State} & {\bf Description}\\ \hline \hline
+{\tt ID\_WRITE\_PROTECTED} & The volume is write protected \\ \hline
+{\tt ID\_VALIDATING} & The volume is currently validating \\ \hline
+{\tt ID\_VALIDATED} & The volume is consistent and read- and writeable \\ \hline
+\end{rkrmtable}
+
+A volume in the state {ID\_WRITE\_PROTECTED} has been identified as
+consistent, but does not accept modifications, either because the
+medium is physically write-protected, or because it has been locked by
+software, see section~\ref{sec:action_write_protect}.
+\smallskip{}
+
+A volume gets the state {\tt ID\_VALIDATING} if its \emph{file system}
+detected inconsistencies; some file systems, including the Fast File
+System, then trigger a consistency check of the volume. The Fast File
+System rebuilds the bitmap of the volume that describes which blocks
+are allocated and which are free. It cannot fix more severe errors and
+then presents a requester to the user indicating the problem. During
+validation, file systems typically refuse to accept write requests. If
+validation cannot bring the volume into a consistent state, the disk
+state will remain {\tt ID\_VALIDATING}.
+\smallskip{}
+
+A volume in state {\tt ID\_VALIDATED} is consistent and read- and
+writeable.
+\medskip{}
+
+{\tt id\_NumBlocks} is the total number of blocks into which the
+medium is divided. This includes both free and occupied blocks, and
+thus indicates the total capacity of the volume. This number is not
+necessarily constant. The RAM-Handler adjusts this value according to
+the available memory; RAM-Handler versions prior version 45 set this
+to~0. In means, in particular, that care needs to be taken when the
+disk fill state in percent is computed by a dividing the number of
+used blocks by this number.
+\smallskip{}
+
+{\tt id\_NumBlocksUsed} is the number of blocks occupied by file
+system on the disk. As it is dependent on the file system how many
+blocks it needs in addition to the actual payload data, no conclusion
+can be derived from this number whether a particular file fits on the
+volume. RAM-Handlers prior to release 45 did not even fill this with a
+useful value.
+\smallskip{}
+
+{\tt id\_BytesPerBlock} is the number of bytes available for payload
+in a physical block of the medium, and not necessarily the phyiscal
+block size into which the storage medium is divided. Some file systems
+require additional bytes of the physical block for administrating
+files. Even the RAM-Handler segments data into blocks and provides in
+this member the number of data bytes stored there.
+\smallskip{}
+
+{\tt id\_DiskType} identifies whether the \emph{file system} that
+generated the {\tt lock} argument can identify the disk structure and
+claims responsibility for it. Unlike what the name suggests, it is
+\emph{not} a general identifier of the type \emph{file system} itself
+and shall not be used to identify a paritcular file system. For legacy
+reasons, the various flavours of the Fast File System also leave their
+identifier here, though this principle should not be carried over to
+new designs. Instead, a file system should rather return the generic
+{\tt ID\_DOS\_DISK} if it finds a medium for which it claims
+responsibility. Even if the file system recognizes the disk structure
+as one of its own, it is possible that the structure is
+considered inconsistent by setting {\tt id\_DiskState} to {\tt
+  ID\_VALIDATING}.
+\smallskip{}
+
+AmigaDOS currently defines the following types in {\tt dos/dos.h}:
+\begin{rkrmtable}{Disk Types} \label{table:disktype}
+{\bf Disk Type} & {\bf Description}\\ \hline \hline
+{\tt ID\_NO\_DISK\_PRESENT} & No disk is inserted \\ \hline
+{\tt ID\_UNREADABLE\_DISK} & Reading disk data failed at exec device level \\ \hline
+{\tt ID\_DOS\_DISK} & The disk is in a format the file system attempts to interpret \\ \hline
+{\tt ID\_NOT\_REALLY\_DOS} & While disk contents can be accessed, it is not in a suitable structure\\ \hline
+{\tt ID\_KICKSTART\_DISK} & A disk containing an A1000 kickstart \\ \hline
+{\tt 'BUSY'} & The file system is currently inhibited \\ \hline
+{\tt 'CON\textbackslash0'} & Not a file system, but the Con-Handler \\ \hline
+{\tt 'RAW\textbackslash0'} & Not a file system, but the Con-Handler \\ \hline
+All others & The first long word of the first block of the medium \\ \hline
+\end{rkrmtable}
+
+As mentioned above {\tt ID\_DOS\_DISK} is the {\tt id\_DiskType}
+\emph{file systems} should return in case they recognize the structure
+and attempt to interpret them. Despite this fact, the Fast File System
+returns for legacy reasons other values identifying its flavour as such:
+
+\begin{rkrmtable}{Fast File System Flavours} \label{table:ffsflavours}
+{\bf FFS Flavour} & {\bf Description} \\ \hline \hline
+{\tt ID\_DOS\_DISK} & Original file system (OFS) \\ \hline
+{\tt ID\_FFS\_DISK} & First version of FFS \\ \hline
+{\tt ID\_INTER\_DOS\_DISK} & International variant of OFS \\ \hline
+{\tt ID\_INTER\_FFS\_DISK} & International variant of FFS \\ \hline
+{\tt ID\_FASTDIR\_DOS\_DISK} & OFS variant with directory cache \\ \hline
+{\tt ID\_FASTDIR\_FFS\_DISK} & FFS variant with directory cache \\ \hline
+{\tt ID\_LONG\_DOS\_DISK} & OFS variant with 106 character file name size \\ \hline
+{\tt ID\_LONG\_FFS\_DISK} & FFS variant with 106 character file name size \\ \hline
+{\tt ID\_COMPLONG\_FFS\_DISK} & FFS with 54 character file names compatible to FFS \\ \hline
+\end{rkrmtable}
+
+The OFS variants embed additional administration information into the
+data blocks and thus carry less payload data per block, and for that
+are more robust, but are slower as the data cannot be transmitted by
+DMA into the host memory but requires an additional copy. The first
+FFS variant addresses this issue. Both first types use, however, a
+non-suitable algorithm for case-insensitive comparison of file names
+and thus do not interpret character from the extended ISO-Latin-1 set
+(i.e. printable characters outside the ASCII range) correctly. Thus,
+the first two types should be avoided.
+\smallskip{}
+
+Proper case-insensitive interpretation of file names was added
+afterwards, leading to the next two flavours which are otherwise
+identical. All types from that point on in
+table~\ref{table:ffsflavours} until its end use the correct algorithm
+to compare file names.
+\smallskip{}
+
+The next two versions administrate an additional directory cache;
+while this cache typically speeds up listing the directory, it also
+requires additional update steps when adding or renaming files, making
+such operations slower and more error prone. These variants
+unfortunately also lack a good algorithm to clean up the cache if
+objects are continuosly added and removed from directories.  These
+variants are not generally recommended and should be considered
+experimental.
+\smallskip{}
+
+The {\tt LONG} variants of OFS and FFS allow file names of up to 106
+characters by using a slightly modified block syntax which overcomes
+the 30 character file name limit all above variants suffer from. They
+also use the correct case-insensitive file name comparison. In some
+rare cases, the administration information is augmented by one
+additional block keeping a long comment.
+\smallskip{}
+
+The last variant offers a compatible form of long file names that is
+backwards compatible to earlier variants of the FFS. The file name
+limit is here 54 characters, though older versions of the FFS can
+still read the disk correctly, even though they will not be able to
+locate or list longer file names. This variant is also experimental.
+
+\punchline{Not the DosType}{While mount lists include a {\tt DOSTYPE}
+  field that identifies the \emph{file system} uniquely, the {\tt
+    id\_DiskType} member \emph{does not} represent this {\tt
+    DOSTYPE}. That it coincides with the {\tt DOSTYPE} for the
+  variants of the FFS is a historical error that shall not be mirrored
+  by new \emph{file system} designs. It is therefore advisable to
+  check the first 3 bytes of the {\tt id\_DiskType} for the characters
+  {\tt DOS}, and if so, assume that the disk is valid and can be
+  interpreted by the \emph{file system}. Unfortunately, some
+  third-party designs do not follow this convention.}
+
+{\tt ID\_NOT\_REALLY\_DOS} and {\tt ID\_UNREADABLE\_DISK} both
+indicates disks the file system cannot make use of. The first because
+the logical structure of the disk content cannot be interpreted, and
+the second because the underlying exec device cannot gain access to
+the contents of the blocks, i.e. the physical layer of the disk is not
+readable.
+\smallskip{}
+
+{\tt 'BUSY'} is a four-character constant that is not documented in
+{\tt dos/dos.h}, but returned whenever a file system has been
+inibited, i.e. its access to the physical layer has been
+stopped. Thus, any attempt to access this file system is currently
+suspended, probably because some program attempts to operate on the
+medium on a lower level. Disk editors or disk salvage programs will
+typically make use of this practise to avoid file systems from
+touching the medium while they work on it.
+\smallskip{}
+
+{\tt 'CON\textbackslash0'} and {\tt 'RAW\textbackslash0'} are indicators left by the Con-Handler
+(or console-type handlers) which use the {\tt InfoData} structure for
+other purposes, see section~\ref{sec:console}. As they do not (in
+general) hand out locks, the {\tt Info()} function will usually not
+return these two types, but direct handler communication with a packet
+type of {\tt ACTION\_DISK\_INFO} can.
+\smallskip{}
+
+All other types are returned in case the \emph{file system} cannot
+interpret the disk structure, and are then copied from the first 4
+bytes of the medium or partition into {\tt id\_DiskType}. In case
+these bytes are all~0, it is changed to {\tt ID\_NOT\_REALLY\_DOS}.
+\medskip{}
+
+{\tt id\_VolumeNode} in the {\tt InfoData} structure is a BPTR to the
+{\tt DosList}\key{DosList} structure corresponding to the volume on
+which the object identified by the {\tt lock} is located. For this
+structure, see section~\ref{sec:devicelist}.
+\smallskip{}
+
+{\tt id\_InUse} counts the number of locks and files currently open on
+the medium identified by {\tt lock}.
+\medskip{}
+
+This function returns a non-zero result code on success and sets then
+{\tt IoErr()}\key{IoErr()} to~0. On failure, it returns~0 and sets
+{\tt IoErr()} to an error code.
+
 \subsection{The struct FileLock} \label{sec:filelock}
 
 \emph{Locks} have been so far been opaque identifiers; in fact, they
@@ -4078,9 +4334,14 @@ notification request.
 
 \chapter{File System Support Functions} \label{sec:filesysmisc}
 
-% TODO
+Functions in this section act on a \emph{file system} as a whole;
+thus, they do not need a file or a lock to operate on, but modify the
+file system globally.
 
 \subsection{Adjusting File System Buffers}
+
+The {\tt AddBuffers()}\mkey{AddBuffers()} function increases or
+reduces the number of buffers of a file system.
 
 \begin{verbatim}
 success = AddBuffers(filesystem, number)
@@ -4089,14 +4350,34 @@ D0		       D1          D2
 BOOL AddBuffers(STRPTR, LONG)
 \end{verbatim}
 
-\subsection{Get Information on the State of the Medium}
+This function adds {\tt number} buffers to the file system whose name
+is given by {\tt filesystem}. This name consists of a filename,
+volume, or assign on the \emph{file system} whose buffer count shall
+be modified, see also {\tt GetDeviceProc()}\key{GetDeviceProc()} in
+section~\ref{sec:getdeviceproc} how a file system is located.
+\smallskip{}
 
-\begin{verbatim}
-success = Info( lock, parameterBlock )
-D0		D1    D2
+The {\tt number} argument may be both positive --- for adding buffers
+to the file system --- or negative, to reduce the number of buffers.
+The purpose of these buffers is file-system dependent. The Fast File
+System in ROM uses it to buffer administrative information such as
+directory contents, but also blocks that describe the location of file
+content on the disk; thus adding more buffers can help to improve the
+performance of random-access into the file with {\tt Seek()}\key{Seek()}.
+\smallskip{}
 
-BOOL Info(BPTR, struct InfoData *)
-\end{verbatim}
+A third purpose of the buffers is to store input and output data of
+{\tt Read()}\key{Read()} or {\tt Write()}\key{Write()} if the
+operation is not aligned to block boundaries or if the source or
+target buffer is considered unsuitable for direct transfer to the
+underlying hardware exec device.
+\medskip{}
+
+This function returns a non-zero result on success and~0 on
+failure. In first case, it sets {\tt IoErr()} to~0, otherwise it is
+set to an error code. Some file systems return the current number of
+buffers allocated; callers should thus be prepared that the return
+code is not equal to {\tt DOSTRUE} to indicate success.
 
 \subsection{Inhibiting a File System}
 
