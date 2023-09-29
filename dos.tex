@@ -2646,7 +2646,7 @@ This function allows to open files in exclusive mode without deleting
 its contents. For that, obtain an \emph{exclusive lock} on the file to
 be opened, and then call {\tt OpenFromLock()} as second step.
 
-\subsection{Get Information on the State of the Medium}
+\subsection{Get Information on the State of the Medium} \label{sec:info}
 
 The {\tt Info()}\mkey{Info()} function returns information on the
 medium on which the locked object is located, and fills an {\tt
@@ -4379,7 +4379,13 @@ set to an error code. Some file systems return the current number of
 buffers allocated; callers should thus be prepared that the return
 code is not equal to {\tt DOSTRUE} to indicate success.
 
-\subsection{Inhibiting a File System}
+\subsection{Inhibiting a File System} \label{sec:inhibit}
+
+The {\tt Inhibit()}\mkey{Inhibit()} function disables or enables
+access of the \emph{file system} to the underlying exec device
+driver. Typical application for this function are disk editors or file
+system salvage tools that require exclusive access to the file system
+structure.
 
 \begin{verbatim}
 success = Inhibit(filesystem, flag)
@@ -4388,7 +4394,40 @@ D0                    D1       D2
 BOOL Inhibit(STRPTR,LONG)
 \end{verbatim}
 
+This call controls whether the file system identified by the path name
+given as {\tt filesystem} is allowed to access the medium or partition
+it usually operates on. The {\tt filesystem} argument is interpreted
+through {\tt GetDeviceProc()}\key{GetDeviceProc()} to find the process
+responsible for the medium. That is, the function resolves relative
+and absolute paths, device and volume names, and even assigns. As {\tt
+  filesystem} is interpreted as a path, a device or volume name passed
+in shall include a colon (``{\tt :}'') as it would be otherwise
+interpreted as a path relative to the current directory.
+\smallskip{}
+
+The {\tt flag} argument controls whether access to the medium is
+allowed or disallowed. If {\tt flag} is set to {\tt DOSTRUE}, access
+is inhibited and the \emph{file system} stops accessing the partition
+or volume. It also sets {\tt id\_DiskType} to the four-character code
+{\tt 'BUSY'}, which will be interpreted by the workbench to ghost the
+corresponding drive icon. Application programs are then allowed to
+access the exec device driver directly to access or modify blocks
+within the partition managed by the inhibited \emph{file system}.
+\smallskip{}
+
+If {\tt flag} is set to {\tt DOSFALSE}, access to the medium is
+allowed again. The \emph{file system} then performs a consistency
+check of the file system structure of the disk, i.e. validates it.
+\smallskip{}
+
+This function returns a non-zero result code for success and then sets
+{\tt IoErr()}\key{IoErr()} to~0. On error, it returns~0 and provides an
+error code in {\tt IoErr()}.
+
 \subsection{Change the Name of a Volume}
+
+The {\tt Relabel()} function changes the name of a volume a file
+system operates on.
 
 \begin{verbatim}
 success = Relabel(volumename,name)
@@ -4397,7 +4436,30 @@ D0                    D1      D2
 BOOL Relabel(STRPTR,STRPTR)
 \end{verbatim}
 
+This function relables the volume that resides on the \emph{file
+  system} corresponding to the {\tt volumename} path. This path is
+resolved through {\tt GetDeviceProc()}\key{GetDeviceProc()} and thus
+may be a relative or absolute path, the device or the volume name. As
+{\tt filesystem} is interpreted as a path, a device or volume name
+passed in shall include a colon (``{\tt :}'') as it would be otherwise
+interpreted as a path relative to the current directory.
+\smallskip{}
+
+The volume name of the medium or partition is then changed to {\tt
+  name}. Unlike the first argument, {\tt name} shall \emph{not}
+contain a colon (``{\tt :}'') nor a slash (``{\tt /}'').
+\smallskip{}
+
+This function returns a non-zero result code for success or~0 for an
+error. In the first case, it sets {\tt IoErr()}\key{IoErr()} to~0, in
+the latter case to an error code.
+
 \subsection{Initializing a File System}
+
+The {\tt Format()} function initializes a complete file system,
+writing adminstration information on the file system that corresponds
+to an empty medium. Thus, this function erases all information stored
+in it.
 
 \begin{verbatim}
 success = Format(filesystem, volumename, dostype)
@@ -4406,7 +4468,69 @@ D0                   D1          D2         D3
 BOOL Format(STRPTR, STRPTR, ULONG)
 \end{verbatim}
 
-  
+This function erases all information on the medium or partition
+identified by {\tt filesystem}, which is interpreted as a path. Thus,
+it may be a device or volume name, which shall then be terminated by a
+colon (``{\tt :}''). However, all other path names also work; however,
+if they do not include a colon, the argument is interpreted as a path
+name relative to the current directory, and thus will initialize the
+file system corresponding to it. This is probably not desirable.
+\smallskip{}
+
+To block processes from accessing information on the file system while
+it is initializing, it should be inhibited upfront, e.g by {\tt
+  Inhibit(filesystem,DOSTRUE)} or lower level direct communication to
+the handler, see section~\ref{sec:action_inhibit}.  Initializing is
+the only operation file systems are able to perform while being
+inhibited.
+\smallskip{}
+
+The {\tt Format()} function \emph{does not} attempt a low-level
+initialization of the corresponding medium; that is, it does not
+attempt to low-level format it on the physical layer as required when
+a floppy disk shall be prepared for initial use. This step needs to be
+performed manually by first blocking access of the file system to the
+floppy through {\tt Inhibit()}, then initializing the physical
+layer through the exec device driver upfront, e.g. by the command {\tt
+  TD\_FORMAT}, and then finally by calling this function.
+\medskip{}
+
+The volume name of the medium or partition is initialized to {\tt
+  volumename}, which \emph{shall not} contain a colon (``{\tt :}'')
+nor a slash (``{\tt /}''). Note that not all file systems support
+volume names. In such cases, this argument is ignored.
+\smallskip{}
+
+The {\tt dostype} defines the flavour of file system created on the
+device if the file system allows multiple variations. The variations
+the Fast File System supports are listed in
+table~\ref{table:ffsflavours}. This corresponds to the {\tt DOSTYPE}
+in the mount list. File systems may also ignore this argument if they
+only support a single flavour.
+
+Unfortunately, AmigaDOS does not provide an easy way to access the
+flavours supported by a file system. The {\tt Format} command of the
+workbench offers the types listed in table~\ref{table:ffsflavours} if
+the mount entry of the file system indicates that it is the FFS, and
+otherwise does not offer any choices and just copies the {\tt dostype}
+from the {\tt de\_DosType} of the {\tt DosEnvec} structure, see also
+section~\ref{mountlist}.
+\smallskip{}
+
+After initializing the \emph{file system}, use {\tt
+  Inhibit(filesystem,DOSFALSE)} or the corresponding lower level
+packet {\tt ACTION\_INHIBIT} to grant the file system access to the
+partition or medium again. As the volume name can be different and
+\emph{locks} or \emph{file handles} on the original file system
+clearly became invalid, it is advisable to pass the \emph{device name}
+of the \emph{file system} to {\tt Inhibit()} if this call is used, see
+also sections~\ref{sec:deviceoverview} and~\ref{sec:inhibit}.
+\medskip{}
+
+This function returns a boolean success indicator that is non-zero on
+succes or~0 on error. In either case, {\tt IoErr()} is set to~0 on
+success or an error code on failure.
+
 \chapter{Administration of Volumes, Devices and Assigns} \label{sec:devicelist}
 
 The \emph{dos.library} is just a layer of AmigaDOS that provides a
@@ -7331,7 +7455,11 @@ function is the setter equivalent of {\tt
 section~\ref{sec:getfilesystask}.
 
 \subsection{Retrieve the Lock to the Program Directory}
-% TODO
+
+The {\tt GetProgramDir()}\mkey{GetProgramDir()} returns a lock to the
+directory that contains the binary from which the caller executes, if
+such a directory exists. If the executable was made resident, this
+function returns {\tt ZERO}.
 
 \begin{verbatim}
 lock = GetProgramDir()
@@ -7340,8 +7468,19 @@ D0
 BPTR GetProgramDir(void)
 \end{verbatim}
 
+The lock returned by this function corresponds to the {\tt PROGDIR:}
+(pseudo)-assign and the {\tt pr\_HomeDir} member of the {\tt Process}
+structure, with the only exception that {\tt ZERO} does not correspond
+to the root directory of the boot volume, but rather indicates that no
+home directory exists.
+
 \subsection{Set the Program Directory}
-% TODO
+
+The {\tt SetProgramDir}\mkey{SetProgramDir()} sets the directory
+within which the executing program is made to believe of getting
+started from, and the directory that corresponds to the {\tt PROGDIR:}
+pseudo-assign.
+
 \begin{verbatim}
 oldlock = SetProgramDir(lock)
 D0		         D1
@@ -7349,8 +7488,18 @@ D0		         D1
 BPTR SetProgramDir(BPTR)
 \end{verbatim}
 
+This function installs {\tt lock} into {\tt pr\_HomeDir} of the {\tt
+  Process} structure. This {\tt lock} is supposed to belong to the
+directory the currently executing program was loaded from and is used
+to resolve the {\tt PROGDIR:} pseudo-assign. If {\tt ZERO} is
+installed, the current process will be unable to resolve this
+pseudo-assign.
+
 \subsection{Retrieve Command Line Arguments}
-% TODO
+
+The {\tt GetArgStr()}\mkey{GetArgStr()} function returns the command
+line arguments, if any, of the calling process. If called from the
+workbench, this function returns {\tt NULL}.
 
 \begin{verbatim}
 ptr = GetArgStr()
@@ -7359,8 +7508,18 @@ D0
 STRPTR GetArgStr(void)
 \end{verbatim}
 
+This function returns the command line arguments as {\tt
+  NUL}-terminated string. This is the same string the process finds in
+register {\tt a0} on startup, or that is placed into the file buffer
+of the {\tt Input()} file handle. This function returns {\tt NULL} if
+the program was run from the workbench; it is equvivalent to reading
+the {\tt pr\_Arguments} member of the {\tt Process} structure.
+
 \subsection{Set the Command Line Arguments}
-% TODO
+
+The {\tt SetArgStr()}\mkey{SetArgStr()} function sets the string
+returned by {\tt GetArgStr()}\key{GetArgStr()}. It cannot set the
+command line arguments as seen by {\tt ReadArgs()}\key{ReadArgs()}.
 
 \begin{verbatim}
 oldptr = SetArgStr(ptr)
@@ -7368,6 +7527,13 @@ D0		   D1
 
 STRPTR SetArgStr(STRPTR)
 \end{verbatim}
+
+This function requires a pointer to a {\tt NUL} terminated string as
+{\tt ptr} and installs it to {\tt pr\_Arguments} member of the
+{\tt Process} structure. This is unfortunately of limited use as the
+{\tt ReadArgs()}\key{ReadArgs()} function takes the command line
+arguments from a different source, namely the input buffer of the
+{\tt Input()} file handle. 
 
 \chapter{Binary File Structure} \label{sec:binary}
 
