@@ -409,7 +409,7 @@ conceptionally something different: The first being the index to the
 first element of the host memory array, the later the pointer to the
 first address.
 
-\section{C strings and BSTRs}
+\section{C Strings and BSTRs}
 While the C language defines \emph{\mkey{String}strings} as
 0-terminated arrays of {\tt char}, and AmigaOs in particular to
 0-terminated arrays of {\tt UBYTE}s, that is, unsigned characters, the
@@ -486,6 +486,362 @@ files and directories, and provides access to such objects through the
 \emph{dos.library}. File systems interpret paths (see~\ref{sec:paths})
 in order to locate objects such as files and directories on such data
 carriers.
+
+\chapter{Date and Time}
+
+Due to its history, AmigaOs uses two incompatible representations of date
+and time. The {\tt timer.device} represents a date as the number of seconds
+and microseconds since January $1^{\mbox{\tiny st}}$ 1978. As AmigaDOS is
+based on TRIPOS as an independently developed operating system, the
+\emph[dos.library} uses a different representation as {\tt DateStamp}
+structure defined in {\tt dos/dos.h}: \mkey{DateStamp}
+\begin{verbatim}
+struct DateStamp {
+   LONG  ds_Days;
+   LONG  ds_Minute;
+   LONG  ds_Tick;
+};
+\end{verbatim}
+
+The elements of this structure are as follows:
+\smallskip{}
+
+{\tt ds\_Days} counts the number of days since January $1^{\mbox{{\tiny st}}}$ 1978.
+\smallskip{}
+
+{\tt ds\_Minute} counts the number of minutes past midnight, i.e. the start of the day.
+\smallskip{}
+
+{\tt ds\_Tick} counts the ticks since the start of the minute. The number of
+ticks per second is defined as {\tt TICKS\_PER\_SECOND} in {\tt dos/dos.h}.
+\smallskip{}
+
+\punchline{Ticking 50 Times a Second}{A system ``tick'' is always
+$1/50^{\mbox{\tiny th}}$ of a second, regardless whether the system is an
+NTSC or PAL system. AmigaDOS detects the clock basis during setup and will
+scale times appropriately such that the definition of the ``tick'' is
+independent of the clocking of the system or the monitor refresh frequency.}
+
+\section{Elementary Time and Date Functions}
+
+The functions in this section obtain the current system time, compare two
+times, or delay the system for a given time. They represent times --- and
+dates if appropriate --- in the {\tt DateStamp} structure as a triple of
+days, minutes and ticks.
+
+\subsection{Obtaining the Time and Date}
+
+The {\tt DateStamp()}\mkey{DateStamp()} function obtains the current date
+and time from AmigaDOS:
+
+\begin{verbatim}
+ds = DateStamp( ds );
+D0              D1
+
+struct DateStamp *DateStamp(struct DateStamp *)
+\end{verbatim}
+
+This function retrieves the current system time and fills it into a
+{\tt DateStamp}\key{DateStamp} structure pointed to by {\tt ds}. It also
+returns a pointer to the structure passed in. This function cannot fail.
+\smallskip{}
+
+Unlike many other \emph{dos.library} functions, there is no requirement to
+align {\tt ds} to a long-word boundary.
+
+\subsection{Comparing two Times and Dates}
+
+The {\tt CompareDates()}\mkey{CompareDates()} function compares two dates as
+given by {\tt DateStamp}\key{DateStamp} function and returns an indicator
+which of the dates are earlier.
+
+\begin{verbatim}
+result = CompareDates(date1,date2)
+D0                     D1     D2
+
+LONG CompareDates(struct DateStamp *,struct DateStamp *)
+\end{verbatim}
+
+This function takes two pointers to {\tt DateStamp} structures as
+{\tt date1} and {\tt date2} and returns a negative number if {\tt date1} is later
+than {\tt date2}, a positive number if {\tt date2} is later than {\tt date1},
+or 0 if the two dates are identical.
+
+\subsection{Delaying Program Execution}
+
+The {\tt Delay()}\mkey{Delay()} function delays the execution of the calling
+process by a specific amount of ticks.
+
+\begin{verbatim}
+Delay( ticks )
+       D1
+
+void Delay(ULONG)
+\end{verbatim}
+
+This function suspends execution of the calling process by {\tt ticks}
+AmigaDOS ticks. The delay is system-friendly and does not burn CPU cycles;
+instead, the process is suspended from the CPU the indicated amount of time,
+makking it available for other processes. Thus, this function is the
+preferred way of delaying program execution. A tick is $1/50^{\mbox{\tiny
+    th}}$ of a second.
+\smallskip{}
+
+AmigaDOS variants below version 36 could not handle delays of~0
+appropriately.
+
+\section{Conversion Into and From Strings} \label{sec:dateconv}
+
+Functions in this section convert date and time in the (binary) AmigaDOS
+representation to human-readable strings, and in the reveverse direction.
+Both the input and output of these functions are kept in the {\tt
+  DateTime} structure that is defined in {\tt dos/datetime.h}
+and reads as follows:
+\mkey{DateTime}
+\begin{verbatim}
+struct DateTime {
+        struct DateStamp dat_Stamp;
+        UBYTE   dat_Format;        
+        UBYTE   dat_Flags;         
+        UBYTE   *dat_StrDay;       
+        UBYTE   *dat_StrDate;      
+        UBYTE   *dat_StrTime;      
+};
+\end{verbatim}
+
+{\tt dat\_Stamp} contains the input or output date represented as a {\tt
+  DateStamp} structure.
+\smallskip{}
+
+{\tt dat\_Format} defines the format of the date string to create, and the
+order in which days, months and years appear within the string. The
+following formats are available, all defined in {\tt dos/datetime.h}:
+
+\begin{rkrmtable}{Date formatting options} \label{table:dateformats}
+{\bf Format Definition} & {\bf Description} \\ \hline \hline
+{\tt FORMAT\_DOS} & The AmigaDOS default format \\ \hline
+{\tt FORMAT\_INT} & International (ISO) format \\ \hline
+{\tt FORMAT\_USA} & USA date format \\ \hline
+{\tt FORMAT\_CDN} & Canadian and European format \\ \hline
+\end{rkrmtable}
+
+{\tt FORMAT\_DOS} represents the date as day of the month in two digits,
+followed by the month as three-letter abbreviation, followed by a two-digit
+year counting from the start of the century. An example of this formatting
+is {\tt 30-Sep-23}.
+\smallskip{}
+
+{\tt FORMAT\_INT} starts with a two-digit year, followed by the month
+represented as two digits starting from 01 for January, followed by two
+digits for the day of the month. An example of this string is
+{\tt 23-09-30}.
+\smallskip{}
+
+{\tt FORMAT\_USA} places the month first, encoded as two numerical digits,
+followed by two digits of the day of the month, followed by two digits of
+the year. An example of this formatting is {\tt 09-30-23}.
+\smallskip{}
+
+{\tt FORMAT\_CDN} follows the European convention and places the day of the
+month first, followed by the month represented as two numerical digits,
+followed by the year as two digits.
+\medskip{}
+
+{\tt dat\_Flags} defines additonal flags that control the conversion
+process. They are also defind in {\tt dos/datetime.h}:
+
+\begin{rkrmtable}{Date conversion flags} \label{table:dateflags}
+{\bf Flag} & {\bf Description} \\ \hline \hline
+{\tt DTF\_SUBST} & Substitute dates by relative description if possible \\ \hline
+{\tt DTF\_FUTURE} & Reference direction for relative dates is to the future\\ \hline
+\end{rkrmtable}
+
+The include file {\tt dos/datetime.h} define in addition also bit numbers
+for the above flags that start with {\tt DTB} instead of {\tt DTF}. The
+meaning of these flags are as follows:
+\smallskip{}
+
+{\tt DTF\_SUBST} allows, if set, the conversion to substitute dates nearby
+today's date by descriptions relative to today. This flag is only honored when
+converting a time and date in AmigaDOS representation to human-readable
+strings. In particular, the following substitutions are made:
+\smallskip{}
+
+If the date provided is identical to the system date, the output date is set
+to ``Today''.
+\smallskip{}
+
+If the date is one day later than the current system date, the output date
+is set to ``Tomorrow''.
+\smallskip{}
+
+If the date is one day before te current system date, the output date is set
+to ``Yesterday''.
+\smallskip{}
+
+If the date in the past week, the function substitutes it by the name of the
+day of the week, e.g. ``Saturday''.
+\medskip{}
+
+{\tt DTF\_FUTURE} is only only honored when converting a string to the
+AmigaDOS representation, that is into {\tt DateStamp} structure. It
+indicates whether weekdays such as ``Monday'' are interpreted as dates in
+the past, i.e. ``last Monday'', or as dates in the future, i.e. ``next
+Monday''. If the flag is cleared, weekdays are interpreted as being in the
+past, same as the {\tt DateToStr()}\key{DateToStr()} function would generate
+them. If the flag is set, weekdays are assumed as references into the
+future.
+\medskip{}
+
+{\tt dat\_StrDay}: This buffer is only used by converting {\tt DateStamps}
+to strings, and --- if present --- is then filled by the week of the day,
+e.g. ``Saturday''.
+\smallskip{}
+
+{\tt dat\_StrDate}: This element points to a buffer that is either filled
+with the human-readable date, or is input to the conversion then containing
+a human-readable date. The buffer is formatted, or expected to be formatted
+according to {\tt dat\_Format} and {\tt dat\_Flags}.
+\smallskip{}
+
+{\tt dat\_StrTime}: This element points to a buffer that is either filled
+with a human-readable time, or is the input time to be converted. AmigaDOS
+expects here a 24h clock, hours, minutes and seconds in this order,
+separated by colon, e.g. {\tt 21:47:16}.
+\medskip{}
+
+The functions in this section are patched by the \emph{locale.library} once
+it is loaded, and then replaced the English strings by the corresponding
+localized output. The localized versions may also accept (or provide)
+different formats, such as four-digit years.
+
+\subsection{Converting a Time and Date to a String} \label{sec:datetostr}
+
+The {\tt DateToStr()} function converts a date and time into a human
+readable string. The date and time, as well as formatting instructions are
+given by a {\tt DateTime} structure.
+
+\begin{verbatim}
+success = DateToStr( datetime )
+D0                      D1
+
+BOOL DateToStr(struct DateTime *)
+\end{verbatim}
+
+This function takes the date and time in the AmigaDOS binary representation
+contained in {\tt dat\_Stamp} of the passed in {\tt DateTime} structure
+introduced in section~\ref{sec:dateconv} and converts it into human readable
+strings. The elements of this structure shall be populated as follows:
+\smallskip{}
+
+{\tt dat\_Stamp} shall be initialized to the date and time to be converted.
+\smallskip{}
+
+{\tt dat\_Format} defines the format of the date string to create. It shall be
+a value from table~\ref{table:dateformats}.
+\smallskip{}
+
+{\tt dat\_Flags} defines additonal flags that control the conversion
+process. This function only honors the {\tt DTF\_SUBST} flag which indicates
+that {\tt DateToStr()} is supposed to represent the date relative to the
+current system date if possible. That is, if possible, the date is
+represented as ``today'', ``tomorrow'', ``yesterday'' or a weekday. Week
+days always correspond to past days, e.g. ``Friday'' corresponds to the past
+Friday, not a day in the future.
+\smallskip{}
+
+{\tt dat\_StrDay}: If this pointer is non-{\tt NULL}, it shall point to a
+string buffer at least {\tt LEN\_DATSTRING} bytes large into which the day
+of the week is filled, e.g. ``Saturday''.
+\smallskip{}
+
+{\tt dat\_StrDate}: If this pointer is non-{\tt NULL}, it shall also point
+to a string buffer at least {\tt LEN\_DATSTRING} bytes large. This buffer
+will then be filled by a description fo the date according to the format 
+in {\tt dat\_Format} and {\tt dat\_Flags}.
+\smallskip{}
+
+{\tt dat\_StrTime}: This buffer, if the pointer is non-{\tt NULL}, is filled
+by the time of the day, using a 24h clock. The format is always hours,
+minutes, seconds, separated by colon.
+\medskip{}
+
+This function is patched by the \emph{locale.library} once it is loaded, and
+then replaced the English output by the corresponding localized output.
+\smallskip{}
+
+The function returns~0 on error; the only source of error here is if {\tt
+  dat\_Stamp} is invalid, e.g. the number of minutes is larger than $60
+\times 24$ or the number of ticks is larger than $50 \times 60$. This makes
+this function probably unsuitable to handle leap seconds correctly. This
+function does not touch~{\tt IoErr()}, even in case of failure.
+
+\subsection{Convert a String to a Date and Time}
+
+The {\tt StrToDate()}\mkey{StrToDate()} function converts a date from a
+human-readable string to its binary AmigaDOS representation.
+
+\begin{verbatim}
+success = StrToDate( datetime )
+D0                      D1
+
+BOOL StrToDate( struct DateTime * )
+\end{verbatim}
+
+This function takes a {\tt DateTime} structure as defined in
+section~\ref{sec:dateconv} and converts the date and time strings
+in this structure to a {\tt DateStamp} structure in {\tt dat\_Stamp}. In
+particular, the elements of the {\tt DateTime} shall be initialized as
+follows:
+\smallskip{}
+
+{\tt dat\_DateTime} may remain uninitialized and is rather filled by this
+function with the converted date. In other words, this element is used to
+provide the result of this function.
+\smallskip{}
+
+{\tt dat\_Format} shall be initialized by the format that is used by the
+input date. Table~\ref{table:dateformats} lists the available input
+formats. In particular, the ROM code within the \emph{dos.library} only
+accepts two-digit years and interprets the anything between 78 and 99 as
+1978 to 1999, and years between 00 and 45 as 2000 to 2045. It refuses all
+other numbers. However, {\tt StrToDate()} is patched by the
+\emph{locale.library} whose replacement implementation also accepts
+four-digit years.
+\smallskip{}
+
+{\tt dat\_Flags} shall be initialized by a combination of the flags from
+table~\ref{table:dateflags}. As {\tt StrToDate()} always accepts relative
+dates such as ``yesterday'', the {\tt DTF\_SUBST} flag is ignored and only
+{\tt DTF\_FUTURE} is honored. This flag indicates whether weekdays are
+considered a date in the past or in the future.
+\smallskip{}
+
+{\tt dat\_StrDay} is ignored by this function. If a relative date given by a
+day of a week is to be converted, this weekday goes directly into {\tt dat\_StrDate}.
+\smallskip{}
+
+{\tt dat\_StrDate}, if it is non-{\tt NULL}, points to a string describing
+the date, in the format according to {\tt dat\_Format}. If this string is
+not given, the output date is taken from the system date, i.e. is today's
+date.
+\smallskip{}
+
+{\tt dat\_StrTime}, if it is non-{\tt NULL}, points to a human-readable
+string describing the time of the day. This time shall be formatted as a 24h
+clock, in the order hours, minutes and seconds, each separated by colon. If
+this pointer is {\tt NULL}, the current system time is used.
+\smallskip{}
+
+This function returns non-zero on success, and~0 on error. It does not set
+{\tt IoErr()} in case of error. Possible errors include ill-formatted input
+strings the function cannot interpret.
+\smallskip{}
+
+Also note that this function is patched by the \emph{locale.library} once
+loaded. It adds conventions of the current locale how dates and times are
+supposed to be formatted. Interpretation of date and time will then follow
+the conventions of this library.
 
 \chapter{Files} \label{sec:file}
 
@@ -10277,62 +10633,6 @@ D0		      D1
 ULONG CheckSignal(ULONG)
 \end{verbatim}
 
-\subsection{Obtaining the Time and Date}
-
-The {\tt DateStamp} structure reads as follows:
-
-\begin{verbatim}
-struct DateStamp {
-   LONG  ds_Days;             /* Number of days since Jan. 1, 1978 */
-   LONG  ds_Minute;           /* Number of minutes past midnight */
-   LONG  ds_Tick;             /* Number of ticks past minute */
-};
-\end{verbatim}
-
-{\tt ds\_Days} counts the number of days since January $1^{\mbox{{\tiny st}}}$ 1978.
-
-{\tt ds\_Minute} counts the number of minutes past midnight, i.e. the start of the day.
-
-{\tt ds\_Tick} counts the ticks since the start of the minute. A tick
-is $1/50^{\mbox{\tiny th}}$ of a second, regardless whether the
-machine is a PAL or NTSC system. This constant is also defined as
-{\tt TICKS\_PER\_SECOND} in {\tt dos/dos.h}.
-
-\subsection{Comparing two Times and Dates}
-
-\begin{verbatim}
-result = CompareDates(date1,date2)
-D0                     D1     D2
-
-LONG CompareDates(struct DateStamp *,struct DateStamp *)
-\end{verbatim}
-
-\subsection{Converting a Time and Date to a String}
-
-\begin{verbatim}
-success = DateToStr( datetime )
-D0                      D1
-
-BOOL DateToStr(struct DateTime *)
-\end{verbatim}
-
-\subsection{Convert a String to a Date and Time}
-
-\begin{verbatim}
-success = StrToDate( datetime )
-D0                      D1
-
-BOOL StrToDate( struct DateTime * )
-\end{verbatim}
-
-\subsection{Delaying Program Execution}
-
-\begin{verbatim}
-Delay( ticks )
-       D1
-
-void Delay(ULONG)
-\end{verbatim}
 
 
 \subsection{Display an Error Requester}
