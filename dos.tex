@@ -493,7 +493,7 @@ Due to its history, AmigaOs uses two incompatible representations of date
 and time. The {\tt timer.device} represents a date as the number of seconds
 and microseconds since January $1^{\mbox{\tiny st}}$ 1978. As AmigaDOS is
 based on TRIPOS as an independently developed operating system, the
-\emph[dos.library} uses a different representation as {\tt DateStamp}
+\emph{dos.library} uses a different representation as {\tt DateStamp}
 structure defined in {\tt dos/dos.h}: \mkey{DateStamp}
 \begin{verbatim}
 struct DateStamp {
@@ -9555,14 +9555,6 @@ printed by the {\tt Version} command.
 
 \subsection{The Stack Cookie}
 
-% TODO
-\begin{verbatim}
-stack = ScanStackToken(segment, defaultstack)
-D0			  D1         D2
-
-LONG ScanStackToken(BPTR segment, LONG defaultstack)
-\end{verbatim}
-
 The workbench, the shell, and also {\tt
   GetDeviceProc()}\key{GetDeviceProc()} when loading \emph{handlers}
 scan the loaded binary for the string sequence {\tt \$STACK:}. If this
@@ -9586,6 +9578,31 @@ An example for the stack cookie is
 const char stack[] = "$STACK: 8192";
 \end{verbatim}
 This ensures that the stack size of the program is at least 8192 bytes.
+\medskip{}
+
+The \emph{dos.library} provides with the
+{\tt ScanStackToken()}\mkey{ScanStackToken()} an optimized function to quickly
+scan segments for the stack cookie and potentially adjust a default
+stacksize upwards to the value found in the stack cookie.
+
+\begin{verbatim}
+stack = ScanStackToken(segment, defaultstack)
+D0                     D1       D2
+
+LONG ScanStackToken(BPTR segment, LONG defaultstack)
+\end{verbatim}
+
+This function scans the segment list starting at {\tt segment} for a stack
+cookie, potentially adjusting the {\tt defaultstack} size in bytes passed
+in. If a stack cookie is found, and the minimal stack size it finds is
+larger than the default stack, the stack size found in the stack cookie is
+returned in {\tt stack}. If no stack cookie is found, or the value in the
+stack cookie is smaller than the {\tt defaultstack} size, the default size
+is returned.
+\smallskip{}
+
+The {\tt segment} is a \emph{BPTR} to a singly linked list of segments,
+e.g. as returned by {\tt LoadSeg()}\key{LoadSeg()} function.
 
 \subsection{Runtime binding of BCPL programs}
 
