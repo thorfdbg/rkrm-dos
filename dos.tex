@@ -2029,7 +2029,7 @@ struct FileHandle *fh = BADDR(file);
 
 In the following sections, this structure and its functions are documented.
 
-\subsection{The struct FileHandle}
+\subsection{The struct FileHandle} \label{sec:filehandle}
 
 When opening a file via {\tt Open()}, the \emph{file handle} is allocated by
 the \emph{dos.library} by going through {\tt AllocDosObject()}\key{AllocDosObject()},
@@ -7893,6 +7893,7 @@ arguments from a different source, namely the input buffer of the
 
 \chapter{Binary File Structure} \label{sec:binary}
 
+% TODO: add library format.
 The AmigaDOS \emph{Hunk} format represents executable and linkable
 object files. While both formats are related, they are not identical;
 executables can be loaded from the shell or the workbench from disk to
@@ -10315,11 +10316,107 @@ As seen from this definition, symbols can only be defined within the first
 contain short service functions. For absolute values, larger values are
 required, e.g. for the base address of the custom chips, and thus split
 into $a_s$, $a_o$ and $d_o$.
- 
-%%% For later.
+
 \chapter{Handlers, Devices and File Systems}
 
-% TODO
+Handlers are AmigaDOS processes that provide all the services to implement
+many functions of the \emph{dos.library}. Operations on files, such as
+opening files, reading data or seeking in files are implemented in the
+corresponding handler and not the \emph{dos.library} itself. \emph{File
+systems} are special handlers that organize data streams on volumes such as
+hard disks in files, and also provide locks to reserve access rights to
+files. Most file systems also support directories and thus a hierarchical
+organization of files.
+\smallskip{}
+
+Handlers are recognized by an entry in the \emph{device list} whose
+{\tt dol\_Task} element provides a pointer to a message port through which the
+\emph{dos.library} communicates with the handler,
+section~\ref{sec:devicelist} provides further details on this structure.
+\smallskip{}
+
+To ease communication, the {\tt FileHandle} structure representing a file
+also includes with its {\tt fh\_Type} element a pointer to such a port that
+is typically a copy of {\tt dol\_Task} when a file is opened, see
+section~\ref{sec:filehandle} for this structure. It is created by the
+\emph{dos.library} when opening files.
+\smallskip{}
+
+Similarly, the {\tt fh\_Type} element of the {\tt FileLock} structure
+includes the port through which communication with the file system
+concerning the lock is routed. Unlike {\tt FileHandle}s, the {\tt FileLock}
+structure is created by the \emph{file system} itself which initializes its
+{\tt fh\_Type}. This is again in many cases identical to the {\tt dol\_Task}
+message port within the \emph{device list}.
+\medskip{}
+
+While it is in many cases more practical to interact with handlers through
+the functions of the \emph{dos.library}, it is also possible to communicate
+with the handler directly through this port. This communication is based on
+\emph{packets}, represented by a {\tt DosPacket} structure documented in
+{\tt dos/dosextens.h}:
+\begin{verbatim}
+struct DosPacket {
+   struct Message *dp_Link;
+   struct MsgPort *dp_Port;
+   LONG dp_Type; 
+   LONG dp_Res1;
+   LONG dp_Res2; 
+   LONG dp_Arg1;
+   LONG dp_Arg2;
+   LONG dp_Arg3;
+   LONG dp_Arg4;
+   LONG dp_Arg5;
+   LONG dp_Arg6;
+   LONG dp_Arg7;
+};
+\end{verbatim}
+\emph{Packets} ride on top of exec messages, see {\tt exec/ports.h}, but
+they do not extend the {\tt Message} structure as it would be usually the
+case. Instead, {\tt mn\_Node.ln\_Name} of the exec message is (mis-)used to
+point to the {\tt DosPacket}. The reply port of the message in {\tt
+  mn\_ReplyPort} is \emph{not} used; instead, the message carrying the
+packet is send back to {\tt dp\_Port}.
+\smallskip{}
+
+Members of the {\tt DosPacket} structure shall be initialized as follows:
+\smallskip{}
+
+{\tt dp\_Link} shall point to the message which is used for transmitting the
+{\tt DosPacket}. The message node name in {\tt mn\_Node.ln\_Name} shall be
+initialized to point to the {\tt DosPacket} itself.
+\smallskip{}
+
+{\tt dp\_Port} shall point to the {\tt MsgPort} structure to which the
+packet shall be send back after the handler has completed the requested
+activity. This is typically, but not necessary {\tt pr\_MsgPort} of the
+process sending the packet. See section~\ref{sec:process} for the defintion
+of the {\tt Process} structure.
+\smallskip{}
+
+{\tt dp\_Type} identifies the action requested from the handler. It shall be
+filled by the process requesting an activity from a handler and is
+interpreted by the handler. Section~\ref{sec:dospackets} lists the currently
+documented packet types.
+\smallskip{}
+
+{\tt dp\_Res1} is the primary result code of the activity performed by the
+handler. For many, but not for all packet types, this is a boolean result
+code that is~0 for failure and non-zero for success. Many functions of the
+\emph{dos.library} return {\tt dp\_Res1} as their return code.
+\smallskip{}
+
+{\tt dp\_Res2} is the secondary result code installed by the handler and is
+typically is 0 for success, or an error code on failure. Many functions of
+the \emph{dos.library} install this error code into {\tt
+  IoErr()}. Section~\ref{sec:ioerr} lists the error codes defined by the
+\emph{dos.library}.
+\smallskip{}
+
+{\tt dp\_Arg1} to {\tt dp\_Arg7} provide additional arguments to the
+handler. They shall be filled by the process submitting a packet to a
+handler. Most packet types do not require all 7 possible arguments; in such
+a case, only the necessary arguments may be initialized.
 
 \subsection{Send a Packet to a Handler and Wait for Reply}
 
