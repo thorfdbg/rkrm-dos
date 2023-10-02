@@ -10521,8 +10521,33 @@ caller.
 identifier specifying the type of activity requested from the handler, see
 section~\ref{sec:packettypes}. Depending on this type, {\tt dp\_Arg1}
 through {\tt dp\_Arg7} shall be initialized with additional arguments.
+\medskip{}
 
-\subsection{Wait for a Packet to Return}
+{\tt DosPackets} can be constructed in multiple ways; the {\tt
+  AllocDosObject()}\key{AllocDosObject()} function may be called to
+construct a {\tt StandardPacket}\mkey{StandardPacket}. This is a structure
+that contains both the {\tt Message} and the {\tt DosPacket}. It is defined
+in {\tt dos/dosextens.h}:
+\begin{verbatim}
+struct StandardPacket {
+   struct Message   sp_Msg;
+   struct DosPacket sp_Pkt;
+};
+\end{verbatim}
+{\tt AllocDosObject()} ensures that the linkage betweeen {\tt Message} and
+{\tt DosPackete} are properly initialized.
+\smallskip{}
+
+Another option is to use {\tt AllocMem()} to allocate sufficient storage to
+hold a {\tt StandardPacket} and initialize the structure appropriately:
+\begin{verbatim}
+struct StandardPacket *sp;
+
+sp->sp_Msg.mn_Node.ln_Name = (UBYTE *)&(sp->sp_Pkt);
+sp->sp_Pkt.dp_Link         = &(sp->sp_Msg);
+\end{verbatim}
+
+\subsection{Waiting for a Packet to Return}
 
 The {\tt WaitPkt()}\mkey{WaitPkt()} function waits on the message port of
 the calling process for a packet to return.
@@ -10554,6 +10579,10 @@ corresponding to {\tt DosPackets} can arrive at the process message port.
 
 \subsection{Aborting a Packet}
 
+The purpose of the {\tt AbortPkt()}\mkey{AbortPkt()} funcktion is to attempt
+to abort a packet already send to a handler. However, as of the current Os
+release, it does nothing and is not functional.
+
 \begin{verbatim}
 AbortPkt(port, pkt)
 	  D1    D2
@@ -10561,7 +10590,16 @@ AbortPkt(port, pkt)
 void AbortPkt(struct MsgPort *, struct DosPacket *)
 \end{verbatim}
 
+What this function should do is to scan {\tt port}, presumably the {\tt
+  MsgPort} of the handler to which {\tt pkt} was send, and dequeue it there
+if the handler is not yet working on it. Then, it would be placed back into
+the port of its initiator. As of V747, this function does nothing.
+
 \subsection{Reply a Packet to its Caller}
+
+The {\tt ReplyPkt()}\mkey{ReplyPkt()} function returns a packet to its
+initiator, filling the primary and secondary result codes. This function is
+intended to be used by handlers.
 
 \begin{verbatim}
 ReplyPkt(packet, result1, result2)
@@ -10569,6 +10607,18 @@ ReplyPkt(packet, result1, result2)
 
 void ReplyPkt(struct DosPacket *, LONG, LONG)
 \end{verbatim}
+
+This function fills {\tt dp\_Res1} and {\tt dp\_Res2} of the {\tt packet}
+with {\tt result1} and {\tt result2}, and sends the packet to {\tt
+  dp\_Port}, the initiating port. Note that {\tt mn\_ReplyPort} of the
+message pointed to by {\tt dp\_Link} is ignored, i.e. packets do \emph{not}
+follow the exec protocol for replying messages.
+\smallskip{}
+
+The {\tt result1} argument is the primary result code and identical to the
+return code of many \emph{dos.library} functions. {\tt dp\_Res2} is the
+secondary result code and typically accessible through {\tt IoErr()}\mkey{IoErr()}
+if the packet is replied to a \emph{dos.library} function.
 
 \chapter{The AmigaDOS Shell}
 % TODO
