@@ -6831,7 +6831,7 @@ function is used.  The signature of this function is
 msg = (*pr_PktWait)(void)
 D0
 
-struct MsgPort *(*pr_PktWait)(void)
+struct Message *(*pr_PktWait)(void)
 \end{verbatim}
 
 that is, no particular arguments are delivered, the process must be obtained
@@ -10350,6 +10350,8 @@ structure is created by the \emph{file system} itself which initializes its
 message port within the \emph{device list}.
 \medskip{}
 
+\section{The DosPacket Structure} \label{sec:dospacket}
+
 While it is in many cases more practical to interact with handlers through
 the functions of the \emph{dos.library}, it is also possible to communicate
 with the handler directly through this port. This communication is based on
@@ -10420,6 +10422,11 @@ a case, only the necessary arguments may be initialized.
 
 \subsection{Send a Packet to a Handler and Wait for Reply}
 
+The {\tt DoPkt()}\mkey{DoPkt()} function creates from its arguments a {\tt
+  DosPacket} structure along with an exec {\tt Message} carrying it on the
+fly, transmits the packet to a target port and waits for the packet to
+return.
+
 \begin{verbatim}
 result1 = DoPkt(port,action,arg1,arg2,arg3,arg4,arg5)
 D0               D1    D2    D3   D4   D5   D6   D7
@@ -10427,7 +10434,69 @@ D0               D1    D2    D3   D4   D5   D6   D7
 LONG DoPkt(struct MsgPort *,LONG,LONG,LONG,LONG,LONG,LONG)
 \end{verbatim}
 
+This function performs low-level packet IO to a target message port
+belonging to a handler. The {\tt port} is the {\tt MsgPort} of the handler
+to contact. Depending on the context, this port should be taken from various
+sources. If low-level file I/O is to be performed, the best source for the
+port is the {\tt fh\_Type} pointer in the {\tt FileHandle} structure. If the
+communication is related to a \emph{Lock}, the {\tt fl\_Task} member of the
+{\tt FileLock} is the right source. For activities unrelated to locks or
+files, the {\tt dol\_Task} member of the \emph{device list} is another
+source.
+\smallskip{}
+
+{\tt action} identifies the activity to be performed by the handler or file
+system. Section~\ref{sec:packettypes} lists the packet types and how they
+relate to the functions of the \emph{dos.library}.
+\smallskip{}
+
+{\tt arg1} through {\tt arg5} are arguments to the packet and filled into
+their {\tt dp\_Arg1} through {\tt dp\_Arg5} elements. If more arguments are
+required, the packet needs to be created and transmitted manually.
+\medskip{}
+
+This function returns the primary result code of the handler from {\tt
+  dp\_Res1} in {\tt result1}, and {\tt dp\_Res2} in {\tt IoErr()}.
+\smallskip{}
+
+If the caller is a process and the {\tt pr\_PktWait} pointer in the {\tt
+  Process} structure is set, {\tt DoPkt()} calls through it to wait for the
+packet (or rather the message carrying it) to return, see
+section~\ref{sec:process}. Otherwise, {\tt DoPkt()} waits on {\tt
+  pr\_MsgPort} with {\tt WaitPort()} and removes the message through {\tt
+  GetMsg()}. If the caller is a task, the function even builds an exec {\tt
+  MsgPort} on the fly and waits on this temporary port --- thus unlike many
+other functions of the \emph{dos.library}, this function is even callable
+from tasks.
+\smallskip{}
+
+If the return {\tt MsgPort} contains a message different from the one
+carrying the issued packet, this function aborts with a deadend alert of
+type {\tt AN\_QPktFail}, defined in {\tt exec/alerts.h}. Note that this is
+quite different from exec-style communications with exec devices through
+{\tt DoIO()}; this function is able to extract the send {\tt IORequest} from
+the port without creating a conflict if another message is still pending in
+the port. This problem of packet communication manifests itself typically
+when attempting to perform I/O operations through the \emph{dos.library}
+while the workbench startup message is still queued in the process message
+port.
+\medskip{}
+
+Because packets typically require less than 5 arguments, additional
+prototypes are supplied that do not take all arguments. They all access the
+same entry within the \emph{dos.library}, the only difference is that the
+function prototypes do not enforce initialization of the data registers
+carrying the unneeded arguments. These functions are named {\tt DoPkt0()} to
+{\tt DoPkt5()} and carry 2 to 7 arguments: The target {\tt port}, the type
+of the packet {\tt action} and 0 to 5 additional arguments which are filled
+into {\tt dp\_Arg1} upwards.
+
 \subsection{Send a Packet to a Handler Asynchronously}
+
+The {\tt SendPkt()}\mkey{SendPkt()} function transmits a packet to a target
+message port of a handler without waiting for it to return. Instead, a reply
+port is provided to which the packet will be returned once the handler acted
+upon it.
 
 \begin{verbatim}
 SendPkt(packet, port, replyport)
@@ -10436,7 +10505,27 @@ SendPkt(packet, port, replyport)
 void SendPkt(struct DosPacket *,struct MsgPort *,struct MsgPort *)
 \end{verbatim}
 
-\subsection{Wait for a Packet to Arrive}
+This function transmits {\tt packet} to the handler {\tt port}, requesting
+to return it to {\tt replyport}. The function returns immediately without
+waiting for the packet to return.
+\smallskip{}
+
+The {\tt packet} shall be partially initialized; in particular, {\tt
+  dp\_Link} shall point to an exec {\tt Message} whose {\tt
+  mn\_Node.ln\_Name} field points back to {\tt packet}. This function
+\emph{does not} supply or initialize a suitable message, this is up to the
+caller.
+\smallskip{}
+
+{\tt dp\_Type} shall be filled with the type of the packet, i.e. an
+identifier specifying the type of activity requested from the handler, see
+section~\ref{sec:packettypes}. Depending on this type, {\tt dp\_Arg1}
+through {\tt dp\_Arg7} shall be initialized with additional arguments.
+
+\subsection{Wait for a Packet to Return}
+
+The {\tt WaitPkt()}\mkey{WaitPkt()} function waits on the message port of
+the calling process for a packet to return.
 
 \begin{verbatim}
 packet = WaitPkt()
@@ -10444,6 +10533,24 @@ D0
 
 struct DosPacket *WaitPkt(void);
 \end{verbatim}
+
+This function performs all activites to receive a message returning from a
+handler; it is also implicitly called by {\tt DoPkt()}\key{DoPkt()} after
+sending the messages to the handler.
+\smallskip{}
+
+If the {\tt pr\_PktWait} pointer in the {\tt Process} structure is set, {\tt
+  WaitPkt()} calls through this function to wait for the arrival of a
+message. Otherwise, the {\tt WaitPkt()} calls {\tt WaitPort()} to wait for a
+arrival of a message on {\tt pr\_MsgPort} of the calling process, and then
+calls {\tt GetMsg()} to remove it from the port. The function then returns
+{\tt mn\_Node.ln\_Name} of the received message, i.e. the packet
+corresponding to the message.
+\smallskip{}
+
+This function does not test whether the received message does, actually,
+belong to a packet. The caller shall ensure that only {\tt Messages}
+corresponding to {\tt DosPackets} can arrive at the process message port.
 
 \subsection{Aborting a Packet}
 
