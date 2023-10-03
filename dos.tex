@@ -5416,7 +5416,7 @@ them, the \emph{device list} containing these structures need to be
 scanned manually. The \emph{dos.library} provides functions to grant
 access, search and release access to this list.
 
-\subsection{Gaining Access to the Device List}
+\subsection{Gaining Access to the Device List} \label{sec:lockdoslist}
 
 The {\tt LockDosList()}\mkey{LockDosList()} function requests shared
 or exclusive access to a subset of entries of the \emph{device list}
@@ -6678,9 +6678,13 @@ The members of this structure are as follows:
 \smallskip{}
 
 {\tt pr\_Task} is the exec task structure defined in {\tt exec/tasks.h}. It
-is required by the exec scheduler. The only difference between an exec
-{\tt Task} and a {\tt Process} is that {\tt pr\_Task.tc\_Node.ln\_Type} is set
-to {\tt NT\_PROCESS} instead to {\tt NT\_TASK}. 
+is required by the exec scheduler. The only difference between an exec {\tt
+  Task} and a {\tt Process} is that {\tt pr\_Task.tc\_Node.ln\_Type} is set
+to {\tt NT\_PROCESS} instead to {\tt NT\_TASK}. Prior starting the process,
+the \emph{dos.library} also pushes the stack size onto the stack, i.e. {\tt
+  (ULONG *)(pr\_Task.tc\_Upper)[-1]} contains the size of the stack in
+bytes. Some binaries, in particular those compiled with the Aztec (Manx)
+compiler depend on this value.
 \smallskip{}
 
 {\tt pr\_MsgPort} is a message port structure as defined in {\tt
@@ -9605,7 +9609,7 @@ is returned.
 The {\tt segment} is a \emph{BPTR} to a singly linked list of segments,
 e.g. as returned by {\tt LoadSeg()}\key{LoadSeg()} function.
 
-\subsection{Runtime binding of BCPL programs}
+\subsection{Runtime binding of BCPL programs} \label{sec:bcplbinding}
 
 BPCL programs depend on a \emph{Global Vector}\mkey{Global Vector}
 that includes function entries and data available to all its
@@ -9671,7 +9675,7 @@ up the BCPL stack frame and returns to the caller.
 \begin{verbatim}
                 SECTION text,code
 
-                XREF    @main           ; handler or shell main
+                XREF    _main           ; handler or shell main
 
 G_GLOBMAX       EQU     150             ; size of GV
 G_START         EQU     1               ; BCPL START functions
@@ -9682,7 +9686,7 @@ CodeHeader:     DC.L    (CodeEnd-CodeHeader)/4
 *               C Startup function, called for GlobVec=-1 or -3
 *               see text below why this works
 CStart:         sub.l   a0,a0           ; no startup message
-                bsr.w   @main           ; need to GetMsg() in main
+                bsr.w   _main           ; need to GetMsg() in main
                 rts
 
                 CNOP    0,4
@@ -9691,7 +9695,7 @@ CStart:         sub.l   a0,a0           ; no startup message
 BCPLStart:      movem.l a0-a6,-(a7)     ; save for BCPL use
                 lsl.l   #2,d1           ; get startup packet
                 move.l  d1,a0           ; move to a0
-                bsr.w   @main           ; get the ball rolling
+                bsr.w   _main           ; get the ball rolling
                 movem.l (a7)+,a0-a6     ; restore everyone
                 jmp     (a6)            ; BCPL-style return
 
@@ -10619,6 +10623,205 @@ The {\tt result1} argument is the primary result code and identical to the
 return code of many \emph{dos.library} functions. {\tt dp\_Res2} is the
 secondary result code and typically accessible through {\tt IoErr()}\mkey{IoErr()}
 if the packet is replied to a \emph{dos.library} function.
+
+\section{Implementing a Handler}
+
+A \emph{handler} or a \emph{file system} is an Amiga process that retrieves
+commands in the form of {\tt DosPacket}s. The main loop of a handler is
+conceptionally similar to a program implementing a graphical user interface,
+except that the latter retrieves messages via the \emph{intuition} IDCMP
+system and works them off, whereas the handlers receive commands from its
+handler port.
+
+\subsection{Handler Startup and Main Processing Loop}
+
+When a user of the \emph{dos.library} attempts to access an absolute path,
+i.e. a path including a device name, the \emph{dos.library} walks the
+\emph{device list} (see section~\ref{sec:devicelist}) to find the handler
+responsible for it by comparing the device name in the path with the {\tt
+  dol\_Name} element of the \emph{device list}. Once a suitable entry has
+been found, the \emph{dos.library} checks whether a handler is already
+running by checking the {\tt dol\_Task} field of the \emph{device list}. If
+so, a packet corresponding to the called \emph{dos.library} function is send
+to the port pointed to by {\tt dol\_Task}. The relation between library
+functions and packet types is further explained in
+section~\ref{sec:packettypes}.
+\smallskip{}
+
+If {\tt dol\_Task} is {\tt NULL}, the \emph{dos.library} checks next whether
+{\tt dol\_SegList} is {\tt ZERO}. If it is, the handler code is not yet
+present and will be loaded from the file name indicated in {\tt
+  dol\_Handler} through {\tt LoadSeg()}\key{LoadSeg()}, and its return code
+is used to initialize {\tt dol\_SegList}. Once the handler is present, a new
+process is created from the segment, and a startup packet is delivered to
+{\tt pr\_MsgPort} of the created handler process. The \emph{dos.library}
+will not continue processing the initiating call until the handler replies
+to this packet.
+\smallskip{}
+
+How the startup packet is delivered depends on the {\tt dol\_GlobVec}
+element of the \emph{device list} entry, see Table~\ref{table:gvvalues}. For
+C or assembler handlers with a {\tt dol\_GlobVec} value of $-1$ or $-2$, the
+startup packet is delivered to the {\tt pr\_MsgPort} of the handler
+process. For all other values of {\tt dol\_GlobVec}, the startup packet
+becomes the first argument of the {\tt START} entry at offset 4 of the
+global vector of the process.
+\smallskip{}
+
+If the ``fake'' BCPL startup code from section~\ref{sec:bcplbinding} is
+used, this packet is delivered in register {\tt a0} of the main
+function. The following code demonstrates this:
+
+\begin{verbatim}
+LONG __asm __saveds main(register __a0 struct DosPacket *pkt)
+{
+    SysBase = *((struct ExecBase **)(4L));
+    struct Process *proc = (struct Process *)FindTask(NULL);
+    struct Message *msg;
+    const UBYTE *path;
+    ULONG startup;
+    struct DosList *dlist;
+    LONG error = 0;
+    
+    /* if NULL, this was a C startup, retrieve
+    ** the packet manually 
+    */    
+    if (pkt == NULL) {
+      /* Wait and retrieve the startup message
+      */
+      WaitPort(&proc->pr_MsgPort);
+      msg = GetMsg(&proc->pr_MsgPort);
+      pkt = (struct DosPacket *)msg->mn_Node.ln_Name;
+    }
+
+    path    = (const UBYTE *)BADDR(pkt->dp_Arg1);
+    startup = pkt->dp_Arg2;    
+    dlist   = (struct DosList *)BADDR(pkt->dp_Arg3);
+    ... /* Handler initialization */
+
+    if (error) {
+      ReplyPkt(pkt,DOSFALSE,error);
+      ... /* shutdown, terminate */
+      return;
+    } else {
+      BOOL run = TRUE;
+      ReplyPkt(pkt,DOSTRUE,0);
+      /* main program loop */
+      do {
+       WaitPort(&proc->pr_MsgPort);
+       msg = GetMsg(&proc->pr_MsgPort);
+       pkt = (struct DosPacket *)(msg->mn_Node.ln_Name);
+       switch(pkt->dp_Type) {
+         case ACTION_....
+       }
+       ReplyPkt(pkt,...);
+      } while(run);
+    }
+}
+\end{verbatim}
+The startup packet is populated as follows:
+\smallskip{}
+
+{\tt dp\_Type} is set to {\tt ACTION\_STARTUP}, which is defined to be~0. As
+the startup packet is always received first, there is no need to test for
+this particular type.
+\smallskip{}
+
+{\tt dp\_Arg1} is set to a \emph{BPTR} to a \emph{BSTR} representing the
+path name under which the client of the \emph{dos.library} attempted to
+access the handler. Note that this is not a {\tt NUL}-terminated C string,
+but a \emph{BSTR} whose first element is the size of the string.
+\smallskip{}
+
+{\tt dp\_Arg2} is a copy of the {\tt dol\_Startup} element of the {\tt
+  DosList} structure, see section~\ref{sec:devicelist}. It is used to
+configure the properties of the handler.
+\smallskip{}
+
+{\tt dp\_Arg3} is a \emph{BPTR} to the {\tt DosList} structure that
+triggered starting this handler.
+\smallskip{}
+
+Multiple strategies exist how handlers make use of this information. A
+\emph{file system} process would typically handle multiple files at once
+through the same process. To ensure that the \emph{dos.library} sends
+requests for the file system to the process just started, the \emph{file
+system} shall place a pointer to the {\tt MsgPort} incoming packets are
+supposed to be send to in {\tt dol\_Task} of the {\tt DosList} structure
+received in {\tt dp\_Art3}. This is typically, but not necessarily, the
+{\tt pr\_MsgPort} of the handler process. The \emph{file system} process
+will then continue to run until it is explicitly requested to shut down,
+e.g. by an {\tt ACTION\_DIE}\key{ACTION\_DIE} packet.
+\smallskip{}
+
+The {\tt dp\_Arg2} element is used to configure file systems; while its use
+is file-system dependent, it is typically, but not necessarily, a {\tt BPTR}
+to a {\tt FileSysStartupMsg}\key{FileSysStartupMsg} structure. It is
+discussed in more detail in section~\ref{sec:startup}. The {\tt Mount}
+command will create {\tt DosLists} for file systems in such a way.
+\smallskip{}
+
+Whenever a client program opens a file on this \emph{file system} or
+attempts to lock an object, the handler process will be contacted by sending
+a packet to the port listed in {\tt dol\_Task}.
+\medskip{}
+
+A \emph{handler} such as the {\tt CON} handler requires a separate process
+for each window it manages. In such a case, {\tt dol\_Task}
+remains {\tt NULL}. Thus, handlers can decide whether they require a new
+process for each file opened from the handler.
+\smallskip{}
+
+{\tt dp\_Arg1} is the \emph{BPTR} to the path to be opened and thus taken
+from the first argument to {\tt Open()}\key{Open()}, just that it has been
+converted to a \emph{BSTR} by the \emph{dos.library}. For the {\tt
+  Console-Handler} for example, this is the window specification that
+instructs the handler on the position, size and title of the console.
+\smallskip{}
+
+While the \emph{dos.library} will also send a packet to open the file for
+which the handler was launched, the path of this second packet or any
+subsequent packet to open a file on the same process is not relevant anymore
+as the window will be opened during startup, and not during opening a
+file. Even though the handler is started once for the initial open and does
+not fill in its port in {\tt dol\_Task}, multiple requests to open a file
+may arrive at the handler, e.g. when opening the {\tt *} file indicating the
+current console. Such handlers will shut down once each file openend through
+them is closed, and they do not require an explicit shutdown.
+\smallskip{}
+
+{\tt dp\_Arg2} is the startup value; depending on the entry in the {\tt
+MountList}, this is either an integer or a \emph{BPTR} as above. The {\tt
+Console-Handler} and the {\tt Port-Handler} expect here an
+integer. Unfortunately, no protocol exist how to communicate the expected
+entry from the handler to the {\tt Mount} command. Only documentation helps
+to instruct users to setup the {\tt MountList} appropriately.
+\medskip{}
+
+Once the \emph{handler} or \emph{file system} initiated itself from the
+startup packet, the packet shall be replied. If startup failed, the primary
+result code shall be {\tt DOSFALSE} and the secondary result code shall be
+an error code suitable for reporting through {\tt IoErr()}\key{IoErr()}, see
+section~\ref{sec:ioerr} for a list of common eror codes. Then, the handler
+shall release all resources accquired so far and terminate.
+\smallskip{}
+
+If startup succeeded, the primary result code for the packet shall be
+{\tt DOSTRUE}, and the secondary result code shall be~0. Handler operations
+then proceed by waiting for incoming packets, and processing them one by another.
+\medskip{}
+
+The \emph{dos.library} keeps the \emph{device list} locked while the handler
+is starting up. This means in particular that an attempt to gain access to
+the \emph{device list} with {\tt LockDosList()}\key{LockDosList()}, see
+section~\ref{sec:lockdoslist}, can deadlock. Even if such a call is not made
+explicitly, \emph{dos.library} functions can require implicitly such a lock,
+and thus attempting to access files or lock objects within handlers should
+be avoided, not only during startup.
+
+If {\tt dol\_GlobVec} is $-2$ or $-3$, the \emph{dos.library} will only
+accquire a shared lock, and thus will allow the handler to retrieve a shared
+lock on the \emph{device list} as well.
 
 \chapter{The AmigaDOS Shell}
 % TODO
