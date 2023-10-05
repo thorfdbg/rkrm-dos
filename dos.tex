@@ -5127,7 +5127,7 @@ Many keywords in the {\tt Mountlist} map directly to entries in the {\tt
   DosList} structure, others to entries in the {\tt FileSysStartupMsg} and
 the {\tt DosEnvec} structure pointed to there.
 
-\subsection{Keywords defining the DosList structure}
+\subsection{Keywords defining the DosList structure} \label{sec:mountdoslist}
 
 The {\tt HANDLER}, {\tt EHANDLER} and {\tt FILESYSTEM} keywords in the
 {\tt Mountlist} do all three into the {\tt dol\_Handler} member. Which
@@ -11344,11 +11344,13 @@ will then continue to run until it is explicitly requested to shut down,
 e.g. by an {\tt ACTION\_DIE}\key{ACTION\_DIE} packet.
 \smallskip{}
 
-The {\tt dp\_Arg2} element is used to configure file systems; while its use
-is file-system dependent, it is typically, but not necessarily, a {\tt BPTR}
-to a {\tt FileSysStartupMsg}\key{FileSysStartupMsg} structure. It is
-discussed in more detail in section~\ref{sec:startup}. The {\tt Mount}
-command will create {\tt DosLists} for file systems in such a way.
+The {\tt dp\_Arg2} element is used to configure file systems; it is a copy
+of the {\tt dol\_Startup} element of the {\tt DosList}. While its use is
+file-system dependent, it is typically, but not necessarily, a {\tt BPTR} to
+a {\tt FileSysStartupMsg}\key{FileSysStartupMsg} structure. Other
+possibilties for {\tt dol\_Startup} are a \emph{BPTR} to a \emph{BSTR} or an
+integer. What exactly the handler will receive depends on the {\tt
+  Mountlist} and is discussed in more detail in section~\ref{sec:mountdoslist}.
 \smallskip{}
 
 Whenever a client program opens a file on this \emph{file system} or
@@ -11380,12 +11382,10 @@ current console. Such handlers will shut down once each file openend through
 them is closed, and they do not require an explicit shutdown.
 \smallskip{}
 
-{\tt dp\_Arg2} is the startup value; depending on the entry in the {\tt
-MountList}, this is either an integer or a \emph{BPTR} as above. The {\tt
-Console-Handler} and the {\tt Port-Handler} expect here an
-integer. Unfortunately, no protocol exist how to communicate the expected
-entry from the handler to the {\tt Mount} command. Only documentation helps
-to instruct users to setup the {\tt MountList} appropriately.
+{\tt dp\_Arg2} is again the copy from {\tt dol\_Startup} of the
+{\tt DosList}. For handlers, this is typically an integer, though the
+{\tt EHANDLER} keyword in the {\tt Mountlist} will place here a
+{\tt FileSysStartupMsg}. More details again in section~\ref{sec:mountdoslist}.
 \medskip{}
 
 Once the \emph{handler} or \emph{file system} initiated itself from the
@@ -11412,34 +11412,6 @@ be avoided, not only during startup.
 If {\tt dol\_GlobVec} is $-2$ or $-3$, the \emph{dos.library} will only
 accquire a shared lock, and thus will allow the handler to retrieve a shared
 lock on the \emph{device list} as well.
-
-\subsection{The FileSysStartupMsg}
-
-Interpretation of the {\tt dol\_Startup} element of the \emph{device list}
-is handler specific. Two conventions exist: It is either a small integer,
-controlling the flavour of the handler, or a \emph{BPTR} to a
-{\tt FileSysStartupMsg}. 
-\smallskip{}
-
-The {\tt Mount} command can create {\tt DosList} structures of both kind. If
-the {\tt Mountlist} sets a {\tt HANDLER}, then the keyword {\tt STARTUP} is
-used to set {\tt dol\_Startup} to either an integer value, or to a
-\emph{BSTR}. If the {\tt Mountlist} contains the keyword {\tt EHANDLER} or
-{\tt FILESYSTEM}, the {\tt Mount} command creates a {\tt FilesysStartupMsg}
-which contains many other options configured 
-
-
-
-The keyword {\tt STARTTUP} in the {\tt Mountlist} sets it
-directly. Elements like 
-
-
-Third-party handlers whose \emph{device list} entries are not created by
-{\tt Mount} may use even different conventions. It is therefore non-trivial
-how to interpret {\tt dol\_Startup} without knowing the details of the
-particular handler to which it applies.
-\smallskip{}
-
 
 \section{The Console-Handler}
 
