@@ -11373,19 +11373,14 @@ instructs the handler on the position, size and title of the console.
 
 While the \emph{dos.library} will also send a packet to open the file for
 which the handler was launched, the path of this second packet or any
-subsequent packet to open a file on the same process is not relevant anymore
-as the window will be opened during startup, and not during opening a
-file. Even though the handler is started once for the initial open and does
-not fill in its port in {\tt dol\_Task}, multiple requests to open a file
-may arrive at the handler, e.g. when opening the {\tt *} file indicating the
-current console. Such handlers will shut down once each file openend through
-them is closed, and they do not require an explicit shutdown.
-\smallskip{}
-
-{\tt dp\_Arg2} is again the copy from {\tt dol\_Startup} of the
-{\tt DosList}. For handlers, this is typically an integer, though the
-{\tt EHANDLER} keyword in the {\tt Mountlist} will place here a
-{\tt FileSysStartupMsg}. More details again in section~\ref{sec:mountdoslist}.
+subsequent packet to open a file on the same process is not relevant to the
+{\tt Console-Handler} anymore as the window will be opened during startup,
+and not during opening a file. Even though the handler is started once for
+the initial open and does not fill in its port in {\tt dol\_Task}, multiple
+requests to open a file may arrive at the handler, e.g. when opening the
+{\tt *} file indicating the current console. Such handlers will shut down
+once each file openend through them is closed, and they do not require an
+explicit shutdown.
 \medskip{}
 
 Once the \emph{handler} or \emph{file system} initiated itself from the
@@ -11412,6 +11407,110 @@ be avoided, not only during startup.
 If {\tt dol\_GlobVec} is $-2$ or $-3$, the \emph{dos.library} will only
 accquire a shared lock, and thus will allow the handler to retrieve a shared
 lock on the \emph{device list} as well.
+
+\section{Packets for File Interactions}
+
+The packet types listed in this section are used to implement file-specific
+functions, such as those listed in chapter~\ref{sec:file}. The arguments of
+the packets typically follow the calling conventions of the
+\emph{dos.library} functions closely, though are typically represented in
+their BCPL equivalents, i.e. \emph{BPTR}s instead of regular pointers or
+\emph{BSTR}s instead of {\tt NUL}-terminated C strings.
+
+\subsection{Opening a File for Shared Access} \label{sec:actionfindinput}
+
+The packet {\tt ACTION\_FINDINPUT}\mkey{ACTION\_FINDINPUT} initializes a
+{\tt FileHandle}\key{FileHandle} structure for shared access to a file. The
+arguments of the packet are initialized as follows:
+\smallskip{}
+
+{\tt dp\_Arg1} is initialized to {\tt BPTR} to a {\tt
+  FileHandle}\key{FileHandle} whose {\tt fh\_Arg1} handle should be
+initialized to a value the handler or file system may use later on to
+identify the file it operates on. This is particularly important to
+\emph{file systems} that handle multiple files by a single process.
+\smallskip{}
+
+{\tt dp\_Arg2} is initialized to the {\tt BPTR} to a {\tt
+  FileLock}\key{FileLock} structure describing the directory within which
+the file to be opened is located. Typically, this corresponds to the current
+directory of the caller of {\tt Open()}\key{Open()}. If this lock is {\tt
+  ZERO}, then the \emph{file system} shall assume that the provided path is
+relative to the root directory of the currently inserted volume. Flat file
+systems or handlers may ignore this argument.
+\smallskip{}
+
+{\tt dp\_Arg3} is initialized to a {\tt BPTR} to a {\tt BSTR} providing the
+path of the file relative to the directory provided by {\tt dp\_Arg1}.
+\medskip{}
+
+All other arguments of the packet shall be ignored. The handler should
+locate the file indicated by {\tt dp\_Arg3} relative to {\tt dp\_Arg2}, and
+fill in a boolean success code in {\tt dp\_Res1}. It shall be set to {\tt
+  DOSTRUE} for success or {\tt DOSFALSE} for error. {\tt dp\_Res2} shall be
+set to an error code from {\tt dos/dos.h} or~0 for success.
+\medskip{}
+
+The purpose of this packet is to prepare a {\tt FileHandle} for shared
+access, either for reading or for writing. If the file cannot be located,
+this packet \emph{shall not} create it but rather fail with {\tt
+  ERROR\_OBJECT\_NOT\_FOUND}\key{ERROR\_OBJECT\_NOT\_FOUND}. This packet is
+used by the {\tt Open()}\key{Open()} function if its second argument is set
+to {\tt MODE\_OLDFILE}\key{MODE\_OLDFILE}.
+\smallskip{}
+
+Handlers such that the {\tt Port-Handler} or the {\tt Console-Handler} may
+already open its resources as part of the startup-packet handling and thus
+may not perform a lot of activities here. Note that both handlers do not
+initialize {\tt dol\_Task} of the {\tt DosList}\key{DosList} structure and
+thus each opened file will launch a new process. The FFS, however, runs on a
+single process and thus distinguishes its files through {fh\_Arg1} in the
+{\tt FileHandle} structure.
+\smallskip{}
+
+Note that both the Lock provided by {\tt dp\_Arg2} and the path {\tt
+  dp\_Arg3} are required for locating a file on a hierarchical file
+system. The path from {\tt dp\_Arg3} is logically ``appended'' to the path
+implied by {\tt dp\_Arg2}, i.e. the file system starts interpreting the
+former by scanning the directory hierarchy at the position given by {\tt
+  dp\_Arg2}, or the root directory if {\tt dp\_Arg2} is~{\tt ZERO}.
+\smallskip{}
+
+A special case arises if {\tt dp\_Arg3} is the empty string; in such a case,
+{\tt dp\_Arg2} shall be already a Lock to the file to open. This is implied
+by the above algorithm to locate a file that ends walking the directory tree
+whenever {\tt dp\_Arg3} ends.
+\smallskip{}
+
+The type of this packet, {\tt ACTION\_FINDINPUT}, is intentionally identical
+to {\tt MODE\_OLDFILE} as the {\tt Open()} function currently intializes the
+packet type from its second argument.
+
+\subsection{Opening a File for Exclusive Access}
+
+The packet {\tt ACTION\_FINDOUTPUT}\mkey{ACTION\_FINDOUTPUT} initializes a
+{\tt FileHandle}\key{FileHandle} structure for exclusive access to a file
+and potentially creates the file if it does not yet exist. The arguments of
+the packet are initialized as for {\tt ACTION\_FINDINPUT}\key{ACTION\_FINDINPUT}, see
+section~\ref{sec:actionfindinput}.
+\smallskip{}
+
+This packet is used by {\tt Open()}\key{Open()} if its second argument is
+set to {\tt MODE\_NEWFILE}. In fact, current implementations just copy this
+argument into {\tt dp\_Type}.
+
+\subsection{Opening or Creating a File for Shared Access}
+
+The packet {\tt ACTION\_FINDUPDATE}\mkey{ACTION\_FINDUPDATE} initializes a
+{\tt FileHandle}\key{FileHandle} structure for shared access to a file,
+potentially creating the file if it does not yet exist. The arguments of
+the packet are initialized as for {\tt ACTION\_FINDINPUT}\key{ACTION\_FINDINPUT}, see
+section~\ref{sec:actionfindinput}.
+\smallskip{}
+
+This packet is used by {\tt Open()}\key{Open()} if its second argument is
+set to {\tt MODE\_READWRITE}. In fact, current implementations just copy this
+argument into {\tt dp\_Type}.
 
 \section{The Console-Handler}
 
