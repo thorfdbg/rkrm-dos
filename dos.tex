@@ -2970,7 +2970,7 @@ returns {\tt ZERO} on failure. In either case, {\tt IoErr()}
 \key{IoErr()} is set, namely to $0$ in case of success or to an error
 code on failure.
 
-\subsection{Opening a File from a Lock}
+\subsection{Opening a File from a Lock} \label{sec:openfromlock}
 
 The {\tt OpenFromLock()} function uses a \emph{lock} and opens the
 locked file, returning a \emph{file handle}. If the lock is associated
@@ -11420,12 +11420,23 @@ their BCPL equivalents, i.e. \emph{BPTR}s instead of regular pointers or
 \subsection{Opening a File for Shared Access} \label{sec:actionfindinput}
 
 The packet {\tt ACTION\_FINDINPUT}\mkey{ACTION\_FINDINPUT} initializes a
-{\tt FileHandle}\key{FileHandle} structure for shared access to a file. The
-arguments of the packet are initialized as follows:
+{\tt FileHandle}\key{FileHandle} structure for shared access to a file.
+
+\begin{rkrmtable}{\tt ACTION\_FINDINPUT} \label{table:actionfindinput}
+{\bf DosPacket Element}   & {\bf Value}\\ \hline \hline
+\tt dp\_Type  & \tt ACTION\_FINDINPUT (1005) \\ \hline
+\tt dp\_Arg1  & BPTR to \emph{FileHandle} \\ \hline
+\tt dp\_Arg2  & BPTR to \emph{FileLock} \\ \hline
+\tt dp\_Arg3  & BPTR to BSTR of the file name \\ \hline \hline
+\tt dp\_Res1  & Boolean result code \\ \hline
+\tt dp\_Res2  & Error code \\ \hline
+\end{rkrmtable}
+
+The arguments of the packet are initialized as follows:
 \smallskip{}
 
-{\tt dp\_Arg1} is initialized to {\tt BPTR} to a {\tt
-  FileHandle}\key{FileHandle} whose {\tt fh\_Arg1} handle should be
+{\tt dp\_Arg1} is initialized to {\tt BPTR} to a
+\emph{FileHandle}\key{FileHandle} whose {\tt fh\_Arg1} handle should be
 initialized to a value the handler or file system may use later on to
 identify the file it operates on. This is particularly important to
 \emph{file systems} that handle multiple files by a single process.
@@ -11451,7 +11462,7 @@ fill in a boolean success code in {\tt dp\_Res1}. It shall be set to {\tt
 set to an error code from {\tt dos/dos.h} or~0 for success.
 \medskip{}
 
-The purpose of this packet is to prepare a {\tt FileHandle} for shared
+The purpose of this packet is to prepare a \emph{FileHandle} for shared
 access, either for reading or for writing. If the file cannot be located,
 this packet \emph{shall not} create it but rather fail with {\tt
   ERROR\_OBJECT\_NOT\_FOUND}\key{ERROR\_OBJECT\_NOT\_FOUND}. This packet is
@@ -11490,8 +11501,19 @@ packet type from its second argument.
 
 The packet {\tt ACTION\_FINDOUTPUT}\mkey{ACTION\_FINDOUTPUT} initializes a
 {\tt FileHandle}\key{FileHandle} structure for exclusive access to a file
-and potentially creates the file if it does not yet exist. The arguments of
-the packet are initialized as for {\tt ACTION\_FINDINPUT}\key{ACTION\_FINDINPUT}, see
+and potentially creates the file if it does not yet exist.
+
+\begin{rkrmtable}{\tt ACTION\_FINDOUTPUT} \label{table:actionfindoutput}
+{\bf DosPacket Element}   & {\bf Value}\\ \hline \hline
+\tt dp\_Type  & \tt ACTION\_FINDOUTPUT (1006) \\ \hline
+\tt dp\_Arg1  & BPTR to \emph{FileHandle} \\ \hline
+\tt dp\_Arg2  & BPTR to \emph{FileLock} \\ \hline
+\tt dp\_Arg3  & BPTR to BSTR of file name \\ \hline \hline
+\tt dp\_Res1  & Boolean result code \\ \hline
+\tt dp\_Res2  & Error code \\ \hline
+\end{rkrmtable}
+
+The arguments of the packet are initialized as for {\tt ACTION\_FINDINPUT}\key{ACTION\_FINDINPUT}, see
 section~\ref{sec:actionfindinput}.
 \smallskip{}
 
@@ -11503,14 +11525,180 @@ argument into {\tt dp\_Type}.
 
 The packet {\tt ACTION\_FINDUPDATE}\mkey{ACTION\_FINDUPDATE} initializes a
 {\tt FileHandle}\key{FileHandle} structure for shared access to a file,
-potentially creating the file if it does not yet exist. The arguments of
-the packet are initialized as for {\tt ACTION\_FINDINPUT}\key{ACTION\_FINDINPUT}, see
+potentially creating the file if it does not yet exist.
+
+\begin{rkrmtable}{\tt ACTION\_FINDUPDATE} \label{table:actionfindupdate}
+{\bf DosPacket Element}   & {\bf Value}\\ \hline \hline
+\tt dp\_Type  & \tt ACTION\_FINDUPDATE (1004) \\ \hline
+\tt dp\_Arg1  & BPTR to \emph{FileHandle} \\ \hline
+\tt dp\_Arg2  & BPTR to \emph{FileLock} \\ \hline
+\tt dp\_Arg3  & BPTR to BSTR of file name \\ \hline \hline
+\tt dp\_Res1  & Boolean result code \\ \hline
+\tt dp\_Res2  & Error code \\ \hline
+\end{rkrmtable}
+
+The arguments of the packet are initialized as for {\tt
+  ACTION\_FINDINPUT}\key{ACTION\_FINDINPUT}, see
 section~\ref{sec:actionfindinput}.
 \smallskip{}
 
 This packet is used by {\tt Open()}\key{Open()} if its second argument is
 set to {\tt MODE\_READWRITE}. In fact, current implementations just copy this
 argument into {\tt dp\_Type}.
+
+\subsection{Opening a File from a Lock}
+
+The packet {\tt ACTION\_FH\_FROM\_LOCK} initializes a {\tt
+  FileHandle}\key{FileHandle} structure from a lock on an existing
+file. Whether this access is shared or exclusive depends on the type of the
+lock. Upon success, the lock is absorbed into the \emph{FileHandle}.
+
+\begin{rkrmtable}{\tt ACTION\_FH\_FROM\_LOCK} \label{table:actionfhfromlock}
+{\bf DosPacket Element}   & {\bf Value}\\ \hline \hline
+\tt dp\_Type  & \tt ACTION\_FH\_FROM\_LOCK (1026) \\ \hline
+\tt dp\_Arg1  & BPTR to \emph{FileHandle} \\ \hline
+\tt dp\_Arg2  & BPTR to \emph{FileLock} \\ \hline \hline
+\tt dp\_Res1  & Boolean result code \\ \hline
+\tt dp\_Res2  & Error code \\ \hline
+\end{rkrmtable}
+
+This packet type implements the {\tt OpenFromLock()}\key{OpenFromLock()}
+function of the \emph{dos.library}, see section~\ref{sec:openfromlock}. It
+opens a file from a lock. On a hierarchical file system, this is equivalent
+to an {\tt ACTION\_FINDINPUT} packet with {\tt dp\_Arg3} set to an empty
+string.
+\smallskip{}
+
+To uniquely identify the file handle and resources associated to it later
+on, the handler may place an identifier or a handle or pointer to internal
+resources in the {\tt fh\_Arg1} element of the \emph{FileHandle} provided by
+{\tt dp\_Arg1}. Before replying the packet, {\tt dp\_Res1} shall be set by
+the handler to {\tt DOSTRUE} on success, or {\tt DOSFALSE} on error. On
+success, {\tt dp\_Res2} shall be set to~$0$, and to an error code from {\tt
+  dos/dos.h} otherwise.
+
+\subsection{Closing a File}
+
+The packet {\tt ACTION\_END} releases all \emph{file system} internal
+resources of a file handle.
+
+\begin{rkrmtable}{\tt ACTION\_END} \label{table:actionend}
+{\bf DosPacket Element}   & {\bf Value}\\ \hline \hline
+\tt dp\_Type  & \tt ACTION\_END (1007) \\ \hline
+\tt dp\_Arg1  & {\tt fh\_Arg1} of the \emph{FileHandle} \\ \hline \hline
+\tt dp\_Res1  & Boolean result code \\ \hline
+\tt dp\_Res2  & Error code \\ \hline
+\end{rkrmtable}
+
+{\tt dp\_Arg1} is initialized to the {\tt fh\_Arg1} element of the
+{\tt FileHandle} structure corresponding to the file that is supposed to be
+closed. This value may be used by the \emph{File System} or \emph{Handler}
+to uniquely identify the resources associated to the file, for example any
+implicit lock on the file system object.
+\smallskip{}
+
+Before repyling to the packet, {\tt dp\_Res1} shall be set to {\tt DOSTRUE}
+on success or {\tt DOSFALSE} on failure. On success, {\tt dp\_Res2} shall be
+set to~0, or to an error code otherwise.
+\smallskip{}
+
+The \emph{dos.library} uses this packet to implement the {\tt
+  Close()}\key{Close()} function. If it receives an error code, the library
+will not release the memory of the {\tt FileHandle} structure, and as such,
+it remains available to the caller of {\tt Close()} to perform other
+activities on the file.
+
+\subsection{Reading from a File}
+
+The packet {\tt ACTION\_READ} reads data from a \emph{file system} or
+\emph{handler} and advances the file pointer accordingly.
+
+\begin{rkrmtable}{\tt ACTION\_READ} \label{table:actionread}
+{\bf DosPacket Element}   & {\bf Value}\\ \hline \hline
+\tt dp\_Type  & \tt ACTION\_READ (82) \\ \hline
+\tt dp\_Arg1  & {\tt fh\_Arg1} of the \emph{FileHandle} \\ \hline
+\tt dp\_Arg2  & Pointer to the buffer \\ \hline
+\tt dp\_Arg3  & Number of bytes to read \\ \hline
+\tt dp\_Res1  & Bytes read or $-1$ \\ \hline
+\tt dp\_Res2  & Error code \\ \hline
+\end{rkrmtable}
+
+This packet implements the {\tt Read()}\key{Read()} function of the
+\emph{dos.library}. The elements of the packet are initialized as follows:
+\smallskip{}
+
+{\tt dp\_Arg1} is a copy from {\tt fh\_Arg1} of the \emph{FileHandle}
+structure and may be used by the \emph{file system} or \emph{handler} to
+identify the file. Note that it is \emph{not} the \emph{FileHandle} itself;
+instead, the \emph{handler} may create and insert such an identifier into
+the \emph{FileHandle} when opening a file.
+\smallskip{}
+
+{\tt dp\_Arg2} is a pointer (not a BPTR) to the buffer to be filled.
+\smallskip{}
+
+{\tt dp\_Arg3} is the number of bytes to read.
+\smallskip{}
+
+Before replying this packet, the \emph{handler} shall fill {\tt dp\_Res1}
+with the number of bytes that could be transferred into the buffer, or~$-1$
+for an error condition. This number may also be~0 if no data could be
+transferred, either because the end of file has been reached, or because
+currently no data is available on an interactive file, such as the console
+or the serial port. In case of an error, i.e. for the primary result
+code~$-1$, {\tt dp\_Res2} shall be filled with an error code, otherwise it
+shall be set to~$0$.
+\smallskip{}
+
+Note that there are no separate packet types corresponding to the buffered
+IO functions from section~\ref{sec:bufferedio}. Instead, the
+\emph{dos.library} functions at the caller side manage the buffer, monitor
+its fill state and potentially call into {\tt Read()} which then generates
+this packet.
+
+\subsection{Writing to a File}
+
+The packet {\tt ACTION\_WRITE} writes data to a \emph{file system} or
+\emph{handler} and advances the file pointer accordingly.
+
+\begin{rkrmtable}{\tt ACTION\_WRITE} \label{table:actionread}
+{\bf DosPacket Element}   & {\bf Value}\\ \hline \hline
+\tt dp\_Type  & \tt ACTION\_WRITE (87) \\ \hline
+\tt dp\_Arg1  & {\tt fh\_Arg1} of the \emph{FileHandle} \\ \hline
+\tt dp\_Arg2  & Pointer to the buffer \\ \hline
+\tt dp\_Arg3  & Number of bytes to write \\ \hline
+\tt dp\_Res1  & Bytes written or $-1$ \\ \hline
+\tt dp\_Res2  & Error code \\ \hline
+\end{rkrmtable}
+
+This packet implements the {\tt Write()}\key{Write()} function of the
+\emph{dos.library}. The elements of the packet are initialized as follows:
+\smallskip{}
+
+{\tt dp\_Arg1} is a copy from {\tt fh\_Arg1} of the \emph{FileHandle}
+structure and may be used by the \emph{file system} or \emph{handler} to
+identify the file.
+\smallskip{}
+
+{\tt dp\_Arg2} is a pointer (not a BPTR) to the buffer contaiing the data to
+be transferred.
+\smallskip{}
+
+{\tt dp\_Arg3} is the number of bytes to write.
+\smallskip{}
+
+Before replying this packet, the \emph{handler} shall fill {\tt dp\_Res1}
+with the number of bytes that could be transferred from the buffer, or~$-1$
+for an error condition. In case of an error, i.e. for the primary result
+code~$-1$, {\tt dp\_Res2} shall be filled with an error code, otherwise it
+shall be set to~$0$.
+\smallskip{}
+
+Note that there are no separate packet types corresponding to the buffered
+IO functions from section~\ref{sec:bufferedio}. Instead, the
+\emph{dos.library} functions at the caller side manage the buffer, monitor
+its fill state and potentially call into {\tt Write()} which then generates
+this packet.
 
 \section{The Console-Handler}
 
