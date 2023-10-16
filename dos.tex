@@ -1587,7 +1587,7 @@ Even though {\tt Seek()} is an unbuffered function, it is aware of a
 buffer and implicitly flushes the file system internal buffer. That
 is, it can be safely used by buffered and unbuffered functions.
 
-\subsection{Setting the Size of a File}
+\subsection{Setting the Size of a File} \label{sec:setfilesize}
 
 The {\tt SetFileSize()}\mkey{SetFileSize()} function truncates or
 extends the size of an opened file to a given size. Not all handlers
@@ -11548,7 +11548,7 @@ argument into {\tt dp\_Type}.
 
 \subsection{Opening a File from a Lock}
 
-The packet {\tt ACTION\_FH\_FROM\_LOCK} initializes a {\tt
+The packet {\tt ACTION\_FH\_FROM\_LOCK}\mkey{ACTION\_FH\_FROM\_LOCK} initializes a {\tt
   FileHandle}\key{FileHandle} structure from a lock on an existing
 file. Whether this access is shared or exclusive depends on the type of the
 lock. Upon success, the lock is absorbed into the \emph{FileHandle}.
@@ -11579,8 +11579,8 @@ success, {\tt dp\_Res2} shall be set to~$0$, and to an error code from {\tt
 
 \subsection{Closing a File}
 
-The packet {\tt ACTION\_END} releases all \emph{file system} internal
-resources of a file handle.
+The packet {\tt ACTION\_END}\mkey{ACTION\_END} releases all \emph{file
+system} internal resources of a file handle.
 
 \begin{rkrmtable}{\tt ACTION\_END} \label{table:actionend}
 {\bf DosPacket Element}   & {\bf Value}\\ \hline \hline
@@ -11610,8 +11610,8 @@ activities on the file.
 
 \subsection{Reading from a File}
 
-The packet {\tt ACTION\_READ} reads data from a \emph{file system} or
-\emph{handler} and advances the file pointer accordingly.
+The packet {\tt ACTION\_READ}\mkey{ACTION\_KEY} reads data from a \emph{file
+system} or \emph{handler} and advances the file pointer accordingly.
 
 \begin{rkrmtable}{\tt ACTION\_READ} \label{table:actionread}
 {\bf DosPacket Element}   & {\bf Value}\\ \hline \hline
@@ -11658,8 +11658,9 @@ this packet.
 
 \subsection{Writing to a File}
 
-The packet {\tt ACTION\_WRITE} writes data to a \emph{file system} or
-\emph{handler} and advances the file pointer accordingly.
+The packet {\tt ACTION\_WRITE}\mkey{ACTION\_WRITE} writes data to a
+\emph{file system} or \emph{handler} and advances the file pointer
+accordingly.
 
 \begin{rkrmtable}{\tt ACTION\_WRITE} \label{table:actionread}
 {\bf DosPacket Element}   & {\bf Value}\\ \hline \hline
@@ -11699,6 +11700,102 @@ IO functions from section~\ref{sec:bufferedio}. Instead, the
 \emph{dos.library} functions at the caller side manage the buffer, monitor
 its fill state and potentially call into {\tt Write()} which then generates
 this packet.
+
+\subsection{Adjusting the File Pointer}
+
+The packet {\tt ACTION\_SEEK}\mkey{ACTION\_SEEK} sets the file pointer
+relative to a base location.
+
+\begin{rkrmtable}{\tt ACTION\_SEEK} \label{table:actionseek}
+{\bf DosPacket Element}   & {\bf Value}\\ \hline \hline
+\tt dp\_Type  & \tt ACTION\_SEEK (1008) \\ \hline
+\tt dp\_Arg1  & {\tt fh\_Arg1} of the \emph{FileHandle} \\ \hline
+\tt dp\_Arg2  & File pointer offset \\ \hline
+\tt dp\_Arg3  & Seek mode from Table~\ref{table:seekmode} \\ \hline
+\tt dp\_Res1  & Previous file position \\ \hline
+\tt dp\_Res2  & Error code \\ \hline
+\end{rkrmtable}
+
+This packet implements, to a major degree, the {\tt Seek()}\key{Seek()}
+function of the \emph{dos.library}. The elements of the packet are
+initialized as follows:
+\smallskip{}
+
+{\tt dp\_Arg1} is a copy from {\tt fh\_Arg1} of the \emph{FileHandle}
+structure and may be used by the \emph{file system} or \emph{handler} to
+identify the file.
+\smallskip{}
+
+{\tt dp\_Arg2} defines the new location of the file pointer relative to a
+position identified by {\tt dp\_Arg3}.
+\smallskip{}
+
+{\tt dp\_Arg3} defines the position to which {\tt dp\_Arg2} is relative. It
+is one of the modes in table~\ref{table:seekmode} and is therefore identical
+to the third argument of {\tt Seek()}\key{Seek()}.
+\smallskip{}
+
+Before replying this packet, the \emph{handler} shall fill {\tt dp\_Res1}
+with the previous value of the file pointer, i.e. before making the
+requested adjustment, or to~$-1$ in case an error occured. In the latter
+case, {\tt dp\_Res2} shall be filled with an error code, otherwise it shall
+be set to~$0$.
+\smallskip{}
+
+While this packet type mostly implement the {\tt Seek()} function, the
+latter is also aware of the (caller-side) buffer of the \emph{FileHandle}
+and performs a flush of this buffer. The packet cannot, of course, perform a
+flush.
+
+\subsection{Setting the File Size}
+
+The packet {\tt ACTION\_SET\_FILE\_SIZE}\mkey{ACTION\_SET\_FILE\_SIZE}
+adjusts the size of a file, either truncating or extends it beyond its
+current end of file.
+
+\begin{rkrmtable}{\tt ACTION\_SET\_FILE\_SIZE} \label{table:actionsetfilesize}
+{\bf DosPacket Element}   & {\bf Value}\\ \hline \hline
+\tt dp\_Type  & \tt ACTION\_SET\_FILE\_SIZE (1022) \\ \hline
+\tt dp\_Arg1  & {\tt fh\_Arg1} of the \emph{FileHandle} \\ \hline
+\tt dp\_Arg2  & File size adjustment \\ \hline
+\tt dp\_Arg3  & Mode from Table~\ref{table:seekmode} \\ \hline
+\tt dp\_Res1  & Boolean result code \\ \hline
+\tt dp\_Res2  & Error code \\ \hline
+\end{rkrmtable}
+
+This packet implements the {\tt SetFileSize()}\key{SetFileSize()}
+function of the \emph{dos.library}. The elements of the packet are
+initialized as follows:
+\smallskip{}
+
+{\tt dp\_Arg1} is a copy from {\tt fh\_Arg1} of the \emph{FileHandle}
+structure and may be used by the \emph{file system} or \emph{handler} to
+identify the file.
+\smallskip{}
+
+{\tt dp\_Arg2} defines the new size of the file or equivalently the new
+position of the end of file, relative to a position identified by
+{\tt dp\_Arg3}.
+\smallskip{}
+
+{\tt dp\_Arg3} defines the position to which {\tt dp\_Arg2} is relative. It
+is one of the modes in table~\ref{table:seekmode} and is therefore identical
+to the third argument of {\tt SetFileSize()}\key{SetFileSize()}. The new
+end-of-file position of the file can therefore be set relative to the start
+of the file, i.e. {\tt dp\_Arg2} is the new size of the file, relative to
+the current file pointer, or relative to the current end-of-file.
+\smallskip{}
+
+Before replying this packet, the \emph{handler} shall fill {\tt dp\_Res1}
+with a boolean success indicator, {\tt DOSTRUE} in case it could extend or
+truncate the file as requested, or {\tt DOSFALSE} in case of error. In case
+of success, {\tt dp\_Res2} shall be set to~0, otherwise it shall be set to
+an error code.
+\smallskip{}
+
+Additional information on this packet is found in
+section~\ref{sec:setfilesize} which describes the \emph{dos.library}
+function that is based on it.
 
 \section{The Console-Handler}
 
