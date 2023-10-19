@@ -11618,7 +11618,7 @@ system} or \emph{handler} and advances the file pointer accordingly.
 \tt dp\_Type  & \tt ACTION\_READ (82) \\ \hline
 \tt dp\_Arg1  & {\tt fh\_Arg1} of the \emph{FileHandle} \\ \hline
 \tt dp\_Arg2  & Pointer to the buffer \\ \hline
-\tt dp\_Arg3  & Number of bytes to read \\ \hline
+\tt dp\_Arg3  & Number of bytes to read \\ \hline \hline
 \tt dp\_Res1  & Bytes read or $-1$ \\ \hline
 \tt dp\_Res2  & Error code \\ \hline
 \end{rkrmtable}
@@ -11667,7 +11667,7 @@ accordingly.
 \tt dp\_Type  & \tt ACTION\_WRITE (87) \\ \hline
 \tt dp\_Arg1  & {\tt fh\_Arg1} of the \emph{FileHandle} \\ \hline
 \tt dp\_Arg2  & Pointer to the buffer \\ \hline
-\tt dp\_Arg3  & Number of bytes to write \\ \hline
+\tt dp\_Arg3  & Number of bytes to write \\ \hline \hline
 \tt dp\_Res1  & Bytes written or $-1$ \\ \hline
 \tt dp\_Res2  & Error code \\ \hline
 \end{rkrmtable}
@@ -11711,7 +11711,7 @@ relative to a base location.
 \tt dp\_Type  & \tt ACTION\_SEEK (1008) \\ \hline
 \tt dp\_Arg1  & {\tt fh\_Arg1} of the \emph{FileHandle} \\ \hline
 \tt dp\_Arg2  & File pointer offset \\ \hline
-\tt dp\_Arg3  & Seek mode from Table~\ref{table:seekmode} \\ \hline
+\tt dp\_Arg3  & Seek mode from Table~\ref{table:seekmode} \\ \hline \hline
 \tt dp\_Res1  & Previous file position \\ \hline
 \tt dp\_Res2  & Error code \\ \hline
 \end{rkrmtable}
@@ -11758,7 +11758,7 @@ current end of file.
 \tt dp\_Type  & \tt ACTION\_SET\_FILE\_SIZE (1022) \\ \hline
 \tt dp\_Arg1  & {\tt fh\_Arg1} of the \emph{FileHandle} \\ \hline
 \tt dp\_Arg2  & File size adjustment \\ \hline
-\tt dp\_Arg3  & Mode from Table~\ref{table:seekmode} \\ \hline
+\tt dp\_Arg3  & Mode from Table~\ref{table:seekmode} \\ \hline \hline
 \tt dp\_Res1  & Boolean result code \\ \hline
 \tt dp\_Res2  & Error code \\ \hline
 \end{rkrmtable}
@@ -11796,6 +11796,106 @@ an error code.
 Additional information on this packet is found in
 section~\ref{sec:setfilesize} which describes the \emph{dos.library}
 function that is based on it.
+
+\section{Packets for Interacting with Locks}
+
+The packets listed in this section implement the \emph{dos.library}
+functions listed in section~\label{sec:locks}; they create, release or
+duplicate locks or create directories.
+
+\subsection{Obtaining a Lock}
+
+The {\tt ACTION\_LOCATE\_OBJECT}\mkey{ACTION\_LOCATE\_OBJECT} packet locates
+an object --- a file or a directory --- on a \emph{file system} and creates
+from it a \emph{Lock} identifying the object uniquely. The object can later
+be used as active directory, to open a file from it or to retrieve metadata
+such as comments or protection bits associated to the identified object.
+
+\begin{rkrmtable}{\tt ACTION\_LOCATE\_OBJECT} \label{table:actionlocateobject}
+{\bf DosPacket Element}   & {\bf Value}\\ \hline \hline
+\tt dp\_Type  & \tt ACTION\_LOCATE\_OBJECT (8) \\ \hline
+\tt dp\_Arg1  & BPTR to \emph{FileLock} \\ \hline
+\tt dp\_Arg2  & Mode of the Lock \\ \hline
+\tt dp\_Arg3  & BPTR to BSTR of the object name \\ \hline \hline
+\tt dp\_Res1  & BPTR to \emph{FileLock} \\ \hline
+\tt dp\_Res2  & Error code \\ \hline
+\end{rkrmtable}
+
+This packet creates a lock from a path and a directory to which this path is
+relative, also represented as a lock. As such, it implements the
+{\tt Lock()}\key{Lock} function of the \emph{dos.library}.
+\smallskip{}
+
+{\tt dp\_Arg1} is a BPTR to a \emph{FileLock} structure that represents the
+object to which the path given in {\tt dp\_Arg3} is relative. This is
+usually a directory, and the {\tt Lock()} function fills it from the current
+directory of the calling process. This argument can be {\tt ZERO} in which
+case the \emph{file system} shall assume that {\tt dp\_Arg3} is relative to
+the root of the currently inserted volume handled by the file system.
+\smallskip{}
+
+{\tt dp\_Arg2} is the type of the lock to be created. The value {\tt
+  SHARED\_LOCK} requests a non-exclusive lock on an object; multiple of such
+locks can be held on the same object. The value {\tt EXCLUSIVE\_LOCK}
+requests an exclusive an object; only a single exclusive lock can be held on
+an object at once, and no other locks, including shared locks, are
+permissible. Attempting to exclusively lock an object that is already locked
+shall fail, and attempting to lock an object that is already exclusively
+locked shall as well. Unfortunately, some programs call {\tt
+  Lock()}\key{Lock()} with an invalid argument for the mode, and thus
+\emph{file systems} should be prepared to handle invalid values for
+{\tt dp\_Arg2}. Such values should be considered equivalent to
+{\tt SHARED\_LOCK}.
+\smallskip{}
+
+{\tt dp\_Arg3} is a BPTR to a BSTR of an absolute or relative path of the
+object to be locked. Relative paths are relative to the lock in {\tt
+  dp\_Arg1}, and if this argument is {\tt ZERO}, relative to the root ---
+the topmost directory --- of the volume currently managed by this file
+system. If this string is empty, the identified object to be locked is
+identical to the one identified by {\tt dp\_Arg1}.
+\smallskip{}
+
+On success, {\tt dp\_Res1} shall be a BPTR to a {\tt FileLock}
+structure. These objects are created and maintained by the \emph{file
+system}. This structure shall be initialized as indicated in
+section~\ref{sec:filelock}:
+\smallskip{}
+
+{\tt fl\_Task} shall point to a {\tt MsgPort} through which the maintaining
+\emph{file system} can be contacted, which is typically, but not necessarily
+the process message port {\tt pr\_Port} of the \emph{file system} itself.
+\smallskip{}
+
+{\tt fl\_Volume} shall be a BPTR to the {\tt DosList} structure representing
+the volume on which the locked object is located, see
+section~\ref{sec:devicelist}.
+\smallskip{}
+
+{\tt fl\_Access} shall be filled by {\tt dp\_Arg2}, identifying the type of
+the lock.
+\smallskip{}
+
+{\tt fl\_Link} may be used to queue up locks on a volume that is currently
+not inserted. When a volume with locked objects is removed from the drive,
+the \emph{file system} may store all these locks in a singly linked list
+starting at {\tt dol\_LockList} and chained by {\tt fl\_Link}. If the same
+volume is then re-inserted into another drive, another instance of the same
+file system is able to pick up these locks and manage them instead. Thus,
+for example, a lock on an object in drive {\tt df0:} will remain valid even
+if the volume is removed and re-inserted into {\tt df1:}.
+\smallskip{}
+
+{\tt fl\_Key}, finally, may be used for the purpose of the \emph{file
+system} for uniquely identifying the locked object. It is an opaque value as
+far as the \emph{dos.library} is concerned.
+\medskip{}
+
+On success, the BPTR to the created {\tt FileLock} shall be stored in {\tt
+  dp\_Res1} and {\tt dp\_Res2} shall be set to~0. On error, {\tt dp\_Res1}
+shall be set to {\tt ZERO} and {\tt dp\_Res2} to an error code from {\tt
+  dos/dos.h} identifying the source of the problem, see also
+section~\ref{sec:ioerr}.
 
 \section{The Console-Handler}
 
