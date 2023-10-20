@@ -2966,9 +2966,14 @@ BPTR ParentOfFH(BPTR)
 
 This function returns in {\tt lock} a shared lock on the directory
 containing the file opened through the {\tt fh} \emph{file handle}. It
-returns {\tt ZERO} on failure. In either case, {\tt IoErr()}
-\key{IoErr()} is set, namely to $0$ in case of success or to an error
-code on failure.
+returns {\tt ZERO} on failure or in case there is no parent directory
+because {\tt fh} already represents the root directory.
+\smallskip{}
+
+In either case, {\tt IoErr()} \key{IoErr()} is set, namely to $0$ in case of
+success or to an error code on failure. Attempting to obtain the parent of
+the root directory is not a failure case, and thus {\tt IoErr()} is set to~0
+in this case.
 
 \subsection{Opening a File from a Lock} \label{sec:openfromlock}
 
@@ -11834,18 +11839,18 @@ case the \emph{file system} shall assume that {\tt dp\_Arg3} is relative to
 the root of the currently inserted volume handled by the file system.
 \smallskip{}
 
-{\tt dp\_Arg2} is the type of the lock to be created. The value {\tt
-  SHARED\_LOCK} requests a non-exclusive lock on an object; multiple of such
-locks can be held on the same object. The value {\tt EXCLUSIVE\_LOCK}
-requests an exclusive an object; only a single exclusive lock can be held on
-an object at once, and no other locks, including shared locks, are
-permissible. Attempting to exclusively lock an object that is already locked
-shall fail, and attempting to lock an object that is already exclusively
-locked shall as well. Unfortunately, some programs call {\tt
-  Lock()}\key{Lock()} with an invalid argument for the mode, and thus
-\emph{file systems} should be prepared to handle invalid values for
-{\tt dp\_Arg2}. Such values should be considered equivalent to
-{\tt SHARED\_LOCK}.
+{\tt dp\_Arg2} is the type of the lock to be created as defined in
+table~\ref{table:lockmodes}. The value {\tt SHARED\_LOCK} requests a
+non-exclusive lock on an object; multiple of such locks can be held on the
+same object. The value {\tt EXCLUSIVE\_LOCK} requests an exclusive an
+object; only a single exclusive lock can be held on an object at once, and
+no other locks, including shared locks, are permissible. Attempting to
+exclusively lock an object that is already locked shall fail, and attempting
+to lock an object that is already exclusively locked shall as
+well. Unfortunately, some programs call {\tt Lock()}\key{Lock()} with an
+invalid argument for the mode, and thus \emph{file systems} should be
+prepared to handle invalid values for {\tt dp\_Arg2}. Such values should be
+considered equivalent to {\tt SHARED\_LOCK}.
 \smallskip{}
 
 {\tt dp\_Arg3} is a BPTR to a BSTR of an absolute or relative path of the
@@ -11896,6 +11901,86 @@ On success, the BPTR to the created {\tt FileLock} shall be stored in {\tt
 shall be set to {\tt ZERO} and {\tt dp\_Res2} to an error code from {\tt
   dos/dos.h} identifying the source of the problem, see also
 section~\ref{sec:ioerr}.
+
+\subsection{Duplicating a Lock}
+
+Despite its misguiding name, the packet
+{\tt ACTION\_COPY\_DIR}\mkey{ACTION\_COPY\_DIR} makes a copy of a (shared)
+lock.
+
+\begin{rkrmtable}{\tt ACTION\_COPY\_DIR} \label{table:actioncopydir}
+{\bf DosPacket Element}   & {\bf Value}\\ \hline \hline
+\tt dp\_Type  & \tt ACTION\_COPY\_DIR (19) \\ \hline
+\tt dp\_Arg1  & BPTR to \emph{FileLock} \\ \hline \hline
+\tt dp\_Res1  & BPTR to \emph{FileLock} \\ \hline
+\tt dp\_Res2  & Error code \\ \hline
+\end{rkrmtable}
+
+This packet implements the {\tt DupLock()}\key{DupLock()} function of the
+\emph{dos.library} and attempts to replicate the lock passed in {\tt
+  dp\_Arg1}. If this argument is {\tt ZERO}, the packet is supposed to
+create a lock on the root directory of the currently mounted volume.
+\smallskip{}
+
+On success, {\tt dp\_Res1} is filled with the BPTR to a copy of the
+{\tt FileLock} passed in, and {\tt dp\_Res2} is set to~0. On error,
+{\tt dp\_Res1} is set to {\tt ZERO} and {\tt dp\_Res2} to an error code.
+While~\cite{Bantam} indicates that {\t dp\_Res1} may be {\tt ZERO} on an
+attempt to replicate the {\tt ZERO} lock, this is not advisable as most
+users of this packet may misinterpret this result as failure case.
+\smallskip{}
+
+This packet is identical to {\tt ACTION\_LOCATE\_OBJECT} with {\tt dp\_Arg2}
+set to {\tt SHARED\_LOCK} and {\tt dp\_Arg3} set to an empty string.
+
+\subsection{Finding the Parent of a Lock}
+
+The packet {\tt ACTION\_PARENT}\mkey{ACTION\_PARENT} obtains a shared lock on
+the directory containing a locked object.
+
+\begin{rkrmtable}{\tt ACTION\_PARENT} \label{table:actionparent}
+{\bf DosPacket Element}   & {\bf Value}\\ \hline \hline
+\tt dp\_Type  & \tt ACTION\_PARENT (29) \\ \hline
+\tt dp\_Arg1  & BPTR to \emph{FileLock} \\ \hline \hline
+\tt dp\_Res1  & BPTR to \emph{FileLock} \\ \hline
+\tt dp\_Res2  & Error code \\ \hline
+\end{rkrmtable}
+
+This packet implements the {\tt ParentDir()}\key{ParentDir()} function of the
+\emph{dos.library} and attemps to create a lock on the directory containing
+the object identified by {\tt dp\_Arg1}. If no parent exists because {\tt
+  dp\_Arg1} is a lock on the root directory or the {\tt ZERO} lock, the
+\emph{file system} shall set {\tt dp\_Res1} to {\tt ZERO} and {\tt dp\_Res2}
+to~0, indicating that this is not a failure case.
+\smallskip{}
+
+Otherwise, this function returns on success a BPTR to the {\tt FileLock}
+representing the parent directory in {\tt dp\_Arg1} and sets {\tt dp\_Arg2}
+to~0. On error, {\tt dp\_Res1} is set to {\tt ZERO} and {\tt dp\_Arg2} to an
+error code.
+
+\subsection{Creating a new Directory}
+
+The packet {\tt ACTION\_CREATE\_DIR}\mkey{ACTION\_CREATE\_DIR} creates a new
+directory and represents it by an exclusive lock on the directory created.
+
+\begin{rkrmtable}{\tt ACTION\_CREATE\_DIR} \label{table:actionparent}
+{\bf DosPacket Element}   & {\bf Value}\\ \hline \hline
+\tt dp\_Type  & \tt CREATE\_DIR (22) \\ \hline
+\tt dp\_Arg1  & BPTR to \emph{FileLock} \\ \hline
+\tt dp\_Arg2  & BPTR to BSTR of the directory name \\ \hline \hline
+\tt dp\_Res1  & BPTR to \emph{FileLock} \\ \hline
+\tt dp\_Res2  & Error code \\ \hline
+\end{rkrmtable}
+
+This packet implements the {\tt CreateDir()}\key{CreateDir()} function of
+the \emph{dos.library} and creates a new directory of the name {\tt
+  dp\_Arg2} within the directory identified by the lock {\tt dp\_Arg1}.
+\smallskip{}
+
+On success, it creates a new exclusive lock which is returned in {\tt
+  dp\_Res1}, and {\tt dp\_Res2} is set to~0. On error, {\tt dp\_Res1} is set
+to {\tt ZERO} and {\tt dp\_Res2} is set to an error code.
 
 \section{The Console-Handler}
 
