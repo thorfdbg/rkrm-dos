@@ -11966,7 +11966,7 @@ directory and represents it by an exclusive lock on the directory created.
 
 \begin{rkrmtable}{\tt ACTION\_CREATE\_DIR} \label{table:actionparent}
 {\bf DosPacket Element}   & {\bf Value}\\ \hline \hline
-\tt dp\_Type  & \tt CREATE\_DIR (22) \\ \hline
+\tt dp\_Type  & \tt ACTION\_CREATE\_DIR (22) \\ \hline
 \tt dp\_Arg1  & BPTR to \emph{FileLock} \\ \hline
 \tt dp\_Arg2  & BPTR to BSTR of the directory name \\ \hline \hline
 \tt dp\_Res1  & BPTR to \emph{FileLock} \\ \hline
@@ -11981,6 +11981,63 @@ the \emph{dos.library} and creates a new directory of the name {\tt
 On success, it creates a new exclusive lock which is returned in {\tt
   dp\_Res1}, and {\tt dp\_Res2} is set to~0. On error, {\tt dp\_Res1} is set
 to {\tt ZERO} and {\tt dp\_Res2} is set to an error code.
+
+\subsection{Comparing two Locks}
+
+The packet {\tt ACTION\_SAME\_LOCK}\mkey{ACTION\_SAME\_LOCK} compares two
+locks on the same file system and checks whether the two locks are on the
+same object.
+
+\begin{rkrmtable}{\tt ACTION\_SAME\_LOCK} \label{table:actionsamelock}
+{\bf DosPacket Element}   & {\bf Value}\\ \hline \hline
+\tt dp\_Type  & \tt ACTION\_SAME\_LOCK (40) \\ \hline
+\tt dp\_Arg1  & BPTR to \emph{FileLock} \\ \hline
+\tt dp\_Arg2  & BPTR to \emph{FileLock} \\ \hline
+\tt dp\_Res1  & Boolean result code \\ \hline
+\tt dp\_Res2  & Error code \\ \hline
+\end{rkrmtable}
+
+This packet is the core of the {\tt SameLock()} function of the
+\emph{dos.library}, which, however, first checks whether the two locks to
+compare are on the same file system. Only if so, the file system
+corresponding the two locks is contacted with the above packet to compare
+the two locks. For this, {\tt dp\_Arg1} and {\tt dp\_Arg2} are BPTRs to the
+two {\tt FileLocks} to compare.
+\smallskip{}
+
+Upon reply, {\tt dp\_Res1} shall be set to {\tt DOSTRUE} if the two locks
+are on the same object, and in that case, {\tt dp\_Res2} shall be set
+to~0. If the two locks are on two different objects, then {\tt dp\_Res1}
+shall be set to {\tt DOSFALSE} and {\tt dp\_Res2} shall also be set to~0. On
+error, {\tt dp\_Res1} is set to~0 and {\tt dp\_Res2} to an error
+code\footnote{The documentation in~\cite{Bantam} on {\tt dp\_Res1} is incorrect.}.
+
+\subsection{Releasing a Lock}
+
+The packet {\tt ACTION\_FREE\_LOCK}\mkey{ACTION\_FREE\_LOCK} releases a
+lock on a file system.
+
+\begin{rkrmtable}{\tt ACTION\_FREE\_LOCK} \label{table:actionfreelock}
+{\bf DosPacket Element}   & {\bf Value}\\ \hline \hline
+\tt dp\_Type  & \tt ACTION\_FREE\_LOCK (15) \\ \hline
+\tt dp\_Arg1  & BPTR to \emph{FileLock} \\ \hline \hline
+\tt dp\_Res1  & Boolean result code \\ \hline
+\tt dp\_Res2  & Error code \\ \hline
+\end{rkrmtable}
+
+This packet implements the \emph{dos.library} function {\tt
+  UnLock()}\key{UnLock()} and releases a {\tt FileLock}. A BPTR to the lock
+to release is provided in {\tt dp\_Arg1}. If this argument is {\tt ZERO},
+the \emph{file system} shall ignore the request and return success.
+\smallskip{}
+
+When replying this packet, {\tt dp\_Res1} shall be set to {\tt DOSTRUE} on
+success and {\tt DOSFALSE} on error. On success, {\tt dp\_Res2} shall be set
+to~0, otherwise it shall be set to an error code. There are actually few
+reasons why this packet could fail, probably because the passed in BPTR is
+invalid and does not point to a valid {\tt FileLock}. The {\tt UnLock()}
+function does not return this result code, but adjusts {\tt IoErr()}
+according to {\tt dp\_Res2}.
 
 \section{The Console-Handler}
 
