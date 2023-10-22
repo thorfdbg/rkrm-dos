@@ -12044,6 +12044,60 @@ representing the parent directory in {\tt dp\_Arg1} and sets {\tt dp\_Arg2}
 to~0. On error, {\tt dp\_Res1} is set to {\tt ZERO} and {\tt dp\_Arg2} to an
 error code.
 
+\subsection{Duplicating a Lock from a File Handle}
+
+The packet {\tt ACTION\_COPY\_DIR\_FH}\mkey{ACTION\_COPY\_DIR\_FH} creates a
+shared lock from an object opened by a \emph{file handle}; that is, it
+copies the implicit lock of the handle.
+
+\begin{rkrmtable}{\tt ACTION\_COPY\_DIR\_FH} \label{table:actioncopydirfh}
+{\bf DosPacket Element}   & {\bf Value}\\ \hline \hline
+\tt dp\_Type  & \tt ACTION\_COPY\_DIR\_FH (1030) \\ \hline
+\tt dp\_Arg1  & {\tt fh\_Arg1} of the \emph{FileHandle} \\ \hline \hline
+\tt dp\_Res1  & BPTR to \emph{FileLock} \\ \hline
+\tt dp\_Res2  & Error code \\ \hline
+\end{rkrmtable}
+
+This packet implements the {\tt DupLockFromFH()}\key{DupLockFromFH()}
+function of the \emph{dos.library}, and thus creates a copy of the lock that
+is implicit to an open file handle. This works only if the file is open in a
+non-exclusive mode, i.e. either {\tt MODE\_READWRITE} or
+{\tt MODE\_OLDFILE}.
+\smallskip{}
+
+{\tt dp\_Arg1} is a copy of the {\tt fh\_Arg1} element of the {\tt
+  FileHandle} structure and thus serves to identify the opened file.
+\smallskip{}
+
+On success, {\tt dp\_Res1} is filled by the BPTR to the {\tt FileLock}
+created, namely a lock to the object opened by the file handle. In such a
+case, {\tt dp\_Res2} is set to~0. On error, {\tt dp\_Res1} is set to
+{\tt ZERO} and {\tt dp\_Res2} to an error code.
+
+\subsection{Finding the Parent Directory of a File Handle}
+
+The packet {\tt ACTION\_PARENT\_FH}\mkey{ACTION\_PARENT\_FH} creates a lock
+on the directory containing a file identified by a file handle.
+
+\begin{rkrmtable}{\tt ACTION\_PARENT\_FH} \label{table:actionparentfh}
+{\bf DosPacket Element}   & {\bf Value}\\ \hline \hline
+\tt dp\_Type  & \tt ACTION\_PARENT\_FH (1031) \\ \hline
+\tt dp\_Arg1  & {\tt fh\_Arg1} of the \emph{FileHandle} \\ \hline \hline
+\tt dp\_Res1  & BPTR to \emph{FileLock} \\ \hline
+\tt dp\_Res2  & Error code \\ \hline
+\end{rkrmtable}
+
+This packet implements the {\tt ParentOfFH()}\key{ParentOfFH()} function of
+the \emph{dos.library} and as such creates a lock on the directory that
+contains a given \emph{file handle}. {\tt dp\_Arg1} is a copy of the {\tt
+  fh\_Arg1} element of the {\tt FileHandle} structure and thus identifies
+the handle.
+\smallskip{}
+
+On success, {\tt dp\_Res1} is filled with a BPTR to the {\tt FileLock}
+created, and {\tt dp\_Res2} is set to~0. On error, {\tt dp\_Res1} is set to
+{\tt ZERO} and {\tt dp\_Res2} to an error code.
+
 \subsection{Creating a new Directory}
 
 The packet {\tt ACTION\_CREATE\_DIR}\mkey{ACTION\_CREATE\_DIR} creates a new
