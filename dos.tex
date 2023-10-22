@@ -12124,6 +12124,168 @@ invalid and does not point to a valid {\tt FileLock}. The {\tt UnLock()}
 function does not return this result code, but adjusts {\tt IoErr()}
 according to {\tt dp\_Res2}.
 
+\section{Packets for Examining Objects} \label{sec:actionfib}
+
+The packets in this section implement the functions of section~\ref{sec:fib}
+on packet level, i.e. they retrieve information from the file system on the
+metadata of objects and allow to scan all objects of a
+directory. Unfortunately, the packets in this section are the hardest to
+implement in a robust way as the directory contents can change while a
+directory scan is active, e.g. because files or directories are created or
+deleted.
+
+\subsection{Examining a Locked Object} \label{sec:actionexamineobject}
+
+The {\tt ACTION\_EXAMINE\_OBJECT}\mkey{ACTION\_EXAMINE\_OBJECT} packet
+retrieves metadata such as file name, comment and protection bits from a
+lock on an object on a file system and fills a {\tt FileInfoBlock} with this
+data.
+
+\begin{rkrmtable}{\tt ACTION\_EXAMINE\_OBJECT} \label{table:actionexamineobject}
+{\bf DosPacket Element}   & {\bf Value}\\ \hline \hline
+\tt dp\_Type  & \tt ACTION\_EXAMINE\_OBJECT (23) \\ \hline
+\tt dp\_Arg1  & BPTR to \emph{FileLock} \\ \hline
+\tt dp\_Arg2  & BPTR to a {\tt FileInfoBlock} structure \\ \hline \hline
+\tt dp\_Res1  & Boolean result code \\ \hline
+\tt dp\_Res2  & Error code \\ \hline
+\end{rkrmtable}
+
+This packet implements the {\tt Examine()}\key{Examine()} function of the
+\emph{dos.library} and retrieves metainformation on the object represented
+by the lock in {\tt dp\_Arg1}. This information is provided in a {\tt
+  FileInfoBlock} structure that is documented in section~\ref{sec:fib}.
+\smallskip{}
+
+However, as the AmigaDOS handler design is due to historic reasons based on
+BCPL, small differences exist between how this packet operates and how the
+{\tt Examine()} function provides its results to the caller. In specific,
+the {\tt fib\_FileName} and {\tt fib\_Comment} elements shall be filled with
+a BSTRs, i.e. the first character is the length of the file name or the
+comment. The conversion to a {\tt NUL}-terminated C string is performed by
+the \emph{dos.library}.
+\smallskip{}
+
+The elements {\tt fib\_DirEntryType} and {\tt fib\_EntryType} shall be
+filled with the same value as some programs check one and others the other
+element. In particular, the value filled in shall be taken from
+table~\ref{table:direntrytypes}. The value~0 shall be avoided as some
+programs check for directories by testing against a positive value whereas
+some others check for a non-negative value, i.e. accept~0 as a directory.
+\smallskip{}
+
+The fields {\tt fib\_OwnerUID} and {\tt fib\_OwnerGID} shall be set to~0,
+unless the file system has an idea on user and group IDs --- unfortunately
+AmigaDOS cannot make use of these values anyhow, and it is not documented
+how these fields shall be interpreted; they are probably an opaque value.
+{\tt fib\_Reserved} shall be left alone, in particular file systems
+\emph{shall not} use it to store internal state information. Such
+information may \emph{only} go into {\tt fib\_DiskKey}, which is an element
+application programs, i.e. callers of the \emph{dos.library}, shall not
+interpret.
+\smallskip{}
+
+This packet is also used to start a scan over the contents of a
+directory. In such a case, the examined object is the directory itself,
+i.e. the lock in {\tt dp\_Arg1} is on a directory. As such, the file system
+should prepare for a scan over this directory and potentially initialize an
+internal state machine.
+\smallskip{}
+
+This function returns a boolean success code in {\tt dp\_Res1}, it shall be
+either set to {\tt DOSTRUE} in case information on the locked object could
+be retrieved and had been successfully deposited into the {\tt
+  FileInfoBlock} given by {\tt dp\_Arg2}, or shall be set to {\tt DOSFALSE}
+in case of error. In the success case, {\tt dp\_Res2} shall be set to~0, or
+to an error code otherwise.
+
+\subsection{Scanning Directory Contents}
+
+The {\tt ACTION\_EXAMINE\_NEXT}\mkey{ACTION\_EXAMINE\_NEXT} continues a scan
+over the directory contents and delivers meta-information on the subsequent
+entry in a directory. Such a scan is started by an {\tt
+  ACTION\_EXAMINE\_OBJECT}\key{ACTION\_EXAMINE} on the directory to be
+scanned; the first {\tt ACTION\_EXAMINE\_NEXT} then provides information on
+the first entry in this directory and each subsequent packet to the
+corresponding next entry.
+
+\begin{rkrmtable}{\tt ACTION\_EXAMINE\_NEXT} \label{table:actionexaminenext}
+{\bf DosPacket Element}   & {\bf Value}\\ \hline \hline
+\tt dp\_Type  & \tt ACTION\_EXAMINE\_NEXT (24) \\ \hline
+\tt dp\_Arg1  & BPTR to \emph{FileLock} \\ \hline
+\tt dp\_Arg2  & BPTR to a {\tt FileInfoBlock} structure \\ \hline \hline
+\tt dp\_Res1  & Boolean result code \\ \hline
+\tt dp\_Res2  & Error code \\ \hline
+\end{rkrmtable}
+
+This function continues a directory scan by providing information on the
+next subsequent object in the directory identified by the lock in {\tt
+  dp\_Arg1}. Meta-information on the object itself is copied into the {\tt
+  FileInfoBlock} structure pointed to by the BPTR in {\tt dp\_Arg2}. Similar
+to {\tt ACTION\_EXAMINE\_OBJECT}\key{ACTION\_EXAMINE\_OBJECT} discussed
+in~\ref{sec:actionexamineobject}, the file name and comment shall be
+provided as BSTRs and not as {\tt NUL}-terminated C strings. Conversion to
+the latter format is performed within the \emph{dos.library}.
+\smallskip{}
+
+Unlike Unixoid file systems, AmigaDOS does not keep entries in directories
+that correspond to the directory itself or its parent directory, i.e.
+AmigaDOS file systems do not carry ``{\tt .}'' or ``{\tt ..}'' directory
+entries. When parsing paths, the current directory is identified by the
+empty string, and the parent directory by the isolated slash (``{\tt /}'').
+\smallskip{}
+
+Unfortunately, this packet is one of the hardest to implement in a file
+system as the directory may change while the scan is active. In particular,
+file systems shall handle the situation gracefully in which the object from
+the previous iteration identified by {\tt fib\_DiskKey} has been deleted,
+moved or replaced by another object, or in which {\tt dp\_Arg1} is a
+different lock than the lock that was used to start the scan by
+{\tt ACTION\_EXAMINE\_OJBECT}\key{ACTION\_EXAMINE\_OJBECT}. The file system may
+only assume that the lock in {\tt dp\_Arg1} is a lock on the same directory
+on which the scan has been started. Similarly, {\tt dp\_Arg2} may not be
+identical from the last iteration, and the file system may only depend on
+{\tt fib\_DiskKey} and {\tt fib\_DirEntryType} being copied over from the
+last iteration, all other entries can be potentially trashed or
+inconsistent. Thus, the file system may only depend on these two values to
+store state information, while it shall be able to resolve situations where
+the object scanned the last time has been deleted or moved to another
+directory or replaced by a different object. Also, file systems shall not
+depend on application programs scanning directories up to the last
+entry; application programs can abort a directory scan at an arbitrary point.
+\smallskip{}
+
+A possible implementation strategy is to store full state information in the
+lock given by {\tt dp\_Arg1}, though keep sufficient information in {\tt
+  fib\_DiskKey} to rebuild this information in case the lock is released and
+replaced during the scan. In the simplest possible case, {\tt fib\_DiskKey}
+could be a counter that enumerates the elements in the directory, whereas
+the lock contains the full state information to access the element
+directly. In case the lock is replaced, {\tt ACTION\_EXAMINE\_NEXT}
+\key{ACTION\_EXAMINE\_NEXT} would find the state information in the lock
+missing, and would then scan forward to the element enumerated by {\tt
+  fib\_DiskKey}. While this is less efficient than using the (now missing)
+state information in the lock, it will at least provide information on an
+object in the directory. Also, if an object is removed or moved out of the
+scanned directory, the file system would update the state information kept
+within the lock to the directory, though loosing the lock would at least
+continue the scan within the directory, even though not necessary from the
+correct object. Storing a block number (for disk-based file systems) or a
+pointer to an object (for RAM-based file systems) is, however, a bad
+strategy as the corresponding disk block or RAM location may have found
+other uses at the time the next object is examined. Unfortunately, such
+implementation defects are rather common and have been found in multiple
+file systems of AmigaDOS.
+\smallskip{}
+
+This packet shall provide a boolean success code in {\tt dp\_Res1}. In case
+the next object in a directory could be successfully examined and
+information on it could be stored in {\tt FileInformationBlock},
+{\tt dp\_Res1} shall be set to {\tt DOSTRUE} and {\tt dp\_Res2} to~0. In
+case of an error, {\tt dp\_Res1} shall be set to {\tt DOSFALSE} and {\tt
+  dp\_Res2} to an error code. In case the end of the directory has been
+reached and no further entries remain to be examined, this error code shall
+be {\tt ERROR\_NO\_MORE\_ENTRIES}.
+
 \section{The Console-Handler}
 
 The {\tt Console-Handler} uses the following conventions for {\tt
