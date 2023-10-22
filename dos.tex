@@ -2812,10 +2812,10 @@ BOOL ChangeMode(ULONG, BPTR, ULONG)
 This function changes the access mode of {\tt object} whose type is
 identified by {\tt type} to the access mode {\tt newmode}. The
 relation between {\tt type} and the nature of the object shall be as
-in table~\ref{table::changemode}, where the types are defined
+in table~\ref{table:changemode}, where the types are defined
 in {\tt dos/dos.h}:
 
-\begin{rkrmtable}{Object Types for ChangeMode()} \label{table::changemode}
+\begin{rkrmtable}{Object Types for ChangeMode()} \label{table:changemode}
 {\bf {\tt \bf type}} & {\bf {\tt \bf object} Type}\\ \hline \hline
 {\tt CHANGE\_LOCK} & {\tt object} shall be a \emph{lock}\\ \hline
 {\tt CHANGE\_FH} & {\tt object} shall be a \emph{file handle}\\ \hline
@@ -12149,7 +12149,64 @@ are on the same object, and in that case, {\tt dp\_Res2} shall be set
 to~0. If the two locks are on two different objects, then {\tt dp\_Res1}
 shall be set to {\tt DOSFALSE} and {\tt dp\_Res2} shall also be set to~0. On
 error, {\tt dp\_Res1} is set to~0 and {\tt dp\_Res2} to an error
-code\footnote{The documentation in~\cite{Bantam} on {\tt dp\_Res1} is incorrect.}.
+code\footnote{The documentation in~\cite{Bantam} on {\tt dp\_Res1} is
+incorrect.}.
+
+\subsection{Changing the Mode of a Lock or a File Handle}
+
+The packet {\tt ACTION\_CHANGE\_MODE}\mkey{ACTION\_CHANGE\_MODE} changes the
+access mode of a lock or a file handle, thus potentially granting exclusive
+access --- if possible --- or lowering the rights to shared access.
+
+\begin{rkrmtable}{\tt ACTION\_CHANGE\_MODE} \label{table:actionchangemode}
+{\bf DosPacket Element}   & {\bf Value}\\ \hline \hline
+\tt dp\_Type  & \tt ACTION\_CHANGE\_MODE (1028) \\ \hline
+\tt dp\_Arg1  & Object type from table~\ref{table:changemode} \\ \hline
+\tt dp\_Arg2  & BPTR to \emph{FileLock} or \emph{FileHandle} \\ \hline
+\tt dp\_Arg3  & Target mode \\ \hline \hline
+\tt dp\_Res1  & Boolean result code \\ \hline
+\tt dp\_Res2  & Error code \\ \hline
+\end{rkrmtable}
+
+This packet implements the {\tt ChangeMode()}\key{ChangeMode()} function of
+the \emph{dos.library} and thus changes the access mode of files or locks to
+exclusive or shared access mode.
+\smallskip{}
+
+{\tt dp\_Arg1} identifies the object whose mode is to be changed. This is a
+value from table~\ref{table:changemode}, i.e. either {\tt CHANGE\_LOCK} to
+adjust the type of the lock, or {\tt CHANGE\_FH} to change the access mode
+of a file handle.
+\smallskip{}
+
+{\tt dp\_Arg2} is the BPTR to the object whose mode is to be changed. If
+{\tt dp\_Arg1} is {\tt CHANGE\_LOCK}, this is a BPTR to a {\tt FileLock}
+structure, if {\tt dp\_Arg1} is {\tt CHANGE\_FH}, it is a BPTR to a {\tt
+  FileHandle} structure. Note that this is unusual as files are typically
+identified by their {\tt fh\_Arg1} element and not by the handle itself. This
+packet is an exception.
+\smallskip{}
+
+{\tt dp\_Arg3} is the target mode. This is either {\tt SHARED\_LOCK} for
+shared access to the file or the lock, or {\tt EXCLUSIVE\_LOCK} for
+exclusive access to the file or the lock\footnote{The information
+in~\cite{Bantam} is incorrect on this subject matter.}. However, as
+information on this packet is sparse and application programs can call the
+corresponding {\tt ChangeMode()} function with incorrect target modes,
+\emph{file handlers} should also accept {\tt ACTION\_FINDINPUT} and {\tt
+  ACTION\_FINDUPDATE} for shared access and {\tt ACTION\_FINDOUTPUT} for
+exclusive access.
+\smallskip{}
+
+Note that it is not always possible to change the mode of a lock or a file
+to exclusive access, namely if it is accessed by a second file handle or
+locked a second time. This packet shall then fail.
+\smallskip{}
+
+Upon reply, {\tt dp\_Res1} shall include a boolean success indicator, {\tt
+  DOSTRUE} for success or {\tt DOSFALSE} for failure. In the former case,
+{\tt dp\_Res2} shall be~0, in the latter case, it shall contain an error
+code.
 
 \subsection{Releasing a Lock}
 
@@ -12339,6 +12396,8 @@ case of an error, {\tt dp\_Res1} shall be set to {\tt DOSFALSE} and {\tt
   dp\_Res2} to an error code. In case the end of the directory has been
 reached and no further entries remain to be examined, this error code shall
 be {\tt ERROR\_NO\_MORE\_ENTRIES}.
+
+
 
 \section{The Console-Handler}
 
