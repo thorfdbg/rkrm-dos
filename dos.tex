@@ -3580,7 +3580,7 @@ the error code as obtained from {\tt IoErr()} is set to {\tt
   \emph{file system}. Also, as for {\tt Examine()}\key{Examine()}, the
        {\tt FileInfoBlock} shall be aligned to a long-word boundary.}
 
-\subsection{Examine Multiple Entries at once}
+\subsection{Examine Multiple Entries at once} \label{sec:exall}
 
 While scanning a directory with {\tt ExNext()}\key{ExNext()} requires
 one interaction with the \emph{file system} for each entry and is
@@ -3603,8 +3603,8 @@ of {\tt size} bytes. This buffer is filled by a linked list of {\tt
 determines which elements of {\tt ExAllData} is filled.
 \smallskip{}
 
-The {\tt lock} shall belong to a directory for this function to
-succeed. It shall not be {\tt ZERO}.
+The {\tt lock} shall be a lock on the directory to be examined. It shall not
+be {\tt ZERO}.
 \smallskip{}
 
 To start a directory scan with {\tt ExAll()}, first allocate a {\tt
@@ -3655,13 +3655,14 @@ d0                                    a0          a2
                                           a1
 \end{verbatim}
 
-that is, register {\tt a0} points to the called hook, register {\tt
-  a1} to the data buffer to be filled, which is part of the {\tt
-  buffer} supplied by the caller of {\tt ExAll()} and which is already
-filled in.  Register {\tt a2} points to a {\tt LONG}, which is a copy
-of the {\tt type} argument supplied to {\tt ExAll()}. If the hook
-function returns non-zero, a match is assumed and the directory entry
-remains in the output buffer. Otherwise, the data is discarded.
+that is, register {\tt a0} points to the called hook, register {\tt a1} to
+the data buffer that is part of the {\tt buffer} supplied by the caller of
+{\tt ExAll()} and which is already filled in with a candidate {\tt
+  ExAllData} structure to be checked for acceptance. Register {\tt a2}
+points to a {\tt LONG}, which is a copy of the {\tt type} argument supplied
+to {\tt ExAll()}. If the hook function returns non-zero, a match is assumed
+and the directory entry remains in the output buffer. Otherwise, the data is
+discarded.
 \smallskip{}
 
 {\tt eac\_MatchFunc} and {\tt eac\_MatchString} shall not be filled in
@@ -7126,7 +7127,7 @@ though a simple string comparison would also work.
 is ill-formed, or because {\tt DestLength} is too short. In such a case,
 {\tt IoErr()} should be used to obtain the reason of the failure.
 
-\subsection{Tokenizing a Case-Insensitive Pattern}
+\subsection{Tokenizing a Case-Insensitive Pattern} \label{sec:parsepatternnocase}
 
 The {\tt ParsePatternNoCase()}\mkey{ParsePatternNoCase()} function tokenizes
 a pattern for case-insensitive string matching. This tokenized version is then
@@ -12350,24 +12351,24 @@ system as the directory may change while the scan is active. In particular,
 file systems shall handle the situation gracefully in which the object from
 the previous iteration identified by {\tt fib\_DiskKey} has been deleted,
 moved or replaced by another object, or in which {\tt dp\_Arg1} is a
-different lock than the lock that was used to start the scan by
-{\tt ACTION\_EXAMINE\_OJBECT}\key{ACTION\_EXAMINE\_OJBECT}. The file system may
+different lock than the lock that was used to start the scan by {\tt
+  ACTION\_EXAMINE\_OJBECT}\key{ACTION\_EXAMINE\_OJBECT}. The file system may
 only assume that the lock in {\tt dp\_Arg1} is a lock on the same directory
-on which the scan has been started. Similarly, {\tt dp\_Arg2} may not be
-identical from the last iteration, and the file system may only depend on
-{\tt fib\_DiskKey} and {\tt fib\_DirEntryType} being copied over from the
-last iteration, all other entries can be potentially trashed or
-inconsistent. Thus, the file system may only depend on these two values to
-store state information, while it shall be able to resolve situations where
-the object scanned the last time has been deleted or moved to another
-directory or replaced by a different object. Also, file systems shall not
-depend on application programs scanning directories up to the last
-entry; application programs can abort a directory scan at an arbitrary point.
+on which the scan has been started. Similarly, {\tt dp\_Arg2} may have
+changed from the last iteration, and the file system shall only depend on
+{\tt fib\_DiskKey} and {\tt fib\_DirEntryType} being identical compared to
+the last iteration, all other entries can be potentially trashed or
+inconsistent. Thus, the file system shall only use these two elements to
+store state information. Also, file systems shall not depend on application
+programs scanning directories up to the last entry; application programs can
+abort a directory scan at an arbitrary point, yet file system shall release
+all resources required for storing state information of the scan after at
+least the lock on the scanned directory is released.
 \smallskip{}
 
 A possible implementation strategy is to store full state information in the
 lock given by {\tt dp\_Arg1}, though keep sufficient information in {\tt
-  fib\_DiskKey} to rebuild this information in case the lock is released and
+  fib\_DiskKey} to rebuild the full information in case the lock is released and
 replaced during the scan. In the simplest possible case, {\tt fib\_DiskKey}
 could be a counter that enumerates the elements in the directory, whereas
 the lock contains the full state information to access the element
@@ -12375,17 +12376,17 @@ directly. In case the lock is replaced, {\tt ACTION\_EXAMINE\_NEXT}
 \key{ACTION\_EXAMINE\_NEXT} would find the state information in the lock
 missing, and would then scan forward to the element enumerated by {\tt
   fib\_DiskKey}. While this is less efficient than using the (now missing)
-state information in the lock, it will at least provide information on an
+state information in the lock, it will at least provide information on a valid
 object in the directory. Also, if an object is removed or moved out of the
 scanned directory, the file system would update the state information kept
 within the lock to the directory, though loosing the lock would at least
 continue the scan within the directory, even though not necessary from the
-correct object. Storing a block number (for disk-based file systems) or a
+same object. Storing a block number (for disk-based file systems) or a
 pointer to an object (for RAM-based file systems) is, however, a bad
 strategy as the corresponding disk block or RAM location may have found
 other uses at the time the next object is examined. Unfortunately, such
 implementation defects are rather common and have been found in multiple
-file systems of AmigaDOS.
+file systems of AmigaDOS in the past.
 \smallskip{}
 
 This packet shall provide a boolean success code in {\tt dp\_Res1}. In case
@@ -12397,6 +12398,125 @@ case of an error, {\tt dp\_Res1} shall be set to {\tt DOSFALSE} and {\tt
 reached and no further entries remain to be examined, this error code shall
 be {\tt ERROR\_NO\_MORE\_ENTRIES}.
 
+\subsection{Examining Multiple Entries at once}
+
+The {\tt ACTION\_EXAMINE\_ALL}\mkey{ACTION\_EXAMINE\_ALL} packet scans a
+directory supplying multiple entries at once, potentially filtering entries
+through a pattern or through a hook.
+
+\begin{rkrmtable}{\tt ACTION\_EXAMINE\_ALL} \label{table:actionexamineall}
+{\bf DosPacket Element}   & {\bf Value}\\ \hline \hline
+\tt dp\_Type  & \tt ACTION\_EXAMINE\_ALL (1033) \\ \hline
+\tt dp\_Arg1  & BPTR to \emph{FileLock} \\ \hline
+\tt dp\_Arg2  & APTR to a buffer to fill \\ \hline
+\tt dp\_Arg3  & Size of the buffer \\ \hline
+\tt dp\_Arg4  & Type defining the requested entries \\ \hline
+\tt dp\_Arg5  & Pointer to struct ExAllControl \\ \hline \hline
+\tt dp\_Res1  & Continuation flag \\ \hline
+\tt dp\_Res2  & Error code \\ \hline
+\end{rkrmtable}
+
+This packet implements the {\tt ExAll()}\key{ExAll()} function of the
+\emph{dos.library} and thus takes parameters similar to the above
+function. Note that unlike many other packets, {\tt dp\_Arg2} and {\tt
+  dp\_Arg5} are regular pointers and not BPTRs\footnote{The information on
+{\tt dp\_Arg5} in~\cite{Bantam} is incorrect, it is really a pointer and not
+a BPTR}. If the \emph{file system} does not implement this packet,
+i.e. returns {\tt ERROR\_ACTION\_NOT\_KNOWN}, then the \emph{dos.library}
+emulates it using {\tt ACTION\_EXAMINE\_OBJECT}\key{ACTION\_EXAMINE\_OBJECT}
+and {\tt ACTION\_EXAMINE\_NEXT}\key{ACTION\_EXAMINE\_NEXT}.
+\smallskip{}
+
+{\tt dp\_Arg1} is a lock on the directory to be examined.
+\smallskip{}
+
+{\tt dp\_Arg2} is a pointer to the buffer to be filled with information on
+the objects found in the directory, it is \emph{not} a BPTR. This buffer is
+filled with a singly linked list of {\tt ExAllData} structures, see
+section~\ref{sec:exall} for the definition of this structure. Only the
+elements requested by {\tt dp\_Arg4} are filled, remaining entries are
+undefined.
+\smallskip{}
+
+{\tt dp\_Arg3} is the size of the buffer provided in {\tt dp\_Arg2} in
+bytes.
+\smallskip{}
+
+{\tt dp\_Arg4} defines which elements of the {\tt ExAllData} are filled. The
+encoding of this argument is given by table~\ref{table:exalltypes} in
+section~\ref{sec:exall}.
+\smallskip{}
+
+{\tt dp\_Arg5} is a pointer to a {\tt ExAllControl} structure, also defined
+in section~\ref{sec:exall}. A detailed description of this structure is also
+provided in section~\ref{sec:exall}. Note that this is really a regular
+pointer, not a BPTR.
+\smallskip{}
+
+The \emph{file system} shall provide in the {\tt eac\_Entries} element of
+this structure the number of {\tt ExAllData} structures it could fit into
+the target buffer provided by {\tt dp\_Arg2}.
+\smallskip{}
+
+It may store internal state information of the directory scanner in {\tt
+  eac\_LastKey}. This state information could, for example, correspond to
+the {\tt fib\_DiskKey} in the {\tt FileInfoBlock} identifying an element in
+a directory. It is zero-initialized before the first packet, and thus the
+\emph{file system} may assume that a value of~0 for the key identifies the
+start of the scan.
+\smallskip{}
+
+If non-{\tt NULL}, {\tt eac\_MatchString} is a parsed pattern as
+generated by the {\tt ParsePatternNoCase()}\key{ParsePatternNoCase()}
+function, see section~\ref{sec:parsepatternnocase}. If this pattern is
+present, only directory entries whose name matches the pattern shall be
+filled into the target buffer.
+\smallskip{}
+
+{\tt eac\_MatchFunc} provides even finer control of which elements are
+filled into the target buffer; it supplies a {\tt Hook} structure whose {\tt
+  h\_Entry} function is called for each candidate directory entry. If the
+hook returns non-zero, the {\tt ExAllData} copied to the buffer shall be
+considered accepted and shall remain in the buffer; if it returns zero, this
+candidate entry is rejected and will be removed from the final
+output. Calling conventions of this hook are also described in
+section~\ref{sec:exall}.
+\medskip{}
+
+The same precautions as for {\tt
+  ACTION\_EXAMINE\_NEXT}\key{ACTION\_EXAMINE\_NEXT} hold for this packet,
+too. In particular, the \emph{file system} shall be prepared for the
+directory to get modified between scans, by either adding, removing,
+renaming or moving objects out or into the directory. Using a disk block or
+a pointer to a structure representing a specific object as {\tt
+  eac\_LastKey} is therefore discouraged. Similarly, {\tt dp\_Arg1} will be
+a lock to the same directory, though may not necessarily be the identical
+lock as used in the previous iteration over the same directory, only the
+directory that is locked may assumed to be the same. In other words, {\tt
+  eac\_DiskKey} shall hold sufficient state information to reconstruct the
+point from which the scan is to be continued. What is, however, is ensured
+is that the pointer to the {\tt ExAllControl} structure stored in {\tt
+  dp\_Arg5} did not change and the \emph{file system} may depend on the
+pointer having the same value as on a the previous iteration over a
+directory. Also, \emph{file systems} may depend on the client sending a
+packet of type {\tt ACTION\_EXAMINE\_ALL\_END}\key{ACTION\_EXAMINE\_ALL\_END}
+to abort a scan before reaching the end of the directory.
+\smallskip{}
+
+This packet shall be replied with {\tt dp\_Res1} set to {\tt DOSTRUE} if not
+all entries could be fit into the buffer, i.e. if {\tt dp\_Arg3} bytes were
+not sufficient to hold all matching directory entries and at least another
+iteration over the directory is necessary to supply (some of) the missing
+entries. In such a case, {\tt dp\_Res2} shall also be set to~0. Such an
+incomplete scan is either continued with another {\tt ACTION\_EXAMINE\_ALL}\key{ACTION\_EXAMINE\_ALL}
+packet, or aborted by an {\tt ACTION\_EXAMINE\_ALL\_END}\key{ACTION\_EXAMINE\_ALL\_END} packet.
+\smallskip{}
+
+In case the end of the directory has reached and all directory entries could
+be supplied, {\tt dp\_Res1} shall be set to~0, and {\tt dp\_Res2} to {\tt
+  ERROR\_NO\_MORE\_ENTRIES}. In case the directory scan had been aborted due
+to an error, {\tt dp\_Res1} shall be set to~0 and {\tt dp\_Res2} to an error
+code.
 
 
 \section{The Console-Handler}
