@@ -4330,7 +4330,17 @@ given by {\tt soft}. The destination the link points to is given by
 {\tt dest}.
 \smallskip{}
 
-If {\tt soft} is {\tt FALSE}, {\tt dest} is a \emph{lock} represented
+The third argument, {\tt soft}, identifies the type of the link to be
+created. It shall be taken from table~\ref{table:linktypes}, defined in
+{\tt dos/dos.h}:
+
+\begin{rkrmtable}{\tt Link Types} \label{table:linktypes}
+{\bf Link Types} & {\bf Description}\\ \hline \hline
+\tt LINK\_HARD & Hard link, or external link \\ \hline
+\tt LINK\_SOFT & Soft link \\ \hline
+\end{rkrmtable}
+
+If {\tt soft} is {\tt LINK\_HARD}, {\tt dest} is a \emph{lock} represented
 by {\tt BPTR}. For most \emph{file systems}, {\tt dest} shall be on
 the same volume as the one identified by the path in {\tt name}. The
 currently only exception is the \emph{RAM-Handler} for which the
@@ -4345,10 +4355,10 @@ destination whenever an object within the link or the link itself is
 accessed.
 \smallskip{}
 
-If {\tt soft} is non-zero, {\tt dest} is a {\tt const UBYTE *} that
+If {\tt soft} is {\tt LINK\_SOFT}, {\tt dest} is a {\tt const UBYTE *} that
 shall be casted to a {\tt LONG}. Then, this function creates a
-\emph{soft-link} that is relative to the path of the link, i.e.
-{\tt name}. For details on \emph{soft-link} resolution, see
+\emph{soft-link} that is relative to the path of the link, i.e.  {\tt
+  name}. For details on \emph{soft-link} resolution, see
 section~\ref{sec:readlink}.
 \smallskip{}
 
@@ -12638,6 +12648,131 @@ Before replying this packet, the \emph{file system} shall set {\tt dp\_Res1}
 to a boolean result code. On succes, {\tt dp\_Res1} shall be set to {\tt
   DOSTRUE} and {\tt dp\_Res2} to~0. On failure, {\tt dp\_Res1} shall be set
 to {\tt DOSFALSE} and {\tt dp\_Res2} to an error code.
+
+\section{Packets for Working with Links}
+
+The packets in this section interact with links; they create them, or in
+case of soft-links, resolve them and update a path given the
+link. Section~\ref{sec:links} provides background information on links and
+on the interface within the \emph{dos.library} for links.
+
+\subsection{Creating Links}
+
+The {\tt ACTION\_MAKE\_LINK}\mkey{ACTION\_MAKE\_LINK} packet creates a link
+in a file system.
+
+\begin{rkrmtable}{\tt ACTION\_MAKE\_LINK} \label{table:actionmakelink}
+{\bf DosPacket Element}   & {\bf Value}\\ \hline \hline
+\tt dp\_Type  & \tt ACTION\_MAKE\_LINK (1021) \\ \hline
+\tt dp\_Arg1  & BPTR to a {\tt FileLock} \\ \hline
+\tt dp\_Arg2  & BPTR to BSTR of the link to create \\ \hline
+\tt dp\_Arg3  & BPTR to {\tt FileLock} or APTR to C-string \\ \hline
+\tt dp\_Arg4  & Type of the link, from table~\ref{table:linktypes} \\ \hline \hline
+\tt dp\_Res1  & Boolean result code \\ \hline
+\tt dp\_Res2  & Error code \\ \hline
+\end{rkrmtable}
+
+This packet implements the {\tt MakeLink()}\key{MakeLink()} function of the
+\emph{dos.library} and as such creates soft- or hardlinks within the
+\emph{file system}.
+\smallskip{}
+
+{\tt dp\_Arg1} is a BPTR to a {\tt FileLock} structure that identifies the
+directory within which the object is to be created.
+\smallskip{}
+
+{\tt dp\_Arg2} is a BPTR to a BSTR that provides the name of the link to be
+created.
+\medskip{}
+
+{\tt dp\_Arg3} identifies the target of the link, i.e. the object the link
+points to. If {\tt dp\_Arg4} is {\tt LINK\_HARD}, then this argument is a
+{\tt BPTR} to a {\tt FileLock} structure identifying the target.  If this
+{\tt FileLock} identifies an object on the same file system as {\tt
+  dp\_Arg1}, then a hard link is created. If the object locked by {\tt
+  dp\_Arg3} is a file, then the created link will represent a file,
+otherwise a directory.
+\smallskip{}
+
+Resolution of hard links is up to the \emph{file system}. That is, if the
+link is accessed, it is up to the \emph{file system} to locate the target of
+the link and access it instead of the link. Multiple implementation
+strategies exist for hard links: Either, each object includes a reference
+count that is incremented for each directory entry pointing to it, that is
+for each link created; likewise, this counter is decremented each time a
+directory entry is removed. If the counter reaches~0, the object itself is
+deleted.
+\smallskip{}
+
+Alternatively, each link is pointing to the linked object, and the object
+itself contains a list of links that reference it. If a link is deleted, it
+is removed from its directory and from the list of links within the target
+object. If the object itself is deleted, one of the links becomes the object
+itself and the list of links is copied from the deleted object to this
+link. The FFS follows (mostly for backwards compatibility) this latter
+approach.
+\medskip{}
+
+If {\tt dp\_Arg4} is {\tt LINK\_HARD} and the {\tt FileLock} pointed to by
+{\tt dp\_Arg3} is on a different file system, then an external link shall be
+created. That is, the \emph{file system} addressed by the packet shall
+create a file or directory within its own file system in the directory
+identified by {\tt dp\_Arg1}, and this file or directory shall mirror the
+contents of the link target given by {\tt dp\_Arg4} whenever the link or an
+object within the link is accessed; the file system shall thus implement
+a ``copy on read'' for the linked objec and all objects within the linked
+object if this object is a directory.
+\smallskip{}
+
+If the target of such a link is deleted or an object within the linked
+target, the copy within the \emph{file system} containing the link remains
+accessible as a regular file or directory. If no copy has been created so
+far, an attempt to access the linked object fails with {\tt
+  ERROR\_OBJECT\_NOT\_FOUND}.
+\smallskip{}
+
+Currently, only the \emph{RAM-Handler} implements this type of link, and it
+is there used to realize the {\tt ENV:} assign containing all preferences
+settings. The external link pulls only those preferences settings into the
+RAM disk that are actually required, at the time they are required.
+\medskip{}
+
+If {\tt dp\_Arg4} is {\tt LINK\_SOFT}, then {\tt dp\_Arg3} is a pointer to a
+{\tt NUL}-terminated C string providing the target of the link. This string
+is interpreted as a path name relative to the location of the link source at
+the time the link is resolved\footnote{This is quite unusual as AmigaDOS
+otherwise depends on BSTR representation for packets.}.
+\smallskip{}
+
+Resolution of soft links is performed within the \emph{dos.library} or
+within the client application as not all functions of the library implement
+soft link resolution. For a list of functions that \emph{do} implement it,
+see table~\ref{table:softenabled}.
+\smallskip{}
+
+Upon accessing a soft link, or a path containing a soft link, the \emph{file
+system} shall create an error code {\tt ERROR\_IS\_SOFT\_LINK}. If this
+error is returned, the sender of a packet accessing the link --- thus
+typically the \emph{dos.library} itself --- shall read the target of the
+link with the {\tt ReadLink()}\key{ReadLink()} function specified in
+section~\ref{sec:readlink}. This function then again contacts the file
+system containing the link with a {\tt
+  ACTION\_READ\_LINK}\key{ACTION\_READ\_LINK} which will construct from the
+link an updated path to the object.
+\smallskip{}
+
+From this follows that a \emph{file system} is not aware whether the target
+of a soft link actually exists as it can only provide the path to the
+object, but not necessarily the object itself; in particular, soft links may
+cross file system boundaries. If the target of a soft link is deleted, the
+soft link itself remains and becomes a ``dangling'' link. When accessing
+such a link, its resolution fails with an error {\tt
+  ERROR\_OBJECT\_NOT\_FOUND}.
+\medskip{}
+
+Upon replying the packet, {\tt dp\_Res1} shall be set to {\tt DOSTRUE} and
+{\tt dp\_Res2} to~0 on success. On failure, {\tt dp\_Res2} shall be set to
+{\tt DOSFALSE} and {\tt dp\_Res1} to an error code.
 
 \section{The Console-Handler}
 
