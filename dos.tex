@@ -12774,6 +12774,127 @@ Upon replying the packet, {\tt dp\_Res1} shall be set to {\tt DOSTRUE} and
 {\tt dp\_Res2} to~0 on success. On failure, {\tt dp\_Res2} shall be set to
 {\tt DOSFALSE} and {\tt dp\_Res1} to an error code.
 
+\subsection{Resolving a Soft Link}
+
+The {\tt ACTION\_READ\_LINK}\mkey{ACTION\_READ\_LINK} packet constructs from
+a path containing a soft link an updated path by inserting the target of the
+link.
+
+\begin{rkrmtable}{\tt ACTION\_READ\_LINK} \label{table:actionreadlink}
+{\bf DosPacket Element}   & {\bf Value}\\ \hline \hline
+\tt dp\_Type  & \tt ACTION\_READ\_LINK (1024) \\ \hline
+\tt dp\_Arg1  & BPTR to a {\tt FileLock} \\ \hline
+\tt dp\_Arg2  & APTR to C string \\ \hline
+\tt dp\_Arg3  & APTR to buffer \\ \hline
+\tt dp\_Arg4  & Buffer size \\ \hline \hline
+\tt dp\_Res1  & Actual buffer size needed \\ \hline
+\tt dp\_Res2  & Error code \\ \hline
+\end{rkrmtable}
+
+This packet implements the {\tt ReadLink()}\key{ReadLink()} function of the
+\emph{dos.library} and is used there to resolve soft links and obtain the
+link target. Implementing this packet correctly requires, however, some care
+as the soft link may be in the middle of the path provided by {\tt dp\_Arg2}
+and not just its last component, and the soft link itself may be an absolute
+or relative path. This packet needs to provide from the original path an
+updated path that points to the intended location relative to the location
+of the soft link, and not relative to {\tt dp\_Arg1}.
+\smallskip{}
+
+{\tt dp\_Arg1} is a lock to a directory in the \emph{file system} to which
+this packet has been send and relative to which the path in {\tt dp\_Arg2}
+shall be interpreted. This \emph{need not} to be the directory containing
+the link.
+\smallskip{}
+
+{\tt dp\_Arg2} is a pointer to a path name containing a soft link on this
+\emph{file system}. This is, unlike in many other packets, not a BPTR to a
+BSTR but a pointer to a regular {\tt NUL}-terminated C string.
+\smallskip{}
+
+The \emph{file system} shall now proceed with soft link resolution as
+follows: Starting from the directory given by {\tt dp\_Arg1}, it shall
+interpret the path in {\tt dp\_Arg2} component by component as explained in
+section~\ref{sec:paths}, until it finds a soft link. That is, colons (``{\tt
+  :}'') indicate that the scan should continue at the root directory of the
+volume, an isolated slash (``{\tt /}'') shall enter the parent directory,
+and all other components terminated by a slash shall be interpreted as names
+of directories that shall be recursively entered. This process continues
+until either the end of the path is found, or --- and this is the purpose of
+this packet --- a soft link is detected.
+\smallskip{}
+
+If a soft link is detected as part of the path, the target of the link as
+stored in the file system shall be read. Note that the link target may not
+only consist of an isolated file or directory name, but may well be an
+absolute or relative path that shall be merged with the path provided in
+{\tt dp\_Arg2}.
+\smallskip{}
+
+In particular, if the path stored in the soft link contains a colon (``{\tt
+  :}''), and hence is an absolute path, the components parsed off from {\tt
+  dp\_Arg2} up to the detection of the soft link shall be disregarded in
+order to start from the root directory. If no device or volume name is
+provided in the absolute link target, the \emph{file system} shall insert
+the name of the current volume, and a colon, in order to provide an
+unambiguous anchor of the newly constructed path. The remaining of the path
+stored in the soft link is then concatenated to this device or volume
+specification.  Finally, the rest of the components from {\tt dp\_Arg2}
+behind the component name of the soft link are concatenated to this
+intermediate path, forming the final link target.
+\smallskip{}
+
+If the path stored in the soft link is a relative path, then it shall be
+concatenated to the path from {\tt dp\_Arg2} up to the component name of the
+soft link at which iterating through {\tt dp\_Arg2} was interrupted. The
+remaining components from {\tt dp\_Arg2} behind the component name of the
+soft link is then attached to this intermediate path, forming the final
+result.
+\smallskip{}
+
+This procedure is tedious, but it ensures that the soft link is interpreted
+relative to the path from which the client application detected it, even if
+the soft link is the middle of the supplied path and not contained in the
+directory provided by {\tt dp\_Arg1}. Note that the above algorithm only
+resolves a single soft link in a path; this is intentional, the
+\emph{dos.library} will send another {\tt ACTION\_READ\_LINK} packet to the
+same or another file system if the remaining path contains additional soft
+links, or even in case the soft link points to another soft link. It is
+therefore important at the level of client application --- or the
+\emph{dos.library} --- to detect endless loops of soft links pointing to
+each other. The \emph{dos.library} aborts soft link resolution after~15
+links.
+\medskip{}
+
+{\tt dp\_Arg3} is the pointer (not a BPTR) to a target buffer into which the
+newly constructed path, with the soft link resolved, shall be provided as a
+{\tt NUL}-terminated C string.
+\smallskip{}
+
+{\tt dp\_Arg4} is the size of this target buffer in bytes.
+\smallskip{}
+
+On an error, {\tt dp\_Res1} shall be set to~$-1$\footnote{~\cite{Bantam}
+recommends to set it to~$-2$ on a target buffer overflow, though currently
+any negative value will do. Unfortunately, even the latest version of the
+FFS will \emph{not} return a negative value but~$0$ in case of an error;
+this is a defect.} and {\tt dp\_Res2} to an error code. In particular, if
+the target buffer size {\tt dp\_Arg4} is too small to hold the resolved
+path, {\tt dp\_Res2} shall be set to {\tt ERROR\_LINE\_TOO\_LONG}.
+\smallskip{}
+
+If the source path in {\tt dp\_Arg2} does actually not contain a soft link
+and the scanning algorithm aborted without finding one, this also
+consistutes an error that shall be reported by setting {\tt dp\_Res1}
+to~$-1$. This error is not handled consistently in AmigaDOS. The RAM-Handler
+reports {\tt ERROR\_OBJECT\_WRONG\_TYPE}, the FFS the error code
+{\tt ERROR\_OBJECT\_NOT\_FOUND}. The former error is probably more sensible.
+\smallskip{}
+
+On success, {\tt dp\_Res1} shall be set to the length of the constructed
+path, i.e. to the length of the string in {\tt dp\_Arg3} (not including the
+teminating {\tt NUL}), and {\tt dp\_Res2} to~0.
+  
 \section{The Console-Handler}
 
 The {\tt Console-Handler} uses the following conventions for {\tt
