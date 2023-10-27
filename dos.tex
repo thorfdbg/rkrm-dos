@@ -12894,7 +12894,128 @@ reports {\tt ERROR\_OBJECT\_WRONG\_TYPE}, the FFS the error code
 On success, {\tt dp\_Res1} shall be set to the length of the constructed
 path, i.e. to the length of the string in {\tt dp\_Arg3} (not including the
 teminating {\tt NUL}), and {\tt dp\_Res2} to~0.
-  
+
+\section{Packets for Adjusting Metadata}
+
+Packets in this section change metadata associated with file system objects,
+such as name, comment, creation date or protection flags.
+
+\subsection{Renaming or Moving Objects}
+
+The {\tt ACTION\_RENAME\_OBJECT}\mkey{ACTION\_RENAME\_OBJECT} changes the
+name of an object such as a file, directory or a link, and relocates it
+within the directory tree of a volume.
+
+\begin{rkrmtable}{\tt ACTION\_RENAME\_OBJECT} \label{table:actionrenameobject}
+{\bf DosPacket Element}   & {\bf Value}\\ \hline \hline
+\tt dp\_Type  & \tt ACTION\_RENAME\_OBJECT (17) \\ \hline
+\tt dp\_Arg1  & BPTR to source {\tt FileLock} \\ \hline
+\tt dp\_Arg2  & BPTR to BSTR of the object path \\ \hline
+\tt dp\_Arg3  & BPTR to target {\tt FileLock} \\ \hline
+\tt dp\_Arg4  & BPTR to BSTR of the target path \\ \hline \hline
+\tt dp\_Res1  & Boolean result code \\ \hline
+\tt dp\_Res2  & Error code \\ \hline
+\end{rkrmtable}
+
+This packet implements the {\tt Rename()}\key{Rename()} function of the
+\emph{dos.library} and relocates and renames objects within the directory
+structure of a volume. This packet cannot relocate accross volumes,
+i.e. {\tt dp\_Arg1} and {\tt dp\_Arg3} are locks to objects within the same
+volume, and {\tt dp\_Arg2} and {\tt dp\_Arg4} represent paths within this
+volume.
+\smallskip{}
+
+{\tt dp\_Arg1} represents the directory to which the source {\tt dp\_Arg2}
+is relative to.
+\smallskip{}
+
+{\tt dp\_Arg2} is the path of the original object location. This path need
+not to consist of a single component, though the object to rename or
+relocate is the last component of this path. The \emph{file system} needs to
+walk the provided path, starting from {\tt dp\_Arg1}, to identify the object
+that is to be renamed or moved.
+\smallskip{}
+
+{\tt dp\_Arg3} is the directory to which the target path {\tt dp\_Arg4} is
+relative to.
+\smallskip{}
+
+{\tt dp\_Arg4} is the target path of the object, relative to {\tt
+  dp\_Arg3}.
+\smallskip{}
+
+Several cases for renaming exist the \emph{file system} shall consider: If
+the last component does not yet exist within the file system, the object
+identified by {\tt dp\_Arg1} and {\tt dp\_Arg2} shall be moved into the
+directory represented by the second to last component of of {\tt dp\_Arg4}
+starting from {\tt dp\_Arg3}, or directly into {\tt dp\_Arg3} if {\tt
+  dp\_Arg4} only consists of a single component, and shall be renamed to the
+last component of the path in {\tt dp\_Arg4}.
+\smallskip{}
+
+If the object identified by {\tt dp\_Arg3} and the path in {\tt dp\_Arg4}
+does already exist and represents a directory, the object shall be moved
+\emph{into} this directory, retaining its original name.
+\smallskip{}
+
+If the last component does already exist and is a file, and this file is
+different from the source object, an error shall be generated. Renaming a
+file or directory to itself, or to a file name that only differs in case
+shall, however, be accepted, and shall adjust its case (i.e. changing
+letters in its name to lower or upper case is permissible).
+\smallskip{}
+
+Particular care needs to be taken if the object to be relocated is a
+directory. In such a case, the \emph{file system} shall test whether an
+attempt is made to move the object into itself, i.e. into one of the
+subdirectories of its own. As this would render the directory unreachable,
+an error shall be generated.
+\medskip{}
+
+Before replying the packet, {\tt dp\_Res1} shall be set to a boolean success
+code. On success, it shall be set to {\tt DOSTRUE} and {\tt dp\_Res2} shall
+be set to~0. On error, {\tt dp\_Res1} shall be to {\tt DOSFALSE} and
+{\tt dp\_Res2} to an error code.
+
+\subsection{Deleting an Object}
+
+The {\tt ACTION\_DELETE\_OBJECT}\mkey{ACTION\_DELETE\_OBJECT} removes an
+object from a directory, releasing the storage it occupies.
+
+\begin{rkrmtable}{\tt ACTION\_DELETE\_OBJECT} \label{table:actiondeleteobject}
+{\bf DosPacket Element}   & {\bf Value}\\ \hline \hline
+\tt dp\_Type  & \tt ACTION\_DELETE\_OBJECT (16) \\ \hline
+\tt dp\_Arg1  & BPTR to {\tt FileLock} \\ \hline
+\tt dp\_Arg2  & BPTR to BSTR of the object path \\ \hline \hline
+\tt dp\_Res1  & Boolean result code \\ \hline
+\tt dp\_Res2  & Error code \\ \hline
+\end{rkrmtable}
+
+This packet implements the {\tt DeleteFile()}\key{DeleteFile()} function of
+the \emph{dos.library}, which can delete files, directories and links.
+\smallskip{}
+
+{\tt dp\_Arg1} is a lock to the directory to which the path in {\tt
+  dp\_Arg2} is relative. The {\tt DeleteFile()} function fills it with the
+current directory of the calling process.
+\smallskip{}
+
+{\tt dp\_Arg2} is the path to the object to be deleted. The path can contain
+multiple components, in which case the file system need to walk the path
+starting at {\tt dp\_Arg1} until reaching its last component which is the
+object to be deleted. If the target is a directory, the \emph{file system}
+shall check, in addition, if the directory is empty, and if not so, refuse
+to delete it.
+\smallskip{}
+
+Before replying the packet, {\tt dp\_Res1} shall be set to a boolean success
+code. In case of success, {\tt dp\_Res1} shall be set to {\tt DOSTRUE} and
+{\tt dp\_Res2} to~0. On error, {\tt dp\_Res1} shall be set to {\tt DOSFALSE}
+and {\tt dp\_Res2} to an error code.
+
+
+
+
 \section{The Console-Handler}
 
 The {\tt Console-Handler} uses the following conventions for {\tt
