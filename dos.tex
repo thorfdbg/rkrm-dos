@@ -487,7 +487,7 @@ files and directories, and provides access to such objects through the
 in order to locate objects such as files and directories on such data
 carriers.
 
-\chapter{Date and Time}
+\chapter{Date and Time} \label{sec:dates}
 
 Due to its history, AmigaOs uses two incompatible representations of date
 and time. The {\tt timer.device} represents a date as the number of seconds
@@ -13013,8 +13013,175 @@ code. In case of success, {\tt dp\_Res1} shall be set to {\tt DOSTRUE} and
 {\tt dp\_Res2} to~0. On error, {\tt dp\_Res1} shall be set to {\tt DOSFALSE}
 and {\tt dp\_Res2} to an error code.
 
+\subsection{Changing the Protection Bits}
 
+The {\tt ACTION\_SET\_PROTECT}\mkey{ACTION\_SET\_PROTECT} changes the
+protection bits of a file system object.
 
+\begin{rkrmtable}{\tt ACTION\_SET\_PROTECT} \label{table:actionsetprotect}
+{\bf DosPacket Element}   & {\bf Value}\\ \hline \hline
+\tt dp\_Type  & \tt ACTION\_SET\_PROTECT (21) \\ \hline
+\tt dp\_Arg2  & BPTR to {\tt FileLock} \\ \hline
+\tt dp\_Arg3  & BPTR to BSTR of the object path \\ \hline
+\tt dp\_Arg4  & New protection bits \\ \hline \hline
+\tt dp\_Res1  & Boolean result code \\ \hline
+\tt dp\_Res2  & Error code \\ \hline
+\end{rkrmtable}
+
+This packet implements the {\tt SetProtection()}\key{SetProtection()}
+function of the \emph{dos.library}; it changes the protection bits of an
+object on the file system to that given in {\tt dp\_Arg4}. For the
+definition of protection bits, see section~\ref{sec:fib},
+table~\ref{table:protectionbits}. Some \emph{file systems} may support only
+a subset of all protection bits, or may not be able to carry them on all
+objects, such as directories; in such a case, they may ignore the request,
+or may only implement a subset of all bits.
+\smallskip{}
+
+{\tt dp\_Arg2} is a lock of a directory which the path in {\tt dp\_Arg3} is
+relative to\footnote{This not a typo, {\tt dp\_Arg1} is really unused}.
+\smallskip{}
+
+{\tt dp\_Arg3} is a path relative to {\tt dp\_Arg2} whose last component is
+the object whose protection bits are to be changed.
+\smallskip{}
+
+{\tt dp\_Arg4} are the new protection bits as specified in
+table~\ref{table:protectionbits}. Note that the first four bits are shown
+inverted by most system tools such as the {\tt List} command.
+\smallskip{}
+
+Before replying to this packet, the \emph{file system} shall set {\tt
+  dp\_Res1} to a boolean result code. On success, {\tt dp\_Res1} shall be
+set to {\tt DOSTRUE} and {\tt dp\_Res2} shall be set to~0. On error, {\tt
+  dp\_Res1} shall be set to {\tt DOSFALSE} and {\tt dp\_Res2} to an error
+code.
+
+\subsection{Setting the Comment to an Object}
+
+The {\tt ACTION\_SET\_COMMENT}\mkey{ACTION\_SET\_COMMENT} packet changes,
+adds or removes a comment on a file system object such as a directory, file
+or link.
+
+\begin{rkrmtable}{\tt ACTION\_SET\_COMMENT} \label{table:actionsetcomment}
+{\bf DosPacket Element}   & {\bf Value}\\ \hline \hline
+\tt dp\_Type  & \tt ACTION\_SET\_COMMENT (28) \\ \hline
+\tt dp\_Arg2  & BPTR to {\tt FileLock} \\ \hline
+\tt dp\_Arg3  & BPTR to BSTR of the object path \\ \hline
+\tt dp\_Arg4  & BPTR to BSTR of comment \\ \hline \hline
+\tt dp\_Res1  & Boolean result code \\ \hline
+\tt dp\_Res2  & Error code \\ \hline
+\end{rkrmtable}
+
+This packet implements the {\tt SetComment()}\key{SetComment()} function of
+the \emph{dos.library} and as such changes, adds or removes a comment on a
+file, directory or link. Not all file systems will support this request, or
+may only support comments on a subset of objects.
+\smallskip{}
+
+{\tt dp\_Arg2} represents a directory relative to which the path in
+{\tt dp\_Arg3} shall be interpreted.
+\smallskip{}
+
+{\tt dp\_Arg3} is the path relative to {\tt dp\_Arg2} of the object whose
+comment is to be changed.
+\smallskip{}
+
+{\tt dp\_Arg4} is a BPTR to a BSTR of the new comment to be set. If this
+string is empty, the comment will be removed.
+\smallskip{}
+
+Before replying to this packet, the \emph{file system} shall set {\tt
+  dp\_Res1} to a boolean result code. On success, {\tt dp\_Res1} shall be
+set to {\tt DOSTRUE} and {\tt dp\_Res2} shall be set to~0. On error, {\tt
+  dp\_Res1} shall be set to {\tt DOSFALSE} and {\tt dp\_Res2} to an error
+code.
+
+\subsection{Setting the Creation Date of an Object}
+
+The {\tt ACTION\_SET\_DATE}\mkey{ACTION\_SET\_DATE} packet sets the creation
+date of an object on a file system.
+
+\begin{rkrmtable}{\tt ACTION\_SET\_DATE} \label{table:actionsetdate}
+{\bf DosPacket Element}   & {\bf Value}\\ \hline \hline
+\tt dp\_Type  & \tt ACTION\_SET\_DATE (34) \\ \hline
+\tt dp\_Arg2  & BPTR to {\tt FileLock} \\ \hline
+\tt dp\_Arg3  & BPTR to BSTR of the object path \\ \hline
+\tt dp\_Arg4  & BPTR to {\tt DateStamp} structure \\ \hline \hline
+\tt dp\_Res1  & Boolean result code \\ \hline
+\tt dp\_Res2  & Error code \\ \hline
+\end{rkrmtable}
+
+This packet implements the {\tt SetFileDate()}\key{SetFileDate()} function
+of the \emph{dos.library} and sets the creation date of an object on a file
+system. Not all \emph{file systems} will support this packet, or may only
+support it with reduced precision of the date.
+\smallskip{}
+
+{\tt dp\_Arg2} represents a directory relative to which the path in {\tt
+  dp\_Arg3} is interpreted\footnote{The information in~\cite{Bantam} is
+incorrect, and {\tt dp\_Arg1} is, indeed, unused.}.
+\smallskip{}
+
+{\tt dp\_Arg3} is the path of the object whose creation date is to be
+changed. This path shall be interpreted relative to {\tt dp\_Arg2}, and its
+last component is the object whose creation date shall be changed.
+\smallskip{}
+
+{\tt dp\_Arg4} is a BPTR to a {\tt DateStamp} structure as specified in
+section~\ref{sec:dates} and defines the target date to install for the
+object.
+\smallskip{}
+
+Before replying to this packet, the \emph{file system} shall set
+{\tt dp\_Res1} to a boolean result code. On success, {\tt dp\_Res1} shall be
+set to {\tt DOSTRUE} and {\tt dp\_Res2} shall be set to~0. On error,
+{\tt dp\_Res1} shall be set to {\tt DOSFALSE} and {\tt dp\_Res2} to an error
+code.
+
+\subsection{Setting the Owner of an Object}
+
+The {\tt ACTION\_SET\_OWNER}\mkey{ACTION\_SET\_OWNER} packet sets the owner
+and group ID of an object in a file system.
+
+\begin{rkrmtable}{\tt ACTION\_SET\_OWNER} \label{table:actionsetowner}
+{\bf DosPacket Element}   & {\bf Value}\\ \hline \hline
+\tt dp\_Type  & \tt ACTION\_SET\_OWNER (1036) \\ \hline
+\tt dp\_Arg2  & BPTR to {\tt FileLock} \\ \hline
+\tt dp\_Arg3  & BPTR to BSTR of the object path \\ \hline
+\tt dp\_Arg4  & Owner information \\ \hline \hline
+\tt dp\_Res1  & Boolean result code \\ \hline
+\tt dp\_Res2  & Error code \\ \hline
+\end{rkrmtable}
+
+This packet implements the {\tt SetOwner()}\key{SetOwner()} function of the
+\emph{dos.library} and is supposed to set a group and user ID of an object
+in a file system; the actual encoding of this information is specific to the
+\emph{file system} and not defined by the \emph{dos.library} or the
+packet. {\tt dp\_Arg4} is a literal copy of the second argument of {\tt
+  SetOwner()}. Note further that most if not all AmigaDOS \emph{file
+systems} do not implement this packet, and as AmigaDOS is not a multi-user
+system, the value of this packet is questionable.
+\smallskip{}
+
+{\tt dp\_Arg2} represents a directory relative to which the path in {\tt
+  dp\_Arg3} is interpreted.
+\smallskip{}
+
+{\tt dp\_Arg3} is the path of the object whose owner information is to be
+changed. This path shall be interpreted relative to {\tt dp\_Arg2}.
+\smallskip{}
+
+{\tt dp\_Arg4} is a \emph{file system} specific owner information; the
+\emph{dos.library} does not define its meaning. This argument is a verbatim
+copy of the second argument of {\tt SetOwner()}.
+\smallskip{}
+
+Before replying to this packet, the \emph{file system} shall set
+{\tt dp\_Res1} to a boolean result code. On success, {\tt dp\_Res1} shall be
+set to {\tt DOSTRUE} and {\tt dp\_Res2} shall be set to~0. On error,
+{\tt dp\_Res1} shall be set to {\tt DOSFALSE} and {\tt dp\_Res2} to an error
+code.
 
 \section{The Console-Handler}
 
