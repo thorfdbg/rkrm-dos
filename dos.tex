@@ -12973,7 +12973,7 @@ an error shall be generated.
 \medskip{}
 
 Before replying the packet, {\tt dp\_Res1} shall be set to a boolean success
-code. On success, it shall be set to {\tt DOSTRUE} and {\tt dp\_Res2} shall
+indicator. On success, it shall be set to {\tt DOSTRUE} and {\tt dp\_Res2} shall
 be set to~0. On error, {\tt dp\_Res1} shall be to {\tt DOSFALSE} and
 {\tt dp\_Res2} to an error code.
 
@@ -13009,7 +13009,7 @@ to delete it.
 \smallskip{}
 
 Before replying the packet, {\tt dp\_Res1} shall be set to a boolean success
-code. In case of success, {\tt dp\_Res1} shall be set to {\tt DOSTRUE} and
+indicator. In case of success, {\tt dp\_Res1} shall be set to {\tt DOSTRUE} and
 {\tt dp\_Res2} to~0. On error, {\tt dp\_Res1} shall be set to {\tt DOSFALSE}
 and {\tt dp\_Res2} to an error code.
 
@@ -13277,7 +13277,7 @@ For this method, {\tt NRF\_WAIT\_REPLY} is, of course, non-functional.
 \medskip{}
 
 Upon replying this packet, {\tt dp\_Res1} shall be set to a boolean success
-code. On success, it shall be set to {\tt DOSTRUE} and {\tt dp\_Res2} shall
+indicator. On success, it shall be set to {\tt DOSTRUE} and {\tt dp\_Res2} shall
 be set to~0. On failure, {\tt dp\_Res1} shall be set to {\tt DOSFALSE} and
 {\tt dp\_Res2} to an error code.
 
@@ -13320,7 +13320,7 @@ handle those messages that are still being processed.
 \smallskip{}
 
 Upon replying this packet, {\tt dp\_Res1} shall be set to a boolean success
-code. On success, it shall be set to {\tt DOSTRUE} and {\tt dp\_Res2} shall
+indicator. On success, it shall be set to {\tt DOSTRUE} and {\tt dp\_Res2} shall
 be set to~0. On failure, {\tt dp\_Res1} shall be set to {\tt DOSFALSE} and
 {\tt dp\_Res2} to an error code.
 
@@ -13383,8 +13383,86 @@ shall not fail, and {\tt dp\_Res2} is ignored by the \emph{dos.library}. For
 practical purposes, it shall be set to~0 indicating that no error has been
 found.
 
+\subsection{Retrieving Information on a Volume from a Lock}
 
-\section{The Console-Handler}
+The {\tt ACTION\_INFO}\mkey{ACTION\_INFO} packet retrieves information on a
+volume, given a lock on an object on the volume, and provides it in an
+{\tt InfoData} structure.
+
+\begin{rkrmtable}{\tt ACTION\_INFO} \label{table:actioninfo}
+{\bf DosPacket Element}   & {\bf Value}\\ \hline \hline
+\tt dp\_Type  & \tt ACTION\_INFO (26) \\ \hline
+\tt dp\_Arg1  & BPTR to {\tt FileLock} \\ \hline
+\tt dp\_Arg2  & BPTR to {\tt InfoData} \\ \hline \hline
+\tt dp\_Res1  & Boolean result code\\ \hline
+\tt dp\_Res2  & Error code\\ \hline
+\end{rkrmtable}
+
+This packet implements the {\tt Info()}\key{Info()} function of the
+\emph{dos.library} and provides information on the volume on which the
+locked object is located.
+\smallskip{}
+
+{\tt dp\_Arg1} is a BPTR to a lock, used to identify a volume from which
+information is to be requested. If the volume is not inserted, not validated
+or the lock is invalid, this packet will fail.
+\smallskip{}
+
+{\tt dp\_Arg2} is a BPTR to an {\tt InfoData} structure as defined in
+section~\ref{sec:info} into which information is provided such as the state
+of the volume, the number of errors detected on it, its capacity and the
+number of free blocks. Details on this structure are found in
+section~\ref{sec:info}.
+\smallskip{}
+
+Upon replying this packet, {\tt dp\_Res1} shall be set to a boolean success
+indicator that includes the result of the validity test of the lock. If the
+lock is valid and information on the volume could be retrieved, {\tt
+  dp\_Res1} shall be set to {\tt DOSTRUE} and {\tt dp\_Res2} shall be set
+to~0. On failure, {\tt dp\_Res1} shall be set to {\tt DOSFALSE} and {\tt
+  dp\_Res2} to an error code.
+
+\subsection{Retrieving Information on the Currently Inserted Volume}
+
+The {\tt ACTION\_DISK\_INFO}\mkey{ACTION\_DISK\_INFO} packet retrieves
+information on the volume currently mounted by the \emph{file system} (if
+any) and provides this information in an {\tt InfoData} structure.
+
+\begin{rkrmtable}{\tt ACTION\_DISK\_INFO} \label{table:actiondiskinfo}
+{\bf DosPacket Element}   & {\bf Value}\\ \hline \hline
+\tt dp\_Type  & \tt ACTION\_DISK\_INFO (25) \\ \hline
+\tt dp\_Arg1  & BPTR to {\tt InfoData} \\ \hline \hline
+\tt dp\_Res1  & Boolean result code\\ \hline
+\tt dp\_Res2  & Error code\\ \hline
+\end{rkrmtable}
+
+This packet is currently not exposed by the \emph{dos.library} and must be
+issued through the packet interface. It is almost identical to {\tt
+  ACTION\_INFO}\key{ACTION\_INFO}, except that it does not take a lock as
+argument. Therefore, it always refers to the currently inserted volume, and
+not to the volume the locked object is located on. Otherwise, the
+information provided by this packet and {\tt ACTION\_INFO} is identical.
+\smallskip{}
+
+This packet is also used to retrieve console specific information from the
+Con-Handler, and is documented as such again in
+section~\ref{sec:console}. The elements of the {\tt InfoData} are then
+interpreted in an alternative way.
+\smallskip{}
+
+{\tt dp\_Arg1} is a BPTR to an {\tt InfoData} structure as defined in
+section~\ref{sec:info} into which information is provided such as the state
+of the currently inserted volume, the number of errors detected on it, its
+capacity and the number of free blocks. Details on this structure are found
+in section~\ref{sec:info}.
+\smallskip{}
+
+Upon replying this packet, {\tt dp\_Res1} shall be set to a boolean success
+indicator. On success, it shall be set to {\tt DOSTRUE} and {\tt dp\_Res2} shall
+be set to~0. On failure, {\tt dp\_Res1} shall be set to {\tt DOSFALSE} and
+{\tt dp\_Res2} to an error code.
+
+\section{The Console-Handler} \label{sec:console}
 
 The {\tt Console-Handler} uses the following conventions for {\tt
   dol\_Startup}:
