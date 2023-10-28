@@ -4420,7 +4420,7 @@ The function returns non-zero in case of success, or $0$ in case of
 error. In either case, {\tt IoErr()}\key{IoErr()} is set to ether $0$
 on succes, or an error code otherwise.
 
-\section{Notification Requests}
+\section{Notification Requests} \label{sec:notification}
 
 Notification requests allow programs to monitor file or directory
 changes. If so, either a signal or a message can be send to a specific
@@ -4446,7 +4446,7 @@ files. If it detects any changes of the preferences, it reloads the
 contents of the files and re-installs the preferences into the
 components it serves, most importantly {\tt intuition}.
 
-\subsection{Request Notification on File or Directory Changes}
+\subsection{Request Notification on File or Directory Changes} \label{sec:startnotify}
 
 The {\tt StartNotify()}\mkey{StartNotify()} function starts monitoring
 a file or directory for changes, and if such modifications are found,
@@ -4504,9 +4504,9 @@ notification request on a not yet existing object will trigger a
 notification once such an object is created, this type of notification
 is currently not supported by AmigaDOS.
 
-{\tt nr\_FullName} is initialized by the file system and shall be left
-alone by the caller. The file system may use it to store the full path
-of the object to monitor.
+{\tt nr\_FullName} is initialized by the file system and shall be left alone
+by the caller. The \emph{dos.library} uses it to store the full path of the
+object to monitor.
 
 {\tt nr\_UserData} is free for use by the calling application. It may
 be used to distinguish multiple notification requests that have been
@@ -13182,6 +13182,147 @@ Before replying to this packet, the \emph{file system} shall set
 set to {\tt DOSTRUE} and {\tt dp\_Res2} shall be set to~0. On error,
 {\tt dp\_Res1} shall be set to {\tt DOSFALSE} and {\tt dp\_Res2} to an error
 code.
+
+\section{Packets for Starting and Canceling Notification Requests}
+
+The packets in this section implement notification requests. Once a
+notification request has been registered, the file system informs a task
+through a signal or through a message send to a port. Notification requests
+are explained in section~\ref{sec:notification}.
+
+\subsection{Registering a Notification Request}
+
+The {\tt ACTION\_ADD\_NOTIFY}\mkey{ACTION\_ADD\_NOTIFY} packet registers a
+notification request at a file system.
+
+\begin{rkrmtable}{\tt ACTION\_ADD\_NOTIFY} \label{table:actionaddnotify}
+{\bf DosPacket Element}   & {\bf Value}\\ \hline \hline
+\tt dp\_Type  & \tt ACTION\_ADD\_NOTIFY (4097) \\ \hline
+\tt dp\_Arg1  & APTR to {\tt NotifyRequest} structure \\ \hline \hline
+\tt dp\_Res1  & Boolean result code \\ \hline
+\tt dp\_Res2  & Error code \\ \hline
+\end{rkrmtable}
+
+This packet implements the {\tt StartNotify()}\key{StartNotify()} function
+of the \emph{dos.library}, registering a request at a \emph{file system} to
+get informed on changes within the file system.
+\smallskip{}
+
+{\tt dp\_Arg1} is a C pointer\footnote{In~\cite{Bantam} this argument is
+  documented to be a BPTR, though this information incorrect.} to a {\tt
+  NotifyRequest} structure that defines the object to be monitored, and the
+task, signal or message port to be triggered on such changes. This structure
+is specified in section~\ref{sec:startnotify}.
+\smallskip{}
+
+The {\tt nr\_FullName} element of the {\tt NotifyRequest} structure is
+already filled by an absolute path to the object to be monitored which may
+or may not yet exist. This path is filled in by the \emph{dos.library}
+within the {\tt StartNotify()} function from the {\tt nr\_Name} element and
+the current directory of the calling process, and the \emph{file system} may
+depend on this path.
+\smallskip{}
+
+The \emph{file system} should store this request in its internal
+structures, and then monitor the object identified by {\tt nr\_FullName} for
+changes. The following table lists the packets which shall or may trigger a
+notification request upon a monitored object:
+
+\begin{rkrmtable}{Packets triggering a Notification}
+{\bf Packet}   & {\bf Notes}\\ \hline \hline
+\tt ACTION\_WRITE\key{ACTION\_WRITE} & After closing the file with {\tt ACTION\_END} \\ \hline
+\tt ACTION\_SET\_FILE\_SIZE\key{ACTION\_SET\_FILE\_SIZE} & After closing the
+file with {\tt ACTION\_END} \\ \hline
+\tt ACTION\_FINDOUTPUT\key{ACTION\_FINDOUTPUT} & After closing the file with
+    {\tt ACTION\_END} \\ \hline \hline
+\tt ACTION\_DELETE\_OBJECT\key{ACTION\_DELETE\_OBJECT} & Immediately \\ \hline
+\tt ACTION\_SET\_DATE\key{ACTION\_SET\_DATE} & Immediately \\ \hline
+\tt ACTION\_RENAME\key{ACTION\_RENAME} & Immediately \\ \hline \hline
+\tt ACTION\_SET\_COMMENT\key{ACTION\_SET\_COMMENT} & Optionally \\ \hline
+\tt ACTION\_SET\_PROTECT\key{ACTION\_SET\_PROTECT} & Optionally \\ \hline
+\tt ACTION\_SET\_OWNER\key{ACTION\_SET\_OWNER} & Optionally \\ \hline
+\end{rkrmtable}
+
+If the {\tt NRF\_NOTIFY\_INITIAL} flag is set in {\tt nr\_Flags}, the
+\emph{file system} shall send a notification immediately after receiving
+this packet, regardless of whether or not the object has been modified
+already. If {\tt NRF\_WAIT\_REPLY} is set, and a {\tt NotifyMessage} has
+already been send out, it shall rather note the modification, though defer
+any further notification on the same object until the former {\tt
+  NotifyMessage} has been replied. This avoids queuing up too many
+notifications at the client port.
+\smallskip{}
+
+A notification event is either signalled through {\tt Signal()} or by
+sending a message to a {\tt MsgPort}:
+\smallskip{}
+
+If {\tt NRF\_SEND\_MESSAGE} is set in {\tt nr\_Flags}, then a {\tt
+  NotifyMessage} is send to the port indicated in {\tt
+  nr\_Msg.nr\_Port}. This structure is also specified in
+section~\ref{sec:startnotify}. Its {\tt nm\_Class} element shall be set to
+{\tt NOTIFY\_CLASS}, and its {\tt nm\_Code} element to {\tt NOTIFY\_CODE},
+both are defined in {\tt dos/notify.h}. In addition, {\tt nm\_NReq} shall
+point to the {\tt NotifyRequest} structure through which the object is
+monitored. The elements {\tt nm\_DoNotTouch} and {\tt nm\_DoNotTouch2} may
+be used for internal administration of the \emph{file system}.
+\smallskip{}
+
+If {\tt NRF\_SEND\_SIGNAL} is set, then the \emph{file system} should
+trigger a signal bit on the target task if the monitored object changes by
+\begin{verbatim}
+    Signal(nr->nr_Signal.nr_Task,1UL<<nr->nr_Signal.nr_SignalNum);
+\end{verbatim}
+For this method, {\tt NRF\_WAIT\_REPLY} is, of course, non-functional.
+\medskip{}
+
+Upon replying this packet, {\tt dp\_Res1} shall be set to a boolean success
+code. On success, it shall be set to {\tt DOSTRUE} and {\tt dp\_Res2} shall
+be set to~0. On failure, {\tt dp\_Res1} shall be set to {\tt DOSFALSE} and
+{\tt dp\_Res2} to an error code.
+
+\subsection{Canceling a Notification Request}
+
+The {\tt ACTION\_REMOVE\_NOTIFY}\mkey{ACTION\_REMOVE\_NOTIFY} packet cancels
+a notification request and aborts monitoring the object in the {\tt
+  NotifyRequest} structure.
+
+\begin{rkrmtable}{\tt ACTION\_REMOVE\_NOTIFY} \label{table:actionremovenotify}
+{\bf DosPacket Element}   & {\bf Value}\\ \hline \hline
+\tt dp\_Type  & \tt ACTION\_REMOVE\_NOTIFY (4097) \\ \hline
+\tt dp\_Arg1  & APTR to {\tt NotifyRequest} structure \\ \hline \hline
+\tt dp\_Res1  & Boolean result code \\ \hline
+\tt dp\_Res2  & Error code \\ \hline
+\end{rkrmtable}
+
+This packet implements the {\tt EndNotify()}\key{EndNotify()} function of
+the \emph{dos.library} and terminates monitoring the object in {\tt
+  nr\_FullName} element of the {\tt NotifyRequest} structure.
+\smallskip{}
+
+{\tt nr\_Arg1} is a C-pointer to the structure that indicates which
+notification request shall be canceled. The {\tt NotifyRequest} structure is
+specified in section~\ref{sec:startnotify}.
+\smallskip{}
+
+If any notifications are still pending, e.g. because the monitored object
+has already been changed through a file handle though this file handle has
+not yet been closed, such pending notifications shall be canceled as
+well. The \emph{file system} shall be aware that even after this packet has
+been replied, some {\tt NotifyMessage}s send out to clients may come back
+because the client is still working on them. In particular, the memory
+associated to such messages shall not be released upon receving the {\tt
+  ACTION\_REMOVE\_NOTIFY} packet, but only after the {\tt NotifyMessage} has
+been replied and was received again by the \emph{file system}. The
+\emph{dos.library} replies all {\tt NotifyMessage}s it finds
+still pending in the port of the client application, but clearly cannot
+handle those messages that are still being processed.
+\smallskip{}
+
+Upon replying this packet, {\tt dp\_Res1} shall be set to a boolean success
+code. On success, it shall be set to {\tt DOSTRUE} and {\tt dp\_Res2} shall
+be set to~0. On failure, {\tt dp\_Res1} shall be set to {\tt DOSFALSE} and
+{\tt dp\_Res2} to an error code.
 
 \section{The Console-Handler}
 
