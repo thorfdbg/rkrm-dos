@@ -5007,15 +5007,14 @@ $19$. It corresponds to the {\tt Priority} entry of the mount list.
 \smallskip{}
 
 {\tt dol\_Startup} is a handler-specific startup value that is used to
-commumicate a configuration to the handler during startup. While this
-value may be whatever the handler requires, the {\tt mount} command
-either deposits here a small integer, or a pointer to the {\tt
-  FileSysStartupMsg} structure defined in {\tt
-  dos/filehandler.h}. Section~\ref{sec:handler} provides more details
-on mounting handlers and how the startup mechanism
+commumicate a configuration to the handler during startup. While this value
+may be whatever the handler requires, the {\tt mount} command either
+deposits here a small integer, or a pointer to the {\tt FileSysStartupMsg}
+structure defined in {\tt dos/filehandler.h}. Section~\ref{sec:handler}
+provides more details on mounting handlers and how the startup mechanism
 works. Unfortunately, it is hard to interpret {\tt dol\_Startup}
-correctly, see~\ref{sec:startup}. One way to set this member is to set
-{\tt Startup} in the mount list, see~\ref{sec:startup} for details.
+correctly. One way to set this member is to set {\tt Startup} in the mount
+list, see~\ref{sec:filesysstartup} for details.
 \smallskip{}
 
 {\tt dol\_SegList} is a \emph{BPTR} to the chained segment list of the
@@ -13469,6 +13468,95 @@ in section~\ref{sec:info}.
 \smallskip{}
 
 Upon replying this packet, {\tt dp\_Res1} shall be set to a boolean success
+indicator. On success, it shall be set to {\tt DOSTRUE} and {\tt dp\_Res2} shall
+be set to~0. On failure, {\tt dp\_Res1} shall be set to {\tt DOSFALSE} and
+{\tt dp\_Res2} to an error code.
+
+\subsection{Relabeling a Volume}
+
+The {\tt ACTION\_RENAME\_DISK}\mkey{ACTION\_RENAME\_DISK} packet changes the
+volume name of a medium.
+
+\begin{rkrmtable}{\tt ACTION\_RENAME\_DISK} \label{table:actionrenamedisk}
+{\bf DosPacket Element}   & {\bf Value}\\ \hline \hline
+\tt dp\_Type  & \tt ACTION\_RENAME\_DISK (9) \\ \hline
+\tt dp\_Arg1  & BPTR to BSTR of new volume name \\ \hline \hline
+\tt dp\_Res1  & Boolean result code\\ \hline
+\tt dp\_Res2  & Error code\\ \hline
+\end{rkrmtable}
+
+This packet implements the {\tt Relabel()}\key{Relabel()} function of the
+\emph{dos.library} and changes the volume name of a medium. As such, it
+shall also change the name of the {\tt DosList} representing the volume in
+the \emph{device list}, i.e. adjust the {\tt dol\_Name} element of the {\tt
+  DosList} structure. Unfortunately, there is no guarantee that the volume
+that is inserted in the drive or partition managed by the file system when
+this packet is issued by the client is identical to the volume in the drive
+when the file system receives it.
+\smallskip{}
+
+{\tt dp\_Arg1} is a BPTR to a BSTR of the new volume name. Relabeling shall
+be applied on the currently inserted volume.
+\smallskip{}
+
+Before replying this packet, {\tt dp\_Res1} shall be set to a boolean success
+indicator. On success, it shall be set to {\tt DOSTRUE} and {\tt dp\_Res2} shall
+be set to~0. On failure, {\tt dp\_Res1} shall be set to {\tt DOSFALSE} and
+{\tt dp\_Res2} to an error code.
+
+\subsection{Initializing a New File System}
+
+The {\tt ACTION\_FORMAT}\mkey{ACTION\_FORMAT} packet initializes a new file
+system on a disk, writing all administration information on it represting a
+blank volume. It therefore deletes all information stored previously on the
+medium, drive or partition.
+
+\begin{rkrmtable}{\tt ACTION\_FORMAT} \label{table:actionformat}
+{\bf DosPacket Element}   & {\bf Value}\\ \hline \hline
+\tt dp\_Type  & \tt ACTION\_FORMAT (1020) \\ \hline
+\tt dp\_Arg1  & BPTR to BSTR of new volume name \\ \hline
+\tt dp\_Arg2  & Dos type or other private data \\ \hline \hline
+\tt dp\_Res1  & Boolean result code\\ \hline
+\tt dp\_Res2  & Error code\\ \hline
+\end{rkrmtable}
+
+This packet implements the {\tt Format()}\key{Format()} function of the
+\emph{dos.library}. It performs a soft-initialization of the drive, medium
+or partition currently inserted into the drive. Note, however, that it does
+not perform a low-level formatting, such as creating sectors on a floppy
+disk or issuing a low-level SCSI command. If this is intended, it must be
+performed by a client application, e.g. the {\tt Format} command of the
+workbench disk. This packet only writes administrative information on a
+volume representing it in empty state. This packet is probably the only one
+that should be used while a \emph{file system} is inhibited and would usually
+refuse to alter any information on disk, see also
+section~\ref{sec:packetinhibit}.
+\smallskip{}
+
+{\tt dp\_Arg1} is a BPTR to a BSTR of the volume name the medium, partition
+or drive shall be given\footnote{The information in~\cite{Bantam} that the
+new volume name is in {\tt dp\_Arg2} and the {\tt DosType} is in {\tt
+  dp\_Arg3} is incorrect.}. Typically, this packet will be
+issued while the drive is inhibited, and thus the {\tt DosList} structure
+representing the volume will be created or updated at the time the \emph{file
+system} is unhibited. Otherwise, if the handler also allows an {\tt
+  ACTION\_FORMAT} while not being inhibited, it should update the {\tt
+  DosList} immediately, in particular its {\tt dol\_Name}, to the name given
+by this argument.
+\smallskip{}
+
+{\tt dp\_Arg2} is \emph{file system} specific information that may be used
+to define its flavour. For example, {\tt dp\_Arg2} carries for the FFS the
+{\tt DosType}, which shall be one of the values documented in
+table~\ref{table:ffsflavours} in section~\ref{sec:envec}. If such a change
+of the {\tt DosType} also happens, and the handler allows formatting while
+not being inhibited, the {de\_DosType} in the environment vector linked
+through {\tt dol\_Dostype} shall be updated as well. Otherwise, this update
+will happen when the \emph{file system} is uninhibited. The {\tt Format()}
+function will take {\tt dp\_Arg2} from its third argument.
+\smallskip{}
+
+Before replying this packet, {\tt dp\_Res1} shall be set to a boolean success
 indicator. On success, it shall be set to {\tt DOSTRUE} and {\tt dp\_Res2} shall
 be set to~0. On failure, {\tt dp\_Res1} shall be set to {\tt DOSFALSE} and
 {\tt dp\_Res2} to an error code.
