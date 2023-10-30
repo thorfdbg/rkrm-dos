@@ -13908,25 +13908,14 @@ indicating success is questionable.}. In case of error, file systems should
 set {\tt dp\_Res1} to {\tt DOSFALSE} and {\tt dp\_Res2} to an error
 code.
 
-\section{The Console-Handler} \label{sec:console}
+\section{Packets for Interactive Handlers}
 
-The {\tt Console-Handler} uses the following conventions for {\tt
-  dol\_Startup}:
-
-\begin{rkrmtable}{Console Handler Startup Code} \label{table:constartup}
-{\bf \tt dol\_Startup}   & {\bf Description}\\ \hline \hline
-< 0 & RAW: unprocessed keystrokes, within an intuition window pointed to by {\tt dp\_Arg1} \\ \hline
-0   & CON: processed keystrokes, create a new window \\ \hline
-1   & RAW: unprocessed keystrokes, create a new window \\ \hline
-2   & CON: processed keystrokes with special CSI codes for history and TAB
-Expansion \\ \hline
-3   & RAW: reserved for future extensions \\ \hline
-\emph{BPTR} with bit 30 cleared & CON: open on a device specified by a
-FileSysStartupMsg \\ \hline
-\emph{BPTR} with bit 31 set    & RAW: open on a device specified by a
-FileSysStartupMsg \\ \hline
-\end{rkrmtable}
-
+The packet types documented in this section are specific for handlers that
+interact with the environment of the computer system. Examples for
+interactive handlers are the Con-Handler interacting with the user through a
+window, the Aux-Handler which makes a console available through the serial
+port, and the Port-Handler which reads and writes data through the serial
+or parallel port and also makes the printer accessible to AmigaDOS.
 
 \subsection{Waiting for Input Becoming Available}
 
@@ -13968,6 +13957,115 @@ should be set to~0.
 
 In case of an error, {\tt dp\_Res1} shall be set to {\tt DOSFALSE} and
 {\tt dp\_Res2} to an error code.
+
+\subsection{Setting the Line Buffer Mode}
+
+The {\tt ACTION\_SCREEN\_MODE}\mkey{ACTION\_SCREEN\_MODE} packet changes the
+buffer mode of an interactive console and disables or enables line
+buffering.
+
+\begin{rkrmtable}{\tt ACTION\_SCREEN\_MODE} \label{table:actionscreenmode}
+{\bf DosPacket Element}   & {\bf Value}\\ \hline \hline
+\tt dp\_Type  & \tt ACTION\_SCREEN\_MODE (994) \\ \hline
+\tt dp\_Arg1  & Buffer mode \\ \hline \hline
+\tt dp\_Res1  & Boolean result code \\ \hline
+\tt dp\_Res2  & Error code \\ \hline
+\end{rkrmtable}
+
+This packet is not exposed by the \emph{dos.library}; it must be issued
+manually through the packet interface, e.g. through~{\tt DoPkt()}.
+\smallskip{}
+
+The purpose of this packet is to adjust the buffer mode of a console. The
+CON-Handler, responsible for all types of consoles, serves both the {\tt
+  CON:}, the {\tt RAW:} and (through an indirection layer) the {\tt AUX:}
+device, all of which are incarnations of the same handler configured
+differently, more on the CON-Handler in section~\ref{sec:console}.
+\smallskip{}
+
+In particular, {\tt CON:} and {\tt RAW:} interact with the user through a
+window of the graphical user interface; they are just two modes of the in
+total three modes of the console. With this packet, a {\tt CON:} window can
+be converted into a {\tt RAW:} window and vice-versa, and into a third type
+of window for which no distinct device name exists.
+\smallskip{}
+
+The same type of mode switch can also be performed for the serial terminal
+represented by the {\tt AUX:} window, which also exists in three modes in
+total, though usually only one of them is exposed to the user as {\tt AUX:}
+device. This packet makes two additional configurations of the serial
+console available.
+\medskip{}
+
+{\tt dp\_Arg1} defines the mode into which the console shall be switched. In
+total three modes are available, regardless wether the console is a
+graphical console in a window or a serial console on an external terminal:
+
+\begin{rkrmtable}{Console Modes} \label{table:conmodes}
+{\bf Buffer Mode} & {\bf Description}\\ \hline \hline
+\tt 0 & Cooked mode \\ \hline
+\tt 1 & Raw mode \\ \hline \hline
+\tt 2 & Medium mode \\ \hline
+All other values & Reserved for future use \\ \hline
+\end{rkrmtable}
+
+In the \emph{cooked mode}, the console buffers entire lines, provides
+line-editing features, but only makes the input data available when the user
+terminates the line with the {\tt RETURN} key. The {\tt CON:} device
+operates by default in this mode, but can be switched to any other buffer
+mode with this packet.
+\smallskip{}
+
+In the \emph{raw mode}, every single keystroke is made available, including
+control sequences corresponding to all cursor and function keys. That
+implies, however, that line editing is not available and pressed keys are
+not echoed on the console, but rather transmitted to a client
+application. This mode corresponds to the {\tt RAW:} device which is nothing
+but a console operating in this mode by default.
+\smallskip{}
+
+In the \emph{medium mode}, the console also buffers lines, but some
+keystrokes are directly transmitted without requiring the user to press the
+{\tt RETURN} key. In specific, key-combinations of the up- and down cursor
+keys and the {\tt TAB} key are reported immediately to the caller through
+control sequences. The Amiga Shell uses this mode to offer a history and
+provides through it {\tt TAB} expansion of commands and command line
+arguments. No device name corresponds to this mode; instead, the Shell
+switches a regular {\tt CON:} window to this mode in order to offer
+additional services. Section~\ref{sec:console} provides details.
+\smallskip{}
+
+Only values between 0 and 2 shall be provided in {\tt dp\_Arg1}; all other
+values are reserved for future use and may or may not correspond to modes
+that are currently not documented. The console does not generate an error if
+an invalid mode is requested, but may interpret this mode change request in
+an unexpected way.
+\smallskip{}
+
+Before replying this packet, the console shall set {\tt dp\_Res1} to {\tt
+  DOSTRUE} and {\tt dp\_Res2} to~0 in case the mode switch could be
+performed. Otherwise, if the mode switch is not possible, the console shall
+set {\tt dp\_Res1} to {\tt DOSFALSE} and {\tt dp\_Res2} to~0.
+
+\section{The Console-Handler} \label{sec:console}
+
+The {\tt Console-Handler} uses the following conventions for {\tt
+  dol\_Startup}:
+
+\begin{rkrmtable}{Console Handler Startup Code} \label{table:constartup}
+{\bf \tt dol\_Startup}   & {\bf Description}\\ \hline \hline
+< 0 & RAW: unprocessed keystrokes, within an intuition window pointed to by {\tt dp\_Arg1} \\ \hline
+0   & CON: processed keystrokes, create a new window \\ \hline
+1   & RAW: unprocessed keystrokes, create a new window \\ \hline
+2   & CON: processed keystrokes with special CSI codes for history and TAB
+Expansion \\ \hline
+3   & RAW: reserved for future extensions \\ \hline
+\emph{BPTR} with bit 30 cleared & CON: open on a device specified by a
+FileSysStartupMsg \\ \hline
+\emph{BPTR} with bit 31 set    & RAW: open on a device specified by a
+FileSysStartupMsg \\ \hline
+\end{rkrmtable}
+
 
 \section{The Port-Handler}
 
