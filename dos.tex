@@ -3132,7 +3132,7 @@ considered inconsistent by setting {\tt id\_DiskState} to {\tt
   ID\_VALIDATING}.
 \smallskip{}
 
-AmigaDOS currently defines the following types in {\tt dos/dos.h}:
+AmigaDOS currently defines the following disk types in {\tt dos/dos.h}:
 \begin{rkrmtable}{Disk Types} \label{table:disktype}
 {\bf Disk Type} & {\bf Description}\\ \hline \hline
 {\tt ID\_NO\_DISK\_PRESENT} & No disk is inserted \\ \hline
@@ -13560,6 +13560,106 @@ Before replying this packet, {\tt dp\_Res1} shall be set to a boolean success
 indicator. On success, it shall be set to {\tt DOSTRUE} and {\tt dp\_Res2} shall
 be set to~0. On failure, {\tt dp\_Res1} shall be set to {\tt DOSFALSE} and
 {\tt dp\_Res2} to an error code.
+
+\subsection{Inhibiting the File System} \label{sec:packetinhibit}
+
+The {\tt ACTION\_INHIBIT}\mkey{ACTION\_INHIBIT} packet disables or enables
+access of the \emph{file system} to the underlying device; once file system
+access is disabled, application programs such as {\tt Format} may access the
+underlying device directly.
+
+\begin{rkrmtable}{\tt ACTION\_INHIBIT} \label{table:actionformat}
+{\bf DosPacket Element}   & {\bf Value}\\ \hline \hline
+\tt dp\_Type  & \tt ACTION\_INHIBIT (31) \\ \hline
+\tt dp\_Arg1  & Inhibit flag \\ \hline \hline
+\tt dp\_Res1  & Boolean result code\\ \hline
+\tt dp\_Res2  & Error code\\ \hline
+\end{rkrmtable}
+
+This packet implements the {\tt Inhibit()}\key{Inhibit()} function of the
+\emph{dos.library}. An inhibited file system is blocked from accessing its
+underlying medium for read and write access, with the exception of {\tt
+  ACTION\_FORMAT} which remains operational. An inhibited file system
+changes its disk type as reported by {\tt ACTION\_INFO}\key{ACTION\_INFO} or
+{\tt ACTION\_DISK\_INFO}\key{ACTION\_DISK\_INFO} in the {\tt InfoData}
+structure to `{\tt BUSY}', see table~\ref{table:disktype} in
+section~\ref{sec:info}.
+\smallskip{}
+
+Once the file system is unhibited again, it shall perform a validation of
+the medium, as if the medium was been re-inserted. This is necessary because
+an application bypassing the file system to access it directly could have
+changeed the file system structure, the volume name or the date, or may have
+even written a completely new file system structure to it. This check thus
+implies checking the flavour of the file system, e.g. the {\tt DosType} for
+the FFS, and potentially creating and inserting a {\tt DosList} entry into
+the \emph{device list} representing the volume. Thus, first inhbiting and
+uninhibiting a file system is equivalent to simulating a medium change; in
+fact, the {\tt DiskChange} command enforces a medium change by first
+inhibiting and then unhibiting the file system.
+\smallskip{}
+
+{\tt id\_Arg1} is a boolean indicator that defines whether the file system
+shall be inhibited or uninhibited. If {\tt dp\_Arg1} is {\tt DOSFALSE}, the
+file system is unhibited and a file structure check shall be performed. In
+all other cases, the file system shall be inhibited and, with the exception
+of {\tt ACTION\_FORMAT}, should refrain from acessing the medium, partition
+or device.
+\smallskip{}
+
+Before replying this packet, {\tt dp\_Res1} shall be set to a boolean success
+indicator. On success, it shall be set to {\tt DOSTRUE} and {\tt dp\_Res2} shall
+be set to~0. On failure, {\tt dp\_Res1} shall be set to {\tt DOSFALSE} and
+{\tt dp\_Res2} to an error code.
+
+\subsection{Write Protecting a Volumne} \label{sec:lock}
+
+The {ACTION\_WRITE\_PROTECT}\mkey{ACTION\_WRITE\_PROTECT} packet enables or
+disables a software write-protection on the currently inserted medium, thus
+disallowing any write access through the file system on it.
+
+\begin{rkrmtable}{\tt ACTION\_WRITE\_PROTECT} \label{table:actionwriteprotect}
+{\bf DosPacket Element}   & {\bf Value}\\ \hline \hline
+\tt dp\_Type  & \tt ACTION\_WRITE\_PROTECT (1023) \\ \hline
+\tt dp\_Arg1  & Write protection flag \\ \hline
+\tt dp\_Arg2  & Password hash \\ \hline \hline
+\tt dp\_Res1  & Boolean result code\\ \hline
+\tt dp\_Res2  & Error code\\ \hline
+\end{rkrmtable}
+
+This packet is not exposed by any function of the \emph{dos.library}, though
+the {\tt Lock} command of the workbench uses this packet to enable or
+disable write protection on media. Optionally, write protection may be
+secured by a password of which only an integer hash key is provided to the
+file system. To re-enable write access, the file system shall check whether
+the password hash supplied matches the one when setting the write
+protection, and shall refuse to unblock it if the password hash keys do not
+match. How a password hash is computed is irrelevant to the file system, it
+only checks the keys for enabling and disabling the write protection for
+equality.
+\smallskip{}
+
+{\tt dp\_Arg1} is a boolean indicator that, if non-zero, enables write
+protection, and if {\tt DOSFALSE} releases it. Any attempt to write data to
+the protected medium, device or partition shall fail with the error code
+{\tt ERROR\_DISK\_WRITE\_PROTECTED}, including an attempt to set a write
+protection on an already write protected file system, regardless of the
+password key used for re-protection.
+\smallskip{}
+
+{\tt dp\_Arg2} is an integer password hash key that is stored internally in
+the file system when the write protection is set, and compared against if it
+is to be released again. If the stored password hash is not equal to the
+original hash, releasing the write protection shall fail with the error code
+{\tt ERROR\_INVALID\_COMPONENT\_NAME}.
+\smallskip{}
+
+Before replying this packet, {\tt dp\_Res1} shall be set to a boolean success
+indicator. On success, it shall be set to {\tt DOSTRUE} and {\tt dp\_Res2} shall
+be set to~0. On failure, {\tt dp\_Res1} shall be set to {\tt DOSFALSE} and
+{\tt dp\_Res2} to an error code.
+
+
 
 \section{The Console-Handler} \label{sec:console}
 
