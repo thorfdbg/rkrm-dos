@@ -1409,9 +1409,10 @@ the call checks whether the \emph{handler} responsible for the current
 directory of the calling process is a file system.
 \smallskip{}
 
-The returned result is {\tt DOSTRUE} in case the handler identified by
-the path is a file system, and as such allows access to multiple files
-on a physical data carrier. Otherwise, it returns {\tt DOSFALSE}.
+The returned result is {\tt DOSTRUE} in case the handler identified by the
+path is a file system, and as such allows access to multiple files on a
+physical data carrier and examining directories. Otherwise, it
+returns {\tt DOSFALSE}.
 
 \section{Unbuffered Input and Output} \label{sec:unbuffered}
 
@@ -7787,7 +7788,7 @@ bytes will be allocated for the process.
 The process is initialized as follows: {\tt pr\_ConsoleTask} and
 {\tt pr\_WindowPtr} are copied from the calling process, or are set
 to {\tt NULL} respective~$0$ if called from the task. The member
-{\tt pr\_FileSysTask} is also copied from the calling process, or
+{\tt pr\_FileSystemTask} is also copied from the calling process, or
 is initialized from the default file system from the
 \emph{dos.library} if called from a task.
 \smallskip{}
@@ -8011,7 +8012,7 @@ directory.
 \smallskip{}
 
 If the current directory is {\tt ZERO}, paths are relative to the root
-directory of the \emph{file system} set in the {\tt pr\_FileSysTask} member
+directory of the \emph{file system} set in the {\tt pr\_FileSystemTask} member
 of the calling process. It may be changed by
 {\tt SetFileSysTask()}\key{SetFileSysTask()} described in
 section~\ref{sec:setfilesystask}. AmigaDOS installs there the \emph{file
@@ -11238,7 +11239,7 @@ except that the latter retrieves messages via the \emph{intuition} IDCMP
 system and works them off, whereas the handlers receive commands from its
 handler port.
 
-\subsection{Handler Startup and Main Processing Loop}
+\subsection{Handler Startup}
 
 When a user of the \emph{dos.library} attempts to access an absolute path,
 i.e. a path including a device name, the \emph{dos.library} walks the
@@ -11313,13 +11314,16 @@ LONG __asm __saveds main(register __a0 struct DosPacket *pkt)
       ReplyPkt(pkt,DOSTRUE,0);
       /* main program loop */
       do {
+       LONG res1 = DOSFALSE;
+       LONG res2 = ERROR_ACTION_NOT_KNOWN;
        WaitPort(&proc->pr_MsgPort);
        msg = GetMsg(&proc->pr_MsgPort);
        pkt = (struct DosPacket *)(msg->mn_Node.ln_Name);
        switch(pkt->dp_Type) {
          case ACTION_....
+         ....
        }
-       ReplyPkt(pkt,...);
+       ReplyPkt(pkt,res1,res2);
       } while(run);
     }
 }
@@ -11354,9 +11358,7 @@ requests for the file system to the process just started, the \emph{file
 system} shall place a pointer to the {\tt MsgPort} incoming packets are
 supposed to be send to in {\tt dol\_Task} of the {\tt DosList} structure
 received in {\tt dp\_Art3}. This is typically, but not necessarily, the
-{\tt pr\_MsgPort} of the handler process. The \emph{file system} process
-will then continue to run until it is explicitly requested to shut down,
-e.g. by an {\tt ACTION\_DIE}\key{ACTION\_DIE} packet.
+{\tt pr\_MsgPort} of the handler process.
 \smallskip{}
 
 The {\tt dp\_Arg2} element is used to configure file systems; it is a copy
@@ -11393,9 +11395,7 @@ subsequent packet to open a file on the same process is not relevant to the
 and not during opening a file. Even though the handler is started once for
 the initial open and does not fill in its port in {\tt dol\_Task}, multiple
 requests to open a file may arrive at the handler, e.g. when opening the
-{\tt *} file indicating the current console. Such handlers will shut down
-once each file openend through them is closed, and they do not require an
-explicit shutdown.
+``{\tt *}'' file indicating the current console.
 \medskip{}
 
 Once the \emph{handler} or \emph{file system} initiated itself from the
@@ -11404,7 +11404,8 @@ result code shall be {\tt DOSFALSE} and the secondary result code shall be
 an error code suitable for reporting through {\tt IoErr()}\key{IoErr()}, see
 section~\ref{sec:ioerr} for a list of common eror codes. Then, the handler
 shall release all resources accquired so far and terminate.
-\smallskip{}
+
+\subsection{Handler Main Processing Loop}
 
 If startup succeeded, the primary result code for the packet shall be
 {\tt DOSTRUE}, and the secondary result code shall be~0. Handler operations
@@ -11418,10 +11419,126 @@ section~\ref{sec:lockdoslist}, can deadlock. Even if such a call is not made
 explicitly, \emph{dos.library} functions can require implicitly such a lock,
 and thus attempting to access files or lock objects within handlers should
 be avoided, not only during startup.
+\smallskip{}
 
 If {\tt dol\_GlobVec} is $-2$ or $-3$, the \emph{dos.library} will only
 accquire a shared lock, and thus will allow the handler to retrieve a shared
 lock on the \emph{device list} as well.
+\medskip{}
+
+Once started up, handlers or file systems should wait for incoming
+packets. Depending on how a handler is contacted, the \emph{dos.library}
+uses multiple sources to identify a suitable port:
+\smallskip{}
+
+If the handler is contacted through the special path ``{\tt *}'' or a
+path starting with ``{\tt CONSOLE:}'', the port in {\tt pr\_ConsoleTask} is
+used to send packets to.
+\smallskip{}
+
+If the handler is contacted through a path starting with ``{\tt PROGDIR:}''
+and the {\tt pr\_HomeDir} element of the calling process is non-{\tt NULL},
+the {\tt fl\_Task} element of the lock stored there is used to contact the
+handler.
+\smallskip{}
+
+If the handler is contacted through an absolute path, the \emph{dos.library}
+scans the \emph{device list} to locate a {\tt DosList} structure whose {\tt
+  dol\_Name} element matches the device name in the path. The {\tt
+  dol\_Task} field, if non-{\tt NULL}, is then used as destination of a
+packet. If it is {\tt NULL}, a new process of the handler is created. From
+this follows that a handler or file system can customize the port through
+which it expects packets. File systems will typically place the {\tt
+  pr\_MsgPort} of their process there.
+\smallskip{}
+
+If a handler is contacted through a relative path, and {\tt pr\_CurrentDir}
+of the calling process is non-{\tt ZERO}, the {\tt fl\_Task} element of the
+current directory of the process attempting to resolve a path is used as
+target port. If {\tt pr\_CurrentDir} is {\tt ZERO}, the {\tt
+  pr\_FileSystemTask} is used as target port.
+\smallskip{}
+
+If the handler is contacted through a \emph{File Handle}, for example to
+read or write bytes from a file, the {\tt fh\_Type} element of the handle is
+used as destination port. A file system may place a custom port in this
+element on opening files through {\tt ACTION\_FINDINPUT}, {\tt
+  ACTION\_FINDOUTPUT} or {\tt ACTION\_FINDUPDATE} in the {\tt fh\_Type}
+element of the handle to receive all packets associated to this particular
+file on an alternative port. The \emph{dos.library} places by default
+there the port it found through the path, see above.
+\smallskip{}
+
+If the handler is contacted through a lock, the {\tt fl\_Task} element of
+the {\tt FileLock} structure is used to send out packets. A file system thus
+may customize a port through which all packets related to a particular lock
+are transmitted by placing this port in {\tt fl\_Task} when creating a lock.
+\smallskip{}
+
+The special path ``{\tt NIL:}'' does not correspond to any handler but
+sets the {\tt fh\_Type} element to {\tt ZERO}. Any attempt to write out data
+through such a handle ignores all bytes written, and any attempt to read
+bytes will return zero bytes. This is a special case in which the
+\emph{dos.library} does not go through a handler at all.
+\medskip{}
+
+The main loop of a handler then checks its own process port, or all ports it
+provided through the above mechanisms for incoming packets and tests their
+{\tt dp\_Type} field, identifying the requested action to be
+performed. Subsequent sections will provide information on all packets
+documented within AmigaDOS, though third-party handlers may implement
+additional packet types.
+\smallskip{}
+
+A handler or file system receiving a packet it does not implement shall set
+its {\tt dp\_Res2} element to {\tt ERROR\_ACTION\_NOT\_KNOWN}. {\tt
+  dp\_Res1} shall be set for non-implemented packets according to the packet
+type as shown in the following table:
+
+\begin{rkrmtable}{Primary Result Code for Unimplemented Packets}
+{\bf \tt \bf dp\_Type} & {\bf \tt \bf dp\_Res1} \\ \hline \hline
+\tt ACTION\_READ  & -1 \\ \hline
+\tt ACTION\_WRITE & -1 \\ \hline
+\tt ACTION\_SEEK  & -1 \\ \hline
+\tt ACTION\_SET\_FILE\_SIZE & -1 \\ \hline \hline
+all others & 0 \\ \hline
+\end{rkrmtable}
+
+This ensures that clients of the handler or file system will recieve a
+result that is an indication of an error.
+
+\subsection{Handler Shutdown}
+
+A \emph{handler} that does not initialize the {\tt dol\_Task} element of its
+{\tt DosList} structure should keep a counter that is incremented for each
+object it creates, and decremented for each object deleted or disposed. For
+example, if the handler supports opening files, then the initialization of
+each file handle should increment the counter, and each file handle
+closed through {\tt ACTION\_END} should decrement the counter. Once the use
+counter reaches zero, the handler process should die by releasing all of its
+resources and falling off its main function. This ensures that the system is
+not congested by creating more and more processes of the same handler that,
+effectively, cannot be contacted anymore because its process part is not
+referenced in any object passed out of the \emph{dos.library}.
+\smallskip{}
+
+A typical example of a handler is the {\tt Con-Handler} of the system that
+opens its window from its startup message but any file opened to it
+will interact with the same window. The window will be closed when each of
+these files had been closed\footnote{This is a simplification, ignoring {\tt
+  AUTO} and {\tt WAIT} parameters, see section~\ref{sec:console} for details}.
+\medskip{}
+
+\emph{File systems}, however, typically do initialize {\tt dol\_Task} and
+thus can be reached even if all files or locks on the volume they manage
+have been released. Thus, in addition to such resource tracking, file
+systems should check for incoming packets of the type {\tt ACTION\_DIE} and
+then attempt to shutdown. This is, of course, only possible if all open
+files have been closed and all locked objects have been unlocked.
+\smallskip{}
+
+A example for such a handler is the FFS which will not go away unless it is
+explicitly asked to.
 
 \section{Packets for File Interactions}
 
@@ -11447,15 +11564,27 @@ The packet {\tt ACTION\_FINDINPUT}\mkey{ACTION\_FINDINPUT} initializes a
 \tt dp\_Res2  & Error code \\ \hline
 \end{rkrmtable}
 
-The arguments of the packet are initialized as follows:
+This packet is used by the {\tt Open()}\key{Open()} function of the
+\emph{dos.library} where the packet type is taken copied from the second
+argument, i.e. the packet type is identical to the {\tt accessMode} argument
+of {\tt Open()}, and thus {\tt ACTION\_FINDINPUT} is identical to
+{\tt MODE\_OLDFILE}.
 \smallskip{}
 
-{\tt dp\_Arg1} is initialized to {\tt BPTR} to a
-\emph{FileHandle}\key{FileHandle} whose {\tt fh\_Arg1} handle should be
-initialized to a value the handler or file system may use later on to
+{\tt dp\_Arg1} is initialized to {\tt BPTR} to a {\tt
+  FileHandle}\key{FileHandle} structure whose {\tt fh\_Arg1} handle should
+be initialized to a value the handler or file system may use later on to
 identify the file it operates on. This is particularly important to
-\emph{file systems} that handle multiple files by a single process.
+\emph{file systems} that handle multiple files by a single process. In a
+typical implementation, this opaque value may be the (internal) lock to the
+openend file.
 \smallskip{}
+
+A handler or file system may also replace the {\tt fh\_Type} element of the
+{\tt FileHandle} structure request that packets concerning this
+particular file shall be delivered to an alternative port. This element
+otherwise defaults to the process port of the handler.
+\medskip{}
 
 {\tt dp\_Arg2} is initialized to the {\tt BPTR} to a {\tt
   FileLock}\key{FileLock} structure describing the directory within which
@@ -11528,13 +11657,16 @@ and potentially creates the file if it does not yet exist.
 \tt dp\_Res2  & Error code \\ \hline
 \end{rkrmtable}
 
-The arguments of the packet are initialized as for {\tt ACTION\_FINDINPUT}\key{ACTION\_FINDINPUT}, see
-section~\ref{sec:actionfindinput}.
+This packet is used by the {\tt Open()}\key{Open()} function of the
+\emph{dos.library} where the packet type is taken copied from the second
+argument, i.e. the packet type is identical to the {\tt accessMode} argument
+of {\tt Open()}, and thus {\tt ACTION\_FINDOUTPUT} is identical to
+{\tt MODE\_NEWFILE}.
 \smallskip{}
 
-This packet is used by {\tt Open()}\key{Open()} if its second argument is
-set to {\tt MODE\_NEWFILE}. In fact, current implementations just copy this
-argument into {\tt dp\_Type}.
+The arguments of the packet are initialized as for {\tt
+  ACTION\_FINDINPUT}\key{ACTION\_FINDINPUT}, see
+section~\ref{sec:actionfindinput}.
 
 \subsection{Opening or Creating a File for Shared Access}
 
@@ -11552,14 +11684,16 @@ potentially creating the file if it does not yet exist.
 \tt dp\_Res2  & Error code \\ \hline
 \end{rkrmtable}
 
-The arguments of the packet are initialized as for {\tt
-  ACTION\_FINDINPUT}\key{ACTION\_FINDINPUT}, see
-section~\ref{sec:actionfindinput}.
+This packet is used by the {\tt Open()}\key{Open()} function of the
+\emph{dos.library} where the packet type is taken copied from the second
+argument, i.e. the packet type is identical to the {\tt accessMode} argument
+of {\tt Open()}, and thus {\tt ACTION\_FINDUPDATE} is identical to
+{\tt MODE\_READWRITE}.
 \smallskip{}
 
-This packet is used by {\tt Open()}\key{Open()} if its second argument is
-set to {\tt MODE\_READWRITE}. In fact, current implementations just copy this
-argument into {\tt dp\_Type}.
+The arguments of the packet are initialized as for
+{\tt ACTION\_FINDINPUT}\key{ACTION\_FINDINPUT}, see
+section~\ref{sec:actionfindinput}.
 
 \subsection{Opening a File from a Lock}
 
@@ -13659,7 +13793,120 @@ indicator. On success, it shall be set to {\tt DOSTRUE} and {\tt dp\_Res2} shall
 be set to~0. On failure, {\tt dp\_Res1} shall be set to {\tt DOSFALSE} and
 {\tt dp\_Res2} to an error code.
 
+\subsection{Adjusting the File System Cache}
 
+The {\tt ACTION\_MORE\_CACHE}\mkey{ACTION\_MORE\_CACHE} packet increases or
+descreases the number of file system buffers.
+
+\begin{rkrmtable}{\tt ACTION\_MORE\_CACHE} \label{table:actionmorecache}
+{\bf DosPacket Element}   & {\bf Value}\\ \hline \hline
+\tt dp\_Type  & \tt ACTION\_MORE\_CACHE (18) \\ \hline
+\tt dp\_Arg1  & Buffer increment \\ \hline \hline
+\tt dp\_Res1  & Boolean result code\\ \hline
+\tt dp\_Res2  & Buffer count or error code\\ \hline
+\end{rkrmtable}
+
+This packet implements the {\tt AddBuffers()}\key{AddBuffers()} function of
+the \emph{dos.library}. In increases or decreases the number of buffers the
+file system may use to cache data. How exactly a file system uses these
+buffers and how large these buffers are is specific to the file system
+implementation and its configuration.
+\smallskip{}
+
+The FFS uses these buffers to temporary store adminstrative data such as
+blocks describing the directory structure or information on which blocks a
+particular file occupies on disk. Providing additional buffers (within
+limits) can thus help to improve the performance of a file system by
+reducting the number of times the underlying device needs to be contacted.
+The FFS also uses these buffers to store payload data if the source or
+destination buffer of the client is not reachable by the exec device
+driver. The {\tt de\_Mask} element of the environment vector is used to
+determine such incompatibilities, see section~\ref{sec:envec}.
+\smallskip{}
+
+{\tt dp\_Arg1} is the increment (or decrement, if negative) of the number of
+buffers to be added (or removed) from the pool of cache buffers of the file
+system. File systems may clamp this value to guarantee that a minimum number
+of buffers are available, or limit the buffer count to a useful value.
+\smallskip{}
+
+If this packet succeeds, the file system shall set {\tt dp\_Res1} to {\tt
+  DOSTRUE} and {\tt dp\_Res2} to the number of buffers currently
+allocated. Thus, the current buffer count can obtained by sending this
+packet with {\tt dp\_Arg1} set to~0. On an error, {\tt dp\_Res1} shall be
+set to {\tt DOSFALSE} and {\tt dp\_Res2} to an error code.
+
+\subsection{Check if a Handler is a File System}
+
+The {\tt ACTION\_IS\_FILESYSTEM}\mkey{ACTION\_IS\_FILESYSTEM} tests whether
+a handler is a file system.
+
+\begin{rkrmtable}{\tt ACTION\_IS\_FILESYSTEM} \label{table:actionisfilesystem}
+{\bf DosPacket Element}   & {\bf Value}\\ \hline \hline
+\tt dp\_Type  & \tt ACTION\_IS\_FILESYSTEM (1027) \\ \hline \hline
+\tt dp\_Res1  & Boolean result code\\ \hline
+\tt dp\_Res2  & Buffer count or error code\\ \hline
+\end{rkrmtable}
+
+This packet implements the {\tt IsFileSystem()}\key{IsFileSystem()} function
+of the \emph{dos.library} and tests whether a particular handler provide
+sufficient services to operate as a \emph{file system}. A file system shall
+be able to access multiple separate files, shall be able to support locks
+and shall also be able to examine directories. A file system may be either a
+flat or a hierarchical file system, i.e. a file system is not required to
+support multiple directories on a storage medium, device or partition.
+\smallskip{}
+
+This packet does not take any arguments. It shall set {\tt dp\_Res1} to {\tt
+  DOSTRUE} and {\tt dp\_Res2} to~0 in case the handler qualifies as a file
+system. In case the handler supports this packet but does not implement a
+file system, it shall set {\tt dp\_Res1} to {\tt DOSFALSE} and {\tt
+  dp\_Res2} to~0. 
+\smallskip{}
+
+If the handler sets {\tt dp\_Res1} to {\tt DOSFALSE} and {\tt dp\_Res2} to
+{\tt ERROR\_ACTION\_NOT\_KNOWN}, then this is an indication that the handler
+cannot interpret this particular packet. If this secondary result code is
+identified by the {\tt IsFileSystem()} function, it falls back to a
+heuristic for determining whether a handler is a file system: It uses {\tt
+  Lock(":",SHARED\_ACCESS)}, i.e. {\tt ACTION\_LOCATE\_OBJECT} on the file
+system root. If such a lock can be obtained, then this heuristic assumes
+that the handler is, in fact, a file system.
+
+\subsection{Write all Pending Modifications}
+
+The {\tt ACTION\_FLUSH}\mkey{ACTION\_FLUSH} packet instructs the file system
+to write all pending or cached modifications out to disk\footnote{Users of
+unixoid systems may consider this as the AmigaDOS equivalent of {\tt sync}.}.
+
+\begin{rkrmtable}{\tt ACTION\_FLUSH} \label{table:actionflush}
+{\bf DosPacket Element}   & {\bf Value}\\ \hline \hline
+\tt dp\_Type  & \tt ACTION\_FLUSH (27) \\ \hline \hline
+\tt dp\_Res1  & Boolean result code\\ \hline
+\tt dp\_Res2  6 Error code\\ \hline
+\end{rkrmtable}
+
+This packet is not exposed by the \emph{dos.library} and thus can only be
+send manually through the packet interface, e.g. {\tt DoPkt()}. File
+systems may cache writes in order to improve their performance, and may
+defer any write operations an arbtrary amount of time. This packet instructs
+the file system to write out all modifications immediately.
+\smallskip{}
+
+This packet shall not be replied before all changes have been written and,
+if applicable, the drive motor has been turned off. However, FFS versions of
+V40 and before replied {\tt ACTION\_FLUSH} immediately and thus only
+established a write barrier. This was fixed in V43.
+\smallskip{}
+
+Even though it is unclear how clients could make use of the result code,
+file systems should set {\tt dp\_Res1} to {\tt DOSTRUE} and {\tt dp\_Res2}
+to~0 on success\footnote{The official reference~\cite{Bantam} only states
+that {\tt dp\_Res1} shall be set to {\tt DOSTRUE}. This is probably what
+most AmigaDOS file systems implement, though the value of unconditionally
+indicating success is questionable.}. In case of error, file systems should
+set {\tt dp\_Res1} to {\tt DOSFALSE} and {\tt dp\_Res2} to an error
+code.
 
 \section{The Console-Handler} \label{sec:console}
 
