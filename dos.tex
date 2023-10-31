@@ -2333,20 +2333,6 @@ The result {\tt count} delivers the number of characters written to
 the file, or $-1$ for an error. In the latter case,
 {\tt IoErr}\key{IoErr()} provides an error code.
 
-\subsection{Print Formatted String using C-Syntax to the Output String}
-% TOOD
-
-\begin{verbatim}
-count = VPrintf(fmt, argv)
-D0              D1   D2
-
-LONG VPrintf(STRPTR, LONG *)
-
-count = Printf(fmt, ...)
-
-LONG Printf(STRPTR, ...)
-\end{verbatim}
-
 \subsection{BCPL Style Formatted Print to a File}
 
 The {\tt VFWritef()}\mkey{VFwrite()} function formats several
@@ -2415,6 +2401,77 @@ While the same function can also be found in the BPCL \emph{Global
   Vector}\key{Global Vector}, it there takes BSTRs instead of regular
 C strings for the format string and arguments of the {\tt \%S} and
 {\tt \%T} formats.
+
+\subsection{Setting the Console Buffer Mode} \label{sec:setmode}
+
+The {\tt SetMode()}\mkey{SetMode()} function sets the behaviour of a
+handler. It is typically used in conjunction with the graphical or serial
+console, i.e. the CON-Handler and the AUX-Handler, and there sets the input
+buffer mode of the console. Depending on this mode, the console either waits
+for an entire line to be completed to satisfy an input, or provides each
+individual key as input to programs, or provides a line buffer with the
+exception of some special control keys that are transmitted immediately.
+
+\begin{verbatim}
+success = SetMode(fh, mode)
+D0                D1  D2
+
+BOOL SetMode(BPTR, LONG)
+\end{verbatim}
+
+This function sets the mode of the handler addressed by the
+\emph{FileHandle} {\tt fh} to the {\tt mode} provided as second
+argument. The meaning of the modes is specific to the handler; however, this
+function is typically used in conjunction with both consoles provided by the
+system, the graphical console of the {\tt CON:} and {\tt RAW:} device, and
+the serial console corresponding to the {\tt AUX:} device. All three devices
+are, actually, implemented by the CON-Handler, while the AUX-Handler is just a
+simple wedge to the first for historical reasons.
+\smallskip{}
+
+For the console(s), the interpretation of the {\tt mode} argument is as
+follows:
+
+\begin{rkrmtable}{Console Modes} \label{table:conmodes}
+{\bf Buffer Mode} & {\bf Description}\\ \hline \hline
+\tt 0 & Cooked mode \\ \hline
+\tt 1 & Raw mode \\ \hline
+\tt 2 & Medium mode \\ \hline
+All other values & Reserved for future use \\ \hline
+\end{rkrmtable}
+
+In the \emph{cooked mode}, the console buffers entire lines, provides
+line-editing features, but only makes the input data available when the user
+terminates the input with the {\tt RETURN} key. The {\tt CON:} and {\tt
+  AUX:} devices
+operate by default in this mode, but can be switched to any other buffer
+mode with this function.
+\smallskip{}
+
+In the \emph{raw mode}, every single keystroke is made available
+immediately, including control sequences corresponding to all cursor and
+function keys. That implies, however, that line editing is not available and
+pressed keys are not echoed on the console, but rather transmitted directly.
+If echoing is desired, it needs to be performed manually by the application.
+This mode corresponds to the {\tt RAW:} device which is nothing but a
+console operating in this mode by default.
+\smallskip{}
+
+In the \emph{medium mode}, the console also buffers lines, but some
+keystrokes are directly transmitted without requiring the user to press the
+{\tt RETURN} key. In specific, key-combinations of the up- and down cursor
+keys and the {\tt TAB} key are reported immediately to the caller through
+control sequences. The Amiga Shell uses this mode to offer a history and
+provides through it {\tt TAB} expansion of commands and command line
+arguments. No device name corresponds to this mode; instead, the Shell
+switches a regular {\tt CON:} window to this mode in order to offer
+additional services. Section~\ref{sec:console} provides details.
+\smallskip{}
+
+Both the CON-Handler and the AUX-Handler implement this function, supporting
+all three modes. However, there is --- unless explicitly mounted by the user
+--- no device name that corresponds to the \emph{medium mode} and no device
+name that corresponds to an {\tt AUX:} console in the \emph{raw mode}.
 
 \section{Record Locking} \label{sec:recordlocking}
 
@@ -13566,7 +13623,7 @@ lock is valid and information on the volume could be retrieved, {\tt
 to~0. On failure, {\tt dp\_Res1} shall be set to {\tt DOSFALSE} and {\tt
   dp\_Res2} to an error code.
 
-\subsection{Retrieving Information on the Currently Inserted Volume}
+\subsection{Retrieving Information on the Currently Inserted Volume} \label{sec:packetdiskinfo}
 
 The {\tt ACTION\_DISK\_INFO}\mkey{ACTION\_DISK\_INFO} packet retrieves
 information on the volume currently mounted by the \emph{file system} (if
@@ -13972,8 +14029,9 @@ buffering.
 \tt dp\_Res2  & Error code \\ \hline
 \end{rkrmtable}
 
-This packet is not exposed by the \emph{dos.library}; it must be issued
-manually through the packet interface, e.g. through~{\tt DoPkt()}.
+This packet implements the {\tt SetMode()} function of the
+\emph{dos.library}. {\tt dp\_Arg1} is a copy of the second argument of this
+function.
 \smallskip{}
 
 The purpose of this packet is to adjust the buffer mode of a console. The
@@ -13999,40 +14057,9 @@ console available.
 
 {\tt dp\_Arg1} defines the mode into which the console shall be switched. In
 total three modes are available, regardless wether the console is a
-graphical console in a window or a serial console on an external terminal:
-
-\begin{rkrmtable}{Console Modes} \label{table:conmodes}
-{\bf Buffer Mode} & {\bf Description}\\ \hline \hline
-\tt 0 & Cooked mode \\ \hline
-\tt 1 & Raw mode \\ \hline \hline
-\tt 2 & Medium mode \\ \hline
-All other values & Reserved for future use \\ \hline
-\end{rkrmtable}
-
-In the \emph{cooked mode}, the console buffers entire lines, provides
-line-editing features, but only makes the input data available when the user
-terminates the line with the {\tt RETURN} key. The {\tt CON:} device
-operates by default in this mode, but can be switched to any other buffer
-mode with this packet.
-\smallskip{}
-
-In the \emph{raw mode}, every single keystroke is made available, including
-control sequences corresponding to all cursor and function keys. That
-implies, however, that line editing is not available and pressed keys are
-not echoed on the console, but rather transmitted to a client
-application. This mode corresponds to the {\tt RAW:} device which is nothing
-but a console operating in this mode by default.
-\smallskip{}
-
-In the \emph{medium mode}, the console also buffers lines, but some
-keystrokes are directly transmitted without requiring the user to press the
-{\tt RETURN} key. In specific, key-combinations of the up- and down cursor
-keys and the {\tt TAB} key are reported immediately to the caller through
-control sequences. The Amiga Shell uses this mode to offer a history and
-provides through it {\tt TAB} expansion of commands and command line
-arguments. No device name corresponds to this mode; instead, the Shell
-switches a regular {\tt CON:} window to this mode in order to offer
-additional services. Section~\ref{sec:console} provides details.
+graphical console in a window or a serial console on an external
+terminal. The modes are defined in table~\ref{table:conmodes} in
+section~\ref{sec:setmode} and also explained there.
 \smallskip{}
 
 Only values between 0 and 2 shall be provided in {\tt dp\_Arg1}; all other
@@ -14046,6 +14073,297 @@ Before replying this packet, the console shall set {\tt dp\_Res1} to {\tt
   DOSTRUE} and {\tt dp\_Res2} to~0 in case the mode switch could be
 performed. Otherwise, if the mode switch is not possible, the console shall
 set {\tt dp\_Res1} to {\tt DOSFALSE} and {\tt dp\_Res2} to~0.
+
+\subsection{Retrieving IORequest and Window Pointers from the Console}
+
+The {\tt ACTION\_DISK\_INFO}\key{ACION\_DISK\_INFO} packet retrieves from a
+console pointers to its underlying resources.
+
+\begin{rkrmtable}{\tt ACTION\_DISK\_INFO}
+{\bf DosPacket Element}   & {\bf Value}\\ \hline \hline
+\tt dp\_Type  & \tt ACTION\_DISK\_INFO (25) \\ \hline
+\tt dp\_Arg1  & BPTR to {\tt InfoData} \\ \hline \hline
+\tt dp\_Res1  & Boolean result code\\ \hline
+\tt dp\_Res2  & Error code\\ \hline
+\end{rkrmtable}
+
+This packet is not exposed by the \emph{dos.library}; it is the same packet
+as the one introduced in section~\ref{sec:packetdiskinfo} and takes the same
+parameters.  However, when applied to consoles, it returns additional
+information and is thus discussed again.
+\smallskip{}
+
+The {\tt id\_DiskType} element of the {\tt InfoData} structure (see
+section~\ref{sec:info}) pointed to by {\tt dp\_Arg1} provides information on
+the mode the console is in:
+
+\begin{rkrmtable}{\tt id\_DiskType}
+{\bf Value of {\tt \bf id\_DiskType}} & {\bf Console Mode}\\ \hline \hline
+{\tt 'CON\textbackslash0'} & Cooked or medium mode \\ \hline
+{\tt 'RAW\textbackslash0'} & Raw mode \\ \hline
+\end{rkrmtable}
+
+Section~\ref{sec:console} provides more information on console modes; they
+describe whether the console buffers entire lines and which key presses are
+reported how.
+\smallskip{}
+
+The {\tt id\_VolumeNode} element of the {\tt InfoData} structure provided in
+{\tt dp\_Arg1} is filled with a pointer to the intuition window the console
+runs in. For a serial console, or a console running from any other device,
+this element remains {\tt NULL}.
+\smallskip{}
+
+The {\tt id\_InUse} element is filled with a pointer to the {\tt IoRequest}
+structure (see {\tt exec/io.h}) which is used to communicate with the device
+the handler operates on. This is a {\tt IORequest} of the {\tt
+  console.device} for a console running in an intuition window, or of the
+{\tt serial.device} for a console operating over the serial interface. Other
+target devices are also possible, see section~\ref{sec:console}.
+\medskip{}
+
+Even though this packet provides useful information to the caller, it has
+several drawbacks and its usage is discouraged. First, as it potentially
+provides information on the intuition window, a window openend in {\tt AUTO}
+mode cannot be closed anymore, and neither can be iconified. This is because
+both operatoins would invalidate the window pointer provided by this packet.
+\smallskip{}
+
+Applications should inform the console by sending an {\tt
+  ACTION\_UNDISK\_INFO} packet at the time the window pointer is no longer
+required. Console windows then regain the {\tt AUTO} and iconification
+capabilities. This packet is specified in section~\ref{sec:packetundiskinfo}.
+\smallskip{}
+
+Second, {\tt ACTION\_DISK\_INFO} will not provide a window if the
+console is not running in an intuition window, but remotely over a serial
+line or any other device. The {\tt IORequest} pointer then corresponds to
+the target device over which the console communicates with the user, and not
+the {\tt console.device}.
+\medskip{}
+
+Often, applications (mis-)use this packet to retrieve the current cursor
+position or the dimensions of the window in character positions, assuming
+that the {\tt IORequest} pointer in {\tt id\_InUse} is, actually,
+corresponding to a {\tt console.device} and as such {\tt io\_Unit} of the
+request is a pointer to a {\tt ConUnit}. However, this assumption may not be
+true, and console dimensions and the cursor position cannot be obtained in
+general in this way.
+\smallskip{}
+
+The following algorithm provides an alternative by switching the console to
+{\tt RAW} mode, and requesting the required information through CSI
+sequences. These sequences operate independent of the device and only
+require that the local or remote console implements a VT-100 compatible
+interface.
+\smallskip{}
+
+\begin{verbatim}
+/* Retrieve the window dimensions in characters
+** from a console connected to a file handle "file"
+*/
+void WindowSize(BPTR file,LONG *width,LONG *height)
+{
+  if (!ParsePosition(file,'r',width,height)) {
+    /* Provide a standard console size in
+    ** case of failure.
+    */
+    if (width)
+      *width = 80;
+    if (height)
+      *height = 24;
+  }
+}
+
+/* Retrieve the cursor position from a console
+** connected to a file handle "file"
+*/
+void CursorPosition(LONG *x,LONG *y)
+{
+  ParsePosition(stdOut,'R',x,y);
+}
+
+/*
+** Maximum time to wait for the console
+** to respond in ticks. May require 
+** adjustment on slow connections.
+*/
+#define MAX_DELAY       200000
+
+/* Generic CSI sequence parser for a VT-xxx
+** console. Returns TRUE if the sequence could
+** be parsed.
+*/
+BOOL ParsePosition(BPTR file,char answer,LONG *width,LONG *height)
+{
+BOOL success;
+BOOL incsi,innum,negative,inesc;
+LONG counter;
+LONG args[5];
+UBYTE in;
+
+  memset(args,0,sizeof(args));
+  SetMode(file,1);
+
+  success  = TRUE;
+  incsi    = FALSE;
+  inesc    = FALSE;
+  innum    = FALSE;
+  negative = FALSE;
+  counter  = 0;
+
+  /* Now send a window borders request to the stream */
+  if (answer == 'R') {
+    Write(file,"\033[6n",4);
+  } else {
+    Write(file,"\033[0 q",5);
+  }
+
+  /* Now parse an incomming string */
+  for(;;) {
+    if (WaitForChar(file,MAX_DELAY) == FALSE) {
+      success = FALSE;
+      break;
+    }
+
+    if (Read(file,&in,1) != 1) {
+      success = FALSE;
+      break;
+    }
+
+    if (incsi) {
+      if ((in<' ') || (in>'~')) { /* Invalid sequence? */
+        incsi = FALSE;
+      } else if ((in>='0') && (in<='9')) {
+        /* Valid number? */
+        if (innum == FALSE) {
+          innum = TRUE;
+          args[counter] = 0;
+        }
+        args[counter] = args[counter]*10+in-'0';
+      } else {
+        /* Abort parsing the number. Install its sign */
+        if (innum) {
+          if (negative)
+            args[counter] = -args[counter];
+          innum    = FALSE;
+          negative = FALSE;
+        }
+        if ((in>='@') && (in<='~')) { /* End of sequence? */
+          /* Is it a bounds report? */
+          if ((in=='r') && (answer=='r') && (counter==3)) {
+            if (height)
+              *height = args[2]-args[0]+1;
+            if (width)
+              *width  = args[3]-args[1]+1;
+            break;
+          }
+          /* Is it a cursor report? */
+          if ((in=='R') && (answer=='R') && (counter==1)) {       
+            if (height)
+              *height = args[0];
+            if (width)
+              *width  = args[1];
+            break;
+          }
+          incsi = FALSE; /* Abort sequence */
+        } else if (in==';') { /* Argument separator? */
+          counter++;
+          /* Do not parse more than 5 arguments, 
+          ** throw everything else away 
+          */
+          if (counter>4) counter=4;
+          innum    = FALSE;
+          negative = FALSE;
+        } else if (in=='-') {
+          if (innum)
+            incsi = FALSE;  /* minus sign in the middle is invalid */
+          negative = ~negative;
+        } else if (in==' ') {
+          /* Ignore SPC prefix */
+        } else {
+          /* Abort the sequence */
+          incsi = FALSE;
+        }
+      }
+    } else if (inesc) {
+      if (in == '[') {
+        inesc    = FALSE;
+        incsi    = TRUE;   /* found a CSI sequence */
+        innum    = FALSE;  /* but not yet a valid number */
+        negative = FALSE;
+        counter  = 0;
+        args[0]  = args[1]=args[2]=args[3]=args[4] = 1;
+      } else if ((in >= ' ') && (in <= '/')) {
+        /* ignore the ESC sequence contents */
+      } else {
+        inesc    = FALSE;  /* terminate the ESC sequence */
+      }
+    } else if (in == 0x9B) {
+      incsi    = TRUE;   /* found a CSI sequence */
+      innum    = FALSE;  /* but not yet a valid number */
+      negative = FALSE;
+      counter  = 0;
+      args[0]  = args[1]=args[2]=args[3]=args[4] = 1;
+    } else if (in == 0x1B) {
+      inesc    = TRUE;  /* found an ESC sequence */
+    } /* Everything else is thrown away */
+  }
+
+  SetMode(file,0);
+  return success;
+}
+\end{verbatim}
+Thie above algorithm supports both 7-bit and 8-bit consoles and is aware of
+the 7-bit two-character equivalent of CSI.
+\smallskip{}
+
+Upon replying this packet, {\tt dp\_Res1} shall be set to a boolean success
+indicator. On success, it shall be set to {\tt DOSTRUE} and {\tt dp\_Res2} shall
+be set to~0. On failure, {\tt dp\_Res1} shall be set to {\tt DOSFALSE} and
+{\tt dp\_Res2} to an error code.
+
+\subsection{Releasing Console Resources} \label{sec:packetundiskinfo}
+
+The {\tt ACTION\_UNDISK\_INFO}\mkey{ACTION\_UNDISK\_INFO} packet releases
+any resources obtained by {\tt ACTION\_DISK\_INFO}\key{ACTION\_DISK\_INFO}.
+
+\begin{rkrmtable}{\tt ACTION\_UNDISK\_INFO}
+{\bf DosPacket Element}   & {\bf Value}\\ \hline \hline
+\tt dp\_Type  & \tt ACTION\_UNDISK\_INFO (513) \\ \hline \hline
+\tt dp\_Res1  & Boolean result code\\ \hline
+\tt dp\_Res2  & Error code\\ \hline
+\end{rkrmtable}
+
+This packet is not exposed by the \emph{dos.library}, the packet needs to be
+issued through the {\tt DoPkt()} function.
+\smallskip{}
+
+The purpose of this packet is to let the console know that the pointers to
+the window and the {\tt IORequest} provided by
+{\tt ACTION\_DISK\_INFO}\key{ACTION\_DISK\_INFO} are no longer needed and
+the console may close the window or release the {\tt IORequest} if
+needed. This has the the practical consequence that {\tt AUTO} windows can
+be closed again, and the console can also be iconified again.
+\smallskip{}
+
+To implement this packet, the console should keep a counter to track the
+number of times its resources have been provided to clients. An {\tt
+  ACTION\_DISK\_INFO} increments it, and {\tt
+  ACTION\_UNDISK\_INFO} decrements it. As long as the counter is non-zero,
+the window shall be open and the connection to the device implementing the
+console functionality shall be established. This includes that the window
+needs to be forced open on the first {\tt ACTION\_DISK\_INFO} if it is
+closed, either by iconification or because it is an {\tt AUTO} window that
+was closed by the user.
+\medskip{}
+
+This packet does not take any arguments. Even though there is practically no
+reason why this packet could fail, the console handler shall set {\tt
+  dp\_Res1} to {\tt DOSTRUE} and {\tt dp\_Res2} to~0 on success. On an
+error, if such an error should be possible, {\tt dp\_Res1} shall be set to
+{\tt DOSFALSE} and {\tt dp\_Res2} to an error code.
+
 
 \section{The Console-Handler} \label{sec:console}
 
