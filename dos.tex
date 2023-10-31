@@ -11557,7 +11557,10 @@ type as shown in the following table:
 \tt ACTION\_READ  & -1 \\ \hline
 \tt ACTION\_WRITE & -1 \\ \hline
 \tt ACTION\_SEEK  & -1 \\ \hline
-\tt ACTION\_SET\_FILE\_SIZE & -1 \\ \hline \hline
+\tt ACTION\_SET\_FILE\_SIZE & -1 \\ \hline
+\tt ACTION\_STACK & -1 \\ \hline
+\tt ACTION\_QUEUE & -1 \\ \hline
+\tt ACTION\_FORCE & -1 \\ \hline \hline
 all others & 0 \\ \hline
 \end{rkrmtable}
 
@@ -14007,7 +14010,7 @@ set to {\tt DOSFALSE} and {\tt dp\_Res2} to~0.
 If at least a single character of input becomes available, {\tt dp\_Res1}
 shall be set to {\tt DOSTRUE}. If the handler implements line buffering such
 as the Con-Handler, then {\tt dp\_Res2} shall be set to the number of lines
-available in the input buffer. This feature is, for example, used by the
+available in the output buffer. This feature is, for example, used by the
 ARexx interpreter. If it does not implement line buffering, {\tt dp\_Res2}
 should be set to~0.
 \smallskip{}
@@ -14364,6 +14367,156 @@ reason why this packet could fail, the console handler shall set {\tt
 error, if such an error should be possible, {\tt dp\_Res1} shall be set to
 {\tt DOSFALSE} and {\tt dp\_Res2} to an error code.
 
+\subsection{Stack a Line at the Top of the Output Buffer}
+
+The {\tt ACTION\_STACK}\mkey{ACTION\_STACK} packet injects a line at the
+start of the output buffer of the console.
+
+\begin{rkrmtable}{\tt ACTION\_STACK}
+{\bf DosPacket Element}   & {\bf Value}\\ \hline \hline
+\tt dp\_Type  & \tt ACTION\_STACK (2002) \\ \hline
+\tt dp\_Arg1  & {\tt fh\_Arg1} of a {\tt FileHandle} \\ \hline
+\tt dp\_Arg2  & APTR to characters \\ \hline
+\tt dp\_Arg3  & Size of the buffer in bytes \\ \hline \hline
+\tt dp\_Res1  & Number of characters stacked\\ \hline
+\tt dp\_Res2  & Error code\\ \hline
+\end{rkrmtable}
+
+This packet is not exposed by the \emph{dos.library}, it rather needs to be
+issued through the packet interface, e.g. {\tt DoPkt()}. This packet injects
+a line at the end of the output buffer of the console. This buffer keeps all
+lines entered by the user, and lines injected by {\tt ACTION\_STACK} and
+{\tt ACTION\_QUEUE}. The number of lines in this output buffer can be
+obtained through {\tt ACTION\_WAIT\_CHAR} which delivers the line count in
+{\tt dp\_Res2}.
+\smallskip{}
+
+Lines from this buffer are provided to clients on {\tt ACTION\_READ}\key{ACTION\_READ}
+packets that empty this buffer line by line. Thus, a line provided through this packet
+will be delivered to the next reading client, before any other buffered
+lines, but after user input.
+\smallskip{}
+
+Lines injected into the console output buffer are not echoed on the
+screen. Arexx uses this packet to employ the console as ``external
+stack''. This packet places a line at the top of this stack.
+\medskip{}
+
+{\tt dp\_Arg1} is a copy of the {\tt fh\_Arg1} element of
+a {\tt FileHandle} structure that is opened to the console.
+\smallskip{}
+
+{\tt dp\_Arg2} is a C pointer (not a BPTR) to an array of characters
+to be injected into the output buffer of the console.
+\smallskip{}
+
+{\tt dp\_Arg3} is the size of the buffer in characters.
+\smallskip{}
+
+Upon replying this packet, {\tt dp\_Res1} shall be set to the number of
+characters that could be stacked in the output buffer of the console, or
+to~$-1$ in case of failure. On success, {\tt dp\_Res2} shall be set to~0, or
+to an error code on failure.
+
+\subsection{Queue a Line at the End of the Output Buffer}
+
+The {\tt ACTION\_QUEUE}\mkey{ACTION\_QUEUE} packet injects a line at the end
+of the output buffer of the console.
+
+\begin{rkrmtable}{\tt ACTION\_QUEUE}
+{\bf DosPacket Element}   & {\bf Value}\\ \hline \hline
+\tt dp\_Type  & \tt ACTION\_QUEUE (2003) \\ \hline
+\tt dp\_Arg1  & {\tt fh\_Arg1} of a {\tt FileHandle} \\ \hline
+\tt dp\_Arg2  & APTR to characters \\ \hline
+\tt dp\_Arg3  & Size of the buffer in bytes \\ \hline \hline
+\tt dp\_Res1  & Number of characters stacked\\ \hline
+\tt dp\_Res2  & Error code\\ \hline
+\end{rkrmtable}
+
+This packet is not exposed by the \emph{dos.library}, it rather needs to be
+issued through the packet interface, e.g. {\tt DoPkt()}. This packet injects
+a line at the end of the output buffer of the console. This buffer keeps all
+lines entered by the user, and lines injected by {\tt ACTION\_STACK} and
+{\tt ACTION\_QUEUE}. The number of lines in this output buffer can be
+obtained through {\tt ACTION\_WAIT\_CHAR} which delivers the line count in
+{\tt dp\_Res2}.
+\smallskip{}
+
+Lines from this buffer are provided to clients on {\tt
+  ACTION\_READ}\key{ACTION\_READ} packets that empty this buffer line by
+line. Thus, a line provided through this packet will be delivered to a
+reading client after all other buffered lines have been read from the
+console, including user input.
+\smallskip{}
+
+Lines injected into the console output buffer are not echoed on the screen.
+ARexx uses this packet to employ the console as ``external stack''. This
+packet places a line at the end of this stack, i.e. queues them up.
+\medskip{}
+
+{\tt dp\_Arg1} is a copy of the {\tt fh\_Arg1} element of
+a {\tt FileHandle} structure that is opened to the console.
+\smallskip{}
+
+{\tt dp\_Arg2} is a C pointer (not a BPTR) to an array of characters
+to be injected into the output buffer of the console.
+\smallskip{}
+
+{\tt dp\_Arg3} is the size of the buffer in characters.
+\smallskip{}
+
+Upon replying this packet, {\tt dp\_Res1} shall be set to the number of
+characters that could be stacked in the output buffer of the console, or
+to~$-1$ in case of failure. On success, {\tt dp\_Res2} shall be set to~0, or
+to an error code on failure.
+
+\subsection{Force Characters into the Input Buffer}
+
+The {\tt ACTION\_FORCE}\mkey{ACTION\_FORCE} packet injects characters into
+the keyboard input buffer of the console, as if the user typed them.
+
+\begin{rkrmtable}{\tt ACTION\_FORCE}
+{\bf DosPacket Element}   & {\bf Value}\\ \hline \hline
+\tt dp\_Type  & \tt ACTION\_QUEUE (2001) \\ \hline
+\tt dp\_Arg1  & {\tt fh\_Arg1} of a {\tt FileHandle} \\ \hline
+\tt dp\_Arg2  & APTR to characters \\ \hline
+\tt dp\_Arg3  & Size of the buffer in bytes \\ \hline \hline
+\tt dp\_Res1  & Number of characters stacked\\ \hline
+\tt dp\_Res2  & Error code\\ \hline
+\end{rkrmtable}
+
+This packet is not exposed by the \emph{dos.library}, it rather needs to be
+issued through the packet interface, e.g. {\tt DoPkt()}. This packet injects
+characters into the input buffer of the console, at the same place
+keystrokes are recorded. Such characters are echoed on the console, or
+executed in case of control sequences. E.g, this packet allows also to move
+the cursor left or right, or erase the current line by emulating the
+corresponding keystrokes.
+\smallskip{}
+
+Note that the keyboard input buffer is different from the line output
+buffer; lines entering the console through {\tt ACTION\_FORCE} qualify as
+keyboard input\footnote{Even though the V40 CON-Handler already supported
+this packet, it is there implemented incorrectly and does not impact the
+keyboard buffer. This was fixed in V47.}. The main user of this packet is
+the Shell which injects TAB-expanded file names into the console.
+\medskip{}
+
+{\tt dp\_Arg1} is a copy of the {\tt fh\_Arg1} element of
+a {\tt FileHandle} structure that is opened to the console.
+\smallskip{}
+
+{\tt dp\_Arg2} is a C pointer (not a BPTR) to an array of characters
+to be injected into the output buffer of the console.
+\smallskip{}
+
+{\tt dp\_Arg3} is the size of the buffer in characters.
+\smallskip{}
+
+Upon replying this packet, {\tt dp\_Res1} shall be set to the number of
+characters that could be injected into the keyboard input buffer of the
+console, or to~$-1$ in case of failure. On success, {\tt dp\_Res2} shall be
+set to~0, or to an error code on failure.
 
 \section{The Console-Handler} \label{sec:console}
 
