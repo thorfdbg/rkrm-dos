@@ -107,6 +107,10 @@
 \newcommand{\mkey}[1]{\index{#1@{\scriptsize{} #1}|emph}}
 % An entry defining a library function call
 \newcommand{\call}[1]{{\bf J2K::#1()\key{#1()}}}
+\makeatletter
+\renewcommand*\l@section{\@dottedtocline{1}{1.5em}{2.5em}}
+\renewcommand*\l@subsection{\@dottedtocline{2}{1.8em}{3.7em}}
+\makeatother
 %
 \makeindex
 %
@@ -4754,51 +4758,6 @@ failure. In first case, it sets {\tt IoErr()} to~0, otherwise it is
 set to an error code. Some file systems return the current number of
 buffers allocated; callers should thus be prepared that the return
 code is not equal to {\tt DOSTRUE} to indicate success.
-
-\subsection{Inhibiting a File System} \label{sec:inhibit}
-
-The {\tt Inhibit()}\mkey{Inhibit()} function disables or enables
-access of the \emph{file system} to the underlying exec device
-driver. Typical application for this function are disk editors or file
-system salvage tools that require exclusive access to the file system
-structure.
-
-\begin{verbatim}
-success = Inhibit(filesystem, flag)
-D0                    D1       D2
-
-BOOL Inhibit(STRPTR,LONG)
-\end{verbatim}
-
-This call controls whether the file system identified by the path name
-given as {\tt filesystem} is allowed to access the medium or partition
-it usually operates on. The {\tt filesystem} argument is interpreted
-through {\tt GetDeviceProc()}\key{GetDeviceProc()} to find the process
-responsible for the medium. That is, the function resolves relative
-and absolute paths, device and volume names, and even assigns. As {\tt
-  filesystem} is interpreted as a path, a device or volume name passed
-in shall include a colon (``{\tt :}'') as it would be otherwise
-interpreted as a path relative to the current directory.
-\smallskip{}
-
-The {\tt flag} argument controls whether access to the medium is
-allowed or disallowed. If {\tt flag} is set to {\tt DOSTRUE}, access
-is inhibited and the \emph{file system} stops accessing the partition
-or volume. It also sets {\tt id\_DiskType} to the four-character code
-{\tt 'BUSY'}, which will be interpreted by the workbench to ghost the
-corresponding drive icon. Application programs are then allowed to
-access the exec device driver directly to access or modify blocks
-within the partition managed by the inhibited \emph{file system}.
-\smallskip{}
-
-If {\tt flag} is set to {\tt DOSFALSE}, access to the medium is
-allowed again. The \emph{file system} then performs a consistency
-check of the file system structure of the disk, i.e. validates it.
-\smallskip{}
-
-This function returns a non-zero result code for success and then sets
-{\tt IoErr()}\key{IoErr()} to~0. On error, it returns~0 and provides an
-error code in {\tt IoErr()}.
 
 \subsection{Change the Name of a Volume}
 
@@ -13853,121 +13812,6 @@ indicator. On success, it shall be set to {\tt DOSTRUE} and {\tt dp\_Res2} shall
 be set to~0. On failure, {\tt dp\_Res1} shall be set to {\tt DOSFALSE} and
 {\tt dp\_Res2} to an error code.
 
-\subsection{Adjusting the File System Cache}
-
-The {\tt ACTION\_MORE\_CACHE}\mkey{ACTION\_MORE\_CACHE} packet increases or
-descreases the number of file system buffers.
-
-\begin{rkrmtable}{\tt ACTION\_MORE\_CACHE} \label{table:actionmorecache}
-{\bf DosPacket Element}   & {\bf Value}\\ \hline \hline
-\tt dp\_Type  & \tt ACTION\_MORE\_CACHE (18) \\ \hline
-\tt dp\_Arg1  & Buffer increment \\ \hline \hline
-\tt dp\_Res1  & Boolean result code\\ \hline
-\tt dp\_Res2  & Buffer count or error code\\ \hline
-\end{rkrmtable}
-
-This packet implements the {\tt AddBuffers()}\key{AddBuffers()} function of
-the \emph{dos.library}. In increases or decreases the number of buffers the
-file system may use to cache data. How exactly a file system uses these
-buffers and how large these buffers are is specific to the file system
-implementation and its configuration.
-\smallskip{}
-
-The FFS uses these buffers to temporary store adminstrative data such as
-blocks describing the directory structure or information on which blocks a
-particular file occupies on disk. Providing additional buffers (within
-limits) can thus help to improve the performance of a file system by
-reducting the number of times the underlying device needs to be contacted.
-The FFS also uses these buffers to store payload data if the source or
-destination buffer of the client is not reachable by the exec device
-driver. The {\tt de\_Mask} element of the environment vector is used to
-determine such incompatibilities, see section~\ref{sec:envec}.
-\smallskip{}
-
-{\tt dp\_Arg1} is the increment (or decrement, if negative) of the number of
-buffers to be added (or removed) from the pool of cache buffers of the file
-system. File systems may clamp this value to guarantee that a minimum number
-of buffers are available, or limit the buffer count to a useful value.
-\smallskip{}
-
-If this packet succeeds, the file system shall set {\tt dp\_Res1} to {\tt
-  DOSTRUE} and {\tt dp\_Res2} to the number of buffers currently
-allocated. Thus, the current buffer count can obtained by sending this
-packet with {\tt dp\_Arg1} set to~0. On an error, {\tt dp\_Res1} shall be
-set to {\tt DOSFALSE} and {\tt dp\_Res2} to an error code.
-
-\subsection{Check if a Handler is a File System}
-
-The {\tt ACTION\_IS\_FILESYSTEM}\mkey{ACTION\_IS\_FILESYSTEM} tests whether
-a handler is a file system.
-
-\begin{rkrmtable}{\tt ACTION\_IS\_FILESYSTEM} \label{table:actionisfilesystem}
-{\bf DosPacket Element}   & {\bf Value}\\ \hline \hline
-\tt dp\_Type  & \tt ACTION\_IS\_FILESYSTEM (1027) \\ \hline \hline
-\tt dp\_Res1  & Boolean result code\\ \hline
-\tt dp\_Res2  & Buffer count or error code\\ \hline
-\end{rkrmtable}
-
-This packet implements the {\tt IsFileSystem()}\key{IsFileSystem()} function
-of the \emph{dos.library} and tests whether a particular handler provide
-sufficient services to operate as a \emph{file system}. A file system shall
-be able to access multiple separate files, shall be able to support locks
-and shall also be able to examine directories. A file system may be either a
-flat or a hierarchical file system, i.e. a file system is not required to
-support multiple directories on a storage medium, device or partition.
-\smallskip{}
-
-This packet does not take any arguments. It shall set {\tt dp\_Res1} to {\tt
-  DOSTRUE} and {\tt dp\_Res2} to~0 in case the handler qualifies as a file
-system. In case the handler supports this packet but does not implement a
-file system, it shall set {\tt dp\_Res1} to {\tt DOSFALSE} and {\tt
-  dp\_Res2} to~0. 
-\smallskip{}
-
-If the handler sets {\tt dp\_Res1} to {\tt DOSFALSE} and {\tt dp\_Res2} to
-{\tt ERROR\_ACTION\_NOT\_KNOWN}, then this is an indication that the handler
-cannot interpret this particular packet. If this secondary result code is
-identified by the {\tt IsFileSystem()} function, it falls back to a
-heuristic for determining whether a handler is a file system: It uses {\tt
-  Lock(":",SHARED\_ACCESS)}, i.e. {\tt ACTION\_LOCATE\_OBJECT} on the file
-system root. If such a lock can be obtained, then this heuristic assumes
-that the handler is, in fact, a file system.
-
-\subsection{Write all Pending Modifications}
-
-The {\tt ACTION\_FLUSH}\mkey{ACTION\_FLUSH} packet instructs the file system
-to write all pending or cached modifications out to disk\footnote{Users of
-unixoid systems may consider this as the AmigaDOS equivalent of {\tt sync}.}.
-
-\begin{rkrmtable}{\tt ACTION\_FLUSH} \label{table:actionflush}
-{\bf DosPacket Element}   & {\bf Value}\\ \hline \hline
-\tt dp\_Type  & \tt ACTION\_FLUSH (27) \\ \hline \hline
-\tt dp\_Res1  & Boolean result code\\ \hline
-\tt dp\_Res2  6 Error code\\ \hline
-\end{rkrmtable}
-
-This packet is not exposed by the \emph{dos.library} and thus can only be
-send manually through the packet interface, e.g. {\tt DoPkt()}. File
-systems may cache writes in order to improve their performance, and may
-defer any write operations an arbtrary amount of time. This packet instructs
-the file system to write out all modifications immediately.
-\smallskip{}
-
-This packet shall not be replied before all changes have been written and,
-if applicable, the drive motor has been turned off. However, FFS versions of
-V40 and before replied {\tt ACTION\_FLUSH} immediately and thus only
-established a write barrier. This was fixed in V43.
-\smallskip{}
-
-Even though it is unclear how clients could make use of the result code,
-file systems should set {\tt dp\_Res1} to {\tt DOSTRUE} and {\tt dp\_Res2}
-to~0 on success\footnote{The official reference~\cite{Bantam} only states
-that {\tt dp\_Res1} shall be set to {\tt DOSTRUE}. This is probably what
-most AmigaDOS file systems implement, though the value of unconditionally
-indicating success is questionable.}. In case of error, file systems should
-set {\tt dp\_Res1} to {\tt DOSFALSE} and {\tt dp\_Res2} to an error
-code.
-
 \section{Packets for Interactive Handlers}
 
 The packet types documented in this section are specific for handlers that
@@ -14640,6 +14484,171 @@ success, and {\tt dp\_Res2} the port that was previously installed as
 \emph{break port}, or {\tt NULL} if no such port was configured. On error,
 {\tt dp\_Res1} shall be set to {\tt DOSFALSE} and {\tt dp\_Res2} to an
 error code.
+
+\section{Packets Controlling the Handler in Total}
+
+The packets in this section impacts file systems and handlers at
+global. They do not apply to a particular volume.
+
+\subsection{Adjusting the File System Cache}
+
+The {\tt ACTION\_MORE\_CACHE}\mkey{ACTION\_MORE\_CACHE} packet increases or
+descreases the number of file system buffers.
+
+\begin{rkrmtable}{\tt ACTION\_MORE\_CACHE} \label{table:actionmorecache}
+{\bf DosPacket Element}   & {\bf Value}\\ \hline \hline
+\tt dp\_Type  & \tt ACTION\_MORE\_CACHE (18) \\ \hline
+\tt dp\_Arg1  & Buffer increment \\ \hline \hline
+\tt dp\_Res1  & Boolean result code\\ \hline
+\tt dp\_Res2  & Buffer count or error code\\ \hline
+\end{rkrmtable}
+
+This packet implements the {\tt AddBuffers()}\key{AddBuffers()} function of
+the \emph{dos.library}. In increases or decreases the number of buffers the
+file system may use to cache data. How exactly a file system uses these
+buffers and how large these buffers are is specific to the file system
+implementation and its configuration.
+\smallskip{}
+
+The FFS uses these buffers to temporary store adminstrative data such as
+blocks describing the directory structure or information on which blocks a
+particular file occupies on disk. Providing additional buffers (within
+limits) can thus help to improve the performance of a file system by
+reducting the number of times the underlying device needs to be contacted.
+The FFS also uses these buffers to store payload data if the source or
+destination buffer of the client is not reachable by the exec device
+driver. The {\tt de\_Mask} element of the environment vector is used to
+determine such incompatibilities, see section~\ref{sec:envec}.
+\smallskip{}
+
+{\tt dp\_Arg1} is the increment (or decrement, if negative) of the number of
+buffers to be added (or removed) from the pool of cache buffers of the file
+system. File systems may clamp this value to guarantee that a minimum number
+of buffers are available, or limit the buffer count to a useful value.
+\smallskip{}
+
+If this packet succeeds, the file system shall set {\tt dp\_Res1} to {\tt
+  DOSTRUE} and {\tt dp\_Res2} to the number of buffers currently
+allocated. Thus, the current buffer count can obtained by sending this
+packet with {\tt dp\_Arg1} set to~0. On an error, {\tt dp\_Res1} shall be
+set to {\tt DOSFALSE} and {\tt dp\_Res2} to an error code.
+
+\subsection{Inhibiting a File System} \label{sec:inhibit}
+
+The {\tt Inhibit()}\mkey{Inhibit()} function disables or enables
+access of the \emph{file system} to the underlying exec device
+driver. Typical application for this function are disk editors or file
+system salvage tools that require exclusive access to the file system
+structure.
+
+\begin{verbatim}
+success = Inhibit(filesystem, flag)
+D0                    D1       D2
+
+BOOL Inhibit(STRPTR,LONG)
+\end{verbatim}
+
+This call controls whether the file system identified by the path name
+given as {\tt filesystem} is allowed to access the medium or partition
+it usually operates on. The {\tt filesystem} argument is interpreted
+through {\tt GetDeviceProc()}\key{GetDeviceProc()} to find the process
+responsible for the medium. That is, the function resolves relative
+and absolute paths, device and volume names, and even assigns. As {\tt
+  filesystem} is interpreted as a path, a device or volume name passed
+in shall include a colon (``{\tt :}'') as it would be otherwise
+interpreted as a path relative to the current directory.
+\smallskip{}
+
+The {\tt flag} argument controls whether access to the medium is
+allowed or disallowed. If {\tt flag} is set to {\tt DOSTRUE}, access
+is inhibited and the \emph{file system} stops accessing the partition
+or volume. It also sets {\tt id\_DiskType} to the four-character code
+{\tt 'BUSY'}, which will be interpreted by the workbench to ghost the
+corresponding drive icon. Application programs are then allowed to
+access the exec device driver directly to access or modify blocks
+within the partition managed by the inhibited \emph{file system}.
+\smallskip{}
+
+If {\tt flag} is set to {\tt DOSFALSE}, access to the medium is
+allowed again. The \emph{file system} then performs a consistency
+check of the file system structure of the disk, i.e. validates it.
+\smallskip{}
+
+This function returns a non-zero result code for success and then sets
+{\tt IoErr()}\key{IoErr()} to~0. On error, it returns~0 and provides an
+error code in {\tt IoErr()}.
+
+\subsection{Check if a Handler is a File System}
+
+The {\tt ACTION\_IS\_FILESYSTEM}\mkey{ACTION\_IS\_FILESYSTEM} tests whether
+a handler is a file system.
+
+\begin{rkrmtable}{\tt ACTION\_IS\_FILESYSTEM} \label{table:actionisfilesystem}
+{\bf DosPacket Element}   & {\bf Value}\\ \hline \hline
+\tt dp\_Type  & \tt ACTION\_IS\_FILESYSTEM (1027) \\ \hline \hline
+\tt dp\_Res1  & Boolean result code\\ \hline
+\tt dp\_Res2  & Buffer count or error code\\ \hline
+\end{rkrmtable}
+
+This packet implements the {\tt IsFileSystem()}\key{IsFileSystem()} function
+of the \emph{dos.library} and tests whether a particular handler provide
+sufficient services to operate as a \emph{file system}. A file system shall
+be able to access multiple separate files, shall be able to support locks
+and shall also be able to examine directories. A file system may be either a
+flat or a hierarchical file system, i.e. a file system is not required to
+support multiple directories on a storage medium, device or partition.
+\smallskip{}
+
+This packet does not take any arguments. It shall set {\tt dp\_Res1} to {\tt
+  DOSTRUE} and {\tt dp\_Res2} to~0 in case the handler qualifies as a file
+system. In case the handler supports this packet but does not implement a
+file system, it shall set {\tt dp\_Res1} to {\tt DOSFALSE} and {\tt
+  dp\_Res2} to~0. 
+\smallskip{}
+
+If the handler sets {\tt dp\_Res1} to {\tt DOSFALSE} and {\tt dp\_Res2} to
+{\tt ERROR\_ACTION\_NOT\_KNOWN}, then this is an indication that the handler
+cannot interpret this particular packet. If this secondary result code is
+identified by the {\tt IsFileSystem()} function, it falls back to a
+heuristic for determining whether a handler is a file system: It uses {\tt
+  Lock(":",SHARED\_ACCESS)}, i.e. {\tt ACTION\_LOCATE\_OBJECT} on the file
+system root. If such a lock can be obtained, then this heuristic assumes
+that the handler is, in fact, a file system.
+
+\subsection{Write out all Pending Modifications}
+
+The {\tt ACTION\_FLUSH}\mkey{ACTION\_FLUSH} packet instructs the file system
+to write all pending or cached modifications out to disk\footnote{Users of
+unixoid systems may consider this as the AmigaDOS equivalent of {\tt sync}.}.
+
+\begin{rkrmtable}{\tt ACTION\_FLUSH} \label{table:actionflush}
+{\bf DosPacket Element}   & {\bf Value}\\ \hline \hline
+\tt dp\_Type  & \tt ACTION\_FLUSH (27) \\ \hline \hline
+\tt dp\_Res1  & Boolean result code\\ \hline
+\tt dp\_Res2  6 Error code\\ \hline
+\end{rkrmtable}
+
+This packet is not exposed by the \emph{dos.library} and thus can only be
+send manually through the packet interface, e.g. {\tt DoPkt()}. File
+systems may cache writes in order to improve their performance, and may
+defer any write operations an arbtrary amount of time. This packet instructs
+the file system to write out all modifications immediately.
+\smallskip{}
+
+This packet shall not be replied before all changes have been written and,
+if applicable, the drive motor has been turned off. However, FFS versions of
+V40 and before replied {\tt ACTION\_FLUSH} immediately and thus only
+established a write barrier. This was fixed in V43.
+\smallskip{}
+
+Even though it is unclear how clients could make use of the result code,
+file systems should set {\tt dp\_Res1} to {\tt DOSTRUE} and {\tt dp\_Res2}
+to~0 on success\footnote{The official reference~\cite{Bantam} only states
+that {\tt dp\_Res1} shall be set to {\tt DOSTRUE}. This is probably what
+most AmigaDOS file systems implement, though the value of unconditionally
+indicating success is questionable.}. In case of error, file systems should
+set {\tt dp\_Res1} to {\tt DOSFALSE} and {\tt dp\_Res2} to an error
+code.
 
 \section{The Console-Handler} \label{sec:console}
 
