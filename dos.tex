@@ -463,7 +463,7 @@ be filled. Files are explained in more detail in section~\ref{sec:file}.
 \section{Locks}
 Locks\key{Lock} are access rights to a particular object on a file
 system. A locked object cannot be altered by any other
-process. Section~\ref{sec:lock} provides more details on locks.
+process. Section~\ref{sec:locks} provides more details on locks.
 
 \section{Processes}
 AmigaDOS is a multi-tasking system operating on top of the \emph{exec}
@@ -2715,7 +2715,7 @@ derived from another lock or file. As locks block altering accesses to
 an object of a file system, locks need to be released as early as
 possible to allow other accesses to the locked object.
 
-\subsection{Obtaining a Lock from a Path} \label{sec:lock}.
+\subsection{Obtaining a Lock from a Path} \label{sec:lock}
 
 The {\tt Lock()}\key{Lock()} function obtains a lock on an object
 given a path to the object. The path can be either absolute, or
@@ -4864,6 +4864,51 @@ also sections~\ref{sec:deviceoverview} and~\ref{sec:inhibit}.
 This function returns a boolean success indicator that is non-zero on
 succes or~0 on error. In either case, {\tt IoErr()} is set to~0 on
 success or an error code on failure.
+
+\subsection{Inhibiting a File System} \label{sec:inhibit}
+
+The {\tt Inhibit()}\mkey{Inhibit()} function disables or enables
+access of the \emph{file system} to the underlying exec device
+driver. Typical application for this function are disk editors or file
+system salvage tools that require exclusive access to the file system
+structure.
+
+\begin{verbatim}
+success = Inhibit(filesystem, flag)
+D0                    D1       D2
+
+BOOL Inhibit(STRPTR,LONG)
+\end{verbatim}
+
+This call controls whether the file system identified by the path name
+given as {\tt filesystem} is allowed to access the medium or partition
+it usually operates on. The {\tt filesystem} argument is interpreted
+through {\tt GetDeviceProc()}\key{GetDeviceProc()} to find the process
+responsible for the medium. That is, the function resolves relative
+and absolute paths, device and volume names, and even assigns. As {\tt
+  filesystem} is interpreted as a path, a device or volume name passed
+in shall include a colon (``{\tt :}'') as it would be otherwise
+interpreted as a path relative to the current directory.
+\smallskip{}
+
+The {\tt flag} argument controls whether access to the medium is
+allowed or disallowed. If {\tt flag} is set to {\tt DOSTRUE}, access
+is inhibited and the \emph{file system} stops accessing the partition
+or volume. It also sets {\tt id\_DiskType} to the four-character code
+{\tt 'BUSY'}, which will be interpreted by the workbench to ghost the
+corresponding drive icon. Application programs are then allowed to
+access the exec device driver directly to access or modify blocks
+within the partition managed by the inhibited \emph{file system}.
+\smallskip{}
+
+If {\tt flag} is set to {\tt DOSFALSE}, access to the medium is
+allowed again. The \emph{file system} then performs a consistency
+check of the file system structure of the disk, i.e. validates it.
+\smallskip{}
+
+This function returns a non-zero result code for success and then sets
+{\tt IoErr()}\key{IoErr()} to~0. On error, it returns~0 and provides an
+error code in {\tt IoErr()}.
 
 \chapter{Administration of Volumes, Devices and Assigns} \label{sec:devicelist}
 
@@ -11511,7 +11556,7 @@ its {\tt dp\_Res2} element to {\tt ERROR\_ACTION\_NOT\_KNOWN}. {\tt
   dp\_Res1} shall be set for non-implemented packets according to the packet
 type as shown in the following table:
 
-\begin{rkrmtable}{Primary Result Code for Unimplemented Packets}
+\begin{rkrmtable}{Primary Result Code for Unimplemented Packets} \label{table:unimp}
 {\bf \tt \bf dp\_Type} & {\bf \tt \bf dp\_Res1} \\ \hline \hline
 \tt ACTION\_READ  & -1 \\ \hline
 \tt ACTION\_WRITE & -1 \\ \hline
@@ -11526,7 +11571,7 @@ all others & 0 \\ \hline
 This ensures that clients of the handler or file system will recieve a
 result that is an indication of an error.
 
-\subsection{Handler Shutdown}
+\subsection{Handler Shutdown} \label{sec:terminatehandler}
 
 A \emph{handler} that does not initialize the {\tt dol\_Task} element of its
 {\tt DosList} structure should keep a counter that is incremented for each
@@ -11548,16 +11593,20 @@ these files had been closed\footnote{This is a simplification, ignoring {\tt
   AUTO} and {\tt WAIT} parameters, see section~\ref{sec:console} for details}.
 \medskip{}
 
-\emph{File systems}, however, typically do initialize {\tt dol\_Task} and
-thus can be reached even if all files or locks on the volume they manage
-have been released. Thus, in addition to such resource tracking, file
-systems should check for incoming packets of the type {\tt ACTION\_DIE} and
-then attempt to shutdown. This is, of course, only possible if all open
-files have been closed and all locked objects have been unlocked.
+\emph{File systems} such as the FFS, however, typically do initialize {\tt
+  dol\_Task} and thus can be reached even if all files or locks on the
+volume they manage have been released. Thus, in addition to such resource
+tracking, file systems should check for incoming packets of the type {\tt
+  ACTION\_DIE} and then attempt to shutdown, see
+section~\ref{sec:packetactiondie}. This is, of course, only possible if all
+open files have been closed and all locked objects have been unlocked.
 \smallskip{}
 
-A example for such a handler is the FFS which will not go away unless it is
-explicitly asked to.
+The {\tt MsgPort} or ports of such a handler may still contain packets that
+have not yet been worked on after {\tt ACTION\_DIE} has been received. In
+order to avoid a deadlock, the packets pending in the input queue still need
+to be replied, for example using the default return codes from
+table~\ref{table:unimp}.
 
 \section{Packets for File Interactions}
 
@@ -13714,58 +13763,7 @@ indicator. On success, it shall be set to {\tt DOSTRUE} and {\tt dp\_Res2} shall
 be set to~0. On failure, {\tt dp\_Res1} shall be set to {\tt DOSFALSE} and
 {\tt dp\_Res2} to an error code.
 
-\subsection{Inhibiting the File System} \label{sec:packetinhibit}
-
-The {\tt ACTION\_INHIBIT}\mkey{ACTION\_INHIBIT} packet disables or enables
-access of the \emph{file system} to the underlying device; once file system
-access is disabled, application programs such as {\tt Format} may access the
-underlying device directly.
-
-\begin{rkrmtable}{\tt ACTION\_INHIBIT} \label{table:actionformat}
-{\bf DosPacket Element}   & {\bf Value}\\ \hline \hline
-\tt dp\_Type  & \tt ACTION\_INHIBIT (31) \\ \hline
-\tt dp\_Arg1  & Inhibit flag \\ \hline \hline
-\tt dp\_Res1  & Boolean result code\\ \hline
-\tt dp\_Res2  & Error code\\ \hline
-\end{rkrmtable}
-
-This packet implements the {\tt Inhibit()}\key{Inhibit()} function of the
-\emph{dos.library}. An inhibited file system is blocked from accessing its
-underlying medium for read and write access, with the exception of {\tt
-  ACTION\_FORMAT} which remains operational. An inhibited file system
-changes its disk type as reported by {\tt ACTION\_INFO}\key{ACTION\_INFO} or
-{\tt ACTION\_DISK\_INFO}\key{ACTION\_DISK\_INFO} in the {\tt InfoData}
-structure to `{\tt BUSY}', see table~\ref{table:disktype} in
-section~\ref{sec:info}.
-\smallskip{}
-
-Once the file system is unhibited again, it shall perform a validation of
-the medium, as if the medium was been re-inserted. This is necessary because
-an application bypassing the file system to access it directly could have
-changeed the file system structure, the volume name or the date, or may have
-even written a completely new file system structure to it. This check thus
-implies checking the flavour of the file system, e.g. the {\tt DosType} for
-the FFS, and potentially creating and inserting a {\tt DosList} entry into
-the \emph{device list} representing the volume. Thus, first inhbiting and
-uninhibiting a file system is equivalent to simulating a medium change; in
-fact, the {\tt DiskChange} command enforces a medium change by first
-inhibiting and then unhibiting the file system.
-\smallskip{}
-
-{\tt id\_Arg1} is a boolean indicator that defines whether the file system
-shall be inhibited or uninhibited. If {\tt dp\_Arg1} is {\tt DOSFALSE}, the
-file system is unhibited and a file structure check shall be performed. In
-all other cases, the file system shall be inhibited and, with the exception
-of {\tt ACTION\_FORMAT}, should refrain from acessing the medium, partition
-or device.
-\smallskip{}
-
-Before replying this packet, {\tt dp\_Res1} shall be set to a boolean success
-indicator. On success, it shall be set to {\tt DOSTRUE} and {\tt dp\_Res2} shall
-be set to~0. On failure, {\tt dp\_Res1} shall be set to {\tt DOSFALSE} and
-{\tt dp\_Res2} to an error code.
-
-\subsection{Write Protecting a Volumne} \label{sec:lock}
+\subsection{Write Protecting a Volumne} \label{sec:packetlock}
 
 The {ACTION\_WRITE\_PROTECT}\mkey{ACTION\_WRITE\_PROTECT} packet enables or
 disables a software write-protection on the currently inserted medium, thus
@@ -14533,50 +14531,56 @@ allocated. Thus, the current buffer count can obtained by sending this
 packet with {\tt dp\_Arg1} set to~0. On an error, {\tt dp\_Res1} shall be
 set to {\tt DOSFALSE} and {\tt dp\_Res2} to an error code.
 
-\subsection{Inhibiting a File System} \label{sec:inhibit}
+\subsection{Inhibiting the File System} \label{sec:packetinhibit}
 
-The {\tt Inhibit()}\mkey{Inhibit()} function disables or enables
-access of the \emph{file system} to the underlying exec device
-driver. Typical application for this function are disk editors or file
-system salvage tools that require exclusive access to the file system
-structure.
+The {\tt ACTION\_INHIBIT}\mkey{ACTION\_INHIBIT} packet disables or enables
+access of the \emph{file system} to the underlying device; once file system
+access is disabled, application programs such as {\tt Format} may access the
+underlying device directly.
 
-\begin{verbatim}
-success = Inhibit(filesystem, flag)
-D0                    D1       D2
+\begin{rkrmtable}{\tt ACTION\_INHIBIT} \label{table:actioninhibit}
+{\bf DosPacket Element}   & {\bf Value}\\ \hline \hline
+\tt dp\_Type  & \tt ACTION\_INHIBIT (31) \\ \hline
+\tt dp\_Arg1  & Inhibit flag \\ \hline \hline
+\tt dp\_Res1  & Boolean result code\\ \hline
+\tt dp\_Res2  & Error code\\ \hline
+\end{rkrmtable}
 
-BOOL Inhibit(STRPTR,LONG)
-\end{verbatim}
-
-This call controls whether the file system identified by the path name
-given as {\tt filesystem} is allowed to access the medium or partition
-it usually operates on. The {\tt filesystem} argument is interpreted
-through {\tt GetDeviceProc()}\key{GetDeviceProc()} to find the process
-responsible for the medium. That is, the function resolves relative
-and absolute paths, device and volume names, and even assigns. As {\tt
-  filesystem} is interpreted as a path, a device or volume name passed
-in shall include a colon (``{\tt :}'') as it would be otherwise
-interpreted as a path relative to the current directory.
+This packet implements the {\tt Inhibit()}\key{Inhibit()} function of the
+\emph{dos.library}. An inhibited file system is blocked from accessing its
+underlying medium for read and write access, with the exception of {\tt
+  ACTION\_FORMAT} which remains operational. An inhibited file system
+changes its disk type as reported by {\tt ACTION\_INFO}\key{ACTION\_INFO} or
+{\tt ACTION\_DISK\_INFO}\key{ACTION\_DISK\_INFO} in the {\tt InfoData}
+structure to `{\tt BUSY}', see table~\ref{table:disktype} in
+section~\ref{sec:info}.
 \smallskip{}
 
-The {\tt flag} argument controls whether access to the medium is
-allowed or disallowed. If {\tt flag} is set to {\tt DOSTRUE}, access
-is inhibited and the \emph{file system} stops accessing the partition
-or volume. It also sets {\tt id\_DiskType} to the four-character code
-{\tt 'BUSY'}, which will be interpreted by the workbench to ghost the
-corresponding drive icon. Application programs are then allowed to
-access the exec device driver directly to access or modify blocks
-within the partition managed by the inhibited \emph{file system}.
+Once the file system is unhibited again, it shall perform a validation of
+the medium, as if the medium was been re-inserted. This is necessary because
+an application bypassing the file system to access it directly could have
+changeed the file system structure, the volume name or the date, or may have
+even written a completely new file system structure to it. This check thus
+implies checking the flavour of the file system, e.g. the {\tt DosType} for
+the FFS, and potentially creating and inserting a {\tt DosList} entry into
+the \emph{device list} representing the volume. Thus, first inhbiting and
+uninhibiting a file system is equivalent to simulating a medium change; in
+fact, the {\tt DiskChange} command enforces a medium change by first
+inhibiting and then unhibiting the file system.
 \smallskip{}
 
-If {\tt flag} is set to {\tt DOSFALSE}, access to the medium is
-allowed again. The \emph{file system} then performs a consistency
-check of the file system structure of the disk, i.e. validates it.
+{\tt id\_Arg1} is a boolean indicator that defines whether the file system
+shall be inhibited or uninhibited. If {\tt dp\_Arg1} is {\tt DOSFALSE}, the
+file system is unhibited and a file structure check shall be performed. In
+all other cases, the file system shall be inhibited and, with the exception
+of {\tt ACTION\_FORMAT}, should refrain from acessing the medium, partition
+or device.
 \smallskip{}
 
-This function returns a non-zero result code for success and then sets
-{\tt IoErr()}\key{IoErr()} to~0. On error, it returns~0 and provides an
-error code in {\tt IoErr()}.
+Before replying this packet, {\tt dp\_Res1} shall be set to a boolean success
+indicator. On success, it shall be set to {\tt DOSTRUE} and {\tt dp\_Res2} shall
+be set to~0. On failure, {\tt dp\_Res1} shall be set to {\tt DOSFALSE} and
+{\tt dp\_Res2} to an error code.
 
 \subsection{Check if a Handler is a File System}
 
@@ -14649,6 +14653,46 @@ most AmigaDOS file systems implement, though the value of unconditionally
 indicating success is questionable.}. In case of error, file systems should
 set {\tt dp\_Res1} to {\tt DOSFALSE} and {\tt dp\_Res2} to an error
 code.
+
+\subsection{Shutdown a Handler} \label{sec:packetactiondie}
+
+The packet {\tt ACTION\_DIE}\mkey{ACTION\_DIE} requests a file system or
+handler to unmount its volumes and terminate.
+
+\begin{rkrmtable}{\tt ACTION\_DIE} \label{table:actiondie}
+{\bf DosPacket Element}   & {\bf Value}\\ \hline \hline
+\tt dp\_Type  & \tt ACTION\_DIE (5) \\ \hline \hline
+\tt dp\_Res1  & Boolean result code\\ \hline
+\tt dp\_Res2  & Error code\\ \hline
+\end{rkrmtable}
+
+This packet is not exposed through the \emph{dos.library}; rather, the
+packet needs to be send through the packet interface, i.e. through {\tt
+  DoPkt()}. This packet requests the file system to release all resources,
+set the {\tt dol\_Task} elements of the {\tt DosList} structures in the
+\emph{device list} to {\tt NULL}, and then terminate the process.
+\smallskip{}
+
+A file system or handler may not be able to terminate itself if some files
+are still open or some locks have not yet been unlocked. In such a case,
+this packet should fail with an error by setting {\tt dp\_Res1} to {\tt
+  DOSFALSE} and {\tt dp\_Res2} to an error code, e.g. {\tt
+  ERROR\_OBJECT\_IN\_USE}. In case of success, {\tt dp\_Res1} shall be set
+to {\tt DOSTRUE} and {\tt dp\_Res2} to~0.
+\smallskip{}
+
+After unmounting the volume and replying to this packet, the {\tt
+  MsgPort}(s) of this handler or file system used for packet communication
+may still contain packets that were submitted after {\tt ACTION\_DIE} has
+been received. In order to avoid a deadlock, the file system still needs to
+reply these packets, for example by the default result codes from
+table~\ref{table:unimp}, see also section~\ref{sec:terminatehandler}.
+\smallskip{}
+
+Some handlers do not initialize the {\tt dol\_Task} element of its {\tt
+  DosList} entrie(s) with an address of their port(s); file systems are
+typical examples. Such handlers shall terminate themselves without requiring
+an {\tt ACTION\_DIE} when the last lock and file have been released.
 
 \section{The Console-Handler} \label{sec:console}
 
