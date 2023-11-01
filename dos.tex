@@ -14518,6 +14518,68 @@ characters that could be injected into the keyboard input buffer of the
 console, or to~$-1$ in case of failure. On success, {\tt dp\_Res2} shall be
 set to~0, or to an error code on failure.
 
+\subsection{Drop all Stacked and Queued Lines in the Output Buffer}
+
+The {\tt ACTION\_DROP}\mkey{ACTION\_DROP} packet disposes all lines that
+have been injected into the output buffer and thus reverts any {\tt
+  ACTION\_STACK} and {\tt ACTION\_QUEUE} packets.
+
+\begin{rkrmtable}{\tt ACTION\_DROP}
+{\bf DosPacket Element}   & {\bf Value}\\ \hline \hline
+\tt dp\_Type  & \tt ACTION\_DROP (2004) \\ \hline
+\tt dp\_Arg1  & {\tt fh\_Arg1} of a {\tt FileHandle} \\ \hline \hline
+\tt dp\_Res1  & Boolean result code\\ \hline
+\tt dp\_Res2  & Error code\\ \hline
+\end{rkrmtable}
+
+This packet is not exposed by the \emph{dos.library}, it rather needs to be
+issued through the packet interface, e.g. {\tt DoPkt()}. This packet removes
+any lines injected by {\tt ACTION\_STACK} and {\tt ACTION\_QUEUE} from
+the outut buffer of the console and thus reverts their results. User
+keyboard inputs remain unaffected. Thus, this packet resets the line stack
+in the console. The intended purpose this packet is ARexx which,
+however, at the time of writing does not use it.
+\smallskip{}
+
+{\tt dp\_Arg1} is a copy of the {\tt fh\_Arg1} element of
+a {\tt FileHandle} structure that is opened to the console.
+\smallskip{}
+
+Upon replying this packet, {\tt dp\_Res1} shall be set to {\tt DOSTRUE} and
+{\tt dp\_Res2} to~0 on success. On error, {\tt dp\_Res1} shall be set to
+{\tt DOSFALSE} and {\tt dp\_Res2} to an error code.
+
+\subsection{Bring the Console Window to the Foreground}
+
+The {\tt ACTION\_SHOWWINDOW}\mkey{ACTION\_SHOWWINDOW} activates the console
+window, if it is open, and brings it to the foreground.
+
+\begin{rkrmtable}{\tt ACTION\_SHOWWINDOW}
+{\bf DosPacket Element}   & {\bf Value}\\ \hline \hline
+\tt dp\_Type  & \tt ACTION\_SHOWWINDOW (506) \\ \hline \hline
+\tt dp\_Res1  & Boolean result code\\ \hline
+\tt dp\_Res2  & Error code\\ \hline
+\end{rkrmtable}
+
+This packet is not exposed by the \emph{dos.library}. The packet interface,
+e.g. {\tt DoPkt()}, is required to issue it. This packet brings the window
+associated console, should such a window exist, to foreground and activates
+it. If the console is a serial console or the console window is closed or
+iconified, no activity is performed and no error is reported. Unlike {\tt
+  ACTION\_DISK\_INFO}, it will not force the window open if the window is
+currently closed.
+\smallskip{}
+
+The primary user of this packet is the {\tt ConClip} tool
+which sends this packet to make the window visible whenever an icon is
+dropped on it. The path of the icon is injected into the keyboard input
+buffer with {\tt ACTION\_FORCE}\key{ACTION\_FORCE}.
+\smallskip{}
+
+Upon replying this packet, {\tt dp\_Res1} shall be set to {\tt DOSTRUE} and
+{\tt dp\_Res2} to~0 on success. On error, {\tt dp\_Res1} shall be set to
+{\tt DOSFALSE} and {\tt dp\_Res2} to an error code.
+
 \section{The Console-Handler} \label{sec:console}
 
 The {\tt Console-Handler} uses the following conventions for {\tt
@@ -14536,7 +14598,6 @@ FileSysStartupMsg \\ \hline
 \emph{BPTR} with bit 31 set    & RAW: open on a device specified by a
 FileSysStartupMsg \\ \hline
 \end{rkrmtable}
-
 
 \section{The Port-Handler}
 
