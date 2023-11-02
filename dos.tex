@@ -428,7 +428,7 @@ such strings:
 
 \mkey{BSTR}
 \begin{verbatim}
-typedef long  BSTR;                 /* Long word pointer to BCPL string  */
+typedef long  BSTR;   /* Long word pointer to BCPL string  */
 \end{verbatim}
 
 Luckely, functions of the \emph{dos.library} take C strings as
@@ -11297,10 +11297,11 @@ A \emph{handler} or a \emph{file system} is an Amiga process that retrieves
 commands in the form of {\tt DosPacket}s. The main loop of a handler is
 conceptionally similar to a program implementing a graphical user interface,
 except that the latter retrieves messages via the \emph{intuition} IDCMP
-system and works them off, whereas the handlers receive commands from its
-handler port.
+system and works them off, whereas the handlers receive commands from the
+port in the {\tt pr\_MsgPort} of its process, or any other port it may
+provide to its clients.
 
-\subsection{Handler Startup}
+\subsection{Handler Startup} \label{sec:handlerstartup}
 
 When a user of the \emph{dos.library} attempts to access an absolute path,
 i.e. a path including a device name, the \emph{dos.library} walks the
@@ -11308,11 +11309,10 @@ i.e. a path including a device name, the \emph{dos.library} walks the
 responsible for it by comparing the device name in the path with the {\tt
   dol\_Name} element of the \emph{device list}. Once a suitable entry has
 been found, the \emph{dos.library} checks whether a handler is already
-running by checking the {\tt dol\_Task} field of the \emph{device list}. If
+running by checking the {\tt dol\_Task} field of the {\tt DosList}. If
 so, a packet corresponding to the called \emph{dos.library} function is send
 to the port pointed to by {\tt dol\_Task}. The relation between library
-functions and packet types is further explained in
-section~\ref{sec:packettypes}.
+functions and packet types is further explained in subsequent sections.
 \smallskip{}
 
 If {\tt dol\_Task} is {\tt NULL}, the \emph{dos.library} checks next whether
@@ -11390,27 +11390,51 @@ LONG __asm __saveds main(register __a0 struct DosPacket *pkt)
 }
 \end{verbatim}
 The startup packet is populated as follows:
-\smallskip{}
+
+\begin{rkrmtable}{Handler Startup Packet} \label{table:handlerstartup}
+{\bf DosPacket Element}   & {\bf Value}\\ \hline \hline
+\tt dp\_Type & \tt ACTION\_STARTUP (0) \\ \hline \hline
+\tt dp\_Arg1 & BPTR to BSTR of path \\ \hline
+\tt dp\_Arg2 & Copy of {\tt dol\_Startup} \\ \hline
+\tt dp\_Arg3 & BPTR to {\tt DosList} \\ \hline \hline
+\tt dp\_Res1 & \tt DOSTRUE \\ \hline
+\tt dp\_Res2 & 0\\ \hline
+\end{rkrmtable}
 
 {\tt dp\_Type} is set to {\tt ACTION\_STARTUP}, which is defined to be~0. As
 the startup packet is always received first, there is no need to test for
-this particular type.
+this particular type. However, as its type is identical to {\tt
+  ACTION\_NIL}\key{ACTION\_NIL}, the startup packet may also be processed
+within the main handler loop.
 \smallskip{}
 
-{\tt dp\_Arg1} is set to a \emph{BPTR} to a \emph{BSTR} representing the
+{\tt dp\_Arg1} is set to a BPTR to a BSTR representing the
 path name under which the client of the \emph{dos.library} attempted to
 access the handler. Note that this is not a {\tt NUL}-terminated C string,
-but a \emph{BSTR} whose first element is the size of the string.
+but a BSTR whose first element is the size of the string.
+\smallskip{}
+
+This argument is for example taken from the first argument to {\tt
+  Open()}\key{Open()}, just that it has been converted to a \emph{BSTR} by
+the \emph{dos.library}. For the {\tt Console-Handler} for example, this is
+the window specification that instructs the handler on the position, size
+and title of the console.
 \smallskip{}
 
 {\tt dp\_Arg2} is a copy of the {\tt dol\_Startup} element of the {\tt
   DosList} structure, see section~\ref{sec:devicelist}. It is used to
-configure the properties of the handler.
+configure the properties of the handler. The type that is placed here is
+depends on the mount list. While its use is handler, it is typically, but
+not necessarily, a BPTR to a {\tt FileSysStartupMsg}\key{FileSysStartupMsg}
+structure. Other possibilties for {\tt dol\_Startup} are a BPTR to a BSTR or
+an integer. What exactly the handler will receive depends on the {\tt
+  Mountlist} and is discussed in more detail in
+section~\ref{sec:mountdoslist} and section~\ref{sec:filesysstartup}.
 \smallskip{}
 
 {\tt dp\_Arg3} is a \emph{BPTR} to the {\tt DosList} structure that
 triggered starting this handler.
-\smallskip{}
+\medskip{}
 
 Multiple strategies exist how handlers make use of this information. A
 \emph{file system} process would typically handle multiple files at once
@@ -11422,15 +11446,6 @@ received in {\tt dp\_Art3}. This is typically, but not necessarily, the
 {\tt pr\_MsgPort} of the handler process.
 \smallskip{}
 
-The {\tt dp\_Arg2} element is used to configure file systems; it is a copy
-of the {\tt dol\_Startup} element of the {\tt DosList}. While its use is
-file-system dependent, it is typically, but not necessarily, a {\tt BPTR} to
-a {\tt FileSysStartupMsg}\key{FileSysStartupMsg} structure. Other
-possibilties for {\tt dol\_Startup} are a \emph{BPTR} to a \emph{BSTR} or an
-integer. What exactly the handler will receive depends on the {\tt
-  Mountlist} and is discussed in more detail in section~\ref{sec:mountdoslist}.
-\smallskip{}
-
 Whenever a client program opens a file on this \emph{file system} or
 attempts to lock an object, the handler process will be contacted by sending
 a packet to the port listed in {\tt dol\_Task}.
@@ -11440,13 +11455,6 @@ A \emph{handler} such as the {\tt CON} handler requires a separate process
 for each window it manages. In such a case, {\tt dol\_Task}
 remains {\tt NULL}. Thus, handlers can decide whether they require a new
 process for each file opened from the handler.
-\smallskip{}
-
-{\tt dp\_Arg1} is the \emph{BPTR} to the path to be opened and thus taken
-from the first argument to {\tt Open()}\key{Open()}, just that it has been
-converted to a \emph{BSTR} by the \emph{dos.library}. For the {\tt
-  Console-Handler} for example, this is the window specification that
-instructs the handler on the position, size and title of the console.
 \smallskip{}
 
 While the \emph{dos.library} will also send a packet to open the file for
@@ -11565,7 +11573,7 @@ type as shown in the following table:
 \tt ACTION\_STACK & -1 \\ \hline
 \tt ACTION\_QUEUE & -1 \\ \hline
 \tt ACTION\_FORCE & -1 \\ \hline \hline
-all others & 0 \\ \hline
+all others & ~0 \\ \hline
 \end{rkrmtable}
 
 This ensures that clients of the handler or file system will recieve a
@@ -13801,7 +13809,7 @@ password key used for re-protection.
 {\tt dp\_Arg2} is an integer password hash key that is stored internally in
 the file system when the write protection is set, and compared against if it
 is to be released again. If the stored password hash is not equal to the
-original hash, releasing the write protection shall fail with the error code
+original hash, attempting to release the protection shall fail with
 {\tt ERROR\_INVALID\_COMPONENT\_NAME}.
 \smallskip{}
 
@@ -14629,7 +14637,7 @@ unixoid systems may consider this as the AmigaDOS equivalent of {\tt sync}.}.
 {\bf DosPacket Element}   & {\bf Value}\\ \hline \hline
 \tt dp\_Type  & \tt ACTION\_FLUSH (27) \\ \hline \hline
 \tt dp\_Res1  & Boolean result code\\ \hline
-\tt dp\_Res2  6 Error code\\ \hline
+\tt dp\_Res2  & Error code\\ \hline
 \end{rkrmtable}
 
 This packet is not exposed by the \emph{dos.library} and thus can only be
@@ -14693,6 +14701,33 @@ Some handlers do not initialize the {\tt dol\_Task} element of its {\tt
   DosList} entrie(s) with an address of their port(s); file systems are
 typical examples. Such handlers shall terminate themselves without requiring
 an {\tt ACTION\_DIE} when the last lock and file have been released.
+
+\subsection{Do Nothing}
+
+The {\tt ACTION\_NIL}\mkey{ACTION\_NIL} packet performs no activity.
+
+\begin{rkrmtable}{\tt ACTION\_NIL} \label{table:actiondie}
+{\bf DosPacket Element}   & {\bf Value}\\ \hline \hline
+\tt dp\_Type  & \tt ACTION\_NIL (0) \\ \hline \hline
+\tt dp\_Res1  & \tt DOSTRUE \\ \hline
+\tt dp\_Res2  & 0\\ \hline
+\end{rkrmtable}
+
+This packet is not exposed by the \emph{dos.library}. It does not perform
+any activity. A handler or file system implementation should indicate
+success when replying this packet. Another reason why a seemingly {\tt
+  ACTION\_NIL} packet can appear at a handler {\tt MsgPort} is because the
+startup package has its {\tt dp\_Type} set to~0, too, and thus identifies itself
+also as {\tt ACTION\_NIL}. While {\tt ACTION\_NIL} does not provide
+any arguments, the startup package does, see
+section~\ref{sec:handlerstartup}.
+\medskip{}
+
+There is no reason why this packet should actually fail, unless a handler
+implements startup handling through the packet type {\tt ACTION\_NIL}. On
+success, {\tt dp\_Res1} shall be set to {\tt DOSTRUE} and {\tt dp\_Res2}
+to~0. On an error {\tt dp\_Res2} shall be set to {\tt DOSFALSE} and
+{\tt dp\_Res2} to an error code.
 
 \section{The Console-Handler} \label{sec:console}
 
