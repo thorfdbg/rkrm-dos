@@ -14706,7 +14706,7 @@ characters that could be stacked in the output buffer of the console, or
 to~$-1$ in case of failure. On success, {\tt dp\_Res2} shall be set to~0, or
 to an error code on failure.
 
-\subsection{Force Characters into the Input Buffer}
+\subsection{Force Characters into the Input Buffer} \label{sec:actionforce}
 
 The {\tt ACTION\_FORCE}\mkey{ACTION\_FORCE} packet injects characters into
 the keyboard input buffer of the console, as if the user typed them.
@@ -15194,22 +15194,203 @@ to implement {\tt ACTION\_WAIT\_CHAR}\key{ACTION\_WAIT\_CHAR}.
 
 \section{The Console-Handler} \label{sec:console}
 
-The {\tt Console-Handler} uses the following conventions for {\tt
-  dol\_Startup}:
+The CON-Handler implements the console of AmigaDOS. It not only serves the
+graphical console, but also the serial console. The AUX-Handler is only a
+minimal wrapper that locates the CON-Handler in the ROM and then initates
+the CON-Handler with a suitable startup packet. Therefore, it serves the {\tt CON:},
+{\tt RAW:} and {\tt AUX:} device.
+\smallskip{}
 
-\begin{rkrmtable}{Console Handler Startup Code} \label{table:constartup}
+Quite similar to file systems, the CON-Handler does not implement all of its
+functionality itself. It rathre depends on services of exec devices. For the
+graphical console, it creates an intuition window and initializes the {\tt
+  console.device} to run within. For the serial console, i.e. {\tt AUX:}, it
+operates on top of the {\tt serial.device}, but can be made to use any other
+interface device with proper mount parameters.
+\smallskip{}
+
+Independent on the device, the CON-Handler can operate in various modes that
+impact how it processes user input; the initial mode is also selected by the
+mount parameters, resp. {\tt dol\_Startup} in its {\tt DosList}, but can
+adjusted by the {\tt SetMode()}\key{SetMode()} function, see
+section~\ref{sec:setmode} and table~\ref{table:conmodes}.
+
+\begin{rkrmtable}{CON-Handler Startup Code} \label{table:constartup}
 {\bf \tt dol\_Startup}   & {\bf Description}\\ \hline \hline
-< 0 & RAW: unprocessed keystrokes, within an intuition window pointed to by {\tt dp\_Arg1} \\ \hline
-0   & CON: processed keystrokes, create a new window \\ \hline
-1   & RAW: unprocessed keystrokes, create a new window \\ \hline
-2   & CON: processed keystrokes with special CSI codes for history and TAB
-Expansion \\ \hline
+< 0 & RAW: raw mode, within a window pointed to by {\tt dp\_Arg1} \\ \hline
+0   & CON: cooked mode, create a new window \\ \hline
+1   & RAW: raw mode, create a new window \\ \hline
+2   & CON: medium mode, create a new window \\ \hline
 3   & RAW: reserved for future extensions \\ \hline
-\emph{BPTR} with bit 30 cleared & CON: open on a device specified by a
+BPTR with bit 30 cleared & cooked mode open on a device specified by a
 FileSysStartupMsg \\ \hline
-\emph{BPTR} with bit 31 set    & RAW: open on a device specified by a
+BPTR with bit 30 set    & raw mode open on a device specified by a
 FileSysStartupMsg \\ \hline
 \end{rkrmtable}
+
+The value of~0 for {\tt dol\_Startup} corresponds to a regular {\tt CON:}
+window and the cooked mode. In this mode, the console echoes every keystroke
+on the window, and provides line editing functionalities such as cursor
+movements. Only when the user presses {\tt RETURN}, an entire line of data
+enters the output buffer, and there becomes available for an {\tt
+  ACTION\_READ}. One particular difference between the V47 console and
+previous versions its predecessors is that in this mode the console no
+longer offers a history. Rather, the history functions have been moved to the
+Shell which uses the medium mode. This has the advantage that the shell has
+full control over the history, can insert elements into it or show its
+contents, regardless whether the console is a graphical console or running
+on a serial line.
+\smallskip{}
+
+In the cooked mode, and also in the medium mode, the CON-Handler interprets
+the following keystrokes:
+
+\begin{rkrmtabular}{Cooked Keyboard Sequences} \label{table:cookedconsole}
+\begin{longtable}{|ll|} \hline
+{\bf Keystroke} & {\bf Function}\\ \hline \hline
+Cursor left       & Move left one character \\ \hline
+Cursor right      & Move right one character \\ \hline
+Cursor up         & Do nothing${}^*$ \\ \hline
+Cursor down       & Do nothing${}^*$ \\ \hline
+Shift+cursor up   & Do nothing${}^*$ \\ \hline
+Shift+cusor down  & Do nothing${}^*$ \\ \hline
+Shift+cursor left & Move to the start of line\\ \hline
+Shift+cursor right& Move to the end of line\\ \hline
+Shift+cursor up   & Move to the start of line${}^*$ \\ \hline
+Shift+cursor down & Erase line${}^*$ \\ \hline
+TAB               & Inserts a TAB control code${}^*$ \\ \hline
+Shift+TAB         & Do nothing${}^*$ \\ \hline
+Ctrl+a            & Move to the start of line \\ \hline
+Ctrl+b            & Erase entire line \\ \hline
+Ctrl+c            & Sends signal 12 \\ \hline
+Ctrl+d            & Sends signal 13 \\ \hline
+Ctrl+e            & Sends signal 14 \\ \hline
+Ctrl+f            & Sends signal 15 \\ \hline
+Ctrl+x            & Erase entire line \\ \hline
+Cltr+k            & Kill characters into yank buffer \\ \hline
+Cltr+q            & Resume output \\ \hline
+Ctrl+s            & Suspend output \\ \hline
+Ctrl+r            & Do nothing${}^*$ \\ \hline
+Ctrl+u            & Delete beginning of line \\ \hline
+Cltr+w            & Delete word \\ \hline
+Cltr+y            & Paste characters from yank buffer\\ \hline
+Ctrl+z            & Move to end of line \\ \hline
+Ctrl+\textbackslash & Signal an end-of-file \\ \hline
+Backspace         & Delete character upfront cursor \\ \hline
+Del               & Delete character under cursor \\ \hline
+\multicolumn{2}{|l|}{\small ${}^*$ Interpreted differently in medium mode, see
+  table~\ref{table:mediumcsi}} \\ \hline
+\end{longtable}
+\end{rkrmtabular}
+As seen in the table, some keystrokes operate differently in the medium
+mode; in that mode, they request a particular function from the shell by
+sending a ``TAB Report'' CSI sequence.
+\smallskip{}
+
+The ``yank buffer'' keeps characters that have been cut out with Ctrl+k. Its
+contents can be reinserted into the console with Ctrl+y. It operates
+independently of the clipboard and is local to each console window.
+\medskip{}
+
+The value of~1 for {\tt dol\_Startup} corresponds to a {\tt RAW:} window and
+the raw mode. In this mode, every keystroke becomes available to
+client programs as it enters the output buffer immediately. Cursor movements
+thus become available as CSI sequences. In this mode, the console does not
+echo user input. The CSI sequences are those defined by the {\tt
+  console.device}, resp. the current keymap of the device.
+\smallskip{}
+
+The value of~2 for {\tt dol\_Startup} is not available under a device name,
+even though one could in principle create a suitable mount list for it. The
+mode is reserved for the shell and forewards TAB-Expansion and history
+functions to the shell. While the console again provides line editing
+features and echoes most keys on the screen, some keyboard sequences create
+immediate output through a ``TAB Report'' CSI sequence that enters the
+output buffer immediately. These sequences trigger functions of the shell,
+such as expanding a pattern or working through the command history. A TAB
+Report sequence looks as follows:
+
+\begin{verbatim}
+CSI <m>;<s>;<c>U <line>
+\end{verbatim}
+
+Here {CSI} is the ANSI ``control sequence introducer'', which has the byte
+value {\tt 0x9b}. The {\tt <m>} value is a decimal number that identifies
+the keystroke and also the function the shell is requested to
+implement. Such functions browse in the history or expand a file name
+pattern. The shell, upon receiving such a request, performs the requested
+function and re-inserts the result back into the console with an {\tt
+  ACTION\_FORCE} packet, see section~\ref{sec:actionforce}.
+\smallskip{}
+
+The parameters {\tt <s>} and {\tt <c>} provide the length of the current
+line input buffer of the console the user is editing, and the (1-based,
+i.e. cursor at the left edge corresponds to {\tt <c>} = 1) cursor position
+within this buffer.
+\smallskip{}
+
+The {\tt U} is a literal character and identifies this sequence as
+TAB-Report. {\tt <line>} is a copy of the current line that is edited by the
+user. For many sequences, this input is used as a template the shell to
+perform the requested action, e.g. for a TAB-expansion, it provides the
+entire input, though the command line argument within which the cursor is
+positioned is used to generate a wildcard the Shell uses to find possible
+candidates for its expansion.
+\smallskip{}
+
+The keystrokes that trigger such TAB Report sequences, along with their
+purpose, are as follows:
+
+\begin{rkrmtable}{Medium Mode CSI Sequences} \label{table:mediumcsi}
+{\bf Keystroke} & {\bf Sequence}\\ \hline \hline
+Cursor up         & {\tt <U>}=2, move upwards in the history \\ \hline
+Cursor down       & {\tt <U>}=3, move downwards in the history \\ \hline
+Shift+cursor up   & {\tt <U>}=4, search history upwards \\ \hline
+Shift+cursor down & {\tt <U>}=5, search history downwards \\ \hline
+Ctrl+r            & {\tt <U>}=6 ,search history upwards, partial pattern \\ \hline
+Ctrl+b            & {\tt <U>}=10,rewind history \\ \hline
+TAB               & {\tt <U>}=12,iterate forwards through expansion \\ \hline
+Shift+TAB         & {\tt <U>}=13,iterate backwards through expansion \\ \hline
+\end{rkrmtable}
+
+The only difference between the cases {\tt <U>}=6 and {\tt <U>}=4 is that
+the former only uses the line input buffer up to the cursor position as
+search pattern and ignores everything past it.
+\medskip{}
+
+The {\tt dol\_Startup} value~$3$ is currently reserved and shall not be
+used.
+\smallskip{}
+
+The case of a negative {\tt dol\_Startup} value is a legacy startup
+mechanism of the console. In this confguration, {\tt dp\_Arg1} of the
+startup packet (see section~\ref{sec:handlerstartp}) is not a BPTR to a path
+as usual, but instead a pointer (not a BPTR) to an intuition {\tt Window}
+structure; the CON-Handler then creates a graphical console within this
+window. It is quite hard to make practical use of this startup mechanism and
+thus it is discouraged, but~\cite{guru} provides example code how to trigger
+it. A better mechanism to redirect a console to a particular window is the
+{\tt WINDOW} argument of the command path which is described in the User
+Manual~\cite{AmigaUM}.
+\smallskip{}
+
+In all other cases, {\tt dol\_Startup} is a BPTR to a {\tt FileSysStartupMsg} described
+in more detail in section~\ref{sec:filesysstartup}. The {\tt fssm\_Device}
+and {\tt fssm\_Unit} elements of this structure then describe a device and
+unit the console shall run on. The {\tt AUX:} handler uses this mechanism to
+create a {\tt FileSysStartupMsg} to the CON-Handler which points to the {\tt
+  serial.device} unit~$0$, but also accepts custom mount parameters to mount
+it on other devices through the {\tt EHandler} mount parameter. The
+{\tt Device} parameter of the mount list is then extracted, and forwarded to
+the CON-Handler through this mechanism. Thus, a console can be generated on
+either type of device provided it supports {\tt CMD\_WRITE} to write data out
+and {\tt CMD\_READ} to receive keystrokes.
+\smallskip{}
+
+As BPTRs are upshifted by two bits to gain a regular pointer, the otherwise
+unused bit 30 of the BPTR is used for mode selection. If this bit is~0, the
+console will be a cooked console with line buffer, and if this bit is~1, the
+console is raw.
 
 \section{The Port-Handler}
 
