@@ -9501,7 +9501,7 @@ overall structure of an overlaid binary therefore looks as follows:
 \tt \} while(!end of file); & This pattern repeats until end of file \\ \hline
 \end{rkrmtable}
 
-\subsection{The Hierarchical Overlay Manager}
+\subsection{The Hierarchical Overlay Manager} \label{sec:alinkmgr}
 
 The overlay manager that comes with the standard Amiga linkers
 \emph{ALink}, \emph{BLink} and \emph{SLink} structures overlay nodes
@@ -9564,7 +9564,7 @@ The standard AmigaDOS linkers, {\tt ALink} and {\tt BLink} both
 include an overlay manager. Each entry in its overlay table describes
 a symbol that is located in one of the overlay nodes. The format of
 {\tt HUNK\_OVERLAY} reads as follows:
-\begin{rkrmtabular}{Hunk Overlay Syntax} \label{table:hunk_overlay}%
+\begin{rkrmtabular}{MANX Hunk Overlay Syntax} \label{table:hunk_overlay}%
 \begin{longtable}{|l|p{6cm}|p{6cm}|} \hline
 {\bf Size} & {\bf Code} & {\bf Syntax} \\ \hline \hline
    & \tt HUNK\_OVERLAY [0x3f5] & Overlay table definition\\ \hline
@@ -9724,6 +9724,200 @@ regular functions in the library, as required by BCPL code. Overlay
 managers implemented in C or assembler will not make use of it and
 instead call vectors of the \emph{dos.library} through the
 \emph{dos.library} base address loaded in register {\tt a6}.
+
+\subsection{The MANX Overlay Manager}
+
+The Aztec C compiler from MANX offers an alternative overlay manager that is
+related to the Resource Manager from MacOs. It does not organize overlay
+notes in a hierarchy, but only in a single level; however, all nodes of
+this single level can be loaded and unloaded independently from each other,
+either on demand through the function {\tt segload()} provided by the MANX
+compiler library, or whenever a function of an overlaid node is called. The
+corresponding {\tt freeseg()} function unloads a node again. A node consists
+of one or more hunks that are loaded and unloaded jointly. Unfortunately,
+this overlay manager depends on self-modifying code and ignores the
+instruction cache present in later members of the Motorola 68K family, and
+is therefore no longer safe to use.
+\smallskip{}
+
+The MANX overlay manager organizes its nodes through the data in the {\tt
+  HUNK\_OVERLAY} hunk, which, however, is in a different format than the one
+documented in section~\ref{sec:hunk_overlay}, and trampolines that
+direct the code flow for non-resident functions to the overlay manager.
+The contents of the {\tt HUNK\_OVERLAY} hunk contains offsets within the
+file, to the trampoline functions and to the symbol table that provides
+information in which hunks the overlaid functions reside. The trampolines
+are not part of {\tt HUNK\_OVERLAY} but reside at the beginning of the {\tt
+  HUNK\_DATA} hunk, relative to the
+{\tt \textunderscore\textunderscore{}H1\textunderscore{}org} symbol.
+\smallskip{}
+
+Even though the structure of the {\tt HUNK\_OVERLAY} differs from the one in
+section~\ref{sec:hunk_overlay}, the AmigaDOS {\tt LoadSeg()} function does
+not care about the contents of this hunk as long as its first {\tt LONG}
+word indicates its size. It provides the data within to the program as-is
+through {\tt oh\_OVTab} of the {\tt OverlayHeader} which shall be present at
+the beginning of the first segment of the binary; this structure, of course,
+does not change from its definition in section~\ref{sec:hunk_overlay} except
+that data within the overlay hunk is organized differently:
+
+\begin{verbatim}
+struct ManxOverlayHeader {
+    UWORD          oh_Jump[2];   /* Forms a branch to the startup code */
+    LONG           oh_Magic;     /* Shall be 0x0000abcd                */
+    BPTR           oh_FileHandle;/* Filled by the loader with the fh   */
+    struct MANXOv *oh_OVTab;     /* Overlay table from HUNK_OVERLAY    */
+    BPTR           oh_Segments;  /* Array of segment BPTRs             */
+    BPTR           oh_GV;        /* standard Global Vector             */
+};
+\end{verbatim}
+
+The overlay structure for the MANX compiler reads on disk as follows:
+\begin{rkrmtabular}{Hunk Overlay Syntax} \label{table:hunk_overlay_manx}%
+\begin{longtable}{|l|p{6cm}|p{6cm}|} \hline
+{\bf Size} & {\bf Code} & {\bf Syntax} \\ \hline \hline
+   & \tt HUNK\_OVERLAY [0x3f5] & Overlay table definition for MANX\\ \hline
+32 & \tt $l$ & Size of the overlay table, it is $l+1$ long-words large. \\ \hline
+\multicolumn{3}{|l|}{Format for the MANX overlay manager, $l+1$ long-words.} \\ \hline
+32 & \tt $o_d$ & Number of nodes in the overlay, excluding the root node \\ \hline
+   & \tt for($i$ = 1;$i$ < $o_d$;i++) \{ & For all nodes, excluding the root node \\ \hline
+32 & \tt $\quad$ $o_p[i]$ & Absolute file offset of the {\tt HUNK\_HEADER} of the overlay node \\ \hline
+16 & \tt $\quad$ $o_t[i]$ & Offset of the first trampoline relative to the
+data hunk of the root node \\ \hline
+16 & \tt $\quad$ $o_s[i]$ & Offset to the symbol table relative to $o_p[0]$ \\ \hline
+   & \tt \} & \\ \hline
+   & \tt $l -= o_d \times 2$ & Count removed long-words \\ \hline
+   & \tt $s  = 0$   & Start with symbol $0$ \\ \hline
+   & \tt while($l \ge 0$) \{ & Repeat over the symbol table \\ \hline
+16 & \tt $\quad$ $o_h[s]$ & Hunk within which the symbols reside, or 0 for end of symbols for this hunk \\ \hline
+16 & \tt $\quad$ $o_c[s]$ & Symbol count for hunk $o_h[s]$ \\ \hline
+   & \tt $\quad$ $l$ -=1 & Remove one long words. \\ \hline
+   & \tt $\quad$ $s++$   & Advance to next entry. \\ \hline
+   & \tt \} & End of loop over table \\ \hline
+\end{longtable}
+\end{rkrmtabular}
+
+In memory, it is approximately described by the following pseuo-structure,
+noting that some elements are variably sized and are thus hard to represent
+in the C syntax:
+
+\begin{verbatim}
+struct MANXOv {
+    ULONG ot_NodeCount;         /* Number of overlay nodes            */
+    struct OvNode {             /* One per overlay node               */
+        ULONG ot_FilePosition;  /* Position of HUNK_HEADER            */
+        UWORD ot_TrampolineOff; /* Offset of the first trampoline     */
+        UWORD ot_SymbolOffset;  /* Relative to &ot_NodeCount+1        */
+    }     ot_Nodes[];          
+}
+struct SymTab {
+    UWORD ot_Hunk;        /* Hunk containting symbols or 0 for end    */
+    UWORD ot_Count;       /* Number of trampolines to patch           */
+} []                      /* Repeats multiple times */
+\end{verbatim}
+
+The element $o_d$ representing ${\tt ot\_NodeCount}$ defines the number
+overlay nodes that can all be loaded or unloaded individually. The element
+$o_p[i]$ providing {\tt ot\_FilePosition} is the offset relative to the
+start of the binary file at which the {\tt HUNK\_HEADER} of the
+overlay node~$i$ is found. The offset~$o_t[i]$ giving {\tt
+  ot\_TrampolineOff} is the offset of the first trampoline to a symbol
+within overlay node~$i$; the offset is relative to the second hunk of the
+root node, or more precisely, relative to {\tt
+  \textunderscore\textunderscore{}H1\textunderscore{}org}.
+\smallskip{}
+
+Finally, $o_s[i]$, or in memory {\tt ot\_SymbolOffset}, is used by the MANX
+overlay manager to find the first symbol descriptor within the second part
+of the {\tt HUNK\_OVERLAY}, i.e. a {\tt SymTab} structure. The offset is
+relative to the third long word within this hunk, or as $l$ is not part of
+the internal memory representation, relative to {\tt \&ot\_NodeCount+1}.  The
+target of this offset is a sequence of $o_h[s]$,$o_c[s]$ pairs. The first
+member of this pair, $o_h[s]$, or {\tt ot\_Hunk} in memory, is the hunk
+number containing the overlaid symbol; this clearly cannot be~$0$ as this
+would be within root node. The second member of the pair, $o_c[s]$ or
+{\tt ot\_Count} is the number of symbols within this hunk. The symbols for
+the loaded node terminate with an $o_h[s]$ entry being~0.
+\smallskip{}
+
+The {\tt HUNK\_OVERLAY} hunk does not contain the symbol offsets
+itself. Rather, symbol offsets are part of the trampoline which is included
+in the second hunk of the root node. The offset to the first trampoline of
+an overlay node relative to the start the second hunk is provided
+by~$o_t[i]$, that is, by {\tt ot\_TrampolineOff}.
+\smallskip{}
+
+Each trampoline looks as follows on disk:
+\begin{rkrmtabular}{MANX Overlay Trampoline} \label{table:trampoline_manx}%
+\begin{longtable}{|l|p{6cm}|p{6cm}|} \hline
+{\bf Size} & {\bf Code} & {\bf Syntax} \\ \hline \hline
+16 & \tt 0x6100 & 68K Opcode of {\tt bsr.w} \\ \hline
+16 & \tt $t_j$  & Branch offset to overlay manager \\ \hline
+8  & \tt $t_n$  & Overlay node number \\ \hline
+24 & \tt $t_o$  & Offset of the overlay symbol within the loaded hunk \\ \hline
+\end{longtable}
+\end{rkrmtabular}
+
+In memory, this is equivalent to the following structure:
+\begin{verbatim}
+struct MANXTrampoline {
+    UWORD mt_BSR;               /* filled with 0x6100          */
+    WORD  mt_OvMngrOffset;      /* Offset to overlay manager   */
+    UBYTE mt_OverlayNode;       /* Overlay node, counts from 0 */
+    UBYTE mt_SymbolOffset[3];   /* Big-endian 24-bit offset    */
+};
+\end{verbatim}
+
+The start of the trampoline is a word-sized relative subroutine jump to the
+overlay manager itself. As the trampoline is typically in the second hunk of
+the root node, but the code of the overlay manager is in its first hunk,
+this branch goes to a long absolute jump to the overlay manager. The element
+$t_j$, or {\tt mt\_OvMngrOffset} is the branch distance to this jump. When
+building an overlaid binary, the MANX linker resolves all references to
+overlaid symbols to a trampoline as indicated above, and when the code of
+the loaded binary calls through them, the overlay manager fetches from the
+return stack of the 68K processor the address of the trampoline.
+\smallskip{}
+
+From $t_n$, or {\tt mt\_OverlayNode} in memory, it finds the entry in the
+first part of the {\tt HUNK\_OVERLAY}, namely a triple $o_p[i]$, $o_t[i]$,
+$o_s[i]$ of file offset, trampoline offset and symbol offset, that is, a
+{\tt OvNode} structure. This overlay node index is zero-indexed, i.e. the
+first overlay node is node~0, corresponding to the first element of the
+{\tt ot\_Nodes} array. The $t_o$ offset, or {\tt mt\_SymbolOffset} in memory,
+is finally the offset of the symbol within its hunk.
+\smallskip{}
+
+When an overlay node is loaded, the overlay manager uses the symbol table
+consisting of {\tt SymTab} structures and relocates from them the trampolines to
+the symbols; that is, the opcode of the relative branch in the first word of
+the trampoline is replaced by an absolute jump\footnote{Here the MANX
+overlay manager fails to clear the instruction cache, causing failure on
+later members of the 68K family.}, opcode {\tt 0x4ef9}. The subsequent
+long is filled by the address of the symbol, computed from the start of the hunk
+$o_h[s]$ in {\tt HUNK\_OVERLAY} plus the offset $t_o$ stored in the
+trampoline. The branch offset $t_j$ is moved to the last 16 bits of the
+trampoline to enable the overlay manager to restore it back when the overlay
+node is unloaded.
+\smallskip{}
+
+Such a patched symbol then looks as follows:
+\begin{verbatim}
+struct MANXPatchedTrampoline {
+    UWORD mt_JMP;               /* filled with 0x4ef9          */
+    APTR  mt_OVSymbol;          /* absolute symbol address     */
+    WORD  mt_OvMngrOffset;      /* Offset to overlay manager   */
+};
+\end{verbatim}
+
+When unloading an overlay node, the original trampolines have to be
+restored such that a call to an overlay symbol triggers again loading the
+hunks containing the symbol from disk. For that, {\tt mt\_JMP} is again
+replaced by a {\tt bsr.w} instruction, {\tt mt\_OvMngrOffset} is moved to the
+next word, and the hunk offset is re-injected by counting the hunks within
+the singly linked list of loaded segments. Finally, {\tt mt\_SymbolOffset}
+is re-computed by subtracting the base address of the segment from the absolute
+symbol address.
 
 \subsection{HUNK\_BREAK} \label{sec:hunk_break}
 
