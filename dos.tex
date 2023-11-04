@@ -13297,6 +13297,163 @@ reports {\tt ERROR\_OBJECT\_WRONG\_TYPE}, the FFS the error code
 On success, {\tt dp\_Res1} shall be set to the length of the constructed
 path, i.e. to the length of the string in {\tt dp\_Arg3} (not including the
 terminating {\tt NUL}), and {\tt dp\_Res2} to~0.
+\smallskip{}
+
+The following example is a skeleton code implementing the above algorithm:
+\begin{verbatim}
+/*
+** Skeleton of an implementation of the readlink function
+** lock   is from dp_Arg1 and a BPTR to a filelock
+** string is from dp_Arg2 and the path containing a link
+** buffer is from dp_Arg3 and the target buffer
+** size   is from dp_Arg4 and the size of the buffer.
+*/
+LONG readlink(BPTR lock, UBYTE *string,UBYTE *buffer, ULONG size)
+{
+  struct node *node,*linknode;
+  UBYTE *src  = string;
+  LONG is_dir = FALSE;
+  LONG path_before;
+  LONG path_pos;
+  LONG res,len;
+  /* Pointer to DosList of this handler, needed
+  ** for the name of the volume.
+  */
+  extern struct DosList *volumenode;
+  
+  /*
+  ** Find the object from lock and string. This is a file
+  ** system internal function that need to be provided
+  ** by the user. 
+  ** path_before is the offset of the last component
+  ** of the path in the string that could be resolved
+  ** successfully. If a softlink is found in the
+  ** middle of the path, or some other error was found,
+  ** NULL is returned.
+  ** link_node is set to a pointer to a structure that
+  ** represents the link.
+  ** path_pos is set to the offset of the "/" behind 
+  ** the soft link if a soft link is in the middle.
+  ** If the link is the last component of the path, then
+  ** the node that represents the soft link is returned,
+  ** Otherwise, the node is returned.
+  */
+  node = locatenode(lock,string,&path_before,
+                    &linknode,&path_pos);
+  if (!node) {
+    if (IoErr() == ERROR_IS_SOFT_LINK) {
+      is_dir = TRUE;		/* remember... */
+      node   = linknode;
+    } else {
+      /* Resolution did not work for some 
+      ** other error. Return an error.
+      */
+      return -1;
+    }
+  }
+
+  /* 
+  ** Check whether the found object is a softlink
+  */
+  if (node->type != ST_SOFTLINK) {
+    res2 = ERROR_OBJECT_WRONG_TYPE;
+    return -1;
+  }
+
+  /*
+  ** Check whether the link is in the middle or the end of
+  ** the path.
+  */
+  if (is_dir) {
+    /* must deal with '/' and ':' correctly in the soft link
+    ** code below counts on these assigns! 
+    */
+    string = string + path_pos;
+    len    = strlen(string) + 1;       /* + 1 for slash */
+  } else {
+    len    = 0;	/* softlink is last part of string */
+  }
+
+  /*
+  ** Check whether there is sufficient room in the
+  ** target buffer.
+  */
+  if (node->size + 1 + path_before + len >= size) {
+    res2 = ERROR_LINE_TOO_LONG;
+    return -2;
+  }
+
+  /*
+  ** Copy the head of the link resolution path to the 
+  ** target buffer, ready to append the contents of
+  ** the link.
+  */
+  memcpy(buffer,src,path_before);
+
+  /*
+  ** copy the target of the soft link into the buffer behind
+  ** the path of the link as zero-terminated C string. 
+  ** This function also need to be provided by the 
+  ** implementation of the file system. It returns
+  ** the size of the soft link as result, or -1 on error.
+  */
+  res = readsoftlink(node,buffer + path_before,size - path_before);
+  if (res < 0)
+    return res; /* Deliver the error */
+
+  /*
+  ** If the link is absolute, i.e. contains a ':', then ignore the
+  ** start of the string. 'res' is the length of the link location.
+  */
+  src = strchr(buffer + path_before,':');
+  if (src) {
+    /* Yes, is absolute. First check whether it is ":", thus
+    ** whether it refers to this volume.
+    */
+    if (src == buffer + path_before) {
+      /* Is relative to our root, but not necessarily 
+      ** to the root of the caller, so fix up.
+      */
+      char *volname = (char *)BADDR(volumenode->dl_Name);
+      LONG len      = *volname; /* It's a BSTR */
+      /* Check whether there is enough buffer */
+      if (len + res >= size) {
+        SetIoErr(ERROR_LINE_TOO_LONG);
+        return -2;
+      } else {
+        /* Move soft link behind the volume name,
+        ** note that the softlink is ":" here and
+        ** the ":" becomes part of the volume name.
+        */
+        memmove(buffer + len ,buffer + path_before,res + 1);
+        /* Prepend the volume name */
+        memcpy(buffer,volname + 1,len);
+        res += len;
+      }
+    } else {
+      /* Here the link is absolute to a given volume
+      ** so move the soft link behind the volume name
+      */
+      memmove(buffer,buffer + path_before,res + 1);
+    }
+  }
+  
+  /* add on the rest of the path behind
+  ** the soft link if it sits in the middle
+  */
+  if (is_dir) {
+    if(!AddPart(buffer, string, size)) {
+      SetIoErr(ERROR_LINE_TOO_LONG);
+      return -2;
+    }
+  }
+
+  /*
+  ** The result is the length of the path created
+  */
+  return strlen(buffer);
+}
+\end{verbatim}
 
 \section{Packets for Adjusting Metadata}
 
