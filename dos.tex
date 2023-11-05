@@ -15345,18 +15345,19 @@ console as screen background.
 
 {\tt WINDOW} instructs the console to hijack an already open window and
 place the console within this window. This window will also be closed if the
-console closes. The address of the intuition {\tt Window} structure shall be
-provided in hexadecimal directly following the parameter, e.g. {\tt
-  WINDOW200AFC0}. An optional ``0x'' string may appear upfront the
-hexadecimal window address. This parameter replaces a legacy startup
-mechanism.
+console closes. The address of the {\tt Window} structure is provided in
+hexadecimal behind the parameter, optionally separated by spaces, e.g. {\tt
+  WINDOW~200AFC0}. An optional ``0x'' string may appear upfront the
+hexadecimal window address to indicate the base. This parameter replaces a
+legacy startup mechanism by which the console could also be placed into an
+already opened window.
 \smallskip{}
 
 {\tt SCREEN} provides a name of a public screen on which the console shall
-appear instead of the workbench. The name of this public screen shall
-directly follow the parameter, e.g. {\tt SCREENmyProgram.1}. If the screen
-name is {\tt *}, then the frontmost public screen will be used as host for
-the console.
+appear instead of the workbench. The public screen name follows, optionally
+separated by spaces, e.g. {\tt SCREEN~myProgram.1}. If the screen name is
+{\tt *}, then the frontmost public screen will be used as host for the
+console.
 \smallskip{}
 
 {\tt ALT} provides alternative window dimensions and placement to which the
@@ -15365,7 +15366,7 @@ alternative window placement provides left edge, top edge, width and height,
 similar to the main window placement, though numerical arguments are
 separated by comma (``{\tt ,}'') and not by the forwards slash. This
 alternate placement shall follow directly behind the {\tt ALT} keyword,
-e.g. {\tt ALT0,0,320,200}.
+e.g. {\tt ALT 0,0,320,200}.
 \smallskip{}
 
 {\tt ICONIFY} equips the window with an iconfication gadget. This requires
@@ -15420,9 +15421,9 @@ can be reached with the mount parameter {\tt STARTUP=1}.
 \smallskip{}
 
 {\tt UNIT} defines the unit of the device over which the connection shall be
-made if multiple units exist. The unit follows directly the keyword as
-decimal number, e.g. {\tt UNIT1}. The unit can also be configured through
-the mount list {\tt UNIT} keyword.
+made if multiple units exist. The unit follows the keyword as decimal
+number, optionally separated by spaces, e.g. {\tt UNIT 1}. The unit can
+also be configured through the mount list {\tt UNIT} keyword.
 \smallskip{}
 
 {\tt AUTO} indicates that the serial connection shall not be opened
@@ -15586,7 +15587,7 @@ console described in the previous section.
 \smallskip{}
 
 The mount parameters for {\tt CON:} and {\tt RAW:} are hard-coded into the
-kickstart ROM, though the mountlist for {\tt AUX:} is available in the {\tt
+Kickstart ROM, though the mountlist for {\tt AUX:} is available in the {\tt
   DEVS:DosDrivers} directory and can be altered there; however, users can
 create custom mount lists for additional devices with custom mount
 parameters.
@@ -15649,19 +15650,156 @@ As BPTRs are upshifted by two bits to gain a regular pointer, the otherwise
 unused bit 30 of the BPTR is used for mode selection. If this bit is~0, the
 console will be a cooked console with line buffer, and if this bit is~1, the
 console is raw.
+\smallskip{}
+
+To make the {\tt Mount} command create a {\tt DosList} corresponding to the
+latter case, the CON-Handler needs to be mounted as {\tt EHANDLER}. The
+following is an example mountlist providing a serial console on a custom
+serial hardware:
+
+\begin{verbatim}
+EHandler = CON-Handler
+Device   = duart.device
+Unit     = 0
+Baud     = 9600
+Control  = "8N1"
+\end{verbatim}
 
 \section{The Port-Handler}
 
-The {\tt Port-Handler} uses the following conventions for {\tt dol\_Startup}:
+The Port-Handler is responsible for the {\tt PAR:}, {\tt SER:} and {\tt
+  PRT:} devices and thus represents the Amiga hardware interfaces as
+AmigaDOS devices. Clearly, {\tt PAR:} interfaces to the {\tt
+  parallel.device}, {\tt PRT:} to the {\tt printer.device} and {\tt SER:} to
+the {\tt serial.device}. The difference between {\tt SER:} and {\tt AUX:} is
+that the former processes raw streams of bytes transmitted over a serial
+connection, whereas {\tt AUX:} provides line buffering and line editing
+capabilities and thus implements a console.
+
+\subsection{Port-Handler Path}
+
+Access to the Port-Handler is configurable through the path following the
+device name. The path looks as follows:
+
+\begin{verbatim}
+SER:[<options>]
+\end{verbatim}
+
+The following keywords in {\tt options} exist, where options are
+separated by a forwards slash (''{\tt /}'') from each other.
+\smallskip{}
+
+{\tt BAUD} sets the baud rate, which is only relevant for serial
+connections. It specifies the number of bits per second transmitted over a
+serial connection. If this parameter is not present, the default from the
+serial preferences is used. Optionally, this parameter may be introduced
+with the keyword {\tt BAUD} which shall be separated from the decimal baud
+rate by spaces or an equals sign, e.g. {\tt BAUD~9600}. Clearly, this
+parameter is only used by {\tt SER:}.
+\smallskip{}
+
+{\tt control} specifies additional parameters of the serial connection such
+as number of data bits, parity and number of stop bits, represented as 3
+letter string. The string follows the same convention used for the {\tt
+  AUX:} terminal. The first digit is between ``{\tt 1}'' and ``{\tt 8}'',
+specifying the data bits, the second letter the parity, which is either {\tt
+  N}, {\tt E}, {\tt O}, {\tt M} or {\tt S}, indicating no parity, even or
+odd parity, or mark or space parity. The last digit is the number of stop
+bits and is a digit between ``{\tt 0}'' and ``{\tt 2}''.
+\smallskip{}
+
+A typical control string is {\tt 8N1} indicating 8 data bits, no parity and
+1 stop bit, corresponding to the fastest possible console. Optinally, this
+parameter may be introduced with the keyword {\tt CONTROL} which shall be
+separated from the control string by spaces or an equals-sign, e.g. {\tt
+  CONTROL 8N1}.
+\smallskip{}
+
+If this parameter is not present, the default from the serial preferences is
+used. Obviously, this parameter is only used by {\tt SER:} and ignored
+otherwise.
+\medskip{}
+
+{\tt TRANSPARENT} is a boolean switch that, if present, indicates that CSI
+sequences written over this device shall not be translated to the configured
+printer, but shall rather be send directly to the printer. By default, the
+{\tt PRT:} device uses the AmigaDOS defined CSI sequences that are device
+independent. This option is only used by the {\tt PRT:} device and ignored
+otherwise.
+\smallskip{}
+
+{\tt RAW} is a boolean switch that, if present, disables translation of the
+AmigaDOS newline-character {\tt 0x0a} to {\tt 0x0a 0x0c} pairs, i.e. a line
+feed followed by carriage return. This switch only applies to the {\tt PRT:}
+device and is not used otherwise.
+\smallskip{}
+
+{\tt UNIT} takes a numeric argument and provides the device unit that will
+be opened. This makes most sense if the Port-Handler is not mounted on the
+standard exec devices, but a custom device is provided through the {\tt
+  DEVICE} keyword of a custom mountlist. The unit number is represented as
+decimal number separated from the keyword by spaces or an equals-sign,
+e.g. {\tt UNIT 1}. This option is operational regardless of the underlying
+device.
+\smallskip{}
+
+{\tt NOWAIT} is boolean switch that, if present, avoids blocking when
+reading from a serial connection. If no data is available at the serial
+port, a connection configured with {\tt NOWAIT} will report an end-of-file
+condition. Otherwise, such a stream would block until data is
+available. This option is only supported for serial connections.
+\smallskip{}
+
+Another possibility to implement non-blocking reading from the serial port
+is to use {\tt WaitForChar()}\key{WaitForChar()} which is also supported by
+the Port-Handler. It blocks until either the specified timeout is reached,
+or input data is available on the port.
+
+\subsection{Port-Handler Startup}
+
+The Port-Handler is also configurable through a mountlist, though mount
+parameters for {\tt PAR:}, {\tt SER:} and {\tt PRT:} are hard-coded within
+the Kickstart ROM. However, users may create custom mountlists and mount the
+handler under a custom name.
+\smallskip{}
+
+As for all handlers, it is customized through {\tt dol\_Startup},
+transmitted in {\tt dp\_Arg2} in the handler startup packet. The following
+values are recognized:
 
 \begin{rkrmtable}{Port Handler Startup Code} \label{table:portstartup}
 {\bf \tt dol\_Startup}   & {\bf Description}\\ \hline \hline
 0 & SER: serial output through the serial.device \\ \hline
 1 & PAR: parallel output through the parallel.device \\ \hline
 2 & PRT: printer output through the printer.device \\ \hline
-\emph{BPTR} & serial output with parameters from the FileSysStartupMsg
+BPTR & serial output with parameters from the FileSysStartupMsg
 \\ \hline
 \end{rkrmtable}
+
+The values~0 to~2 represent the standard handlers {\tt SER:}, {\tt PAR:} and
+{\tt PRT:} mounted by the kickstart. They can be recreated by a {\tt
+  STARTUP=<n>} entry in a mountlist. For these options, the standard Amiga
+device names for the serial, parallel and printer interface is used.
+\smallskip{}
+
+The last option allows to customize the target exec device to run on. In
+this case, {\tt dol\_Startup} is a BPTR to a {\tt FileSysStartupMsg}
+described in section~\ref{sec:filesysstartup}. To make the {\tt Mount}
+command create a suitable {\tt DosList} entry, {\tt EHANDLER} keyword is
+used, and a {\tt DEVICE} and {\tt UNIT} option can be provided. If the
+mountlist includes in addition a {\tt BAUD} value, that is used as default
+value for the baud rate, which can be overridden by the Port-Handler path
+described in the previous section. The {\tt CONTROL} parameter in the
+mountlist, if present, also control sthe serial settings. An example
+mountlist would look as follows:
+
+\begin{verbatim}
+EHandler = Port-Handler
+Device   = duart.device
+Unit     = 1
+Baud     = 19200
+Control  = "8N1"
+\end{verbatim}
 
 \chapter{The AmigaDOS Shell}
 % TODO
