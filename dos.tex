@@ -14312,7 +14312,7 @@ Before replying this packet, the console shall set {\tt dp\_Res1} to {\tt
 performed. Otherwise, if the mode switch is not possible, the console shall
 set {\tt dp\_Res1} to {\tt DOSFALSE} and {\tt dp\_Res2} to an error code.
 
-\subsection{Retrieving IORequest and the Window Pointer from the Console}
+\subsection{Retrieving IORequest and the Window Pointer from the Console} \label{sec:diskinfoconsole}
 
 The {\tt ACTION\_DISK\_INFO}\key{ACION\_DISK\_INFO} packet retrieves from a
 console pointers to its underlying resources.
@@ -14765,7 +14765,8 @@ have been injected into the output buffer and thus reverts any {\tt
 \begin{rkrmtable}{\tt ACTION\_DROP}
 {\bf DosPacket Element}   & {\bf Value}\\ \hline \hline
 \tt dp\_Type  & \tt ACTION\_DROP (2004) \\ \hline
-\tt dp\_Arg1  & {\tt fh\_Arg1} of a {\tt FileHandle} \\ \hline \hline
+\tt dp\_Arg1  & {\tt fh\_Arg1} of a {\tt FileHandle} \\ \hline
+\tt dp\_Arg2  & 0 \\ \hline \hline
 \tt dp\_Res1  & Boolean result code\\ \hline
 \tt dp\_Res2  & Error code\\ \hline
 \end{rkrmtable}
@@ -14782,6 +14783,9 @@ however, at the time of writing does not use it.
 {\tt dp\_Arg1} is a copy of the {\tt fh\_Arg1} element of
 a {\tt FileHandle} structure interfacing to the console.
 \smallskip{}
+
+{\tt dp\_Arg2} shall be~0. This element is reserved for future use as a
+priority and shall be zero-initialized for forewards compatibility.
 
 Upon replying this packet, {\tt dp\_Res1} shall be set to {\tt DOSTRUE} and
 {\tt dp\_Res2} to~0 on success. On error, {\tt dp\_Res1} shall be set to
@@ -15192,7 +15196,7 @@ replied. The FFS uses this packet to turn off the drive motor after the last
 read or write operation, and interactive handlers such as the console use it
 to implement {\tt ACTION\_WAIT\_CHAR}\key{ACTION\_WAIT\_CHAR}.
 
-\section{The Console-Handler} \label{sec:console}
+\section{The CON-Handler} \label{sec:console}
 
 The CON-Handler implements the console of AmigaDOS. It not only serves the
 graphical console, but also the serial console. The AUX-Handler is only a
@@ -15202,44 +15206,243 @@ the CON-Handler with a suitable startup packet. Therefore, it serves the {\tt CO
 \smallskip{}
 
 Quite similar to file systems, the CON-Handler does not implement all of its
-functionality itself. It rathre depends on services of exec devices. For the
+functionality itself. It rather depends on services of exec devices. For the
 graphical console, it creates an intuition window and initializes the {\tt
   console.device} to run within. For the serial console, i.e. {\tt AUX:}, it
 operates on top of the {\tt serial.device}, but can be made to use any other
 interface device with proper mount parameters.
+
+\subsection{CON-Handler Path for Graphical Consoles} \label{sec:conwindowpath}
+
+The path through which a stream to the CON-Handler is opened determines for
+the graphical console the size, position and features of the window the
+console appears within; for the serial console, it defines connection
+parameters such as the baud rate and the parity. The path for the graphical
+console accessed through {\tt CON:}, and for {\tt RAW:} likewise are as
+follows:
+
+\begin{verbatim}
+CON:<left>/<top>/<width>/<height>/<title>[/<options>]
+\end{verbatim}
+
+The {\tt <left>} parameter determines the left edge of the window within
+which the console shall appear; it is measured in pixels. If this parameter
+is not present or negative, intuition is instructed to pick a default. This
+is usually under the cursor position.
 \smallskip{}
 
-Independent on the device, the CON-Handler can operate in various modes that
-impact how it processes user input; the initial mode is also selected by the
-mount parameters, resp. {\tt dol\_Startup} in its {\tt DosList}, but can
-adjusted by the {\tt SetMode()}\key{SetMode()} function, see
-section~\ref{sec:setmode} and table~\ref{table:conmodes}.
+The {\tt <top>} parameter is the top edge of the window, also measured in
+pixels. If this parameter is not present or negative, intuition is
+instructed to pick a default.
+\smallskip{}
 
-\begin{rkrmtable}{CON-Handler Startup Code} \label{table:constartup}
-{\bf \tt dol\_Startup}   & {\bf Description}\\ \hline \hline
-< 0 & RAW: raw mode, within a window pointed to by {\tt dp\_Arg1} \\ \hline
-0   & CON: cooked mode, create a new window \\ \hline
-1   & RAW: raw mode, create a new window \\ \hline
-2   & CON: medium mode, create a new window \\ \hline
-3   & RAW: reserved for future extensions \\ \hline
-BPTR with bit 30 cleared & cooked mode open on a device specified by a
-FileSysStartupMsg \\ \hline
-BPTR with bit 30 set    & raw mode open on a device specified by a
-FileSysStartupMsg \\ \hline
-\end{rkrmtable}
+The {\tt <width>} parameter is the width of the window, including all window
+decorations. If this is not present or negative, the handler instructs
+intuition to pick a default. This is typically the width of the screen. If
+no parameters are present at all, i.e. the path is just {\tt CON:}, the
+width of the window is set to 640 pixels for legacy reasons.
+\smallskip{}
 
-The value of~0 for {\tt dol\_Startup} corresponds to a regular {\tt CON:}
-window and the cooked mode. In this mode, the console echoes every keystroke
-on the window, and provides line editing functionalities such as cursor
-movements. Only when the user presses {\tt RETURN}, an entire line of data
-enters the output buffer, and there becomes available for an {\tt
-  ACTION\_READ}. One particular difference between the V47 console and
-previous versions its predecessors is that in this mode the console no
-longer offers a history. Rather, the history functions have been moved to the
-Shell which uses the medium mode. This has the advantage that the shell has
-full control over the history, can insert elements into it or show its
-contents, regardless whether the console is a graphical console or running
-on a serial line.
+The {\tt <height>} parameter is the height of the window, including all
+window decorations. If this parameter is not present, the window height is
+set to 100 pixels for legacy reasons. If this parameter is negative, the
+window height will be the height of the screen.
+\smallskip{}
+
+The {\tt <title>} parameter is the string that is put into the drag bar of
+the console window to create. To insert the forward slash (``{\tt /}'') into
+the string, it is escaped with a backslash, i.e. ``{\tt \textbackslash{}/}''
+creates a single forwards slash that does not act as a path
+separator\footnote{Given the overall syntax of AmigaDOS, the asterisk {\tt
+  *} would have been a more logical choice.}, the backslash is escaped by
+itself, i.e. ``{\tt \textbackslash{}\textbackslash{}}'' creates a single
+backslash in the title.
+\medskip{}
+
+All following path components configure options for the graphical
+terminal; multiple of these parameters may be combined, separated by a
+forwards slash (``{\tt /}'') from each other:
+\smallskip{}
+
+{\tt CLOSE} adds a close gadget to the window. Pressing on it creates an
+end-of-file indication on the next attempt to read data from the console,
+similar to the key combination Ctrl+\textbackslash{}.
+\smallskip{}
+
+{\tt NOCLOSE} is the negative form of the above option and removes a
+potentially added close gadget from the window.
+\smallskip{}
+
+{\tt AUTO} delays opening the window to the point where an attempt is made
+to read data from the console or write data into the console.  Up to that
+point the console remains closed. If neither read requests nor write
+requests are pending, the close gadget will also close the window without
+queuing an end-of-file; the window will pop-open again as soon as input or
+output requests appear. Unfortunately, an {\tt ACTION\_DISK\_INFO} will
+lock the window open, see section~\ref{sec:diskinfoconsole} for alternatives
+to this packet or how to regain the {\tt AUTO} feature.
+\smallskip{}
+
+{\tt WAIT} delays closing the window after every file handle to the console
+has been closed. With this flag, the window stays open until the close
+gadget has been pressed, even if no client is connected to the terminal
+anymore to receive input or perform output.
+\smallskip{}
+
+{\tt SMART} enforces smart refresh of the window. If this is enabled, more
+RAM is required, but it is not necessary to re-render the contents of the
+console window if it is made visible behind another window.  In most cases,
+this makes little difference and only increases the RAM footprint.
+\smallskip{}
+
+{\tt SIMPLE} enforces simple refresh of the window. If hidden window
+contents are made visible again they will be reprinted. This does usually
+not cost a lot of time, saves RAM and is also the default.
+\smallskip{}
+
+{\tt INACTIVE} prevents that the window is receiving automatically the input
+focus when it is opened. The user has to click into it to type in the
+console.
+\smallskip{}
+
+{\tt BACKDROP} instructs intuition to place the window behind all other
+windows on a screen. This works best in conjuction with {\tt NOBORDER}, an
+empty window title, the {\tt NOSIZE}, {\tt NODRAG} and {\tt NODEPTH} option
+and a console redirected to a public screen. If the window is made as large
+as the screen, the result will create a full-screen console.
+\smallskip{}
+
+{\tt NOBORDER} removes the window decorations; if a title is present, the
+drag bar will still appear. Thus, this option is ideally combined with an
+empty title string.
+\smallskip{}
+
+{\tt NOSIZE} removes the size gadget of the console on the top right edge of
+the window and thus creates a fixed-size window.
+\smallskip{}
+
+{\tt NODRAG} removes the dragbar at the top of the window and makes the
+window non-movable. A potential application is to create a non-movable
+console as screen background.
+\smallskip{}
+
+{\tt WINDOW} instructs the console to hijack an already open window and
+place the console within this window. This window will also be closed if the
+console closes. The address of the intuition {\tt Window} structure shall be
+provided in hexadecimal directly following the parameter, e.g. {\tt
+  WINDOW200AFC0}. An optional ``0x'' string may appear upfront the
+hexadecimal window address. This parameter replaces a legacy startup
+mechanism.
+\smallskip{}
+
+{\tt SCREEN} provides a name of a public screen on which the console shall
+appear instead of the workbench. The name of this public screen shall
+directly follow the parameter, e.g. {\tt SCREENmyProgram.1}. If the screen
+name is {\tt *}, then the frontmost public screen will be used as host for
+the console.
+\smallskip{}
+
+{\tt ALT} provides alternative window dimensions and placement to which the
+window can be toggled by the top-left zoom gadget of the window. The
+alternative window placement provides left edge, top edge, width and height,
+similar to the main window placement, though numerical arguments are
+separated by comma (``{\tt ,}'') and not by the forwards slash. This
+alternate placement shall follow directly behind the {\tt ALT} keyword,
+e.g. {\tt ALT0,0,320,200}.
+\smallskip{}
+
+{\tt ICONIFY} equips the window with an iconfication gadget. This requires
+the {\tt ConCip} program running in order to have an icon available for the
+console. If the iconification gadget is pressed, this icon will appear on
+the workbench, and the window will disappear. The window will be forced open
+when a incoming read or write request requires a window to read from or
+write data into. Similar to the {\tt AUTO} option, windows will loose the
+ability to become iconified if a program requests the window pointer through
+{\tt ACTION\_DISK\_INFO}, see again section~\ref{sec:diskinfoconsole} for
+details.
+
+\subsection{CON-Handler Path for Serial Consoles}
+
+If the console is a serial console, e.g. mounted as {\tt AUX:} handler,
+another set of parameters becomes available that configures the serial
+connection; if the console is run on any other than the {\tt serial.device}
+through mount parameters, this device shall support the
+{\tt SDCMD\_SETPARAMS} command through which these path parameters are
+installed.
+
+\begin{verbatim}
+AUX:<baud>/<control>[/<options>]
+\end{verbatim}
+
+{\tt baud} defines the baud rate of the serial console, e.g. {\tt 9600}. If
+this parameter is not provided, it is taken from the {\tt BAUD} mount
+option, and if that is not provided, the settings come from the serial
+preferences.
+\smallskip{}
+
+{\tt control} defines the number of data bits, the parity and the number of
+stop bits, all concatenated into a string of 3 characters. The number of
+data bits is a digit between ``{\tt 1}'' and ``{\tt 8}'' and does not
+include the parity bit. The parity is either ``{\tt N}'' for no parity,
+``{\tt E}'' for even and ``{\tt O}'' for odd parity, or ``{\tt M}'' for mark
+and ``{\tt S}'' for space parity. The number of stop bits is either the
+digit ``{\tt 0}'', ``{\tt 1}'' or ``{\tt 2}''. A rather typical setting is
+{\tt 8N1}, i.e. 8 data bits, no parity, one stop bit. This is also the
+configuration within which the performance of the {\tt serial.device} is
+optimal. If this parameter is not present, it is taken (with identical
+encoding) from the {\tt CONTROL} parameter of the mount list, and if it is
+not present there, from the serial preferences editor.
+\medskip{}
+
+As for the graphical console, several optional parameters follow:
+\smallskip{}
+
+{\tt RAW} forces the console into the (non-cooked) raw mode within which
+input characters are not echoed and no line buffering takes place. The same
+can be reached with the mount parameter {\tt STARTUP=1}.
+\smallskip{}
+
+{\tt UNIT} defines the unit of the device over which the connection shall be
+made if multiple units exist. The unit follows directly the keyword as
+decimal number, e.g. {\tt UNIT1}. The unit can also be configured through
+the mount list {\tt UNIT} keyword.
+\smallskip{}
+
+{\tt AUTO} indicates that the serial connection shall not be opened
+immediately, but only after the first attempt is made to write data through
+it or to read data from it. This works similar to the {\tt AUTO} keyword for
+the graphical console.
+\smallskip{}
+
+{\tt WAIT} indicates that the serial connection stays open even after every
+file handle to the console was closed. To shut down the serial connection,
+an ASCII {\tt FS} character = Hex {\tt 0x1c} shall be send by the user. This
+character is created on the Amiga keyboard with Ctrl+\textbackslash{}. This
+also mirrors the {\tt WAIT} keyword of the graphical console.
+
+\subsection{CON-Handler Line Buffer Modes}
+
+In addition to the window or serial parameters communicated to the path, the
+console is also configured through the {\tt SetMode()}\key{SetMode()}
+function, see section~\ref{sec:setmode} and table~\ref{table:conmodes}. This
+mode sets the buffer mode of the console, regardless of the device the
+console runs on. In particular, {\tt SetMode()}\key{SetMode()} allows to
+convert a {\tt CON:} window into a {\tt RAW:} window, create an equivalent
+of a {\tt RAW:} handler from an {\tt AUX:} connection.
+\smallskip{}
+
+The buffer mode~0 corresponds to a regular {\tt CON:} window and also to the
+{\tt AUX:} console. In this so called \emph{cooked mode}, the console echoes
+every keystroke on the window, and provides line editing functionalities
+such as cursor movements. Only when the user presses {\tt RETURN}, an entire
+line of data enters the output buffer, and there becomes available for an
+{\tt ACTION\_READ}.
+\smallskip{}
+
+One particular difference between the V47 console and previous versions its
+predecessors is that the console no longer offers a history. Rather, the
+history functions have been moved to the Shell using the medium mode
+corresponding to buffer mode~2 described below.
 \smallskip{}
 
 In the cooked mode, and also in the medium mode, the CON-Handler interprets
@@ -15292,35 +15495,34 @@ contents can be reinserted into the console with Ctrl+y. It operates
 independently of the clipboard and is local to each console window.
 \medskip{}
 
-The value of~1 for {\tt dol\_Startup} corresponds to a {\tt RAW:} window and
-the raw mode. In this mode, every keystroke becomes available to
-client programs as it enters the output buffer immediately. Cursor movements
-thus become available as CSI sequences. In this mode, the console does not
-echo user input. The CSI sequences are those defined by the {\tt
-  console.device}, resp. the current keymap of the device.
-\smallskip{}
+The buffer mode~1 corresponds to a {\tt RAW:} window and is denoted the
+\emph{raw mode}. In this mode, every keystroke becomes available to client
+programs as it enters the output buffer immediately. Cursor movements thus
+become available as CSI sequences. In this mode, the console does not echo
+user input. The CSI sequences are those defined by the {\tt console.device},
+resp. the current keymap of the device.
+\medskip{}
 
-The value of~2 for {\tt dol\_Startup} is not available under a device name,
-even though one could in principle create a suitable mount list for it. The
-mode is reserved for the shell and forewards TAB-Expansion and history
-functions to the shell. While the console again provides line editing
-features and echoes most keys on the screen, some keyboard sequences create
-immediate output through a ``TAB Report'' CSI sequence that enters the
-output buffer immediately. These sequences trigger functions of the shell,
-such as expanding a pattern or working through the command history. A TAB
-Report sequence looks as follows:
+The buffer mode~2 is not available under a device name, even though one
+could in principle create a suitable mount list for it. The mode is reserved
+for the shell and forewards TAB-Expansion and history functions to the
+shell. While the console again provides line editing features and echoes
+most keys on the screen, some keyboard sequences create immediate output
+through a ``TAB Report'' CSI sequence that enters the output buffer
+immediately. These sequences are interpreted by the Shell and trigger there
+corresponding functions, such as expanding a pattern or working through the
+command history. A TAB Report sequence looks as follows:
 
 \begin{verbatim}
 CSI <m>;<s>;<c>U <line>
 \end{verbatim}
 
-Here {CSI} is the ANSI ``control sequence introducer'', which has the byte
-value {\tt 0x9b}. The {\tt <m>} value is a decimal number that identifies
-the keystroke and also the function the shell is requested to
-implement. Such functions browse in the history or expand a file name
-pattern. The shell, upon receiving such a request, performs the requested
-function and re-inserts the result back into the console with an {\tt
-  ACTION\_FORCE} packet, see section~\ref{sec:actionforce}.
+Here {\tt CSI} is the ANSI ``control sequence introducer'', which has the
+byte value {\tt 0x9b}. The {\tt <m>} value is a decimal number that
+identifies the keystroke and also the function the Shell is requested to
+perform. Such functions browse in the history or expand a file name
+pattern. The Shell re-inserts the result of such a function back into the
+console with an {\tt ACTION\_FORCE} packet, see section~\ref{sec:actionforce}.
 \smallskip{}
 
 The parameters {\tt <s>} and {\tt <c>} provide the length of the current
@@ -15358,8 +15560,47 @@ the former only uses the line input buffer up to the cursor position as
 search pattern and ignores everything past it.
 \medskip{}
 
-The {\tt dol\_Startup} value~$3$ is currently reserved and shall not be
-used.
+\subsection{CON-Handler Startup Parameters}
+
+In addition to the window or serial parameters communicated to the path, the
+console is also configurd through the handler startup mechanism. It provides
+defaults for the serial console, but also define the line buffer mode of the
+console described in the previous section.
+\smallskip{}
+
+The mount parameters for {\tt CON:} and {\tt RAW:} are hard-coded into the
+kickstart ROM, though the mountlist for {\tt AUX:} is available in the {\tt
+  DEVS:DosDrivers} directory and can be altered there; however, users can
+create custom mount lists for additional devices with custom mount
+parameters.
+\smallskip{}
+
+The handler startup mechanism is described in
+section~\ref{sec:handlerstartup}, and in particular, {\tt dp\_Arg2} of the
+startup packet is a copy of the {\tt dol\_Startup} entry of the {\tt
+  DosList} created from the mount list; details on this mechanism are
+described in section~\ref{sec:filesysstartup}.
+\smallskip{}
+
+The following table specifies the values of {\tt dol\_Startup} the
+CON-Handler recognizes:
+
+\begin{rkrmtable}{CON-Handler Startup Code} \label{table:constartup}
+{\bf \tt dol\_Startup}   & {\bf Description}\\ \hline \hline
+< 0 & RAW: raw mode, within a window pointed to by {\tt dp\_Arg1} \\ \hline
+0   & CON: cooked mode, create a new window \\ \hline
+1   & RAW: raw mode, create a new window \\ \hline
+2   & CON: medium mode, create a new window \\ \hline
+3   & RAW: reserved for future extensions \\ \hline
+BPTR with bit 30 cleared & cooked mode open on a device specified by a
+FileSysStartupMsg \\ \hline
+BPTR with bit 30 set    & raw mode open on a device specified by a
+FileSysStartupMsg \\ \hline
+\end{rkrmtable}
+
+The values~0 to~3 configure the line buffer mode and are correspond to the
+buffer mode selected through~{\tt SetMode()}\key{SetMode()}. The buffer
+mode~3 is currently not used and reserved for future extensions.
 \smallskip{}
 
 The case of a negative {\tt dol\_Startup} value is a legacy startup
@@ -15370,19 +15611,19 @@ structure; the CON-Handler then creates a graphical console within this
 window. It is quite hard to make practical use of this startup mechanism and
 thus it is discouraged, but~\cite{guru} provides example code how to trigger
 it. A better mechanism to redirect a console to a particular window is the
-{\tt WINDOW} argument of the command path which is described in the User
-Manual~\cite{AmigaUM}.
+{\tt WINDOW} argument of the command path which is described in
+section~\ref{sec:conwindowpath}.
 \smallskip{}
 
 In all other cases, {\tt dol\_Startup} is a BPTR to a {\tt FileSysStartupMsg} described
 in more detail in section~\ref{sec:filesysstartup}. The {\tt fssm\_Device}
-and {\tt fssm\_Unit} elements of this structure then describe a device and
+and {\tt fssm\_Unit} elements of this structure provide a device and
 unit the console shall run on. The {\tt AUX:} handler uses this mechanism to
 create a {\tt FileSysStartupMsg} to the CON-Handler which points to the {\tt
   serial.device} unit~$0$, but also accepts custom mount parameters to mount
 it on other devices through the {\tt EHandler} mount parameter. The
 {\tt Device} parameter of the mount list is then extracted, and forwarded to
-the CON-Handler through this mechanism. Thus, a console can be generated on
+the CON-Handler through a startup packet. Thus, a console can be generated on
 either type of device provided it supports {\tt CMD\_WRITE} to write data out
 and {\tt CMD\_READ} to receive keystrokes.
 \smallskip{}
