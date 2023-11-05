@@ -15610,9 +15610,9 @@ CON-Handler recognizes:
 1   & RAW: raw mode, create a new window \\ \hline
 2   & CON: medium mode, create a new window \\ \hline
 3   & RAW: reserved for future extensions \\ \hline
-BPTR with bit 30 cleared & cooked mode open on a device specified by a
+BPTR with bit 30 cleared & raw mode open on a device specified by a
 FileSysStartupMsg \\ \hline
-BPTR with bit 30 set    & raw mode open on a device specified by a
+BPTR with bit 30 set    & cooked mode open on a device specified by a
 FileSysStartupMsg \\ \hline
 \end{rkrmtable}
 
@@ -15647,8 +15647,8 @@ and {\tt CMD\_READ} to receive keystrokes.
 \smallskip{}
 
 As BPTRs are upshifted by two bits to gain a regular pointer, the otherwise
-unused bit 30 of the BPTR is used for mode selection. If this bit is~0, the
-console will be a cooked console with line buffer, and if this bit is~1, the
+unused bit 30 of the BPTR is used for mode selection. If this bit is~1, the
+console will be a cooked console with line buffer, and if this bit is~0, the
 console is raw.
 \smallskip{}
 
@@ -15664,6 +15664,13 @@ Unit     = 0
 Baud     = 9600
 Control  = "8N1"
 \end{verbatim}
+
+The very same mountlist can be used with the AUX-Handler; if it is mounted
+as an extended handler, it will just take its mount parameters and forwards
+them to the CON-Handler. If mounted with the (regular) {\tt HANDLER} keyword
+in the mountlist, it will create a {\tt FileSysStartupMsg} corresponding to
+the {\tt serial.device} and provide this to the CON-Handler. The AUX-Handler
+is therefore rather minimal.
 
 \section{The Port-Handler}
 
@@ -15800,6 +15807,10 @@ Unit     = 1
 Baud     = 19200
 Control  = "8N1"
 \end{verbatim}
+
+\section{The Queue-Handler}
+
+\section{The Fast File System}
 
 \chapter{The AmigaDOS Shell}
 % TODO
