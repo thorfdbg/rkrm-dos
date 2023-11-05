@@ -3677,10 +3677,10 @@ This structure looks as follows:
 \mkey{ExAllControl}
 \begin{verbatim}
 struct ExAllControl {
-        ULONG   eac_Entries;     /* number of entries returned in buffer      */
-        ULONG   eac_LastKey;     /* Don't touch inbetween linked ExAll calls! */
-        UBYTE  *eac_MatchString; /* wildcard string for pattern match or NULL */
-        struct Hook *eac_MatchFunc; /* optional private wildcard function     */
+  ULONG   eac_Entries;     /* number of entries returned in buffer      */
+  ULONG   eac_LastKey;     /* Don't touch inbetween linked ExAll calls! */
+  UBYTE  *eac_MatchString; /* wildcard string for pattern match or NULL */
+  struct Hook *eac_MatchFunc; /* optional private wildcard function     */
 };
 \end{verbatim}
 
@@ -4289,15 +4289,9 @@ counter becomes zero.
 \emph{Soft-Links} work differently and can also be established between
 two different \emph{file systems}, or between two different
 volumes. Here, the \emph{soft-link} is a type of its own that contains
-the path of the referenced object. If such a \emph{soft-link} is
-accessed, an error code is reported by the \emph{file-system} and it
-is then up to a higher layer such as the \emph{dos.library} or an
-application program to read the link destination, and use it to create
-a path from the original path and the link destination. The access is
-then (hopefully) retried under the updated path. As this object may
-also be a \emph{soft-link}, this process can continue; in worst case,
-indefinitely if one link refers to another in a circular way. To avoid
-this situation, the \emph{dos.library} follows at most 15 links.
+the path of the referenced object. Unlike hard-links, soft-links are
+resolved through an interaction of the file-system and the
+\emph{dos.library}.
 \smallskip{}
 
 The \emph{dos.library} supports \emph{Soft-Links} through the
@@ -4316,31 +4310,54 @@ functions listed in Table~\ref{table:softenabled}:
 {\tt SetOwner()} & Set User and Group ID\\ \hline
 \end{rkrmtable}
 
-All of the above functions take a path of its first argument. If the
-path consists of multiple components, i.e. identifies an object in a
-nested directory, and one of the intermediate components are, in
-fact, \emph{soft-links}, the \emph{dos.library} will automatically
-resolve such an intermediate link and construct internally the true
-path to the link destination. Whether a soft-link at the last
-component is resolved is typically \emph{file system} and function
-dependent. For example, {\tt Open()} will always resolve
-\emph{soft-links}, but {\tt Lock()} or {\tt SetProtection()} may not
-and may instead affect the link, not the target object. {\tt
-  DeleteFile()} will never resolve a link at the final component of
-the path, and will therefore delete the link, not the object linked
-to.
+All of the above functions take a path of its first argument. If the path
+consists of multiple components, i.e. identifies an object in a nested
+directory, and one of the intermediate components are \emph{soft-links}, the
+\emph{dos.library} will automatically resolve such an intermediate link and
+construct internally a resolved path to the link destination. Whether a
+soft-link at the last component is resolved is typically \emph{file system}
+and function dependent. For example, {\tt Open()} will always resolve
+\emph{soft-links}, but {\tt Lock()} or {\tt SetProtection()} may not and may
+instead affect the link, not the target object. {\tt DeleteFile()} will
+never resolve a link at the final component of the path, and will therefore
+delete the link, not the object linked to.
 \smallskip{}
 
 Note that {\tt Rename()}\key{Rename()} is currently not on the list
-supporting softlinks as part of the path to the object to be renamed, or as
+supporting soft-links as part of the path to the object to be renamed, or as
 part of the target path.
 \smallskip{}
 
-If the target of a \emph{Soft-Link} is deleted (and not the link
+If the target of a \emph{soft-link} is deleted (and not the link
 itself), a link pointing to it becomes invalid, even though remains in the
 \emph{file system}. Any attempt to resolve the link then, obviously,
 fails. AmigaDOS does not attempt to identify such invalid links. The
 same cannot happen for \emph{hard-links}.
+\smallskip{}
+
+Soft-link resolution works as follows: Functions of the \emph{dos.library}
+create a packet of a type that corresponds to the called function; these
+packets are specified in chapter~\ref{sec:handlers}. If the handler
+addressed by the packet determines that the path provided by the user
+contains a soft-link, it will respond with failure and the error code
+{\tt ERROR\_IS\_SOFT\_LINK}.
+\smallskip{}
+
+The \emph{dos.library} then requests the handler to resolve the softlink via
+the \emph{ReadLink()}\key{ReadLink()} function which sends a packet of type
+{\tt ACTION\_READ\_LINK} back to the handler. The handler then computes from
+the original path and the target of the soft-link an updated path and
+provides it back to the \emph{dos.library}, which then attempts again to
+perform the requested function. Details on how a file system merges a path
+and a softlink is provided in section~\ref{sec:actionreadlink}. The
+additional round-trip is unfortunately necessary as the handler the
+soft-link points to may be a different handler than the one the soft-link is
+stored on.
+\smallskip{}
+
+This process continues until either the requested action could be performed,
+or a maximum number of attempts failed. Currently, the \emph{dos.library}
+will perform at most~15 tries to resolve a soft-link until it finally fails.
 \medskip{}
 
 Finally, the \emph{RAM-Handler} supports a special type of
@@ -11182,7 +11199,7 @@ contain short service functions. For absolute values, larger values are
 required, e.g. for the base address of the custom chips, and thus split
 into $a_s$, $a_o$ and $d_o$.
 
-\chapter{Handlers, Devices and File Systems}
+\chapter{Handlers, Devices and File Systems} \label{sec:handlers}
 
 Handlers are AmigaDOS processes that provide all the services to implement
 many functions of the \emph{dos.library}. Operations on files, such as
@@ -13177,7 +13194,7 @@ Upon replying the packet, {\tt dp\_Res1} shall be set to {\tt DOSTRUE} and
 {\tt dp\_Res2} to~0 on success. On failure, {\tt dp\_Res2} shall be set to
 {\tt DOSFALSE} and {\tt dp\_Res1} to an error code.
 
-\subsection{Resolving a Soft Link}
+\subsection{Resolving a Soft Link} \label{sec:actionreadlink}
 
 The {\tt ACTION\_READ\_LINK}\mkey{ACTION\_READ\_LINK} packet constructs from
 a path containing a soft link an updated path by inserting the target of the
