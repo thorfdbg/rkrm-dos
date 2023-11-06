@@ -15810,6 +15810,102 @@ Control  = "8N1"
 
 \section{The Queue-Handler}
 
+The Queue-Handler provides inter-process communication on the basis of
+AmigaDOS file handles. It is used by the Shell to implement pipes; they
+collect the output of one command and provide it as input to another,
+without requiring to store the entire output. The reading end of a pipe
+blocks as long as no data becomes available at the writing end, and the
+writing end blocks if the reading end is not able to consume data fast
+enough. If the reading end closes the pipe, the Queue-Handler attempts to
+abort the writing end.
+\smallskip{}
+
+Even though the Queue-Handler is disk-based, it is already mounted by the
+Kickstart-ROM as {\tt PIPE:}, though additional instances under other device
+names can be mounted through the user.
+
+\subsection{Queue-Handler Path}
+
+Pipes are created and identified by a unique name; reading and writing ends
+of the same name are connected together. The name itself does not matter as
+long as it uniquely identifies the pipe; the Shell constructs a pipe name
+from the process indicator and a second unique number that is incremented
+for each pipe used. The packet {\tt ACTION\_FINDINPUT} opens the reading
+end, and {\tt ACTION\_FINDOUTPUT} the writing end. The third open mode, {\tt
+  ACTION\_FINDUPDATE} is not supported.
+\smallskip{}
+
+The empty name establishes a special case. It identifies a pipe that is
+already open as standard input or standard output of a process. In case a
+pipe is openend without a name, the Queue-Handler checks whether the
+standard input or standard output of the client process is already open to a
+pipe, and if so, this end is reused. This allows constructions such as
+
+\begin{verbatim}
+list | type PIPE: hex
+\end{verbatim}
+
+where the reading end of the pipe is explicitly addressed by an empty pipe
+name as it is already established by the Shell as standard input of the {\tt
+  type} command. It is necessary here because the command line syntax of
+{\tt type} does not include provisions to read from its input stream.
+\smallskip{}
+
+The pipe path may follow by options configuring the pipe, thus the complete
+path specification is as follows:
+
+\begin{verbatim}
+PIPE:name[/quantumsize[/buffercount]]
+\end{verbatim}
+
+The {\tt quantumsize} is the size of a block the Queue-Handler uses to
+buffer intermediate data. Written data is is queued up until a buffer is
+full or the writing end is closed, and the full block is then made available
+to the reading end. This minimizes the communication overhead as the reading
+process does not need to wake up for every single byte. The default quantum
+size is 1024 bytes.
+\smallskip{}
+
+The {\tt buffercount} configures the number of buffers the Queue-Handler
+makes available to the writing end. If all buffers are full without being
+retrieved by the reading end, the writing end blocks. This avoids that a
+fast writing process floods the memory of the system. The special value of~0
+indicates that system memory may be filled up to a safety margin of 64K. The
+default buffer count is~8, i.e. at most 8K of data can be waiting in a pipe.
+
+\subsection{Queue-Handler Startup}
+
+The Queue-Handler can also be configured through its startup packet. For
+this, {\tt dol\_Startup} in its {\tt DosList} entry shall be a BPTR to a
+{\tt FileSysStartupMsg} as specified in section~\ref{sec:filesysstartup}.
+The device and unit found there are irrelevant, though the environment
+vector in {\tt fssm\_Environ} discussed in section~\ref{sec:envec} contains
+some relevant entries.
+\smallskip{}
+
+{\tt de\_SizeBlock} set the size of the Quantum, and thus corresponds to the
+default of the first optional argument in the path.
+\smallskip{}
+
+{\tt de\_NumBuffers} sets the number of such buffers for each pipe and
+corresponds to the default of the second optional argument of the path.
+\smallskip{}
+
+The Kickstart ROM does not provide a startup value and thus mounts the Queue
+handler with its defaults parameters. However, within a custom mountlist,
+they can be provided as follows:
+
+\begin{verbatim}
+EHandler        = Queue-Handler
+BlockSize       = 1024
+Buffers         = 8
+\end{verbatim}
+
+The {\tt BlockSize} keyword sets the quantum size, and the {\tt Buffers}
+keyword the number of quantum buffers.
+
+\section{The RAM-Handler}
+
 \section{The Fast File System}
 
 \chapter{The AmigaDOS Shell}
