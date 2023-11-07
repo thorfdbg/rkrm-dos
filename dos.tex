@@ -5209,7 +5209,7 @@ struct AssignList {
 \emph{multi-assign} and {\tt al\_Lock} is the lock itself. This
 structure is also defined in {\tt dos/dosextens.h}.
 
-\section{The Device List and the Mount List}
+\section{The Device List and the Mount List} \label{sec:mountlist}
 
 Entries of the type {\tt DLT\_DEVICE} can be created through a {\tt
   Mountlist} and the {\tt Mount} command. Other sources of these entries are
@@ -11827,7 +11827,7 @@ order to avoid a deadlock, the packets pending in the input queue still need
 to be replied, for example using the default return codes from
 table~\ref{table:unimp}.
 
-\section{Packets for File Interactions}
+\section{Packets for File Interactions} \label{sec:fileactions}
 
 The packet types listed in this section are used to implement file-specific
 functions, such as those listed in chapter~\ref{sec:file}. The arguments of
@@ -14221,7 +14221,7 @@ indicator. On success, it shall be set to {\tt DOSTRUE} and {\tt dp\_Res2} shall
 be set to~0. On failure, {\tt dp\_Res1} shall be set to {\tt DOSFALSE} and
 {\tt dp\_Res2} to an error code.
 
-\section{Packets for Interactive Handlers}
+\section{Packets for Interactive Handlers} \label{sec:packetsinteractive}
 
 The packet types documented in this section are specific for handlers that
 interact with the environment of the computer system. Examples for
@@ -15906,7 +15906,98 @@ keyword the number of quantum buffers.
 
 \section{The RAM-Handler}
 
+The RAM-Handler is a ROM-based file system that places its data in available
+RAM of the system. It implements almost all of the file system packets
+listed in sections~\ref{sec:fileactions} and following, with the exception
+of record locking. The RAM-Handler provides one extended feature, namely
+external links, also explaned in section~\ref{sec:links}. Such a link points
+to a target outside of the RAM disk; while such objects are initially empty,
+their contents will be made accessible by copying the objects within the
+link target to the RAM disk.
+\smallskip{}
+
+This feature is used within AmigaDOS to realize the {\tt ENV:} assign which
+contains the system preferences. This allows to save RAM by only
+keeping those files in {\tt RAM:} that are actually accessed.
+\smallskip{}
+
+The RAM handler does not interpret any arguments in its startup packet and
+cannot be configured through it.
+
 \section{The Fast File System}
+
+The Fast File System (FFS) is the standard Amiga file system and as such
+included in the ROM. However, the bootstrap code of Amiga hostadapters are
+typically able to load an updated version of this (and other) file systems
+from the \emph{rigid disk block} of the boot disk and make it available to
+the system. The \emph{System-Startup} module will make such updated version
+then also available for all other devices.
+\smallskip{}
+
+The same code serves multiple flavours of the file system that differ in the
+structure and organization of on disk. Table~\ref{table:ffsflavours} in
+section~\ref{sec:envec} provides an overview on the available flavours.
+\smallskip{}
+
+As standard file system, the FFS supports all file-system relevant packets
+listed from section~\ref{sec:fileactions} onwards with the exclusion of
+packets specific to interactive handlers listed in
+section~\ref{sec:packetsinteractive}, and the {\tt ACTION\_SET\_OWNER}
+packet which remains exclusive to multi-user network file systems. The FFS does
+support record locking, soft- and hard links and notification
+requests. External links remain currently exclusive to the RAM-Handler and
+are neither supported. Latest versions of the FFS can also be shut down by
+{\tt ACTION\_DIE} and thus be unmounted.
+
+\subsection{Configuring the FFS}
+
+The FFS is configured through multiple sources. First of all, the {\tt
+  DosList}, the {\tt FileSysStartupMsg} pointed to by this structure, and
+the environment vector in the latter. Section~\ref{sec:mountlist} provides a
+list of the configurable options and the corresponding entries in the
+mountlist.
+\smallskip{}
+
+In some situations, however, the FFS will override the parameters found in
+the above sources, and therefore parameters from the mountlist. In case the
+device name is either ``{\tt trackdisk.device}'' or ``{\tt
+  carddisk.device}'', the FFS will instead request the disk geometry from
+the underlying exec device by a {\tt TD\_GETGEOMETRY} when validating an
+available medium. The same logic can also be enabled for all other devices
+by the mountlist parameter {\tt SUPERFLOPPY}, which corresponds to the
+{ENVF\_SUPERFLOPPY} flag in the {\tt de\_Interleave} element of the
+environment vector. This flag, along with the environment vector is defined
+in the file {\tt dos/filehandler.h} and also introduced in
+section~\ref{sec:envec}.
+\smallskip{}
+
+Upon detecting device parameters, data from the device provided {\tt
+  DriveGeometry} structure documented in {\tt devices/trackdisk.h} are
+copied into the environment vector of the file system. The following
+algorithm is used to adjust the data in the environment vector:
+
+\begin{verbatim}
+void AdjustEnv(struct DosEnvec *env, 
+               const struct DriveGeometry *dg) {
+     env->de_SizeBlock      = dg->SectorSize >> 2;
+     env->de_HighCyl        = dg->dg_Cylinders - 1;
+     env->de_Surfaces       = dg->dg_Heads;
+     env->de_BlocksPerTrack = dg->dg_TrackSectors;
+}
+\end{verbatim}
+
+All other entries of the environment vector remain untouched. The
+right-shift for the sector size is necessary because the environment vector
+measures it in long-words rather than bytes as provided by the drive
+geometry, and {\tt dg\_Cylinders} is a count, whereas {\tt de\_HighCyl} is
+an inclusive upper bound. In particular, {\tt dg\_BufMemType} is not copied
+over, and therefore {\tt de\_BufMemType} shall be setup though the mountlist
+or the rigid disk block.
+\smallskip{}
+
+The number of blocks kept in the file system cache is read from {\tt
+  de\_NumBuffers} in the environment vector, but {\tt ACTION\_MORE\_CACHE}\key{ACTION\_MORE\_CACHE}
+can be used to adjust this parameter anytime.
 
 \chapter{The AmigaDOS Shell}
 % TODO
@@ -16275,5 +16366,3 @@ Ralph Babel, Taunusstein (1993)
 \printindex
 %\end{theindex}
 \end{document}
-
-
