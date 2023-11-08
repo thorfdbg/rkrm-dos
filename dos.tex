@@ -2,6 +2,7 @@
 \usepackage{a4}
 \usepackage{times}
 \usepackage{longtable}
+\usepackage{multirow}
 \usepackage{forest}
 %
 \setlength{\oddsidemargin}{0cm}
@@ -14082,7 +14083,7 @@ indicator. On success, it shall be set to {\tt DOSTRUE} and {\tt dp\_Res2} shall
 be set to~0. On failure, {\tt dp\_Res1} shall be set to {\tt DOSFALSE} and
 {\tt dp\_Res2} to an error code.
 
-\subsection{Initializing a New File System}
+\subsection{Initializing a New File System} \label{sec:actionformat}
 
 The {\tt ACTION\_FORMAT}\mkey{ACTION\_FORMAT} packet initializes a new file
 system on a disk, writing all administration information on it represting a
@@ -15976,6 +15977,7 @@ Upon detecting device parameters, data from the device provided {\tt
 copied into the environment vector of the file system. The following
 algorithm is used to adjust the data in the environment vector:
 
+
 \begin{verbatim}
 void AdjustEnv(struct DosEnvec *env, 
                const struct DriveGeometry *dg) {
@@ -15992,12 +15994,241 @@ measures it in long-words rather than bytes as provided by the drive
 geometry, and {\tt dg\_Cylinders} is a count, whereas {\tt de\_HighCyl} is
 an inclusive upper bound. In particular, {\tt dg\_BufMemType} is not copied
 over, and therefore {\tt de\_BufMemType} shall be setup though the mountlist
-or the rigid disk block.
+or the rigid disk block. Ideally, of course, any memory type should be
+supported and this workaround should not be necessary.
 \smallskip{}
 
 The number of blocks kept in the file system cache is read from {\tt
   de\_NumBuffers} in the environment vector, but {\tt ACTION\_MORE\_CACHE}\key{ACTION\_MORE\_CACHE}
 can be used to adjust this parameter anytime.
+
+\subsection{The Boot Block}
+
+The FFS flavour is initially read from {\tt de\_DosType} element of the
+environment vector, see section~\ref{sec:envec}. However, the initial choice
+is overridden either by formatting (initializing) a volume, or during the
+(quick) validation that is triggered if a volume becomes available to the FFS.
+\smallskip{}
+
+During formatting, the flavour is taken from {\tt dp\_Arg2} of the {\tt
+  ACTION\_FORMAT}\key{ACTION\_FORMAT} packet. If {\tt dp\_Arg2} is none of known FFS flavours
+from table~\ref{table:ffsflavours}, the currently active flavour remains in
+force and is used to initialize the disk structure. If the FFS did not adjust its
+flavour from accessing a previous volume, this remains the value from
+{\tt de\_DosType}.
+\smallskip{}
+
+During disk insertion, or if a volume becomes accessible to the FFS by other
+means such as mounting it or uninhibiting a volume through
+{\tt ACTION\_INHIBIT}\key{ACTION\_INHIBIT}, the FFS reads the flavour from
+the first long-word of the \emph{boot block}, even if this block is placed
+on a hard-disk and not actually used for booting. It is found at sector
+
+\[
+\mbox{\tt BootBlock} = \mbox{\tt de\_LowCyl} \times \mbox{\tt de\_Surfaces} \times
+     \mbox{\tt de\_BlocksPerTrack}
+\]
+
+of the device. Note that this is not necessarily the sector~0 if the volume
+is a partition of a hard-disk. The remaining data of the boot block is not
+used by the FFS but, at least for floppy disks, for bootblock booting which
+is described in mored detail in~\cite{rkrmdev}.
+
+\subsection{Disk Keys and Sectors}
+
+Except for the boot block, the FFS does not address sectors through their
+physical sector number, but due to their \emph{key}, which addresses data on
+disk relative to the start of the partition in blocks, and not sectors. The
+relation between the physical sector~$S$ and the key~$K$ is given by the following
+equation:
+
+\[
+S = \mbox{\tt de\_LowCyl} \times \mbox{\tt de\_Surfaces} \times
+     \mbox{\tt de\_BlocksPerTrack} + K \times \mbox{\tt
+       de\_SectorPerBlock}
+\]
+
+In particular, the boot block has therefore the key~0. The sector number is
+used directly for the ``direct SCSI'' transfer which is enabled by the {\tt
+  ENVF\_SCSIDIRECT} flag in the {\tt de\_Interleave} element of the
+environment vector.
+\smallskip{}
+
+For the default trackdisk-like transfer, exec device drivers expect a byte
+offset instead of a sector, which is computed by multiplying $S$ by
+$\mbox{\tt de\_SizeBlock} \times 4$. The additional factor of~4 is because
+{\tt de\_SizeBlock} is in units of long-words and not a byte count.
+\smallskip{}
+
+Even though {\tt de\_SizeBlock} and {\tt de\_SectorPerBlock} could be any
+number, the FFS, and likely many other file systems, only accept powers of
+two here. Thus, any multiplication or division by these numbers are easily
+implementable as shifts.
+
+\subsection{The Root Block}
+
+The Root Block represents the root directory of a volume and contains the
+creation date and the volume name. It is placed in the middle of the volume
+at key
+
+\[
+\left\lfloor \frac{\mbox{\tt de\_Reserved} + 
+\left\lfloor \frac{(\mbox{\tt \small de\_HighCyl} - \mbox{\tt \small de\_LowCyl} +
+  1) \times \mbox{\tt \small de\_Surfaces} \times
+        \mbox{\tt de\_BlocksPerTrack}}{\mbox{\tt de\_SectorPerBlock}}\right\rfloor - 1}{2} \right\rfloor
+\]
+
+Note that the element name {\tt de\_BlocksPerTrack} is actually misleading
+as this the size of a track in (physical) sectors and not in (logical)
+blocks or keys. The division by {\tt de\_SectorPerBlock} computes from the
+sector index a key. The brackets $\lfloor \cdot \rfloor$ indiciate rounding
+down to the next integer.
+\smallskip{}
+
+The structure of the root block is as follows:
+
+\begin{rkrmtabular}{FFS Root Block} \label{table:rootblock}
+\begin{longtable}{|l|l|l|} \hline
+{\bf Long-word Offset} & {\bf Content} & {\bf Notes} \\ \hline \hline
+0          & \tt Type    & shall be 2, this is the BCPL constant T.SHORT \\ \hline
+1          & \tt 0       & header key, always 0 in root \\ \hline
+2          & \tt 0       & highest sequence number, always 0 in root \\ \hline
+3          & \tt HTSize  & entries in the hash table = Block size - 56 \\ \hline
+4          & \tt 0       & reserved for future use \\ \hline
+5          & \tt Chksum  & LW sum over block is 0 \\ \hline
+6\ldots    & \tt Hash    & hash chains for objects in the root \\ \hline
+L-50       & \tt BMFlag  & -1 if Bitmap is valid \\ \hline
+L-49\ldots & \tt BMKeys  & keys of the bitmap \\ \hline
+L-24       & \tt BMExt   & key of the bitmap extension block \\ \hline
+L-23       & \tt Days    & \multirow{3}{*}{timestamp of last directory change} \\ \cline{1-2}
+L-22       & \tt Mins    & \\ \cline{1-2}
+L-21       & \tt Ticks   & \\ \hline
+L-20\ldots & \tt Name    & volume name as BSTR \\ \hline
+L-11       & \tt 0       & reserved for future use \\ \hline
+L-10       & \tt Days    & \multirow{3}{*}{timestamp of last volume change} \\ \cline{1-2}
+L-9        & \tt Mins    & \\ \cline{1-2}
+L-8        & \tt Ticks   & \\ \hline
+L-7        & \tt Days    & \multirow{3}{*}{volume creation time} \\ \cline{1-2}
+L-6        & \tt Mins    & \\ \cline{1-2}
+L-5        & \tt Ticks   & \\ \hline
+L-4        & \tt 0       & reserved for future use \\ \hline
+L-3        & \tt 0       & reserved for future use \\ \hline
+L-2        & \tt DCache  & directory cache block if used \\ \hline
+L-1        & \tt SecType & shall be 1, this is the BPCL constant ST.ROOT \\ \hline
+\end{longtable}
+\end{rkrmtabular}
+
+Each entry in the above table is 4 bytes, i.e. one long-word large. As the
+FFS supports multiple block sizes, some elements of this structure are
+placed relative to the end of the block. Such element are indicated in the
+above table as $L-x$ where $L$ is the block size in long works, i.e.
+
+\[
+L = \mbox{\tt de\_SizeBlock} \times \mbox{\tt de\_SectorPerBlock}
+\]
+
+The notation $\ldots$ indicates that the corresponding element extends over
+multiple long-words. In particular, the list of hash-keys is a variably
+sized number of long-words large, it always extends over $L-56$ longs.
+\medskip{}
+
+The block type is indicated by {\tt Type} and {\tt SecType}. For the root
+block, these elements shall be $2$ and $1$, respectively.
+\smallskip{}
+
+{\tt HTSize} is the number of hash keys stored in the root block. The FFS
+stores in the root block $L-56$ hash keys, from offset $6$ to $L-51$.
+\smallskip{}
+
+{\tt Chksum} is a checksum over the block. Its value is chosen such that the
+long-word sum over all long-words, including the checksum, is zero.
+\smallskip{}
+
+{\tt Hash} stores the hash-chain of all objects in the root directory. The
+FFS computes for each file system object a \emph{hash key} that is derived
+from its name. As multiple objects can have the same hash and thus hash
+conflicts may arise, all objects of the same hash are kept in a singly
+linked list. The head of each list is kept in the {\tt Hash} array.
+\smallskip{}
+
+How the FFS computes the hash key from the name depends on the FFS
+flavour. The following algorithm computes the hash key from the object name,
+represented as a BSTR, i.e. the first character is the length of the string:
+
+\begin{verbatim}
+ULONG ComputeHash(UBYTE *name)
+{
+ULONG size = *name++; /* String size, this is a BSTR */
+ULONG hash = size;    /* Initial hash is string length */
+
+  while(size) {
+   ULONG c = *name++;
+   /* Is this an international flavour? */
+   if (isInternational) {
+    if (c != 0xf7 && ((c >= 0xe0 && c<= 0xfe) || 
+                      (c >= 0x61 && c <= 0x7a))) {
+     c -= 0x20; /* make upper case */
+    }
+   } else if (c >= 0x61 && c <= 0x7a) {
+     c -= 0x20; /* make upper case */
+   }
+   hash = hash * 13 + c;
+  }
+  return hash % HTSize;
+}
+\end{verbatim}
+
+In the above, {\tt HTSize} is the value of the element of the same name in
+the disk root block. As seen from the code, the non-international versions
+of the FFS only convert the ASCII characters between 'a' and 'z' to upper
+case, whereas the international version performs this conversion also for
+all characters in the latin-1 character set. The FFS \emph{does not} use the
+\emph{utility.library} for the upper-case conversion and thus hashing does
+not depend on the selected locale. However, it depends on the latin-1
+encoding and will not map characters correctly for many other
+encodings. Latin-15 only replaces the international currency symbol with the
+Euro-sign which is outside the range of characters that are converted to
+upper case. It therefore also works correctly for this encoding.
+\medskip{}
+
+{\tt BMFlag} is {\tt DOSTRUE} in case the bitmap is valid. If the quick
+validation on disk insertion finds that this element is~0, then the disk
+status is set to non-validated and the bitmap is recomputed through a
+complete disk scan. The bitmap keeps information on which blocks of the
+volume are allocated and which are free.
+\smallskip{}
+
+{\tt BMKeys} is an array containing the keys of the bitmap blocks. How many
+bitmap blocks are required to represent the bitmap depends on the size of
+the volume and the size of a bitmap block. Unused keys remain~0.
+\smallskip{}
+
+{\tt BMExt} is the key of a bitmap extension block if the above bitmap array
+is not sufficient to represent all blocks of the volume.
+\smallskip{}
+
+The elements at offsets $L-23$ to $L-21$ form a {\tt DateStamp} structure as
+specified in section~\ref{sec:dates}. The date and time there indicate the
+last change within the root directory.
+\smallskip{}
+
+{\tt Name} is the volume name, encoded as BSTR; the first character is
+therefore the size of the name. This element is 9 long-words large and thus
+limits the volume name to 35 characters.
+\smallskip{}
+
+The elements at offsets $L-10$ to $L-8$ form a {\tt DateStamp} structure
+that is updated on every change of the volume.
+\smallskip{}
+
+The elements at offsets $L-7$ to $L-5$ are also a {\tt DateStamp} structure
+that represent the time and date at which the volume was initialized. The
+packet {\tt ACTION\_SERIALIZE\_DISK} updates this date, too, but it remains
+otherwise unchanged.
+\smallskip{}
+
+{\tt DCache} is the key of the directory cache list of blocks. It is only
+used for the flavours of the FFS that utilize such a cache.
 
 \chapter{The AmigaDOS Shell}
 % TODO
