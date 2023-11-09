@@ -16231,6 +16231,11 @@ otherwise unchanged.
 
 {\tt DCache} is the key of the directory cache list of blocks. It is only
 used for the flavours of the FFS that utilize such a cache.
+\smallskip{}
+
+Unlike user directories, the root block lacks a list of hard-links that
+points to it. This has the consequence that the FFS does not allow to create
+hard-links to the root directory of a volume.
 
 \subsection{The User Directory Block}
 
@@ -16412,7 +16417,7 @@ to all FFS variants except the long-file variants {\tt
 {\bf Long-word Offset} & {\bf Content} & {\bf Notes} \\ \hline \hline
 0          & \tt Type    & shall be 2, this is the BCPL constant T.SHORT \\ \hline
 1          & \tt OwnKey  & key of this block (self-reference) \\ \hline
-2          & \tt HighSeq & total number of blocks occupied \\ \hline
+2          & \tt BlkCnt  & number of data block keys included \\ \hline
 3          & \tt 0       & reserved for future use \\ \hline
 4          & \tt Data1st & first data block of the file \\ \hline
 5          & \tt Chksum  & LW sum over block is 0 \\ \hline
@@ -16434,7 +16439,7 @@ L-9\ldots  & \tt NameX2  & name extension for {\tt DOS\textbackslash08} \\ \hlin
 L-4        & \tt NxtHash & next key of the same hash \\ \hline
 L-3        & \tt Parent  & key of the parent directory \\ \hline
 L-2        & \tt FileExt & key of first file extension block \\ \hline
-L-1        & \tt SecType & shall be -3, setthis is the BCPL constant ST.FILE \\ \hline
+L-1        & \tt SecType & shall be -3, this is the BCPL constant ST.FILE \\ \hline
 \end{longtable}
 \end{rkrmtabular}
 
@@ -16446,8 +16451,8 @@ BCPL constant {\tt T.SHORT}
 block itself.
 \smallskip{}
 
-{\tt HighSeq} is the highest data block sequence number and as such the
-total number of blocks occupied by the file.
+{\tt BlkCnt} is the number of occupied data block keys included in this block. Due to
+the limited number of slots, this number is smaller or equal than $L-56$.
 \smallskip{}
 
 {\tt Data1st} is the key of the first data block of the file. This data
@@ -16538,7 +16543,7 @@ somewhat different:
 3          & \tt 0       & reserved for future use \\ \hline
 4          & \tt Data1st & first data block of the file \\ \hline
 5          & \tt Chksum  & LW sum over block is 0 \\ \hline
-6\ldots    & \tt DataBlk & first $L-56$ data blocks of the file \\ \hline
+6\ldots    & \tt DataBlk & first $L-56$ keys of data blocks \\ \hline
 L-50       & \tt 0       & reserved for future use \\ \hline
 L-49       & \tt Owner   & reserved for owner ID \\ \hline
 L-48       & \tt PrtBits & protection bits as in section~\ref{sec:fib} \\ \hline
@@ -16760,6 +16765,468 @@ the file name.
 {\tt CmtBlk} is the key of the comment block, keeping the file comment if
 the {\tt NaC} element is too short. If no comment block is needed, this
 element is~0.
+
+\subsection{The File Extension Block}
+
+The file extension block keeps keys of additional file data blocks in case
+the $L-56$ keys in the file header block are not sufficient to keep all
+keys. It looks as follows:
+
+\begin{rkrmtabular}{File Extension Block} \label{table:fileextblock}
+\begin{longtable}{|l|l|l|} \hline
+{\bf Long-word Offset} & {\bf Content} & {\bf Notes} \\ \hline \hline
+0          & \tt Type    & shall be 16, this is the BCPL constant T.LIST \\ \hline
+1          & \tt OwnKey  & key of this block (self-reference) \\ \hline
+2          & \tt BlkCnt  & number of data block keys included \\ \hline
+3          & \tt 0       & reserved for future use \\ \hline
+4          & \tt 0       & reserved for future use \\ \hline
+5          & \tt Chksum  & LW sum over block is 0 \\ \hline
+6\ldots    & \tt DataBlk & next $L-56$ keys of data blocks \\ \hline
+L-50\ldots & \tt 0       & reserved for future use \\ \hline
+L-3        & \tt Parent  & key of the file header block \\ \hline
+L-2        & \tt NextExt & key of next file extension block \\ \hline
+L-1        & \tt SecType & shall be -3, this is the BPCL constant ST.FILE  \\ \hline
+\end{longtable}
+\end{rkrmtabular}
+
+{\tt Type} is the primary type of this block. It is always~16, which is the
+BCPL constant {\tt T.LIST}
+\smallskip{}
+
+{\tt OwnKey} is the key of this block itself.
+\smallskip{}
+
+{\tt BlkCnt} is the number of occupied data block keys included in this block. Due to
+the limited number of slots, this number is smaller or equal than $L-56$.
+\smallskip{}
+
+{\tt Chksum} is the checksum over the entire block. It is chosen such that
+the long-word sum over the entire block, including this element, is zero.
+\smallskip{}
+
+{\tt DataBlk} is an array containing the next $L-56$ data blocks of the
+file. The array is filled from its bottom-end, i.e. $L-49$ contains the key
+of first data block referenced in this extension block, $L-50$ the second
+key and so on. If this array overflows, additional blocks are in another
+file extension block chained at $L-2$.
+\smallskip{}
+
+{\tt Parent} is the key of the file header block of the file whose data
+block keys are extended by this block.
+\smallskip{}
+
+{\tt FileExt} is the key of the next file extension block if this block is
+not sufficient to keep all data block keys. Otherwise, it is~0.
+\smallskip{}
+
+{\tt SecType} along with {\tt Type} identifies the type of this block. The
+value of this element shall be~-3, identifying this block as belonging to a
+file.
+
+\subsection{The Bitmap Extension Block}
+
+The bitmap extension block keeps the keys of additional bitmap blocks in case
+the number of bitmap keys in the root block (25, namely) are not sufficient.
+This block has the following structure:
+
+\begin{rkrmtabular}{Bitmap Extension Block} \label{table:bitmapextensionblock}
+\begin{longtable}{|l|l|l|} \hline
+{\bf Long-word Offset} & {\bf Content} & {\bf Notes} \\ \hline \hline
+0\ldots    & \tt BMKeys  & additional $L-1$ bitmap keys \\ \hline
+L-1        & \tt BMNext  & key of another bitmap extension block \\ \hline
+\end{longtable}
+\end{rkrmtabular}
+
+{\tt BMKeys} is an array of $L-1$ keys, each of contains a bitmap for the
+subsequent part of the volume. The slots in this block are allocated top to
+bottom, with non-used entries set to~0.
+\smallskip{}
+
+{\tt BMNext} is the key of another extension block if this extension block is
+not sufficient. It is~0 in case this is the last bitmap extension block.
+
+\subsection{The Comment Block}
+
+This block keeps a file comment for the long filename FFS flavours {\tt
+  DOS\textbackslash{}06} and {\tt DOS\textbackslash{}07} in case the file
+header, user directory or link block does not provide sufficient room to
+keep both the file name and the file comment.
+
+\begin{rkrmtabular}{Comment Block} \label{table:commentblock}
+\begin{longtable}{|l|l|l|} \hline
+{\bf Long-word Offset} & {\bf Content} & {\bf Notes} \\ \hline \hline
+0          & \tt Type    & shall be 64, this is T.COMMENT \\ \hline
+1          & \tt OwnKey  & key of this block (self-reference) \\ \hline
+2          & \tt Parent  & key of the header block \\ \hline
+3          & \tt 0       & reserved for future use \\ \hline
+4          & \tt 0       & reserved for future use \\ \hline
+5          & \tt Chksum  & LW sum over block is 0 \\ \hline
+6\ldots    & \tt Comment & object comment as BSTR \\ \hline
+26\ldots   & \tt 0       & reserved for future use \\ \hline
+\end{longtable}
+\end{rkrmtabular}
+
+{\tt Type} identifies the type of this block. The value placed here shall
+be~64, corresponding to the constant T.COMMENT.
+\smallskip{}
+
+{\tt OwnKey} is the key of this block itself.
+\smallskip{}
+
+{\tt Parent} is the key of the file header, user directory or link block
+to which the comment in this block applies and which is extended by this
+block.
+\smallskip{}
+
+{\tt Chksum} is the checksum over the entire block. It is chosen such that
+the long-word sum over the entire block, including this element, is zero.
+\smallskip{}
+
+{\tt Comment} is the comment, stored as a BSTR with the first character
+containing its size. This element is 80 bytes large, sufficient for comments
+of 79 characters.
+\smallskip{}
+
+The remaining bytes of this block shall be~0 and remain available for future
+extension.
+
+\subsection{The Directory Cache Block}
+
+This block type is only used by the directory cache flavours of the FFS,
+namely {\tt DOS\textbackslash{}04} and {\tt DOS\textbackslash{}05}. It
+keeps, in a more compact form, the contents of directories. This block looks
+as follows:
+
+\begin{rkrmtabular}{Directory Cache Block} \label{table:cacheblock}
+\begin{longtable}{|l|l|l|} \hline
+{\bf Long-word Offset} & {\bf Content} & {\bf Notes} \\ \hline \hline
+0          & \tt Type    & shall be 33, this is T.DIRLIST \\ \hline
+1          & \tt OwnKey  & key of this block (self-reference) \\ \hline
+2          & \tt Parent  & key of the user directory block \\ \hline
+3          & \tt NumNtry & number of entries in this block \\ \hline
+4          & \tt NextBlk & key of the next directory cache block \\ \hline
+5          & \tt Chksum  & LW sum over block is 0 \\ \hline
+6\ldots    & \tt Entries & Directory content (see below) \\ \hline
+\end{longtable}
+\end{rkrmtabular}
+
+{\tt Type} identifies the type of this block; the constant put here is
+actually {\tt DIRLIST\_KEY} = 32 or'd with the version of the directory
+cache data, which is currently~1.
+\smallskip{}
+
+{\tt OwnKey} is the key of this block itself.
+\smallskip{}
+
+{\tt Parent} is the key of the directory header block of the user directory
+cached here, or the key of the root block if this is the cache of the volume
+root directory.
+\smallskip{}
+
+{\tt NumNtry} is the number of directory entries cached in this block. Each
+entry has a structure as indicated in table~\ref{table:dircachenetry}. Such
+entries cannot extend over block boundaries; if a new entry does not fit
+entirely into a block, another directory cache block is allocated. A
+directory cache block may also contain~0 entries as these blocks are never
+released. Thus, directory caches can grow very large, and they are only
+rebuild when the disk requires full validation.
+\smallskip{}
+
+{\tt NextBlk} is the key of the next directory cache block for the same
+directory, or~0 in case this is the last block.
+\smallskip{}
+
+{\tt Chksum} is the checksum over the entire block. It is chosen such that
+the long-word sum over the entire block, including this element, is zero.
+\smallskip{}
+
+{\tt Entries} contains the payload data of the directory cache. It consists
+of zero or more entries of the following variably sized structure:
+
+\begin{rkrmtabular}{Directory Cache Entry} \label{table:dircachenetry}
+\begin{longtable}{|l|l|l|} \hline
+{\bf Size} & {\bf Content} & {\bf Notes} \\ \hline \hline
+32         & \tt Key     & key of the referenced object \\ \hline
+32         & \tt Size    & size of the object in bytes \\ \hline
+32         & \tt PrtBits & protection bits of the object \\ \hline
+32         & \tt Owner   & owner ID of the object \\ \hline
+16         & \tt Days    & \multirow{3}{*}{timestamp of last change} \\ \cline{1-2}
+16         & \tt Mins    & \\ \cline{1-2}
+16         & \tt Ticks   & \\ \hline
+8          & \tt SecType & secondary type of the object \\ \hline
+variable   & \tt Name    & object name as BSTR \\ \hline
+variable   & \tt Comment & object comment as BSTR \\ \hline
+pad(16)    & \tt padding & padding to 16-bit boundary \\ \hline
+\end{longtable}
+\end{rkrmtabular}
+
+The elements of this structure are as follows:
+\smallskip{}
+
+{\tt Key} is the key of the file header block, the user directory block or
+the link block, depending on the file system object to which this entry
+belongs.
+\smallskip{}
+
+{\tt Size} is the byte size of the object, or~0 for links and directories.
+\smallskip{}
+
+{\tt PrtBits} are the protection bits as represented in the {\tt
+  FileInfoBlock} structure.
+\smallskip{}
+
+{\tt Owner} is reserved for a 32-bit group and owner ID that can be set by
+the {\tt ACTION\_SET\_OWNER} packet. However, as the FFS has no means to
+verify access rights to an object, the purpose of this field remains opaque.
+\smallskip{}
+
+{\tt Days}, {\tt Mins} and {\tt Ticks} are the timestamp of the last time
+the corresponding object was modified and a copy from the corresponding
+header block provided by {\tt Key}. However, unlike there, only 16 bits are
+available for each element. This is sufficient if the {\tt DateStamp()}
+structure is normalized, i.e. each element is as small as possible.
+\smallskip{}
+
+{\tt SecType} is a copy from the {\tt SecType} element of the file, user
+directory or link block indexed by {\tt Key}. All possible values can be
+represented by a signed byte and are thus abbreviated here in an 8-bit
+element.
+\smallskip{}
+
+{\tt Name} is a copy of the {\tt Name} element of the file, user directory
+or link, though only the minimal number of bytes are copied, i.e. $N+1$
+bytes for a file name of size~$N$. The first byte of {\tt Name} is its
+length, i.e. it is a BSTR without {\tt NUL}-termination.
+\smallskip{}
+
+{\tt Comment} follows directly after the last byte of {\tt Name} and is a
+copy of the {\tt Comment} element of the file, user directory or link block;
+again, only the minimal amount of bytes are copied to the directory cache,
+i.e. the length byte and the comment itself. This forms again a BSTR, not a
+C string, and there is no {\tt NUL}-termination.
+\smallskip{}
+
+{\tt padding} is an optional padding byte to make the entire structure an
+even number of bytes large such that the key of the next directory entry is
+on an even address in memory.
+\smallskip{}
+
+The directory cache does not store the targets of hard-links or soft-links;
+that is, if the contents of a directory of a cache-enabled file system is
+listed, this information is gained from the regular directory structure.
+\smallskip{}
+
+Within a directory cache block, zero or more directory cache entries follow
+each other; their count is provided by the {\tt NumNtry} element in the
+directory cache block. If the FFS has to delete entries from the directory,
+it moves entries within the current block upwards over the released
+entry. In worst case, no entries remain in a directory cache block. Such
+blocks are not released, but remain available to accept new entries.
+\medskip{}
+
+While the directory cache increases the performance of listing directory
+contents, keeping the directory cache in sync with the regular directory
+structure requires additional overhead as directory cache blocks need to be
+allocated, filled, and entries be moved within the blocks.
+
+\subsection{The Data Block}
+
+Data blocks contain the payload data of files. It comes in two variants: The
+``OFS'' variants of the FFS, namely {\tt DOS\textbackslash{}00}, {\tt
+  DOS\textbackslash{}02}, {\tt DOS\textbackslash{}04} and {\tt
+  DOS\textbackslash{}06} keep a lot of redundant information within the data
+block that makes the file system structure very robust against media
+corruption; however, this information needs to be stripped off before the
+payload data is delivered to the FFS client, these variants are very slow.
+\medskip{}
+
+All remaining variants, including {\tt DOS\textbackslash{}08} only keep
+payload data in the data blocks. This enables the FFS to directly transmit
+data from the medium to the target buffer of the client if the {\tt
+  de\_Mask} allows it. If the host adapter offers DMA, the CPU is not even
+involved in copying the data and thus these variants of the FFS are faster,
+though also less robust. However, modern media rarely corrupt data, unlike
+floppy disks, and therefore are generally recommended. The OFS flavours are
+therefore only useful for slow and unreliable data carriers.
+\medskip{}
+
+The following table describes the structure of an OFS data block:
+
+\begin{rkrmtabular}{OFS Data Block} \label{table:ofsdatablock}
+\begin{longtable}{|l|l|l|} \hline
+{\bf Long-word Offset} & {\bf Content} & {\bf Notes} \\ \hline \hline
+0          & \tt Type    & shall be 8, this is T.DATA \\ \hline
+1          & \tt Header  & key of the file header \\ \hline
+2          & \tt SeqNum  & sequence number of this block \\ \hline
+3          & \tt Size    & data bytes in this block \\ \hline
+4          & \tt NxtBlk  & next data block of this file \\ \hline
+5          & \tt Chksum  & LW sum over block is 0 \\ \hline
+6\ldots    & \tt Data    & payload data \\ \hline
+\end{longtable}
+\end{rkrmtabular}
+
+{\tt Type} is the primary type of this block. It is always~8, which is the
+BCPL constant {\tt T.DATA}
+\smallskip{}
+
+{\tt Header} is the key of the file header block this file belongs to.
+\smallskip{}
+
+{\tt SeqNum} is the sequential number of this block within the file. The
+first data block of the file has the sequential number~1, the next one"2 and
+so on.
+\smallskip{}
+
+{\tt Size} is the number of valid bytes within this data block. Valid data
+does not necessarily extend to the end of the block.
+\smallskip{}
+
+{\tt Chksum} is the checksum over the entire block. It is chosen such that
+the long-word sum over the entire block, including this element, is zero.
+\smallskip{}
+
+{\tt Data} is the actual payload data of the block. It consists of
+{\tt Size} arbitrary bytes.
+\medskip{}
+
+The FFS data block does not have any structure, it contains only payload
+data. This has the consequence that a disk scan, e.g. by a disk salvage
+tool, cannot safely identify whether a block carries administrational
+information of the disk, or is rather a data block that, by pure
+coincidence, reassembles an administration block of one of the types listed
+in this section. Various disk salvage tools fell into this pitfall
+identifying blocks as adminstration blocks that were, actually, data blocks
+allocated for a file.
+
+\subsection{The Bitmap Block}
+
+Bitmap blocks keep a bitmap --- one bit per key --- which keys are already
+occupied for administrational or payload data, and which keys are still
+free. Depending on the size of the volume, one or many bitmap blocks exist,
+sometimes even so many that bitmap extension blocks are needed as the 25
+keys available in the root block.
+\smallskip{}
+
+The structure of a bitmap block is as follows:
+
+\begin{rkrmtabular}{Bitmap Block} \label{table:bitmapblock}
+\begin{longtable}{|l|l|l|} \hline
+{\bf Long-word Offset} & {\bf Content} & {\bf Notes} \\ \hline \hline
+0          & \tt Chksum  & LW sum over block is 0 \\ \hline
+1\ldots    & \tt Bitmap  & bitmap of avaiable blocks \\ \hline
+\end{longtable}
+\end{rkrmtabular}
+
+{\tt Chksum} is the checksum over the entire block. It is chosen such that
+the long-word sum over the entire block, including this element, is zero.
+\smallskip{}
+
+{\tt Bitmap} holds for every available key administrated by this bitmap a
+bit that indicates whether that key is available or not. If the bit is~1,
+the key is free, and if~0, the key is released.
+\smallskip{}
+
+Bits are addressed in groups of long-words such that the least-significant
+bit of each long-word corresponds to the lowest key and the most significant
+bit of a long-word to the highest key within this long-word. The least
+significant bit of the long-word at offset~1 of the first bitmap of a volume
+corresponds to the key {\tt de\_Reserved}, i.e. the reserved blocks at the
+start of a volume \emph{are not} represented in the bitmap. As key~0
+corresponds to the boot-block and this block keeps the flavour of the FFS,
+and potentially boot code, {\tt de\_Reserved} cannot be~0 as otherwise the
+FFS could allocate it as key, and thus overwrite parts of its administration
+information. While the FFS could, in principle, always reserve key~0 for
+such purpose, no such provisions are made.
+\smallskip{}
+
+Identifying whether a particular key is allocated is demonstrated by the
+following algorithm: It takes the number of long words per block (e.g. 128
+for a standard floppy disk, i.e. 512 bytes per block), the number of
+reserved blocks, the key to investigate and the key of the root block. It
+assumes that {\tt readKey()} brings the key provided by its argument to
+memory, and that this function returns a pointer to an array of {\tt ULONG}s
+representing the block contents:
+
+\begin{verbatim}
+/* Bring key to memory */
+ULONG *readKey(ULONG key);
+
+/* Check whether a particular key is allocated */
+LONG isKeyAllocated(ULONG longsperblock,ULONG reservedblocks,
+                    ULONG key,ULONG rootkey)
+{
+ULONG  keysperbitmap;
+ULONG  bitmap;
+ULONG  keyinbitmap;
+ULONG  longoffset;
+ULONG *block;
+
+  /* compute the number of keys per bitmap */
+  keysperbitmap = (longsperblock - 1) * 32;
+  /* compute the bitmap index in all bitmaps */
+  bitmap        = (key - reservedblocks) / keysperbitmap;
+  /* compute the key within the bitmap */
+  keyinbitmap   = (key - reservedblocks) % keysperbitmap;
+  /* compute the LW offset within the bitmap */
+  longoffset    = keyinbitmap / 32 + 1;
+  /* compute the bit within the long */
+  bitinlong     = keyinbitmap % 32;
+  /* read the root block */
+  block         = readKey(rootkey);
+
+  /* Check whether the bitmap is linked in the root 
+  ** block or not. The first 25 are
+  */
+  if (bitmap < 25) {
+    /* Bring the proper keymap into memory */
+    block = readKey(block[bitmap + BMKeys]);
+  } else {
+     LONG extension,keyoffset;
+     /* Compute the extension block required, 
+     ** and key offset within the extension block
+     ** to the bitmap block.
+     */
+     extension = (bitmap - 25) / (longsperblock - 1);
+     keyoffset = (bitmap - 25) % (longsperblock - 1);
+     /* read the first extension block */
+     block     = readKey(block[BMExt]);
+     /* Follow the link chain of extension 
+     ** blocks to find the right one
+     */
+     while(extension > 0) {
+       block   = readKey(block[BMNext]); 
+       extension--;
+     }
+     /* Now read the right bitmap */
+     block     = readKey(block[keyoffset]);
+  }
+
+  /* check the bit corresponding to the key */  
+  if (block[longoffset] & (1UL << bitinlong)) {
+    return DOSTRUE; /* is allocated */
+  } else {
+    return DOSFALSE; /* is free */
+  }
+}
+\end{verbatim}
+
+\subsection{The Deleted Block}
+
+The FFS also mark unused administration blocks as deleted to ensure that a
+disk scan does not confuse them with a used block. This does not happen to
+data blocks.
+
+\begin{rkrmtabular}{Deleted Block} \label{table:deletedblock}
+\begin{longtable}{|l|l|l|} \hline
+{\bf Long-word Offset} & {\bf Content} & {\bf Notes} \\ \hline \hline
+0          & \tt Type    & shall be 1, this is T.DELETED \\ \hline
+1\ldots    & \tt junk    & whatever remained here \\ \hline
+\end{longtable}
+\end{rkrmtabular}
+
+This makes it particularly easy for disk salvage tools to identify which
+keys are actually still in active use and which have been scratched on
+purpose.
 
 \chapter{The AmigaDOS Shell}
 % TODO
