@@ -16104,6 +16104,7 @@ L-23       & \tt Days    & \multirow{3}{*}{timestamp of last directory change} \
 L-22       & \tt Mins    & \\ \cline{1-2}
 L-21       & \tt Ticks   & \\ \hline
 L-20\ldots & \tt Name    & volume name as BSTR \\ \hline
+L-12       & \tt 0       & reserved for future use \\ \hline
 L-11       & \tt 0       & reserved for future use \\ \hline
 L-10       & \tt Days    & \multirow{3}{*}{timestamp of last volume change} \\ \cline{1-2}
 L-9        & \tt Mins    & \\ \cline{1-2}
@@ -16113,7 +16114,7 @@ L-6        & \tt Mins    & \\ \cline{1-2}
 L-5        & \tt Ticks   & \\ \hline
 L-4        & \tt 0       & reserved for future use \\ \hline
 L-3        & \tt 0       & reserved for future use \\ \hline
-L-2        & \tt DCache  & directory cache block if used \\ \hline
+L-2        & \tt DCache  & key of directory cache block if used \\ \hline
 L-1        & \tt SecType & shall be 1, this is the BPCL constant ST.ROOT \\ \hline
 \end{longtable}
 \end{rkrmtabular}
@@ -16213,8 +16214,9 @@ last change within the root directory.
 \smallskip{}
 
 {\tt Name} is the volume name, encoded as BSTR; the first character is
-therefore the size of the name. This element is 9 long-words large and thus
-limits the volume name to 35 characters.
+therefore the size of the name. This element is 8 long-words large and thus
+limits the volume name to 30 characters (one extra character is reserved,
+even though there would be sufficient space for 31 characters).
 \smallskip{}
 
 The elements at offsets $L-10$ to $L-8$ form a {\tt DateStamp} structure
@@ -16229,6 +16231,535 @@ otherwise unchanged.
 
 {\tt DCache} is the key of the directory cache list of blocks. It is only
 used for the flavours of the FFS that utilize such a cache.
+
+\subsection{The User Directory Block}
+
+The user header block represents a sub-directory of the
+volume root, or another user directory. It is enqueued in one of the
+hash-chains of the root block or its parent user directory block. This block
+exists in multiple variants, depending on the flavour of the
+FFS. Table~\ref{table:userdirblock} applies to all FFS variants except the
+long-file variants {\tt DOS\textbackslash{}06} and {\tt
+  DOS\textbackslash{}07}.
+
+\begin{rkrmtabular}{FFS User Header Block} \label{table:userdirlock}
+\begin{longtable}{|l|l|l|} \hline
+{\bf Long-word Offset} & {\bf Content} & {\bf Notes} \\ \hline \hline
+0          & \tt Type    & shall be 2, this is the BCPL constant T.SHORT \\ \hline
+1          & \tt OwnKey  & key of this block (self-reference) \\ \hline
+2          & \tt 0       & reserved for future use \\ \hline
+3          & \tt 0       & reserved for future use \\ \hline
+4          & \tt 0       & reserved for future use \\ \hline
+5          & \tt Chksum  & LW sum over block is 0 \\ \hline
+6\ldots    & \tt Hash    & hash chains for objects in the directory \\ \hline
+L-50       & \tt 0       & reserved for future use \\ \hline
+L-49       & \tt Owner   & reserved for owner ID \\ \hline
+L-48       & \tt PrtBits & protection bits as in section~\ref{sec:fib} \\ \hline
+L-47       & \tt 0       & reserved for future use \\ \hline
+L-46\ldots & \tt Comment & directory comment as BSTR \\ \hline
+L-26\ldots & \tt 0       & reserved for future use \\ \hline
+L-23       & \tt Days    & \multirow{3}{*}{timestamp of last directory change} \\ \cline{1-2}
+L-22       & \tt Mins    & \\ \cline{1-2}
+L-21       & \tt Ticks   & \\ \hline
+L-20\ldots & \tt Name    & directory name as BSTR \\ \hline
+L-12       & \tt NameX1  & name extension for {\tt DOS\textbackslash08} \\ \hline
+L-11       & \tt 0       & reserved for future use \\ \hline
+L-10       & \tt BckLink & key of first hard-link to this object \\ \hline
+L-9\ldots  & \tt NameX2  & name extension for {\tt DOS\textbackslash08} \\ \hline
+L-4        & \tt NxtHash & next key of the same hash \\ \hline
+L-3        & \tt Parent  & key of the parent directory \\ \hline
+L-2        & \tt DCache  & key of directory cache block if used \\ \hline
+L-1        & \tt SecType & shall be 2, setthis is the BCPL constant ST.USERDIR \\ \hline
+\end{longtable}
+\end{rkrmtabular}
+
+{\tt Type} is the primary type of this block. It is always~2, which is the
+BCPL constant {\tt T.SHORT}
+\smallskip{}
+
+{\tt OwnKey} is the key of this object, i.e. it is the block number of this
+block itself.
+\smallskip{}
+
+{\tt Chksum} is the checksum over the entire block. It is chosen such that
+the long-word sum over the entire block, including this element, is zero.
+\smallskip{}
+
+{\tt Hash} contains for user directories all the hash keys of the file
+system objects contained within.
+\smallskip{}
+
+{\tt OwnerID} is reserved for the owner ID of this directory that can be set
+with {\tt ACTION\_SET\_OWNER}. As the FFS has no means to validate the
+directory owner, this element does not bear any practical meaning.
+\smallskip{}
+
+{\tt PrtBits} are the protection bits of this directory. The FFS actually
+ignores the protection bits on the directory, but stores the value here anyhow.
+\smallskip{}
+
+{\tt Comment} contains a potential comment for this directory. The comment
+is represented as a BSTR with the comment length in the first
+character. There is room for 80 bytes, i.e. the maximum comment size is
+79 characters.
+\smallskip{}
+
+The elements at offset $L-23$ to $L-21$ form a {\tt DateStamp} structure
+that identifies the timestamp of the last change of this directory.
+\smallskip{}
+
+{\tt Name} is the name of this directory encoded as BSTR with the name
+length in the first byte; even though~32 bytes are available here, the FFS
+reserves one character, thus limiting the maximal directory name size to~30.
+\smallskip{}
+
+{\tt NameX1} and {\tt NameX2} are name extensions that are used by the {\tt
+  DOS\textbackslash{}08} flavour of the FFS. They add additional~24 bytes of
+storage for the directory name. Again, one character is reserved, limiting
+the maximum directory name size for this variant to~54. The directory name
+extends from {\tt Name}, then overflows into {\tt NameX1} and from there to
+{\tt NameX2}.
+\smallskip{}
+
+{\tt BckLink} is the key of the first hard link to this directory. The link
+of this key replaces the original directory header block in case the
+directory itself is deleted, and then is converted from a link to a
+directory.
+\smallskip{}
+
+{\tt NxtHash} is the key of the next object using the same hash key as this
+directory itself.
+\smallskip{}
+
+{\tt Parent} is the key of the parent directory, or the key of the root
+block in case this directory is directly in the volume root.
+\smallskip{}
+
+{\tt DCache} is the key of the first directory cache block. This key is only
+used for FFS flavours with directory caching enabled. Otherwise, it stays~0.
+\smallskip{}
+
+{\tt SecType} along with {\tt Type} identifies the type of this block. The
+value of this element shall be~2, identifying this as a user directory
+block.
+\medskip{}
+
+For the long file-name enabled flavours of the FFS, namely {\tt
+  DOS\textbackslash{}06} and {\tt DOS\textbackslash{}07}, this block looks
+somewhat different:
+
+\begin{rkrmtabular}{Long-Filename FFS Directory User Header Block} \label{table:userdirblock}
+\begin{longtable}{|l|l|l|} \hline
+{\bf Long-word Offset} & {\bf Content} & {\bf Notes} \\ \hline \hline
+0          & \tt Type    & shall be 2, this is the BCPL constant T.SHORT \\ \hline
+1          & \tt OwnKey  & key of this block (self-reference) \\ \hline
+2          & \tt 0       & reserved for future use \\ \hline
+3          & \tt 0       & reserved for future use \\ \hline
+4          & \tt 0       & reserved for future use \\ \hline
+5          & \tt Chksum  & LW sum over block is 0 \\ \hline
+6\ldots    & \tt Hash    & hash chains for objects in the directory \\ \hline
+L-50       & \tt 0       & reserved for future use \\ \hline
+L-49       & \tt Owner   & reserved for owner ID \\ \hline
+L-48       & \tt PrtBits & protection bits as in section~\ref{sec:fib} \\ \hline
+L-47       & \tt 0       & reserved for future use \\ \hline
+L-46\ldots & \tt NaC     & name and comment BSTR \\ \hline
+L-18       & \tt CmtBlk  & key of comment block if necessary \\ \hline
+L-17       & \tt 0       & reserved for future use \\ \hline
+L-16       & \tt 0       & reserved for future use \\ \hline
+L-15       & \tt Days    & \multirow{3}{*}{timestamp of last directory change} \\ \cline{1-2}
+L-14       & \tt Mins    & \\ \cline{1-2}
+L-13       & \tt Ticks   & \\ \hline
+L-12       & \tt 0       & reserved for future use \\ \hline
+L-11       & \tt 0       & reserved for future use \\ \hline
+L-10       & \tt BckLink & key of first hard-link to this object \\ \hline
+L-9\ldots  & \tt 0       & reserved for future use \\ \hline
+L-4        & \tt NxtHash & next key of the same hash \\ \hline
+L-3        & \tt Parent  & key of the parent directory \\ \hline
+L-2        & \tt DCache  & key of directory cache block if used \\ \hline
+L-1        & \tt SecType & shall be 2, setthis is the BCPL constant ST.USERDIR \\ \hline
+\end{longtable}
+\end{rkrmtabular}
+
+Compared to the regular directory header block, the time stamp of the last
+modification date is relocated to offsets $L-15$ and following, and the name
+and comment field is replaced by a new field at offset $L-46$.
+\smallskip{}
+
+{\tt NaC} contains both the file name and file comment as two BSTRs,
+directly placed next to each other. The file name comes first, followed by
+the comment. This element is capable of storing 112 bytes, but the FFS
+reserves one byte making in total 110 bytes available. In case the comment
+is too long and cannot be placed in this element, an additional comment
+block is created keeping only the comment, and this element then only keeps
+the file name.
+\smallskip{}
+
+{\tt CmtBlk} is the key of the comment block, keeping the file comment if
+the {\tt NaC} element is too short. If no comment block is needed, this
+element is~0.
+
+\subsection{The File Header Block}
+
+The file header block represents a file in a directory or the volume
+root. It is enqueued in one of the hash-chains of the root block or its
+parent user directory block. This block exists in multiple variants,
+depending on the flavour of the FFS. Table~\ref{table:fileheaderblock} applies
+to all FFS variants except the long-file variants {\tt
+  DOS\textbackslash{}06} and {\tt DOS\textbackslash{}07}.
+
+\begin{rkrmtabular}{FFS File Header Block} \label{table:fileheaderblock}
+\begin{longtable}{|l|l|l|} \hline
+{\bf Long-word Offset} & {\bf Content} & {\bf Notes} \\ \hline \hline
+0          & \tt Type    & shall be 2, this is the BCPL constant T.SHORT \\ \hline
+1          & \tt OwnKey  & key of this block (self-reference) \\ \hline
+2          & \tt HighSeq & total number of blocks occupied \\ \hline
+3          & \tt 0       & reserved for future use \\ \hline
+4          & \tt Data1st & first data block of the file \\ \hline
+5          & \tt Chksum  & LW sum over block is 0 \\ \hline
+6\ldots    & \tt DataBlk & first $L-56$ data blocks of the file \\ \hline
+L-50       & \tt 0       & reserved for future use \\ \hline
+L-49       & \tt Owner   & reserved for owner ID \\ \hline
+L-48       & \tt PrtBits & protection bits as in section~\ref{sec:fib} \\ \hline
+L-47       & \tt Size    & size of the file in bytes \\ \hline
+L-46\ldots & \tt Comment & file comment as BSTR \\ \hline
+L-26\ldots & \tt 0       & reserved for future use \\ \hline
+L-23       & \tt Days    & \multirow{3}{*}{timestamp of last file change} \\ \cline{1-2}
+L-22       & \tt Mins    & \\ \cline{1-2}
+L-21       & \tt Ticks   & \\ \hline
+L-20\ldots & \tt Name    & directory name as BSTR \\ \hline
+L-12       & \tt NameX1  & name extension for {\tt DOS\textbackslash08} \\ \hline
+L-11       & \tt 0       & reserved for future use \\ \hline
+L-10       & \tt BckLink & key of first hard-link to this object \\ \hline
+L-9\ldots  & \tt NameX2  & name extension for {\tt DOS\textbackslash08} \\ \hline
+L-4        & \tt NxtHash & next key of the same hash \\ \hline
+L-3        & \tt Parent  & key of the parent directory \\ \hline
+L-2        & \tt FileExt & key of first file extension block \\ \hline
+L-1        & \tt SecType & shall be -3, setthis is the BCPL constant ST.FILE \\ \hline
+\end{longtable}
+\end{rkrmtabular}
+
+{\tt Type} is the primary type of this block. It is always~2, which is the
+BCPL constant {\tt T.SHORT}
+\smallskip{}
+
+{\tt OwnKey} is the key of this object, i.e. it is the block number of this
+block itself.
+\smallskip{}
+
+{\tt HighSeq} is the highest data block sequence number and as such the
+total number of blocks occupied by the file.
+\smallskip{}
+
+{\tt Data1st} is the key of the first data block of the file. This data
+block is actually made available twice, once here, and once again at offset
+$L-49$. Probably the key at this offset was historically used for sequential
+access into the file, whereas the block list at offset~$L-6$ following were
+used for random access.
+\smallskip{}
+
+{\tt Chksum} is the checksum over the entire block. It is chosen such that
+the long-word sum over the entire block, including this element, is zero.
+\smallskip{}
+
+{\tt DataBlk} is an array containing the first $L-56$ data blocks of the
+file. The array is filled from its bottom-end, i.e. $L-49$ contains the
+key of first data block, $L-50$ the second key and so on. If this array
+overflows, additional blocks are in one or more file extension blocks
+chained at $L-2$.
+\smallskip{}
+
+{\tt OwnerID} is reserved for the owner ID of this file that can be set
+with {\tt ACTION\_SET\_OWNER}. As the FFS has no means to validate the
+file owner, this element does not bear any practical meaning.
+\smallskip{}
+
+{\tt PrtBits} are the protection bits of the file, encoded as in
+section~\ref{sec:fib}. The four least-significant bits corresponding to the
+readable, writable, executable and deletable features are stored inverted,
+i.e. a bit being~0 indicates that the corresponding feature is
+available. This is the same encoding as in the {\tt FileInfoBlock}
+structure.
+\smallskip{}
+
+{\tt Comment} contains a potential comment for this file. The comment
+is represented as a BSTR with the comment length in the first
+character. There is room for 80 bytes, i.e. the maximum comment size is
+79 characters.
+\smallskip{}
+
+The elements at offset $L-23$ to $L-21$ form a {\tt DateStamp} structure
+that identifies the timestamp of the last change of this file.
+\smallskip{}
+
+{\tt Name} is the name of this file encoded as BSTR with the name length in
+the first byte; even though~32 bytes are available here, the FFS reserves
+one character, thus limiting the maximal file name size to~30 characters.
+\smallskip{}
+
+{\tt NameX1} and {\tt NameX2} are name extensions that are used by the {\tt
+  DOS\textbackslash{}08} flavour of the FFS. They add additional~24 bytes of
+storage for the file name. Again, one character is reserved, limiting
+the maximum file name size for this variant to~54. The file name
+extends from {\tt Name}, then overflows into {\tt NameX1} and from there to
+{\tt NameX2}.
+\smallskip{}
+
+{\tt BckLink} is the key of the first hard link to this file. The link
+of this key replaces the original directory header block in case the
+file itself is deleted, and then is converted from a link to a file.
+\smallskip{}
+
+{\tt NxtHash} is the key of the next object using the same hash key as this
+directory itself.
+\smallskip{}
+
+{\tt Parent} is the key of the directory containing this file, or the key of
+the root block in case this file is directly in the volume root.
+\smallskip{}
+
+{\tt FileExt} is the key of the first file extension block. This key is only
+used if the file requires more than $L-56$ blocks. Otherwise, it stays~0.
+\smallskip{}
+
+{\tt SecType} along with {\tt Type} identifies the type of this block. The
+value of this element shall be~-3, identifying this as file header block.
+\medskip{}
+
+For the long file-name enabled flavours of the FFS, namely {\tt
+  DOS\textbackslash{}06} and {\tt DOS\textbackslash{}07}, this block looks
+somewhat different:
+
+\begin{rkrmtabular}{Long-Filename FFS File Header Block} \label{table:longfileheaderblock}
+\begin{longtable}{|l|l|l|} \hline
+{\bf Long-word Offset} & {\bf Content} & {\bf Notes} \\ \hline \hline
+0          & \tt Type    & shall be 2, this is the BCPL constant T.SHORT \\ \hline
+1          & \tt OwnKey  & key of this block (self-reference) \\ \hline
+2          & \tt HighSeq & total number of blocks occupied \\ \hline
+3          & \tt 0       & reserved for future use \\ \hline
+4          & \tt Data1st & first data block of the file \\ \hline
+5          & \tt Chksum  & LW sum over block is 0 \\ \hline
+6\ldots    & \tt DataBlk & first $L-56$ data blocks of the file \\ \hline
+L-50       & \tt 0       & reserved for future use \\ \hline
+L-49       & \tt Owner   & reserved for owner ID \\ \hline
+L-48       & \tt PrtBits & protection bits as in section~\ref{sec:fib} \\ \hline
+L-47       & \tt 0       & reserved for future use \\ \hline
+L-46\ldots & \tt NaC     & name and comment BSTR \\ \hline
+L-18       & \tt CmtBlk  & key of comment block if necessary \\ \hline
+L-17       & \tt 0       & reserved for future use \\ \hline
+L-16       & \tt 0       & reserved for future use \\ \hline
+L-15       & \tt Days    & \multirow{3}{*}{timestamp of last file change} \\ \cline{1-2}
+L-14       & \tt Mins    & \\ \cline{1-2}
+L-13       & \tt Ticks   & \\ \hline
+L-12       & \tt 0       & reserved for future use \\ \hline
+L-11       & \tt 0       & reserved for future use \\ \hline
+L-10       & \tt BckLink & key of first hard-link to this object \\ \hline
+L-9\ldots  & \tt 0       & reserved for future use \\ \hline
+L-4        & \tt NxtHash & next key of the same hash \\ \hline
+L-3        & \tt Parent  & key of the parent directory \\ \hline
+L-2        & \tt FileExt & key of first file extension block \\ \hline
+L-1        & \tt SecType & shall be 2, setthis is the BCPL constant ST.USERDIR \\ \hline
+\end{longtable}
+\end{rkrmtabular}
+
+Compared to the regular file header block, the time stamp of the last
+modification date is relocated to offsets $L-15$ and following, and the name
+and comment field is replaced by a new field at offset $L-46$.
+\smallskip{}
+
+{\tt NaC} contains both the file name and file comment as two BSTRs,
+directly placed next to each other. The file name comes first, followed by
+the comment. This element is capable of storing 112 bytes, but the FFS
+reserves one byte making in total 110 bytes available. In case the comment
+is too long and cannot be placed in this element, an additional comment
+block is created keeping only the comment, and this element then only keeps
+the file name.
+\smallskip{}
+
+{\tt CmtBlk} is the key of the comment block, keeping the file comment if
+the {\tt NaC} element is too short. If no comment block is needed, this
+element is~0.
+
+\subsection{The Soft- and Hard-Link Block}
+
+The soft- and hard-link block represent a soft-link or a hard-link to
+another file system object. Similar to the file header and user directory
+blocks, this block exists in two variants,
+depending on the flavour of the FFS. Table~\ref{table:linkblock} applies
+to all FFS variants except the long-file variants {\tt
+  DOS\textbackslash{}06} and {\tt DOS\textbackslash{}07}.
+
+\begin{rkrmtabular}{FFS Link Block} \label{table:linkblock}
+\begin{longtable}{|l|l|l|} \hline
+{\bf Long-word Offset} & {\bf Content} & {\bf Notes} \\ \hline \hline
+0          & \tt Type    & shall be 2, this is the BCPL constant T.SHORT \\ \hline
+1          & \tt OwnKey  & key of this block (self-reference) \\ \hline
+2          & \tt 0       & reserved for future use \\ \hline
+3          & \tt 0       & reserved for future use \\ \hline
+4          & \tt 0       & reserved for future use \\ \hline
+5          & \tt Chksum  & LW sum over block is 0 \\ \hline
+6\ldots    & \tt Target  & link target for soft-links \\ \hline
+L-50       & \tt 0       & reserved for future use \\ \hline
+L-49       & \tt Owner   & reserved for owner ID \\ \hline
+L-48       & \tt PrtBits & protection bits as in section~\ref{sec:fib} \\ \hline
+L-47       & \tt 0       & reserved for future use \\ \hline
+L-46\ldots & \tt Comment & link comment as BSTR \\ \hline
+L-26\ldots & \tt 0       & reserved for future use \\ \hline
+L-23       & \tt Days    & \multirow{3}{*}{timestamp of link creation} \\ \cline{1-2}
+L-22       & \tt Mins    & \\ \cline{1-2}
+L-21       & \tt Ticks   & \\ \hline
+L-20\ldots & \tt Name    & link name as BSTR \\ \hline
+L-12       & \tt NameX1  & name extension for {\tt DOS\textbackslash08} \\ \hline
+L-11       & \tt Link    & key of link target for hard-links \\ \hline
+L-10       & \tt BckLink & key of next hard-link to the same object \\ \hline
+L-9\ldots  & \tt NameX2  & name extension for {\tt DOS\textbackslash08} \\ \hline
+L-4        & \tt NxtHash & next key of the same hash \\ \hline
+L-3        & \tt Parent  & key of the parent directory \\ \hline
+L-2        & \tt 0       & reserved for future use \\ \hline
+L-1        & \tt SecType & identifies the type of the link \\ \hline
+\end{longtable}
+\end{rkrmtabular}
+
+{\tt Type} is the primary type of this block. It is always~2, which is the
+BCPL constant {\tt T.SHORT}
+\smallskip{}
+
+{\tt OwnKey} is the key of this object, i.e. it is the block number of this
+block itself.
+\smallskip{}
+
+{\tt Chksum} is the checksum over the entire block. It is chosen such that
+the long-word sum over the entire block, including this element, is zero.
+\smallskip{}
+
+{\tt Target} is the path of the link target for soft-links. This is stored
+as {\tt NUL}-terminated C-string, not as BSTR\footnote{The information
+in~\cite{Bantam} that this is a BSTR is incorrect}. The maximum path name
+that can be stored here is $(L-56)\times 4 - 1$ characters
+long. Unfortunately, all versions of the FFS currently do not check the
+maximum link name and damage the file system structure if this path is too
+long, though in a default floppy with 512 bytes per sector, this element
+leaves room for paths up to 287 characters.
+\smallskip{}
+
+{\tt OwnerID} is reserved for the owner ID of this link that can be set
+with {\tt ACTION\_SET\_OWNER}. As the FFS has no means to validate the
+link owner, this element does not bear any practical meaning.
+\smallskip{}
+
+{\tt PrtBits} are the protection bits of the link, encoded as in
+section~\ref{sec:fib}. However, the practical value of these protection bits
+is zero as locking a link provides a lock to the linked object, and thus the
+protection bits stored here are not actually checked and neither accessible,
+except by walking a directory through {\tt ACTION\_EXAMINE\_NEXT} or
+{\tt ACTION\_EXAMINE\_ALL}.
+\smallskip{}
+
+{\tt Comment} contains a potential comment for this link. The comment is
+represented as a BSTR with the comment length in the first character. There
+is room for 80 bytes, i.e. the maximum comment size is 79
+characters. Comments of links \emph{can} be set with
+{\tt ACTION\_SET\_COMMENT} as the FFS does not attempt to follow the link.
+\smallskip{}
+
+The elements at offset $L-23$ to $L-21$ form a {\tt DateStamp} structure
+that identifies the timestamp of the creation of the link. For hard-links,
+this element bears no practical meaning as even an {\tt ACTION\_SET\_DATE}
+will update the date of the link target and not the link itself. An attempt
+to change the date of a soft-link creates an {\tt ERROR\_IS\_SOFT\_LINK} and
+thus instructs the client of the FFS to rather redirect the request to the
+linked target. Thus, this date may potentially be seen when walking a
+directory, but it cannot be changed.
+\smallskip{}
+
+{\tt Name} is the name of this file encoded as BSTR with the name
+length in the first byte; even though~32 bytes are available here, the FFS
+reserves one character, thus limiting the maximal file name size.
+\smallskip{}
+
+{\tt NameX1} and {\tt NameX2} are name extensions that are used by the {\tt
+  DOS\textbackslash{}08} flavour of the FFS. They add additional~24 bytes of
+storage for the directory name. Again, one character is reserved, limiting
+the maximum name for this variant to~54. The link name
+extends from {\tt Name}, then overflows into {\tt NameX1} and from there to
+{\tt NameX2}.
+\smallskip{}
+
+{\tt Link} is the key of the file header or user directory key for
+hard-links. For soft-links, this element is not used and set to~0.
+\smallskip{}
+
+{\tt BckLink} is the key to the next hard-link to the same link target, or~0
+if there is no further hard-link to the same target. Thus, all links to the
+same target are chained through {\tt BckLink}.
+\smallskip{}
+
+{\tt NxtHash} is the key of the next object using the same hash key as this
+directory itself.
+\smallskip{}
+
+{\tt Parent} is the key of the directory containing this link, or the key of
+the root block in case this file is directly in the volume root.
+\smallskip{}
+
+{\tt SecType} along with {\tt Type} identifies the type of this block. This
+can be either~$-4$, corresponding to {\tt ST.LINKFILE} for a hard-link to a
+file, or~$4$ ({\tt ST.LINKDIR}) for a hard-link to a directory, or~3,
+corresponding to {\tt ST.SOFTLINK} for soft-links.
+\medskip{}
+
+For the long file-name enabled flavours of the FFS, namely {\tt
+  DOS\textbackslash{}06} and {\tt DOS\textbackslash{}07}, this block looks
+somewhat different:
+
+\begin{rkrmtabular}{Long-Filename FFS Link Block} \label{table:longlinkblock}
+\begin{longtable}{|l|l|l|} \hline
+{\bf Long-word Offset} & {\bf Content} & {\bf Notes} \\ \hline \hline
+0          & \tt Type    & shall be 2, this is the BCPL constant T.SHORT \\ \hline
+1          & \tt OwnKey  & key of this block (self-reference) \\ \hline
+2          & \tt 0       & reserved for future use \\ \hline
+3          & \tt 0       & reserved for future use \\ \hline
+4          & \tt 0       & reserved for future use \\ \hline
+5          & \tt Chksum  & LW sum over block is 0 \\ \hline
+6\ldots    & \tt Target  & link target for soft-links \\ \hline
+L-50       & \tt 0       & reserved for future use \\ \hline
+L-49       & \tt Owner   & reserved for owner ID \\ \hline
+L-48       & \tt PrtBits & protection bits as in section~\ref{sec:fib} \\ \hline
+L-47       & \tt 0       & reserved for future use \\ \hline
+L-46\ldots & \tt NaC     & name and comment BSTR \\ \hline
+L-18       & \tt CmtBlk  & key of comment block if necessary \\ \hline
+L-17       & \tt 0       & reserved for future use \\ \hline
+L-16       & \tt 0       & reserved for future use \\ \hline
+L-15       & \tt Days    & \multirow{3}{*}{timestamp of last directory change} \\ \cline{1-2}
+L-14       & \tt Mins    & \\ \cline{1-2}
+L-13       & \tt Ticks   & \\ \hline
+L-12       & \tt 0       & reserved for future use \\ \hline
+L-11       & \tt Link    & key of link target for hard-links \\ \hline
+L-10       & \tt BckLink & key of next hard-link to the same object \\ \hline
+L-9\ldots  & \tt 0       & reserved for future use \\ \hline
+L-4        & \tt NxtHash & next key of the same hash \\ \hline
+L-3        & \tt Parent  & key of the parent directory \\ \hline
+L-2        & \tt 0       & reserved for future use \\ \hline
+L-1        & \tt SecType & identifies the type of the link \\ \hline
+\end{longtable}
+\end{rkrmtabular}
+
+Compared to the regular link block, the time stamp of the last modification
+date is relocated to offsets $L-15$ and following, and the name and comment
+field is replaced by a new field at offset $L-46$.
+\smallskip{}
+
+{\tt NaC} contains both the link name and file comment as two BSTRs,
+directly placed next to each other. The link name comes first, followed by
+the comment. This element is capable of storing 112 bytes, but the FFS
+reserves one byte making in total 110 bytes available. In case the comment
+is too long and cannot be placed in this element, an additional comment
+block is created keeping only the comment, and this element then only keeps
+the file name.
+\smallskip{}
+
+{\tt CmtBlk} is the key of the comment block, keeping the file comment if
+the {\tt NaC} element is too short. If no comment block is needed, this
+element is~0.
 
 \chapter{The AmigaDOS Shell}
 % TODO
