@@ -22,6 +22,7 @@
 \usepackage{t1enc}
 \usepackage[latin1]{inputenc}
 \usepackage{index}
+\usepackage{enumitem}
 \pagestyle{headings}
 \pagestyle{fancy}
 %
@@ -1367,7 +1368,7 @@ that interact with the outside world. Typically, \emph{file
 \emph{handlers}\key{Handlers} create interactive or non-interactive
 files, depending on the nature of the handler.
 
-\subsection{Obtaining the Type from a File}
+\subsection{Obtaining the Type from a File} \label{sec:isinteractive}
 
 A file can be either interactive, in which case attempts to read or
 write data to the file may block indefinitely, or non-interactive
@@ -17229,6 +17230,139 @@ keys are actually still in active use and which have been scratched on
 purpose.
 
 \chapter{The AmigaDOS Shell}
+The Shell is the command line interpreter of AmigaDOS and is a simple
+language of itself. User applications can use services of the shell by
+requesting it to interpet a shell script or launching a new shell in a
+user-provided console window, then interpreting commands entered by the
+user. The latter is called an \emph{interactive} shell, the former is
+non-interactive.
+\smallskip{}
+
+The Shell is built into the ROM of the kickstart, even though AmigaDOS
+is flexible enough to allow custom shells and make them available to user
+applications. The Shell is also responsible for booting up the system by
+executing the {\tt Startup-Sequence} script in the {\tt S:} assign.
+
+\subsection{The Shell Syntax}
+The Shell reads commands along with its arguments line by line from the
+console or a script. Each line consists of at least one command upfront and
+its arguments, where the arguments amongst each other and the command are
+are separated by spaces. The command refers to an executable file that is
+located by the shell in the \emph{path} and brought into memory through {\tt
+  LoadSeg()}\key{LoadSeg()}, and to which the command line arguments are
+provided.
+\smallskip{}
+
+Commands receive from the shell an input and output stream, and a console
+handler to which commands can refer by the special file name
+{\tt *}. Optionally, they can be provided with an error stream through which
+diagnostic messages are printed. The shell allows redirecting or creating
+these streams by operators on the command line that shall also be separated
+by the spaces from the arguments and the command.
+\smallskip{}
+
+The shell supports the following redirection operators:
+
+\begin{itemize}[leftmargin=5em]
+  \item[{\tt >}{\it path}] redirects the output of a command to a
+    particular file, creating the file if it does not yet exist, or
+    overwriting it if does.
+  \item[{\tt >{}>}{\it path}] appends the output of a command to a
+    file if the file already exists, or creates a the output file if it does
+    not yet exist.
+  \item[{\tt <}{\it path}] redirects the input of a command from an
+    already existing file which must exist; otherwise, an error is
+    indicated.
+  \item[{\tt <{}<}{\it ind}] uses the current console or the shell
+    script itself from which the command is run as input, line by line,
+    until a line starting with {\tt ind} is found. The indicator can be
+    choosen arbitrarily. A typical choice is {\tt EOF}. This avoids
+    creating temporary files.
+  \item[{\tt <>}{\it path}] redirects both the standard input and
+    the standard output of the command to a path. The file must exist
+    already, otherwise an error is indicated.
+  \item[{\tt *>}{\it path}] redirects the error output of the command to the
+    given path. If this path identifies an interactive stream (see
+    section~\ref{sec:isinteractive}), such as a console, then the console
+    process of the command is set to it as well. This will also redirect
+    output of commands that prints errors to the {\tt *} file that
+    is contacted for this special file name.
+   \item[{\tt *>{}>}{\it path}] appends the error output of a command to a
+     file, or creates a new file for error output if it does not yet
+     exist. If the target file is interactive, the console process of the
+     command is also updated.
+   \item[{\tt *<>}] creates a standard error stream and redirects it to the
+     standard output. If none of the three above redirection operators are
+     present, then (unlike in other operating systems) the command
+     \emph{does not} receive a standard error stream. What happens in such a
+     case with error output is specific to the implementation of the
+     command. The system error handling functions will still provide error
+     output to the standard output as if an implicit {\tt *<>} would be
+     present.
+\end{itemize}
+
+Where the redirection is placed within a command line does typically not
+matter, e.g. wether it is directly following the command or placed at the
+end of the command line. There are, however, three exceptions the shell
+makes when parsing the command line:
+\smallskip{}
+
+For the {\tt alias} and {\tt run} command, redirections of the command
+itself shall be placed directly following the command. The same applies if
+the shell variable {\tt oldredirect} is set to {\tt on}. In the above cases,
+redirections placed at a later point of the command line will become part of
+the command line arguments. That is, for {\tt run}, the command run in back
+will redirect its streams rather than the streams of the {\tt run} command,
+and for {\tt alias}, the redirection will become part of the alias and will
+become active when the alias is expanded. The {\tt oldredirect} variable
+will do likewise for all other commands, except that they will typically not
+interpret redirection requests in a useful way and will instead take the
+angle brackets as regular arguments.
+\medskip{}
+
+The Shell allows combining multiple commands on the command line, then
+forming \emph{compound} commands. The following operators go \emph{between}
+commands such that the last argument of the first command is directly to the
+left of such an operator, and the next argument start to the right. As for
+arguments, these operators need to be separated by arguments and commands
+with blank spaces:
+
+\begin{itemize}
+  \item[{\tt |}] The vertical bar creates a pipe such that the standard
+    output of the command to the left becomes the standard input of the
+    command to its right. As some commands require an explicit file name
+    they read data from, or they write data to, the pipe itself can be
+    explicitly addressed through the {\tt PIPE:} file name, both for the
+    reading and the writing end. Pipes require the Queue-Handler, which is
+    mounted by the Kickstart during the system startup.
+  \item[{\tt ||}] Two vertical bars concatenate the output of two commands
+    together into one common stream which can then redirected to a common
+    output\footnote{This syntax is different from the {\tt bash} operator
+    that looks similar.}.
+  \item[{\tt \&\&}] Sequences two commands, first executes the one to the
+    left, and if its return value is below the {\tt FailAt} value, continues
+    to execute the command to its right.
+\end{itemize}
+
+In addition, the Shell recognizes the unary {\tt \&} operator; similar to
+the {\tt run} command, it starts the command line within which it appears in
+background. The command will receive a new logical console, and its output
+and error streams will be redirected to this console, unless of course
+redirected explicitly to other files. Unfortunately, at this time, the
+ROM-based Console-Handler does not take advantage of this information and
+will simply merge the output of the process run back with that of the
+regular shell, though extended Console-Handlers use this information for job
+control and hold the output of the background process until made explicitly
+active.
+\smallskip{}
+
+The brackets ``{\tt (}'' and ``{\tt )}'' group commands and execute the
+grouped command in a separate process in a sub-shell. For this, both the
+opening and closing bracket shall be separated by commands and arguments by
+at least a single space as otherwise the shell interprets them as part of
+the command or arguments. This provides logical grouping of commands into
+compound commands.
+
 % TODO
 
 \subsection{Start Programs in a Shell}
