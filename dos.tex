@@ -17243,7 +17243,8 @@ is flexible enough to allow custom shells and make them available to user
 applications. The Shell is also responsible for booting up the system by
 executing the {\tt Startup-Sequence} script in the {\tt S:} assign.
 
-\subsection{The Shell Syntax}
+\section{The Shell Syntax}
+
 The Shell reads commands along with its arguments line by line from the
 console or a script. Each line consists of at least one command upfront and
 its arguments, where the arguments amongst each other and the command are
@@ -17251,7 +17252,8 @@ are separated by spaces. The command refers to an executable file that is
 located by the shell in the \emph{path} and brought into memory through {\tt
   LoadSeg()}\key{LoadSeg()}, and to which the command line arguments are
 provided.
-\smallskip{}
+
+\subsection{Input/Output Redirection}
 
 Commands receive from the shell an input and output stream, and a console
 handler to which commands can refer by the special file name
@@ -17318,7 +17320,8 @@ become active when the alias is expanded. The {\tt oldredirect} variable
 will do likewise for all other commands, except that they will typically not
 interpret redirection requests in a useful way and will instead take the
 angle brackets as regular arguments.
-\medskip{}
+
+\subsection{Compound Commands}
 
 The Shell allows combining multiple commands on the command line, then
 forming \emph{compound} commands. The following operators go \emph{between}
@@ -17362,7 +17365,8 @@ opening and closing bracket shall be separated by commands and arguments by
 at least a single space as otherwise the shell interprets them as part of
 the command or arguments. This provides logical grouping of commands into
 compound commands.
-\medskip{}
+
+\subsection{Quoting and Escaping}
 
 To allow spaces and the above operators as parts of command names and
 arguments, e.g. to handle file names containing spaces, the Shell allows
@@ -17406,6 +17410,62 @@ responsibilities has the inconvenient side effect that some third-party
 argument parsers, e.g. by some popular C compilers, do not fully support the
 (admittedly unorthogonal) quotation and escaping rules of the Shell and thus
 do not deliver the expected results.
+
+\subsection{Variables and Variable Expansion}
+
+The AmigaDOS shell supports variables, both local to the shell and
+system-global, and expands variables as part of the regular command line
+parsing. A variable is indicated by a string starting with a dollar-sign
+(``{\tt \$}'') and followed by alpha-numerical characters, i.e. 0-9, A-Z and
+a-z. Variable names are case-insensitive. The lst character that is outside
+this range terminates the variable name. 
+\smallskip{}
+
+An equivalent but more flexible way of referring to a variable is by
+enclosing the variable name after the {\tt \$} sign in braces, i.e. ``{\tt
+  \{{\it name}\}}'' within which all other characters are allowed as
+components of the name as well.
+\smallskip{}
+
+Local variables are represented as entries in the {\tt pr\_LocalVars} list
+that is part of the process structure that represents the Shell, see
+section~\ref{sec:process}. When expanding variables, the Shell first checks
+there for a variable of a matching name. Only if that fails, the Shell tests
+for global variables. They are represented as files in the {\tt ENV:}
+assign, which is typically an external link within the {\tt RAM:} device
+copying elements from the {\tt ENVARC:} assign. That is, local variables
+take priority over global variables.
+\smallskip{}
+
+Variables are substituted by the Shell \emph{before} the resulting argument
+line is provided to the command, i.e. it is not necessary to expand
+variables within commands. The Shell does not attempt to generate pairs of
+double quotes to ensure that an expanded variable corresponds to a single
+argument. In fact, if a variable contains a string including spaces, it will
+be seen in the expanded argument line as multiple arguments, unless the
+reference to the variable itself is enclosed in double quotes. The Shell
+does, however, keep care that special characters contained in a variable
+such as the asterisk and the double quote itself are escaped properly if the
+variable reference is enclosed in double quotes. That is, if a variable
+contains an asterisk or a double quote, and the variable name appears within
+double quotes, such asterisks or double quotes are escaped with an
+(additional) asterik as escape character to ensure the resulting argument is
+represented appropriately.
+\smallskip{}
+
+If the variable name is started with ``{\tt \$?}'' instead of ``{\tt \$}'',
+then the Shell will instead check whether the variable exists or not, and
+instead of inserting its value, it will substitute the name by a~1 if the
+variable exists, or by a~0 if it does not exist, i.e. is undefined. If a
+variable reference starts with ``{\tt \$??}'', the Shell checks whether the
+variable exists as \emph{global} variable, and if so, expands the entire
+reference to~1, otherwise to~0. Finally, if the variable reference starts
+with ``{\tt \$!}'', the variable may contain control characters such as line
+feeds that are included in the expansion. This binary expansion is only
+applicable to global variables, and as potential control characters are
+injected into the Shell tokenizer, it is necessary to include such binary
+expanded variables in double quotes to escape the control characters
+properly and make them accessible to commands and their argument parser.
 
 
 
