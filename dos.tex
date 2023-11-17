@@ -17362,6 +17362,52 @@ opening and closing bracket shall be separated by commands and arguments by
 at least a single space as otherwise the shell interprets them as part of
 the command or arguments. This provides logical grouping of commands into
 compound commands.
+\medskip{}
+
+To allow spaces and the above operators as parts of command names and
+arguments, e.g. to handle file names containing spaces, the Shell allows
+quoting. Blank spaces within such quotes become part of the argument, and
+are not interpreted by the shell. A quote only starts a quoted argument or
+command and is thus a functional element of the shell if it is preceeded by
+a blank space, quotes \emph{within} an otherwise non-quoted argument are
+literals and stand for itself. A quote, however, does terminate a quoted
+argument or string even if it is \emph{not} followed by a blank space.
+\smallskip{}
+
+Within quotes, the Shell recognizes the asterisk ``{\tt *}'' as an escape
+character, and only there. That is, the asterisk is a literal outside of
+double quotes; for example, it is the file name that identifies the current
+console, and as isolated character outside of quotes is not interpreted as
+escape character. The following escape sequences are recognized by the
+Shell:
+
+\begin{itemize}
+\item[{\tt *N}] The newline character, ASCII {\tt 0x0a}.
+\item[{\tt *E}] The escape character, ASCII {\tt 0x1b}. There is no escape
+  sequence for the CSI control character {\tt 0x9b}, but there is a 7-bit
+  equivalent sequence all terminals support, namely {\tt *E[}. The Shell
+    does not establish this equivalence, but the console does.
+\item[{\tt *"}] The double quote; a double quote escaped as such does not
+  terminate the quoted argument, but represents the quote itself as part of
+  the argument.
+\item[{\tt **}] The asterisk itself.
+\end{itemize}
+
+While the Shell recognizes and honours the double quotes and the asterisk as
+escape character when parsing and interpreting its input as command line, it
+\emph{does not} perform substitution of the escape sequences or removal of
+the quotes itself. Their interpretation is left to the executed command
+which will, hopefully, implement the above rules correctly.  Proper
+interpretation and escape sequence substitution is ensured if the command
+uses the {\tt ReadArgs()}\key{ReadArgs()} or {\tt
+  ReadItem()}\key{ReadItem()} functions of the \emph{dos.library} which
+\emph{will} follow the above conventions. This distribution of
+responsibilities has the inconvenient side effect that some third-party
+argument parsers, e.g. by some popular C compilers, do not fully support the
+(admittedly unorthogonal) quotation and escaping rules of the Shell and thus
+do not deliver the expected results.
+
+
 
 % TODO
 
