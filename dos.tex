@@ -7627,7 +7627,7 @@ terminates a process, but shall be called from within the process, and is
 typically not suitable as it does not release resources acquired by the
 program itself, but only those allocated by the system itself.
 
-\subsection{Creating a New Process from a TagList}
+\subsection{Creating a New Process from a TagList} \label{sec:createnewproc}
 
 The {\tt CreateNewProc()}\mkey{CreateNewProc()} function takes a {\tt
   TagItem} array as defined in {\tt utility/tagitem.h} and launches a new
@@ -17724,10 +17724,36 @@ the \emph{file handle} stored there, deletes the temporary file whose name
 is stored in {\tt cli\_CommandFile} and continues execution from {\tt
   cli\_StandardInput}.
 
-% TODO
+\section{Interacting with the AmigaDOS Shell}
+
+The functions in this section interact with the Shell in one way or
+another. They start a new Shell, execute a Shell script or retrieve
+information from the Shell a program has been started within.
 
 \subsection{Start Programs in a Shell}
-%TODO
+
+The {\tt System()}\mkey{System()} function creates a new Shell, and
+potentially executes a Shell script. Depending on parameters, it waits for
+the script to complete, or launches an interactive Shell in a console or a
+non-interactive Shell in the background. The same \emph{dos.library} entry
+point exists under 3 names that only differ in how the code generator of a
+compiler provides parameters for it.
+\smallskip{}
+
+The {\tt SystemTagList()}\mkey{SystemTagList()} function is equivalent to
+the {\tt System()}\key{System()} function and does not differ in arguments
+and call syntax. It is only present to harmonize function naming across all
+library entry points. It takes a pointer to a string containing a Shell
+script, possibly only a single command, and additional parameters encoded in
+a {\tt TagItem} array as defined in {\tt utility/tagitem.h}.
+\smallskip{}
+
+The {\tt SystemTags()}\mkey{SystemTags()} function also receives this
+string, but provides the {\tt TagItem}s explicitly as one or multiple exra
+arguments to the function. Compilers typically build then the {\tt TagItem}
+array on the stack and pass the pointer to the first item on the stack to
+the \emph{dos.library} entry point.
+
 \begin{verbatim}
 error = SystemTagList(command, tags)
 D0		        D1      D2 
@@ -17743,6 +17769,249 @@ error = SystemTags(command, Tag1, ...)
 
 LONG SystemTags(STRPTR, ULONG, ...)
 \end{verbatim}
+
+This function is the generic Shell execution function that creates a Shell
+in one or multiple modes, and executes the commands provided as first
+argument in that Shell. Hence, the first argument establishes a Shell
+script, encoded as a string, and multiple commands separated by newline
+characters may be provided that will be executed one after another. Argument
+substitutions as by the {\tt Execute} command (see
+section~\ref{sec:executecmd}) are \emph{not} performed, but otherwise the
+entire Shell syntax, including variables, compound commands and pipes is
+available. If such mechanisms are necessary, {\tt Execute} shall be called
+directly, receiving its input from a temorary file.
+\smallskip{}
+
+Depending on its arguments, this function is synchronous, i.e. waits for the
+completion of the called commands, or asynchronous and then detaches from
+the caller. By proper usage of arguments, this function can emulate (or is
+actually even used by) the {\tt run} and {\tt newshell} commands, and is
+also used by the system startup module to create the initial boot shell.
+\smallskip{}
+
+By default, the newly created Shell receives the input and output file
+handles of the caller, i.e. {\tt pr\_CIS} and {\tt pr\_COS} are copied from
+the calling process, see section~\ref{sec:process} for the documentation of
+the process structure. However, with suitable tags the caller can provide
+alternative input and output streams. Whether these file handles are closed
+upon termination of the shell depends on further arguments, but the default
+is not to close them when run synchronously, and to close them otherwise,
+even if they were the streams of the caller, so beware and provide suitable
+tags.
+\smallskip{}
+
+The input and output file handles provided to the Shell \emph{shall be
+different}, i.e. it is not permissible to provide the same file handle as
+input and as output stream. If the input and output handle should go to an
+interactive stream such as the console, then only provide an input stream
+and set the output stream to {\tt ZERO} by {\tt SYS\_Output}, see the list
+of tags below. The \emph{dos.library} will in that case create an output
+file handle by opening another stream to the console through the {\tt *}
+file name.
+\smallskip{}
+
+The newly creates Shell will receive a copy of the path, the local shell
+variables, the prompt, the current directory and the stack size of the shell
+of the caller, if such shell exists, i.e. {\tt pr\_CLI} is non-{\tt
+  ZERO}. Otherwise, a default path containing only the {\tt C:} directory
+and the current directory will be created, no local variables will be
+defined, the prompt will be set to ``{\tt \%N> }'' and the current directory
+to ``{\tt SYS:}''.
+\smallskip{}
+
+By default, the executing shell will be the system shell, whose segment is
+available as a system segment of the name ``{\tt BootShell}'' in the
+list of resident modules, see section~\ref{sec:resident}. Other shells can
+be provided by their name, and the list of resident segments will be scanned
+for a match then. Section~\ref{sec:usershells} provides more information on
+how to implement a custom shell.
+\smallskip{}
+
+The tags this function tags are documented in {\tt dos/dostags.h} and
+consist of the {\tt SYS\_} tags and a subset of the {\tt NP\_} tags. 
+\smallskip{}
+
+{\tt SYS\_Input} This tag takes a BPTR to a file handle as argument which
+becomes the input stream of the new shell. If this tag is not provided, the
+input stream of the calling process ({\tt pr\_CIS}) will be used.
+\smallskip{}
+
+{\tt SYS\_InName} This tag takes a string as argument. This string will be
+used as argument to {\tt Open()}\key{Open()} to create a stream that will be
+used as input stream to the newly created shell. This stream will always be
+closed when done, regardless of other tags. This tag is mutually exclusive
+to {\tt SYS\_Input}.
+\smallskip{}
+
+{\tt SYS\_Output} This tag defines a BPTR to a file handle which will be
+used as output stream of the new shell. This handle \emph{shall be
+different} than the handle provided by {\tt SYS\_Input}. If this tag is not
+present, the output stream of the calling process ({\tt pr\_COS}) will be
+used for shell output. If this stream is explicitly set to {\tt ZERO}, and
+the input stream is interactive~(see sec.\ref{sec:isinteractive}) the
+\emph{dos.library} will attempt to open ``{\tt *}'' from the input stream
+instead. If that also fails, or the input is not interactive, the
+\emph{dos.library} will open ``{\tt NIL:}'' and provide that as stream to
+the Shell. Any stream implicitly provided by the \emph{dos.library} through
+that mechansim rather than explicitly through a non-{\tt ZERO} argument to
+{\tt SYS\_Output} will also be closed upon termination of the shell.
+\smallskip{}
+
+{\tt SYS\_OutName} provides an output file name that will be opened by the
+\emph{dos.library} and used as output stream for the newly created
+shell. This file will always be closed when the shell terminates. This tag
+is mutually exclusive to {\tt SYS\_Output}.
+\smallskip{}
+
+{\tt SYS\_CmdStream} provides a BPTR to a file handle from which commands
+are read, i.e. a shell script is supplied as stream, and not as a string.
+This tag is only used if the {\tt command} argument is {\tt NULL} and then
+provides an alternative (stream-based) source for the script to be
+executed. This stream is \emph{always} closed on exit, and closure cannot be
+prevented by any other tag. If {\tt SYS\_Asynch} is set and {\tt command} is
+{\tt NULL}, then the Shell first reads commands from {\tt SYS\_CmdStream},
+and once this stream reaches an EOF, it is closed and the shell continues
+reading from {\tt SYS\_Input} until this stream also depletes. Thus, the
+configuration of providing a {SYS\_CmdStream} and setting {\tt SYS\_Asynch}
+is equivalent to the {\tt newshell} command.
+\smallskip{}
+
+{\tt SYS\_CmdName} provides a file name of a shell script whose contents is
+interpreted. This tag is mutually exclusive to {\tt SYS\_CmdStream} and only
+used if the {\tt command} argument is {\tt NULL}. This stream will always be
+closed on exit.
+\smallskip{}
+
+{\tt SYS\_Asynch} If the argument to this tag is non-zero, the shell is
+detached from the calling process and executes concurrently with the calling
+process; setting this tag also implies that the streams provided by {\tt
+  SYS\_Input} and {\tt SYS\_Output} are always closed. It is thus necessary
+to explicitly provide {\tt SYS\_Input} or {\tt SYS\_InName} and {\tt
+  SYS\_Output} or {\tt SYS\_OutName}, as otherwise the input or output
+streams of the calling process will be closed. For legacy reasons, setting
+the {\tt command} argument to {\tt NULL} also enforces asynchronous
+execution, independent of the value of tag.
+\smallskip{}
+
+{\tt SYS\_UserShell} If this boolean tag is set to non-zero, then the ``user
+shell'' is launched. This corresponds to the segment ``Shell'' on the
+resident list of AmigaDOS. The default of this tag is {\tt DOSFALSE},
+indicating that the boot shell is to be used. This corresponds to the
+``BootShell' segment on the resident list. Upon system startup, and in all
+typical configurations of AmigaDOS, both correspond to the AmigaDOS shell.
+Users can, however, replace both shells with custom segments, see
+section~\ref{ec:usershells}.
+\smallskip{}
+
+{\tt SYS\_CustomShell} this tag provides the name of a custom shell to be
+used instead. The AmigaDOS list of resident segments is scanned for a
+fitting name, and the fitting segment is then used as shell.
+\medskip{}
+
+The following tags defined for {\tt CreateNewProc()}\key{CreateNewProc()},
+see section~\ref{sec:createnewproc}, are also recognized:
+\smallskip{}
+
+{\tt NP\_StackSize} defines the stack size in bytes for the shell to be
+created and the stack size the shell will allocate for its clients. The
+default is 4096 bytes for the shell itself; for the shell clients, the stack
+size is taken by default from the shell of the calling process, or 4096
+bytes if the caller is not a shell process.
+\smallskip{}
+
+{\tt NP\_Name} is the name of the shell process to be created. The default
+is ``{\tt Background CLI}''.
+\smallskip{}
+
+{\tt NP\_Priority} is the priority of the shell process to be created. The
+default priority is~0.
+\smallskip{}
+
+{\tt NP\_ConsoleTask} provides a pointer to the {\tt MsgPort} of the console
+handler that is used for opening the {\tt *} and {\tt CONSOLE:} files, which
+will be copied to {\tt pr\_ConsoleTask}. This tag is only used if the input
+stream of the new shell is not interactive, and otherwise overridden by the
+process {\tt MsgPort} port of the input file handle.
+\smallskip{}
+
+{\tt NP\_CopyVars} is a boolean tag that specifies whether local shell
+variables are copied into the new shell. The default is to copy the
+variables.
+\smallskip{}
+
+{\tt NP\_Path} contains a linked list of directory locks that establish the
+path of the newly created shell. The structure of this path is specified in
+section~\ref{sec:clistruct}. The path provided by this tag \emph{is not}
+copied for the new shell, but directly used \emph{and released} by it when
+it exits. Thus, callers should make a copy of the path upfront as it will be
+released by the created shell.
+\smallskip{}
+
+{\tt NP\_ExitCode} and {\tt NP\_ExitData} define a function that is called
+when the shell process exits. This mechanism is described in more detail in
+section~\ref{sec:createnewproc}.
+\medskip{}
+
+The return code of the {\tt System()}\key{System()} and related functions
+is~$-1$ in case creating the shell failed. In such a case {\tt
+  IoErr()}\key{IoErr()} delivers an error code providing more details on the
+cause of the failure. Otherwise, if the commands were executed
+synchronously, the return code is the result code of the last command in the
+shell executed, and {\tt IoErr()} is set to the error code set by the last
+command executed. If an asynchronous shell was created, the result code is~0
+on success, and {\tt IoErr()} will be set to~0.
+\medskip{}
+
+This function is used to implement a couple of essential system
+functionalities, and all Shell commands and system functions that create a
+Shell go through this function. This includes the {\tt newshell} and {\tt
+  run} shell commands and the {\tt Shell} icon on the workbench. The initial
+CLI interpreting {\tt S:Startup-Sequence} is also created through the {\tt
+  System()} function.
+\smallskip{}
+
+The {\tt run} command creates a new shell process by the following:
+\begin{verbatim}
+System(NULL,SYS_Input,instream,SYS_Output,Output(),
+       SYS_UserShell,TRUE,TAG_DONE);
+\end{verbatim}
+where the input stream {\tt instream} is a string stream (see
+section~\ref{sec:stringstreams}) containing the commands to be executed;
+they are taken from the input arguments of the command.
+\smallskip{}
+
+Even though {\tt SYS\_Asynch} is not set, the {\tt System()}\key{System()}
+function detaches the created shell because its first argument is {\tt
+  NULL}, see above.
+\medskip{}
+
+The {\tt newshell} command uses {\tt System()} as follows:
+\begin{verbatim}
+System(NULL,SYS_InName,window_arg,
+       SYS_CmdStream,Open(from_arg,MODE_OLDFILE),
+       SYS_Asynch,TRUE,SYS_UserShell,TRUE,
+       NP_Name,"Shell Process",TAG_DONE);
+\end{verbatim}
+where the {\tt window} argument and the {\tt from} argument are coming from
+the command line arguments of {\tt newshell} of the same names. That is,
+{\tt System()} receives a console as new input file handle, and a command
+stream which is by default ``{\tt S:Shell-Startup}''. Setting {\tt
+  SYS\_Asynch} to {\tt TRUE} ensures that the shell continues to read
+commands from its input file handle as soon as the command file depletes.
+\medskip{}
+
+The {\tt Execute()}\key{Execute()} function described in
+section~\ref{sec:execute} is equivalent to
+\begin{verbatim}
+System(NULL,SYS_CmdStream,cmd,
+       SYS_Input,in,SYS_Output,out,SYS_UserShell,FALSE,
+       NP_Priority,0,TAG_DONE)?DOSTRUE:DOSFALSE;
+\end{verbatim}
+where {\tt cmd} is a string stream (see section~\ref{sec:stringstream})
+containing the commands to be executed, constructed from the first argument
+of {\tt Execute()}, and {\tt in} and {\tt out} are its second and third
+argument. The difference of {\tt System()} and {\tt Execute()} is only the
+result code, but internally run into the same code.
 
 \subsection{Executing a Program in a Shell (Legacy)}
 
