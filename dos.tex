@@ -17730,7 +17730,7 @@ The functions in this section interact with the Shell in one way or
 another. They start a new Shell, execute a Shell script or retrieve
 information from the Shell a program has been started within.
 
-\subsection{Start Programs in a Shell}
+\subsection{Execute Shell Scripts} \label{sec:system}
 
 The {\tt System()}\mkey{System()} function creates a new Shell, and
 potentially executes a Shell script. Depending on parameters, it waits for
@@ -17847,14 +17847,18 @@ to {\tt SYS\_Input}.
 used as output stream of the new shell. This handle \emph{shall be
 different} than the handle provided by {\tt SYS\_Input}. If this tag is not
 present, the output stream of the calling process ({\tt pr\_COS}) will be
-used for shell output. If this stream is explicitly set to {\tt ZERO}, and
-the input stream is interactive~(see sec.\ref{sec:isinteractive}) the
-\emph{dos.library} will attempt to open ``{\tt *}'' from the input stream
-instead. If that also fails, or the input is not interactive, the
-\emph{dos.library} will open ``{\tt NIL:}'' and provide that as stream to
-the Shell. Any stream implicitly provided by the \emph{dos.library} through
-that mechansim rather than explicitly through a non-{\tt ZERO} argument to
-{\tt SYS\_Output} will also be closed upon termination of the shell.
+used for shell output. If this stream is explicitly set to {\tt ZERO}, then
+AmigaDOS will attempt to re-open a console through the ``{\tt *}'' file
+name. If an input stream is present and interactive, and {\tt command} is
+non-{\tt NULL} or {\tt SYS\_Async} is non-zero, then the handler of the
+input stream is used to open the replacement output stream. Otherwise, the
+handler provided through the {\tt NP\_ConsoleTask} or the console task of
+the caller if the former tag is not present is used to open ``{\tt *}''.  If
+opening the console fails, AmigaDOS will instead provide a handle to {\tt
+  NIL:} as output stream, thus disregarding any output. Any stream
+implicitly provided by the \emph{dos.library} by the above mechanism rather
+than explicitly through a non-{\tt ZERO} argument to {\tt SYS\_Output} will
+also be closed transparently upon termination of the shell.
 \smallskip{}
 
 {\tt SYS\_OutName} provides an output file name that will be opened by the
@@ -17871,9 +17875,10 @@ executed. This stream is \emph{always} closed on exit, and closure cannot be
 prevented by any other tag. If {\tt SYS\_Asynch} is set and {\tt command} is
 {\tt NULL}, then the Shell first reads commands from {\tt SYS\_CmdStream},
 and once this stream reaches an EOF, it is closed and the shell continues
-reading from {\tt SYS\_Input} until this stream also depletes. Thus, the
-configuration of providing a {SYS\_CmdStream} and setting {\tt SYS\_Asynch}
-is equivalent to the {\tt newshell} command.
+reading from {\tt SYS\_Input} until this stream also reaches an EOF, or
+an {\tt endcli} command. Thus, the configuration of providing a
+{SYS\_CmdStream} and setting {\tt SYS\_Asynch} is equivalent to the {\tt
+  newshell} command.
 \smallskip{}
 
 {\tt SYS\_CmdName} provides a file name of a shell script whose contents is
@@ -18013,14 +18018,51 @@ of {\tt Execute()}, and {\tt in} and {\tt out} are its second and third
 argument. The difference of {\tt System()} and {\tt Execute()} is only the
 result code, but internally run into the same code.
 
-\subsection{Executing a Program in a Shell (Legacy)}
+\subsection{Execute Shell Scripts (Legacy)} \label{sec:execute}
+
+The {\tt Execute()}\mkey{Execute()} function creates a new AmigaDOS shell,
+which then executes commands from a string, and continues executing commands
+from an input stream. This function is obsolete, and should be replaced by
+{\tt System()} which is more flexible.
 
 \begin{verbatim}
 success = Execute( commandString, input, output )
-D0		   D1		  D2	 D3
+D0		    D1		  D2	 D3
 
 BOOL Execute(STRPTR, BPTR, BPTR)
 \end{verbatim}
+
+This function is a deprecated function to create AmigaDOS shells and
+interpret shell scripts that has been superceeded by {\tt
+  System()}\key{System()}, see section~\ref{sec:system}.
+\smallskip{}
+
+The first argument is a string containing a shell script. If this argument
+is {\tt NULL} and thus no command string is present, a new shell is created
+and run asynchronously in the background, i.e. {\tt Execute()} returns then
+immediately. The new shell receives its input, and thus its commands from
+the file handle provided as second argument. The output of the commands go
+to the stream provided as third argument if non-{\tt ZERO}, or to a console
+cloned by opening ``{\tt *}'' from the console task of caller if possible,
+or to a {\tt NIL:} handle if this fails.
+\smallskip{}
+
+If the first argument is non-{\tt NULL}, the {\tt Execute()} command is synchronous
+and will not return until the shell completed its job. It first reads
+commands from the the command string, and once this depletes, switches over
+to the stream provided by {\tt input}. If this does not exist, it returns at
+that point. Otherwise, it continues reading from {\tt input} until this
+stream reaches its EOF, or an {\tt endcli} command. The output of the shell
+goes through the {\tt output} stream provided as third argument. If the
+third argument is {\tt ZERO}, and the input stream is interactive, AmigaDOS
+opens ``{\tt *}'' from the input stream handler if it is interactive, or
+otherwise disregards all output by providing a {\tt NIL:} handle as output.
+\smallskip{}
+
+Unlike {\tt System()}\key{System()}, this function returns {\tt DOSTRUE} on
+success and {\tt DOSFALSE} in case creating the shell failed. It also always
+executes commands through the boot shell, and not through a custom or user
+shell.
 
 \subsection{Retrieving the CLI}
 
