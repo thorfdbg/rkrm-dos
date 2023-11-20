@@ -10438,7 +10438,7 @@ year, here September 12, 2023. The version in this example is 45, the
 version is 3. The string behind the date is a comment and usually not
 printed by the {\tt Version} command.
 
-\subsection{The Stack Cookie}
+\subsection{The Stack Cookie} \label{sec:stackcookie}
 
 The workbench, the shell, and also {\tt
   GetDeviceProc()}\key{GetDeviceProc()} when loading \emph{handlers}
@@ -17316,13 +17316,13 @@ end of the command line. There are, however, three exceptions the shell
 makes when parsing the command line:
 \smallskip{}
 
-For the {\tt alias} and {\tt run} command, redirections of the command
+For the {\tt Alias} and {\tt Run} command, redirections of the command
 itself shall be placed directly following the command. The same applies if
 the shell variable {\tt oldredirect} is set to {\tt on}. In the above cases,
 redirections placed at a later point of the command line will become part of
-the command line arguments. That is, for {\tt run}, the command run in back
-will redirect its streams rather than the streams of the {\tt run} command,
-and for {\tt alias}, the redirection will become part of the alias and will
+the command line arguments. That is, for {\tt Run}, the command run in back
+will redirect its streams rather than the streams of the {\tt Run} command,
+and for {\tt Alias}, the redirection will become part of the alias and will
 become active when the alias is expanded. The {\tt oldredirect} variable
 will do likewise for all other commands, except that they will typically not
 interpret redirection requests in a useful way and will instead take the
@@ -17367,7 +17367,7 @@ In addition, the Shell recognizes two unary operators that do not stand
 between commands, but only at their end or at the end of the command line.
 
 \begin{itemize}
-\item[\&] The ampersand operator works similar to the {\tt run} command, it starts
+\item[\&] The ampersand operator works similar to the {\tt Run} command, it starts
   the command line within which it appears in background. The command will
   receive a new logical console, and its output and error streams will be
   redirected to this console, unless of course redirected explicitly to
@@ -17382,7 +17382,7 @@ between commands, but only at their end or at the end of the command line.
   forms an argument string that consists of multiple lines. Only very few
   commands can actually process a line-feed as part of their argument line,
   most will ignore all characters behind the first line feed. One particular
-  command that supports such argument lines is {\tt run}. It feeds its
+  command that supports such argument lines is {\tt Run}. It feeds its
   argument line unprocessed into a new non-interactive Shell as command
   stream, building it from a string using a technique similar to that
   explained in section~\ref{sec:stringstreams}. This sub-shell will thus
@@ -17556,14 +17556,14 @@ removed from it.}.
 Once a matching file system object has been found, the Shell attempts to
 ``execute'' it and for that checks its type and contents. If this
 ``command'' turns out to be a directory, the Shell performs an implicit
-change to this directory by inserting a {\tt cd} command upfront, and then
+change to this directory by inserting a {\tt CD} command upfront, and then
 triggers iteratively command execution again with this replacement.
 \smallskip{}
 
 If the {\tt s} protection bit is set, see section~\ref{sec:fib}, the Shell
 assumes that command is actually a script. If this script starts with the
 magic character sequence ``{\tt /*}'', it is assumed to be a Rexx script and an
-implicit {\tt rx} command is prepended to the command line. If the script
+implicit {\tt RX} command is prepended to the command line. If the script
 starts with the two-character sequence ``{\tt \#!}'' or ``{\tt ;!}'', then the
 remaining first line of the script file contains the path of the command
 interpreter which is injected into the Shell command line upfront the script
@@ -17785,7 +17785,7 @@ directly, receiving its input from a temorary file.
 Depending on its arguments, this function is synchronous, i.e. waits for the
 completion of the called commands, or asynchronous and then detaches from
 the caller. By proper usage of arguments, this function can emulate (or is
-actually even used by) the {\tt run} and {\tt newshell} commands, and is
+actually even used by) the {\tt Run} and {\tt NewShell} commands, and is
 also used by the system startup module to create the initial boot shell.
 \smallskip{}
 
@@ -17876,7 +17876,7 @@ prevented by any other tag. If {\tt SYS\_Asynch} is set and {\tt command} is
 {\tt NULL}, then the Shell first reads commands from {\tt SYS\_CmdStream},
 and once this stream reaches an EOF, it is closed and the shell continues
 reading from {\tt SYS\_Input} until this stream also reaches an EOF, or
-an {\tt endcli} command. Thus, the configuration of providing a
+an {\tt EndCLI} command. Thus, the configuration of providing a
 {SYS\_CmdStream} and setting {\tt SYS\_Asynch} is equivalent to the {\tt
   newshell} command.
 \smallskip{}
@@ -17969,13 +17969,13 @@ on success, and {\tt IoErr()} will be set to~0.
 
 This function is used to implement a couple of essential system
 functionalities, and all Shell commands and system functions that create a
-Shell go through this function. This includes the {\tt newshell} and {\tt
-  run} shell commands and the {\tt Shell} icon on the workbench. The initial
+Shell go through this function. This includes the {\tt NewShell} and {\tt
+  Run} shell commands and the {\tt Shell} icon on the workbench. The initial
 CLI interpreting {\tt S:Startup-Sequence} is also created through the {\tt
   System()} function.
 \smallskip{}
 
-The {\tt run} command creates a new shell process by the following:
+The {\tt Run} command creates a new shell process by the following:
 \begin{verbatim}
 System(NULL,SYS_Input,instream,SYS_Output,Output(),
        SYS_UserShell,TRUE,TAG_DONE);
@@ -17987,10 +17987,12 @@ they are taken from the input arguments of the command.
 
 Even though {\tt SYS\_Asynch} is not set, the {\tt System()}\key{System()}
 function detaches the created shell because its first argument is {\tt
-  NULL}, see above.
+  NULL}, see above. Surprisingly, it is the {\tt System()} call and not the
+{\tt Run} command that prints the CLI number of the created shell on the
+console in this particular case.
 \medskip{}
 
-The {\tt newshell} command uses {\tt System()} as follows:
+The {\tt NewShell} command uses {\tt System()} as follows:
 \begin{verbatim}
 System(NULL,SYS_InName,window_arg,
        SYS_CmdStream,Open(from_arg,MODE_OLDFILE),
@@ -17998,7 +18000,7 @@ System(NULL,SYS_InName,window_arg,
        NP_Name,"Shell Process",TAG_DONE);
 \end{verbatim}
 where the {\tt window} argument and the {\tt from} argument are coming from
-the command line arguments of {\tt newshell} of the same names. That is,
+the command line arguments of {\tt NewShell} of the same names. That is,
 {\tt System()} receives a console as new input file handle, and a command
 stream which is by default ``{\tt S:Shell-Startup}''. Setting {\tt
   SYS\_Asynch} to {\tt TRUE} ensures that the shell continues to read
@@ -18052,7 +18054,7 @@ and will not return until the shell completed its job. It first reads
 commands from the the command string, and once this depletes, switches over
 to the stream provided by {\tt input}. If this does not exist, it returns at
 that point. Otherwise, it continues reading from {\tt input} until this
-stream reaches its EOF, or an {\tt endcli} command. The output of the shell
+stream reaches its EOF, or an {\tt EndCLI} command. The output of the shell
 goes through the {\tt output} stream provided as third argument. If the
 third argument is {\tt ZERO}, and the input stream is interactive, AmigaDOS
 opens ``{\tt *}'' from the input stream handler if it is interactive, or
@@ -18064,7 +18066,12 @@ success and {\tt DOSFALSE} in case creating the shell failed. It also always
 executes commands through the boot shell, and not through a custom or user
 shell.
 
-\subsection{Retrieving the CLI}
+\subsection{Retrieving the CLI Structure} \label{sec:clistruct}
+
+The {\tt Cli()}\mkey{Cli()} function returns a pointer to the {\tt
+  CommandLineInterface} structure describing the shell within which the
+calling process is executing, or {\tt NULL} in case the process is not run
+from a shell.
 
 \begin{verbatim}
 cli_ptr = Cli()
@@ -18072,6 +18079,197 @@ D0
 
 struct CommandLineInterface *Cli(void)
 \end{verbatim}
+
+This function returns a pointer to the {\tt
+  CommandLineInterface}\mkey{CommandLineInterface} structure that describes
+properties of the shell the calling process runs within. The function
+returns {\tt NULL} if the caller is not part of a shell process.
+This structure, defined in {\tt dos/dos.h}, looks as follows:
+
+\begin{verbatim}
+struct CommandLineInterface {
+    LONG   cli_Result2;
+    BSTR   cli_SetName;
+    BPTR   cli_CommandDir;
+    LONG   cli_ReturnCode;
+    BSTR   cli_CommandName;
+    LONG   cli_FailLevel;
+    BSTR   cli_Prompt;
+    BPTR   cli_StandardInput;
+    BPTR   cli_CurrentInput;
+    BSTR   cli_CommandFile;
+    LONG   cli_Interactive;
+    LONG   cli_Background;
+    BPTR   cli_CurrentOutput; 
+    LONG   cli_DefaultStack;
+    BPTR   cli_StandardOutput;
+    BPTR   cli_Module;
+};
+\end{verbatim}
+
+The elements of this structure are as follows:
+\smallskip{}
+
+{\tt cli\_Result2} is the {\tt IoErr()}\key{IoErr()} the last executed
+command of the shell left, or the Shell created itself when failing to
+interpret or execute a command line. This element is for example used by the
+{\tt why} command to print a textual description of the error. The shell
+also copies this value into the {\tt \$Result2} Shell variable.
+\smallskip{}
+
+{\tt cli\_SetName} is a BPTR to a BSTR containing the path of the current
+directory. This string is used to generate a shell prompt; the AmigaDOS
+shell substitutes the ``{\tt \%S}'' format directive of the prompt by the
+string stored here. The {\tt CD} command and its {\tt PushCD} and {\tt
+  PopCD} variants update this element.
+\smallskip{}
+
+{\tt cli\_CommandDir} contains a linked list of directories that are scanned
+for commands. It is a BPTR to the following (undocumented) structure:
+
+\begin{verbatim}
+struct PathComponent {
+    BPTR pc_Next;
+    BPTR pc_Lock;
+};
+\end{verbatim}
+where {\tt pc\_Next} is the BPTR to the next directory in the path or {\tt
+  ZERO} for the end of the list, and {\tt pc\_Lock} is a lock of the
+directory that will be scanned for a matching command file.
+\smallskip{}
+
+The current directory is always the first component of the
+path and thus checked first for matching files, even if
+{\tt cli\_CommandDir} is {\tt ZERO}. The {\tt C:} directory
+is always the last component of a path and neither explicitly included in
+the linked list.
+\smallskip{}
+
+The {\tt Path} command is used to print and adjust the path stored in this
+list.
+\medskip{}
+
+{\tt cli\_ReturnCode} is the return code of the last executed command,
+i.e. the value the command left in the {\tt d0} CPU register when existing
+to the Shell. The shell also copies this value to the {\tt \$RC} Shell
+variable.
+\smallskip{}
+
+{\tt cli\_CommandName} is a BPTR to a BSTR containing the name of the
+currently executing command. It is placed here by the shell before calling
+in.
+\smallskip{}
+
+{\tt cli\_FailLevel} contains the threshold at which executed commands will
+cause an abortion of its containing shell script. The value is deposited
+here by the {\tt FailAt} command. If a command exits with return code larger
+or equal than the {\tt cli\_FailLevel}, this will cause termination of the
+currently executing script.
+\smallskip{}
+
+{\tt cli\_Prompt} contains a BPTR to BSTR that is used by the shell to print
+the command prompt on interactive shells. The AmigaDOS Shell recognizes the
+following strings:
+
+\begin{itemize}
+  \item[{\tt \%S}] Replaced by the path of the current directory, namely the
+    contents of {\tt cli\_SetName}.
+  \item[{\tt \%N}] Substituted with the CLI number, which is the closest
+    analogon of a process ID AmigaDOS has to offer. This is taken from {\tt
+      pr\_TaskNum} of the process running the shell, see also
+    section~\ref{sec:process}.
+  \item[{\tt \%R}] Represents the return code of the last executed command
+    as contained in {\tt cli\_ReturnCode}.
+  \item[{\tt \%\%}] The percent (``{\tt \%}'') sign itself.
+\end{itemize}
+
+Every other character in the prompt stands for itself and is not
+substituted.
+\medskip{}
+
+{\tt cli\_StandardInput} is a BPTR to a file handle that represents the primary
+source of commands. This file handle typically corresponds to a console
+window within which the shell is executed. The {\tt Run} command will deposit
+here a string stream (see section~\ref{sec:stringstreams}) containing the
+command or commands to be run in background. The file handle provided
+through the {\tt SYS\_Input} or {\tt SYS\_InName} tags of the {\tt
+  System()}\key{System()} function will be placed here. Once this stream is
+exhaused, the Shell terminates.
+\smallskip{}
+
+{\tt cli\_CurrentInput} is a BPTR to a file handle from which the shell is
+currently executing commands. This stream is either comming from the {\tt
+  SYS\_CmdStream} or {\tt SYS\_CmdIn} tags of the {\tt
+  System()}\key{System()} function, or a string stream constructed from its
+first argument. Also, the {\tt Execute} command, see
+section~\ref{sec:executecmd}, places here the file handle of the original or
+processed shell script that is to be executed. Once this file is exhaused,
+the Shell will close it, and set this BPTR to {\tt cli\_StandardInput}. This
+happens, for example, if a script reaches its end of file or is aborted by
+the {\tt Exit} command.
+\smallskip{}
+
+{\tt cli\_CommandFile} is a BPTR to the BSTR of a temporary shell script
+that is currently being executed. The only reason why its path is stored
+here is to allow the Shell to clean up such temporary scripts. Whenever the
+{\tt Execute} command requires processing a script for argument
+substitution, it creates a temporary script in {\tt T:} whose name is stored
+in {\tt cli\_CommandFile}. Once its execution completes, the Shell ensures
+that this temporary script is deleted again. For details on how {\tt
+  Execute} actually works see section~\ref{sec:executecmd}.
+\smallskip{}
+
+{\tt cli\_Interactive} is a boolean flag that indicates whether the Shell is
+interactive, i.e. requesting data from the console. If this boolean is
+non-zero and {\tt cli\_Background} is {\tt DOSFALSE}, a prompt is printed
+before attempting to read a command from {\tt cli\_CurrentInput}. If the
+shell is executing a script, this element becomes {\tt DOSFALSE} and the
+Shell then checks for a Ctrl-D signal to potentially abort a running script.
+\smallskip{}
+
+{\tt cli\_Background} is a boolean that indicates whether the Shell runs in
+background. This flag is set for shells that are started asynchronously or
+are equipped with a non-interactive (non-console) output stream. If this
+flag is cleared, then the shell also prints a message when its input stream
+reaches its EOF, indicating that the shell terminates.
+\smallskip{}
+
+{\tt cli\_CurrentOutput} is currently not used by the Shell. It is currently
+initialized with the same file handle as {\tt cli\_StandardOutput}.
+\smallskip{}
+
+{\tt cli\_DefaultStack} is the minimum stack in long-words the Shell
+allocates for commands before executing them. The Shell also checks the
+command for a stack cookie, see section~\ref{sec:stackcookie}, that may
+enlarge the stack further. This element is set by the {\tt
+  Stack} command. Note that this element is \emph{not} the stack size of the
+shell process itself, but a lower limit of the stack size for its clients.
+\smallskip{}
+
+{\tt cli\_StandardOutput} is the file handle the shell provides as default
+output handle to its clients, and to which it prints output. This handle is
+copied from the {\tt SYS\_Output} or {\tt SYS\_OutName} tags of the {\tt
+  System()}\key{System()} function if they are provided.
+\smallskip{}
+
+{\tt cli\_Module} is a BPTR to the first segment of the command currently
+executed. The Shell also uses this BPTR to release loaded, non-resident
+commands. This BPTR is either filled with the segment provided by {\tt
+  LoadSeg()}\key{LoadSeg()} in section~\ref{sec:loadseg}, or an element of
+the list of resident segments, see section~\ref{sec:resident}. A common
+technique for load and stay resident commands is to set this BPTR to {\tt
+  ZERO} to prevent the shell from releasing the loaded program and thus keep
+it in memory.
+\medskip{}
+
+Even though the {\tt CommandLineInterface} function is typically constructed
+by AmigaDOS, e.g. through the {\tt System()}\key{System()} function, it is
+sometimes necessary to create it manually. Allocation of this structure
+shall happen only through {\tt AllocDosObject()}\key{AllocDosObject()} as
+this structure contains some Shell-internal fields for extended Shell
+features. These extended features are instead accessible through the {\tt
+  DoShellMethod()}\key{DoShellMethod()} function specified in
+section~\ref{sec:doshellmethod}.
 
 \subsection{Obtaining the Name of the Current Directory}
 
@@ -18154,7 +18352,7 @@ D0
 LONG MaxCli(void)
 \end{verbatim}
 
-\subsection{Request a Function of the Shell}
+\subsection{Request a Function of the Shell} \label{sec:doshellmethod}
 
 \begin{verbatim}
 ptr = DoShellMethodTagList(method, tags)
