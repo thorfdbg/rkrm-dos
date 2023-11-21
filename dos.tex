@@ -4063,7 +4063,7 @@ be indicated by an isolated single forward slash without a component
 upfront. This implies, in particular, that the involved file systems
 follow the conventions of AmigaDOS.
 
-\subsection{Find the Path From a Lock}
+\subsection{Find the Path From a Lock} \label{sec:namefromlock}
 
 The {\tt NameFromLock()}\mkey{NameFromLock()} function constructs a
 path to the locked object, i.e. if the constructed path is used to
@@ -17545,12 +17545,14 @@ substitution.
 
 The Shell takes the first argument of each component of a compound command
 as a command to be executed. The Shell attempts to locate this command first
-on the current directory, and if it is not found there, in all elements of
-the \emph{path}, as set by the {\tt path} command. If no matching file or
-directory is found there, the Shell finally looks into the {\tt C:}
-directory\footnote{Note that unlike under unixoid systems, the current
-directory is always an implicit first member of the path and cannot be
-removed from it.}.
+on the list of resident commands, see section~\ref{sec:resident}, if the
+command is not quoted. If no match is found there, or the command is quoted,
+then the Shell keeps looking in the current directory, and if it is not
+found there, in all elements of the \emph{path}, as set by the {\tt path}
+command. If no matching file or directory is found there, the Shell finally
+looks into the {\tt C:} directory\footnote{Note that unlike under unixoid
+systems, the current directory is always an implicit first member of the
+path and cannot be removed from it.}.
 \smallskip{}
 
 Once a matching file system object has been found, the Shell attempts to
@@ -18120,8 +18122,8 @@ also copies this value into the {\tt \$Result2} Shell variable.
 {\tt cli\_SetName} is a BPTR to a BSTR containing the path of the current
 directory. This string is used to generate a shell prompt; the AmigaDOS
 shell substitutes the ``{\tt \%S}'' format directive of the prompt by the
-string stored here. The {\tt CD} command and its {\tt PushCD} and {\tt
-  PopCD} variants update this element.
+string stored here. The {\tt CD} command and its {\tt PushCD}, {\tt
+  PopCD} and {\tt SwapCD} variants update this element.
 \smallskip{}
 
 {\tt cli\_CommandDir} contains a linked list of directories that are scanned
@@ -18183,8 +18185,11 @@ following strings:
   \item[{\tt \%\%}] The percent (``{\tt \%}'') sign itself.
 \end{itemize}
 
-Every other character in the prompt stands for itself and is not
-substituted.
+The AmigaDOS Shell also expands variables as described in
+section~\ref{sec:variableexpansion} in the prompt, executes commands
+backticks, see section~\ref{sec:backtick}, and inejcts its output into the
+printed prompt. Any ``{\tt \%}'' sign included in expanded variables or backticks
+is \emph{not} a formatting command but stands for itself.
 \medskip{}
 
 {\tt cli\_StandardInput} is a BPTR to a file handle that represents the primary
@@ -18270,8 +18275,15 @@ this structure contains some Shell-internal fields for extended Shell
 features. These extended features are instead accessible through the {\tt
   DoShellMethod()}\key{DoShellMethod()} function specified in
 section~\ref{sec:doshellmethod}.
+\medskip{}
+
+This function does not change {\tt IoErr()}\key{IoErr()}.
 
 \subsection{Obtaining the Name of the Current Directory}
+
+The {\tt GetCurrentDirName()}\mkey{GetCurrentDirName()} function copies the
+current directory of the shell into the provided buffer if such a shell
+exists, or retrieves the current directory of the calling process instead.
 
 \begin{verbatim}
 success = GetCurrentDirName(buf, len)
@@ -18280,7 +18292,42 @@ D0                          D1   D2
 BOOL GetCurrentDirName(STRPTR, LONG)
 \end{verbatim}
 
+This function checks whether the caller is a shell command. If so, it copies
+what the shell believes to be its current directory into the supplied
+buffer. That is, the function then copies {\tt cli\_SetName} into {\tt buf},
+see section~\ref{sec:clistruct}. If the current directory path fits into
+{\tt len} bytes including a terminating {\tt NUL} byte, then this function
+returns {\tt DOSTRUE} and sets {\tt IoErr()}\key{IoErr()} to~0. Otherwise,
+it truncates the name, returns {\tt DOSFALSE} and sets {\tt
+  IoErr()}\key{IoErr()} to {\tt ERROR\_LINE\_TOO\_LONG}, but still returns
+{\tt DOSTRUE}.
+\smallskip{}
+
+The shell itself does not update {\tt cli\_SetName}, namely the field this
+function depends upon, itself. Rather, the {\tt CD}, {\tt SwapCD}, {\tt
+  PushCD} and {\tt PopCD} commands attempt to keep it consistent. However,
+if a command changes {\tt pr\_CurrentDir} without updating {\tt
+  cli\_SetName}, or calls {\tt SetCurrentDirName()}\key{SetCurrentDirName()}
+without updating the current directory of its processes, then the string
+supplied by this function may not correspond to the current directory the
+shell actually uses.
+\smallskip{}
+
+If the caller is not a shell command, then the function uses the lock
+representing the current directory of the calling process, namely {\tt
+  pr\_CurrentDir}, and converts it to a string by {\tt
+  NameFromLock()}\key{\tt NameFromLock()}. This function, see
+section~\ref{sec:namefromlock}, also truncates its result to {\tt len} bytes
+and, if truncation was performed, sets {\tt IoErr()}\key{IoErr()} to {\tt
+  ERROR\_LINE\_TOO\_LONG} and returns {\tt DOSFALSE} if the directory name
+does not fit into {\tt len} bytes. On success, the function returns a
+non-zero result code, but it does not set {\tt IoErr()} consistently then.
+
 \subsection{Set the Current Directory Name}
+
+The {\tt SetCurrentDirName()}\mkey{SetCurrentDirName()} sets the buffer
+within which the shell keeps the string representing the current
+directory. It does not update the current directory itself.
 
 \begin{verbatim}
 success = SetCurrentDirName(name)
@@ -18289,7 +18336,30 @@ D0                        D1
 BOOL SetCurrentDirName(STRPTR)
 \end{verbatim}
 
+This function updates {\tt cli\_SetName} of the shell the caller is part of,
+if such a shell exists. In such a case, it copies the supplied string into
+{\tt cli\_SetName} and potentially truncates it to the size of the
+shell-internal buffer. Even if the string is truncated, the function returns
+{\tt DOSTRUE}. It does not update {\tt IoErr()} in either case. For some
+legacy reasons, the size of this buffer is rather small, and thus may not
+reflect the full directory name supplied.
+\smallskip{}
+
+If the caller is not a shell command, this function returns {\tt DOSFALSE}
+without setting an error code.
+\smallskip{}
+
+This function does not attempt to synchronize {\tt pr\_CurrentDir} of the
+calling process to the supplied directory, If the two are not consistent,
+the path the shell could print as part of the prompt would be
+incorrect. Thus, any attempt to change {\tt cli\_SetName} through this
+function \emph{shall also} call {\tt CurrentDir()}\key{CurrentDir()} to make
+this change consistent to the Shell.
+
 \subsection{Obtaining the Current Program Name}
+
+The {\tt GetProgramName()}\mkey{GetProgramName()} function copies the name of
+the currently executed program into a buffer.
 
 \begin{verbatim}
 success = GetProgramName(buf, len)
@@ -18298,7 +18368,36 @@ D0                       D1   D2
 BOOL GetProgramName(STRPTR, LONG)
 \end{verbatim}
 
+This function fills {\tt buf} with the what the Shell assumes to be the name
+of the currently executed command. This name is taken from {\tt
+  cli\_CommandName}, see section~\ref{sec:clistruct}, where the shell
+deposits it before executing a program. If the program name including {\tt
+  NUL} termination requires more than {\tt len} bytes, this function first
+truncates it and sets {\tt IoErr()}\key{IoErr()} to {\tt
+  ERROR\_LINE\_TOO\_LONG}. If the name including
+a terminating {\tt NUL} byte fits into {\tt len} bytes, the name is copied
+and the function sets {\tt IoErr()}\key{IoErr()} to~0. In either case, even
+if the program name is truncated, the function returns {\tt DOSTRUE}.
+\smallskip{}
+
+If this function is not called from a shell command, the function installs
+an empty string in {\tt buf} if {\tt len} is at least~1 and returns {\tt
+  DOSFALSE} and sets {\tt IoErr()} to {\tt ERROR\_OBJECT\_WRONG\_TYPE}.
+\smallskip{}
+
+The Shell buffer that keeps the current command name is unfortunately due to
+legacy reasons quite limited in size, and at present shorter than the 106
+character limit imposed by the {\tt FileInfoBlock} structure, see
+section~\ref{sec:fib}. Even though the Shell uses internally a longer buffer
+and thus is not limited in the file name size of commands it executes, the
+ability of the Shell to communicate such long command names to the caller is
+restricted, and thus the command name retrieved from this function may not
+reflect the correct file name.
+
 \subsection{Set the Current Program Name}
+
+The {\tt SetProgramName()}\mkey{SetProgramName()} sets the name the shell
+assumes the currently executing program has.
 
 \begin{verbatim}
 success = SetProgramName(name)
@@ -18307,7 +18406,21 @@ D0                        D1
 BOOL SetProgramName(STRPTR)
 \end{verbatim}
 
+If this function is called from a shell command, it installs the supplied
+string as program name into {\tt cli\_CommandName},
+section~\ref{sec:clistruct}, and returns {\tt DOSTRUE}. If the supplied
+string does not fit into the Shell internal buffer, it is truncated without
+this function indicating failure.
+\smallskip{}
+
+If this function is not called from a shell command, it returns {\tt
+  DOSFALSE}. This function does not change {\tt IoErr()}\key{Ioerr()} in any
+case.
+
 \subsection{Obtaining the Shell Prompt}
+
+The {\tt GetPrompt()}\mkey{GetPrompt()} function copies the prompt format
+string with all formatting instructions into a caller supplied function.
 
 \begin{verbatim}
 success = GetPrompt(buf, len)
@@ -18316,7 +18429,27 @@ D0                  D1   D2
 BOOL GetPrompt(STRPTR, LONG)
 \end{verbatim}
 
+If this function is called from a shell command, it copies the prompt format
+string including a terminating {\tt NUL} into {\tt buf} if it fits into {\tt
+  len} bytes, potentially truncating it if it does not. If truncation was
+performed, {\tt IoErr()} is set to {\tt ERROR\_LINE\_TOO\_LONG}, otherwise
+to~0. In either case, even if the string was truncated, the function returns
+{\tt DOSTRUE}.
+\smallskip{}
+
+If this function is not called from a shell command, an empty string is
+copied into {\tt buf} if {\tt len} is at least~1, and {\tt
+  IoErr()}\key{IoErr()} is set to {\tt ERROR\_OBJECT\_WRONG\_TYPE} and the
+function returns {\tt DOSFALSE}.
+\smallskip{}
+
+The shell prompt provided by this function is the unexpanded prompt
+including format strings as it is provided by the {\tt Prompt} command, and
+not the expanded prompt currently printed by the shell.
+
 \subsection{Setting the Shell Prompt}
+
+The {\tt SetPrompt()}\mkey{SetPrompt()} sets the Shell prompt format string.
 
 \begin{verbatim}
 success = SetPrompt(name)
@@ -18324,6 +18457,23 @@ D0                D1
 
 BOOL SetPrompt(STRPTR)
 \end{verbatim}
+
+If called from a shell command, this function updates the shell prompt
+format string to {\tt name}, potentially truncating it to the size of the
+Shell internal buffer. It returns {\tt DOSTRUE} even if the prompt is
+truncated.
+\smallskip{}
+
+If this function is not called from a shell command, it returns {\tt
+  DOSFALSE}. In does not change {\tt IoErr()}\key{IoErr()} in any case.
+\smallskip{}
+
+The Shell prompt provided to this function may contain all format strings
+described in~\ref{sec:clistruct}, such as {\tt \%S} for the current path, or
+Shell variables and backticks to construct a prompt dynamically. The
+shell-internal buffer size for the prompt is unfortunately quite limited. If
+longer prompts are required, they could be placed in a local shell variable
+which is expanded in the prompt.
 
 \subsection{Runs a Command Overloading the Calling Process}
 
