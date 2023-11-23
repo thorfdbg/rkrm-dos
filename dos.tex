@@ -18621,6 +18621,13 @@ long as the task switching remains disabled.
 
 \subsection{Request a Function of the Shell} \label{sec:doshellmethod}
 
+The {\tt DoShellMethod}\mkey{DoShellMethod()} function requests from the
+shell of the calling process a specific function. The {\tt
+  DoShellMethodTagList()}\mkey{DoShellMethodTagList()} function belongs to
+the same entry point of the \emph{dos.library}, though uses a different
+calling convention that receives the tag list as an explicit pointer instead
+of a variably sized argument list.
+
 \begin{verbatim}
 ptr = DoShellMethodTagList(method, tags)
 D0                           D0     A0
@@ -18632,6 +18639,94 @@ ptr = DoShellMethod(method, Tag1, ...)
 APTR DoShellMethod(ULONG, ULONG, ...)
 \end{verbatim}
 
+This function requests the from the shell of the calling process the
+execution of a function identified by {\tt method}. The arguments to the
+shell are provided in the tag list, or by a list of tags terminated by {\tt
+  TAG\_DONE}. The return value of the shell is provided in {\tt ptr}, a
+secondary return code is provided in {\tt IoErr()}.
+\medskip{}
+
+The AmigaDOS Shell supports the following methods defined in {\tt
+  dos/shell.h}:
+\smallskip{}
+
+{\tt SHELL\_METH\_METHODS} returns a {\tt const} array of methods the shell
+supports. This is an array of {\tt ULONG}s that is terminated by a {\tt 0L},
+each containing a method ID that may be provided to {\tt
+  DoShellMethod()}\key{DoShellMethod()}. Every shell shall support this
+method.
+\smallskip{}
+
+{\tt SHELL\_METH\_GETHIST} is a method of the AmigaDOS Shell that provides
+read-only access to the history. It does not take any arguments. The
+returned pointer is a {\tt MinList} structure, see {\tt exec/lists.h}. Each
+node in this list consists of a {\tt HistoryNode} structure, defined in {\tt
+  dos/shell.c}:
+
+\begin{verbatim}
+struct HistoryNode {
+  struct MinNode  hn_Node;
+  UBYTE          *hn_Line;
+};
+\end{verbatim}
+
+The {\tt hn\_Line} is a pointer to a command in the history of the
+shell. This command is \emph{not} terminated by a newline, but only by a
+{\tt NUL}. The caller \emph{shall not} alter this list. 
+\smallskip{}
+
+{\tt SHELL\_METH\_CLRHIST} erases the entire history of the AmigaDOS
+Shell. This method does not take any arguments.
+\smallskip{}
+
+{\tt SHELL\_METH\_ADDHIST} adds an entry to the newest end of the AmigaDOS
+Shell history and make it accessible to the user through the cursor
+keys. This method takes a single tag, namely {\tt SHELL\_ADDH\_LINE}. The
+argument of this tag is a {\tt UBYTE *} to a {\tt NUL}-terminated string,
+namely the entry to add to the history. The Shell copies the provided
+string, and may initial or trailing spaces. It may also limit the size of
+the history buffer by releasing the oldest entry or entries. This method
+returns a non-zero result on success, or {\tt NULL} on error.
+\smallskip{}
+
+{\tt SHELL\_METH\_FGETS} retrieves a single line from the console the shell
+runs in, while offering access to TAB expansion and access to the
+history. The difference between this method and the {\tt
+  FGets()}\key{FGets()} function is that the latter provides elementary line
+editing functions of the console, but does not have access to Shell internal
+states such as the path of the caller requird for TAB
+expansion\footnote{Readers beware: TAB expansion and the history are
+\emph{not} console features, but Shell features.}.
+\smallskip{}
+
+This method takes a single optional boolean tag, {\tt SHELL\_FGETS\_FULL},
+defined in {\tt dos/shell.h}. If this tag is {\tt DOSFALSE}, which is the
+default, then the Shell is instructed to read a string from the console that
+corresponds to a path or multiple paths relatively to the current directory
+of the caller. TAB expansion will only scan the current directory for
+matches. This mode is useful for requesting a file or multiple files from
+the user, and it is for example used by the AmigaDOS argument parser, {\tt
+  ReadArgs()}\key{ReadArgs()}, when the input is a quesion mark (``{\tt
+  ?}'') and more input is required from the user.
+\smallskip{}
+
+If {\tt SHELL\_FGETS\_FULL} is non-zero, then a full command line is
+requested from the shell. This implies that the first argument of the input
+requested from the console is a command, and is thus located somewhere on
+the \emph{path} of the caller. Thus, when performing TAB expansion within
+the first argument, the entire path is scanned, and not just the current
+directory.
+\smallskip{}
+
+This method returns a pointer to a {\tt NUL}-terminated string as result; as
+this string is kept within Shell internal buffers, the caller shall make a
+copy of the string before calling another method of the Shell.
+\medskip{}
+
+If {\tt DoShellMethod}\key{DoShellMethod()} is called from a process that is
+not part of a shell, it returns {\tt NULL} and sets {\tt
+  IoErr()}\key{IoErr()} to {\tt ERROR\_OBJECT\_WRONG\_TYPE}.
+  
 \subsection{Read a Shell Variable}
 
 \begin{verbatim}
