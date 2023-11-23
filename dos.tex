@@ -18551,7 +18551,10 @@ stack. {\tt IoErr()}\key{IoErr()} remains its value from the called command,
 or is set to {\tt ERROR\_NO\_FREE\_STORE} if resources could not be
 allocated.
 
-\subsection{Finding a Shell}
+\subsection{Find a Shell Process by Task Number}
+
+The {\tt FindCliProc()}\mkey{FindCliProc()} function finds a process by its
+task number.
 
 \begin{verbatim}
 proc = FindCliProc(num)
@@ -18560,7 +18563,37 @@ D0             D1
 struct Process *FindCliProc(ULONG)
 \end{verbatim}
 
-\subsection{Retrieve the Size of the Shell Process Table}
+This function returns a process given its task number. Note, however, that
+AmigaDOS only assigns task numbers to shells and commands run within or from
+shells and not to other processes, such as those started from the workbench,
+handlers, file systems or device drivers. Thus, this function is not quite
+as useful as it seems.
+\smallskip{}
+
+The {\tt num} is the task number that identifies the process to locate. It
+is stored in the {\tt pr\_TaskNum} element of the process structure, see
+section~\ref{sec:process}.
+\smallskip{}
+
+This function returns a pointer to the process structure, see
+section~\ref{sec:process} whose task number is {\tt num}. If no such process
+exists, this function returns {\tt NULL}. However, even if it returns a
+non-{\tt NULL} result code, it is possible that the process has already
+exited and no longer exists when the function returns or an attempt is made
+to access its process structure. Furthermore, the \emph{dos.library} does
+not attempt to protect its process table within this function, and there is no
+semaphore protecting it. Therefore, this function \emph{shall only be called}
+while task switching is disabled with {\tt Forbid()} and its return value is
+only valid as long as task switching is disabled.
+\smallskip{}
+
+This function does not alter {\tt IoErr()}\key{IoErr()}, even if no process
+is found.
+
+\subsection{Retrieve the Size of the Process Table}
+
+The {\tt MaxCli()}\mkey{MaxCli()} function returns the size of the process
+table.
 
 \begin{verbatim}
 number = MaxCli()
@@ -18568,6 +18601,23 @@ D0
 
 LONG MaxCli(void)
 \end{verbatim}
+
+This function returns the number of entries the process table may
+hold. However, this information is of limited value for various reasons:
+First, this information does \emph{not} correspond to the number of running
+processes, but only describes the number of entries the process table is
+able to hold. Second, only shells and commands run within or from shells
+are recorded in the process table, and other processes as those started from
+the workbench, or handlers, file systems or device drivers do not enter this
+table. Third, the size of this table changes dynamically depending on how
+many shell processes are active, even under the feed of the caller. Thus,
+this function should be avoided.
+\smallskip{}
+
+As the \emph{dos.library} does not protect the process table from
+modifications, this function \emph{shall only be called} while task
+switching is disabled with {\tt Forbid()}, and its value is only valid as
+long as the task switching remains disabled.
 
 \subsection{Request a Function of the Shell} \label{sec:doshellmethod}
 
