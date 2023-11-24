@@ -17726,11 +17726,12 @@ the \emph{file handle} stored there, deletes the temporary file whose name
 is stored in {\tt cli\_CommandFile} and continues execution from {\tt
   cli\_StandardInput}.
 
-\section{Interacting with the AmigaDOS Shell}
+\section{Shell Process Control}
 
-The functions in this section interact with the Shell in one way or
-another. They start a new Shell, execute a Shell script or retrieve
-information from the Shell a program has been started within.
+The functions in this section create shell processes and run commands within
+them, or overlay a shell process with a command. AmigaDOS also keeps a
+process table of all active shell processes and each running shell is
+uniquely identified by its task number.
 
 \subsection{Execute Shell Scripts} \label{sec:system}
 
@@ -18068,7 +18069,469 @@ success and {\tt DOSFALSE} in case creating the shell failed. It also always
 executes commands through the boot shell, and not through a custom or user
 shell.
 
-\subsection{Retrieving the CLI Structure} \label{sec:clistruct}
+\subsection{Run a Command Overloading the Calling Process} \label{sec:runcommand}
+
+The {\tt RunCommand()}\mkey{RunCommand()} runs a shell command from a
+process, and overloads the process with the command.
+
+\begin{verbatim}
+rc = RunCommand(seglist, stacksize, argptr, argsize)
+D0                D1         D2       D3      D4
+
+LONG RunCommand(BPTR, ULONG, STRPTR, ULONG)
+\end{verbatim}
+
+This function runs a command from the calling process, and provides for this
+command its own stack, and its own arguments. It does not create a new
+process nor a new shell, but executes the command as part of the caller. The
+AmigaDOS Shell uses this function to execute loaded commands within its
+context.
+\smallskip{}
+
+The {\tt seglist} argument is a BPTR to the first segment of the executable
+to start, for example as returned by {\tt LoadSeg()}\key{LoadSeg()} for
+disk-based commands, or {\tt FindSegment()}\key{FindSegment()} for resident
+commands.
+\smallskip{}
+
+The {\tt stacksize} argument is the size of the stack in bytes to be
+provided to the command; this has to be provided by the caller as this
+function does not attempt to identify the minimum stack size necessary.
+The Shell takes the stack size from {\tt cli\_DefaultStack}, see
+section~\ref{sec:clistruct}, and multiplies it by~4. It additionally
+searches the {\tt seglist} for the stack cookie, see
+section~\ref{sec:stackcookie}, and from that potentially increases the size.
+\smallskip{}
+
+The {\tt argptr} and {\tt argsize} arguments provide command line arguments
+that are passed to the command. They are provided through several
+mechanisms: First, the CPU register {\tt a0} is loaded with {\tt argptr} and
+register {\tt d0} is filled with {\tt argsize}. Second, the {\tt
+  pr\_Arguments} element of the process is temporarly replaced by {\tt
+  argptr}, see also section~\ref{sec:process}, and thus the arguments are
+made available to~{\tt GetArgStr()}\key{GetArgStr()}. Third, a buffer for
+the input file handle {\tt pr\_CIS} of the caller is allocated and filled
+with a copy of the argument line; more on the file handle structure is in
+section~\ref{sec:filehandle}. Thus, buffered I/O operations as those listed
+in section~\ref{sec:bufferedio} will retrieve the arguments. This step is
+necessary to make the arguments available to {\tt
+  ReadArgs()}\key{ReadArgs()}, the AmigaDOS argument parser.
+\smallskip{}
+
+The {\tt ReadArgs()}\key{ReadArgs()} function, and probably many other
+parsers require that the argument is terminated by a newline, hex {\tt
+  0x0a}. While it is possible to provide an argument string containing more
+than one newline character, {\tt ReadArgs()}\key{ReadArgs()} will ignore all
+arguments behind the first newline. However, some commands such as {\tt Run}
+will make use of the entire string.
+\medskip{}
+
+All changes performed by {\tt RunCommand()} on the caller and its resources,
+namely the stack, the modifications of the input file handle and storage of
+the arguments and the modified stack are reverted when the called command
+returns.
+\smallskip{}
+
+As the program name \emph{is not} part of the command line arguments, it is
+advisable to set the path and file name of the loaded program {\tt
+  SetProgramName()}\key{SetProgramName()} upfront, more on this function in
+section~\ref{sec:setprogramname}. The startup code of many C compilers will
+construct {\tt argv[0]} from it.
+\smallskip{}
+
+This function returns the result code of the called command, or~$-1$ if
+it failed to allocate resources such as the input file handle buffer or the
+stack. {\tt IoErr()}\key{IoErr()} remains its value from the called command,
+or is set to {\tt ERROR\_NO\_FREE\_STORE} if resources could not be
+allocated.
+
+\subsection{Request a Function of the Shell} \label{sec:doshellmethod}
+
+The {\tt DoShellMethod}\mkey{DoShellMethod()} function requests from the
+shell of the calling process a specific function. The {\tt
+  DoShellMethodTagList()}\mkey{DoShellMethodTagList()} function belongs to
+the same entry point of the \emph{dos.library}, though uses a different
+calling convention that receives the tag list as an explicit pointer instead
+of a variably sized argument list.
+
+\begin{verbatim}
+ptr = DoShellMethodTagList(method, tags)
+D0                           D0     A0
+
+APTR DoShellMethodTagList(ULONG, struct TagItem *)
+
+ptr = DoShellMethod(method, Tag1, ...)
+
+APTR DoShellMethod(ULONG, ULONG, ...)
+\end{verbatim}
+
+This function requests the from the shell of the calling process the
+execution of a function identified by {\tt method}. The arguments to the
+shell are provided in the tag list, or by a list of tags terminated by {\tt
+  TAG\_DONE}. The return value of the shell is provided in {\tt ptr}, a
+secondary return code is provided in {\tt IoErr()}.
+\medskip{}
+
+The AmigaDOS Shell supports the following methods defined in {\tt
+  dos/shell.h}:
+\smallskip{}
+
+{\tt SHELL\_METH\_METHODS} returns a {\tt const} array of methods the shell
+supports. This is an array of {\tt ULONG}s that is terminated by a {\tt 0L},
+each containing a method ID that may be provided to {\tt
+  DoShellMethod()}\key{DoShellMethod()}. Every shell shall support this
+method.
+\smallskip{}
+
+{\tt SHELL\_METH\_GETHIST} is a method of the AmigaDOS Shell that provides
+read-only access to the history. It does not take any arguments. The
+returned pointer is a {\tt MinList} structure, see {\tt exec/lists.h}. Each
+node in this list consists of a {\tt HistoryNode} structure, defined in {\tt
+  dos/shell.c}:
+
+\begin{verbatim}
+struct HistoryNode {
+  struct MinNode  hn_Node;
+  UBYTE          *hn_Line;
+};
+\end{verbatim}
+
+The {\tt hn\_Line} is a pointer to a command in the history of the
+shell. This command is \emph{not} terminated by a newline, but only by a
+{\tt NUL}. The caller \emph{shall not} alter this list. 
+\smallskip{}
+
+{\tt SHELL\_METH\_CLRHIST} erases the entire history of the AmigaDOS
+Shell. This method does not take any arguments.
+\smallskip{}
+
+{\tt SHELL\_METH\_ADDHIST} adds an entry to the newest end of the AmigaDOS
+Shell history and make it accessible to the user through the cursor
+keys. This method takes a single tag, namely {\tt SHELL\_ADDH\_LINE}. The
+argument of this tag is a {\tt UBYTE *} to a {\tt NUL}-terminated string,
+namely the entry to add to the history. The Shell copies the provided
+string, and may initial or trailing spaces. It may also limit the size of
+the history buffer by releasing the oldest entry or entries. This method
+returns a non-zero result on success, or {\tt NULL} on error.
+\smallskip{}
+
+{\tt SHELL\_METH\_FGETS} retrieves a single line from the console the shell
+runs in, while offering access to TAB expansion and access to the
+history. The difference between this method and the {\tt
+  FGets()}\key{FGets()} function is that the latter provides elementary line
+editing functions of the console, but does not have access to Shell internal
+states such as the path of the caller requird for TAB
+expansion\footnote{Readers beware: TAB expansion and the history are
+\emph{not} console features, but Shell features.}.
+\smallskip{}
+
+This method takes a single optional boolean tag, {\tt SHELL\_FGETS\_FULL},
+defined in {\tt dos/shell.h}. If this tag is {\tt DOSFALSE}, which is the
+default, then the Shell is instructed to read a string from the console that
+corresponds to a path or multiple paths relatively to the current directory
+of the caller. TAB expansion will only scan the current directory for
+matches. This mode is useful for requesting a file or multiple files from
+the user, and it is for example used by the AmigaDOS argument parser, {\tt
+  ReadArgs()}\key{ReadArgs()}, when the input is a quesion mark (``{\tt
+  ?}'') and more input is required from the user.
+\smallskip{}
+
+If {\tt SHELL\_FGETS\_FULL} is non-zero, then a full command line is
+requested from the shell. This implies that the first argument of the input
+requested from the console is a command, and is thus located somewhere on
+the \emph{path} of the caller. Thus, when performing TAB expansion within
+the first argument, the entire path is scanned, and not just the current
+directory.
+\smallskip{}
+
+This method returns a pointer to a {\tt NUL}-terminated string as result; as
+this string is kept within Shell internal buffers, the caller shall make a
+copy of the string before calling another method of the Shell.
+\medskip{}
+
+If {\tt DoShellMethod}\key{DoShellMethod()} is called from a process that is
+not part of a shell, it returns {\tt NULL} and sets {\tt
+  IoErr()}\key{IoErr()} to {\tt ERROR\_OBJECT\_WRONG\_TYPE}.
+
+\subsection{Find a Shell Process by Task Number}
+
+The {\tt FindCliProc()}\mkey{FindCliProc()} function finds a process by its
+task number.
+
+\begin{verbatim}
+proc = FindCliProc(num)
+D0             D1
+
+struct Process *FindCliProc(ULONG)
+\end{verbatim}
+
+This function returns a process given its task number. Note, however, that
+AmigaDOS only assigns task numbers to shells and commands run within or from
+shells and not to other processes, such as those started from the workbench,
+handlers, file systems or device drivers. Thus, this function is not quite
+as useful as it seems.
+\smallskip{}
+
+The {\tt num} is the task number that identifies the process to locate. It
+is stored in the {\tt pr\_TaskNum} element of the process structure, see
+section~\ref{sec:process}.
+\smallskip{}
+
+This function returns a pointer to the process structure, see
+section~\ref{sec:process} whose task number is {\tt num}. If no such process
+exists, this function returns {\tt NULL}. However, even if it returns a
+non-{\tt NULL} result code, it is possible that the process has already
+exited and no longer exists when the function returns or an attempt is made
+to access its process structure. Furthermore, the \emph{dos.library} does
+not attempt to protect its process table within this function, and there is no
+semaphore protecting it. Therefore, this function \emph{shall only be called}
+while task switching is disabled with {\tt Forbid()} and its return value is
+only valid as long as task switching is disabled.
+\smallskip{}
+
+This function does not alter {\tt IoErr()}\key{IoErr()}, even if no process
+is found.
+
+\subsection{Retrieve the Size of the Process Table}
+
+The {\tt MaxCli()}\mkey{MaxCli()} function returns the size of the process
+table.
+
+\begin{verbatim}
+number = MaxCli()
+D0
+
+LONG MaxCli(void)
+\end{verbatim}
+
+This function returns the number of entries the process table may
+hold. However, this information is of limited value for various reasons:
+First, this information does \emph{not} correspond to the number of running
+processes, but only describes the number of entries the process table is
+able to hold. Second, only shells and commands run within or from shells
+are recorded in the process table, and other processes as those started from
+the workbench, or handlers, file systems or device drivers do not enter this
+table. Third, the size of this table changes dynamically depending on how
+many shell processes are active, even under the feed of the caller. Thus,
+this function should be avoided.
+\smallskip{}
+
+As the \emph{dos.library} does not protect the process table from
+modifications, this function \emph{shall only be called} while task
+switching is disabled with {\tt Forbid()}, and its value is only valid as
+long as the task switching remains disabled.
+
+\section{The CLI Structure} \label{sec:clistruct}
+
+The {\tt CommandLineInterface}\key{CommandLineInterface} structure is the
+public interface of an AmigaDOS shell. Every command started from a shell
+has access to this structure through the {\tt pr\_CLI} BPTR in its process
+structure, see section~\ref{sec:process}, which is actually the process
+structure of the shell calling the program, see
+section~\ref{sec:runcommand}.
+\smallskip{}
+
+The functions listed in this section provide accessor functions to this
+structure which should be preferred to access and alter properties of the
+calling shell.
+
+\subsection{Obtaining the Name of the Current Directory}
+
+The {\tt GetCurrentDirName()}\mkey{GetCurrentDirName()} function copies the
+current directory of the shell into the provided buffer if such a shell
+exists, or retrieves the current directory of the calling process instead.
+
+\begin{verbatim}
+success = GetCurrentDirName(buf, len)
+D0                          D1   D2
+
+BOOL GetCurrentDirName(STRPTR, LONG)
+\end{verbatim}
+
+This function checks whether the caller is a shell command. If so, it copies
+what the shell believes to be its current directory into the supplied
+buffer. That is, the function then copies {\tt cli\_SetName} into {\tt buf},
+see section~\ref{sec:clistruct}. If the current directory path fits into
+{\tt len} bytes including a terminating {\tt NUL} byte, then this function
+returns {\tt DOSTRUE} and sets {\tt IoErr()}\key{IoErr()} to~0. Otherwise,
+it truncates the name, returns {\tt DOSFALSE} and sets {\tt
+  IoErr()}\key{IoErr()} to {\tt ERROR\_LINE\_TOO\_LONG}, but still returns
+{\tt DOSTRUE}.
+\smallskip{}
+
+The shell itself does not update {\tt cli\_SetName}, namely the field this
+function depends upon, itself. Rather, the {\tt CD}, {\tt SwapCD}, {\tt
+  PushCD} and {\tt PopCD} commands attempt to keep it consistent. However,
+if a command changes {\tt pr\_CurrentDir} without updating {\tt
+  cli\_SetName}, or calls {\tt SetCurrentDirName()}\key{SetCurrentDirName()}
+without updating the current directory of its processes, then the string
+supplied by this function may not correspond to the current directory the
+shell actually uses.
+\smallskip{}
+
+If the caller is not a shell command, then the function uses the lock
+representing the current directory of the calling process, namely {\tt
+  pr\_CurrentDir}, and converts it to a string by {\tt
+  NameFromLock()}\key{\tt NameFromLock()}. This function, see
+section~\ref{sec:namefromlock}, also truncates its result to {\tt len} bytes
+and, if truncation was performed, sets {\tt IoErr()}\key{IoErr()} to {\tt
+  ERROR\_LINE\_TOO\_LONG} and returns {\tt DOSFALSE} if the directory name
+does not fit into {\tt len} bytes. On success, the function returns a
+non-zero result code, but it does not set {\tt IoErr()} consistently then.
+
+\subsection{Set the Current Directory Name}
+
+The {\tt SetCurrentDirName()}\mkey{SetCurrentDirName()} sets the buffer
+within which the shell keeps the string representing the current
+directory. It does not update the current directory itself.
+
+\begin{verbatim}
+success = SetCurrentDirName(name)
+D0                        D1
+
+BOOL SetCurrentDirName(STRPTR)
+\end{verbatim}
+
+This function updates {\tt cli\_SetName} of the shell the caller is part of,
+if such a shell exists. In such a case, it copies the supplied string into
+{\tt cli\_SetName} and potentially truncates it to the size of the
+shell-internal buffer. Even if the string is truncated, the function returns
+{\tt DOSTRUE}. It does not update {\tt IoErr()} in either case. For some
+legacy reasons, the size of this buffer is rather small, and thus may not
+reflect the full directory name supplied.
+\smallskip{}
+
+If the caller is not a shell command, this function returns {\tt DOSFALSE}
+without setting an error code.
+\smallskip{}
+
+This function does not attempt to synchronize {\tt pr\_CurrentDir} of the
+calling process to the supplied directory, If the two are not consistent,
+the path the shell could print as part of the prompt would be
+incorrect. Thus, any attempt to change {\tt cli\_SetName} through this
+function \emph{shall also} call {\tt CurrentDir()}\key{CurrentDir()} to make
+this change consistent to the Shell.
+
+\subsection{Obtaining the Current Program Name}
+
+The {\tt GetProgramName()}\mkey{GetProgramName()} function copies the name of
+the currently executed program into a buffer.
+
+\begin{verbatim}
+success = GetProgramName(buf, len)
+D0                       D1   D2
+
+BOOL GetProgramName(STRPTR, LONG)
+\end{verbatim}
+
+This function fills {\tt buf} with the what the Shell assumes to be the name
+of the currently executed command. This name is taken from {\tt
+  cli\_CommandName}, see section~\ref{sec:clistruct}, where the shell
+deposits it before executing a program. If the program name including {\tt
+  NUL} termination requires more than {\tt len} bytes, this function first
+truncates it and sets {\tt IoErr()}\key{IoErr()} to {\tt
+  ERROR\_LINE\_TOO\_LONG}. If the name including
+a terminating {\tt NUL} byte fits into {\tt len} bytes, the name is copied
+and the function sets {\tt IoErr()}\key{IoErr()} to~0. In either case, even
+if the program name is truncated, the function returns {\tt DOSTRUE}.
+\smallskip{}
+
+If this function is not called from a shell command, the function installs
+an empty string in {\tt buf} if {\tt len} is at least~1 and returns {\tt
+  DOSFALSE} and sets {\tt IoErr()} to {\tt ERROR\_OBJECT\_WRONG\_TYPE}.
+\smallskip{}
+
+The Shell buffer that keeps the current command name is unfortunately due to
+legacy reasons quite limited in size, and at present shorter than the 106
+character limit imposed by the {\tt FileInfoBlock} structure, see
+section~\ref{sec:fib}. Even though the Shell uses internally a longer buffer
+and thus is not limited in the file name size of commands it executes, the
+ability of the Shell to communicate such long command names to the caller is
+restricted, and thus the command name retrieved from this function may not
+reflect the correct file name.
+
+\subsection{Set the Current Program Name} \label{sec:setprogramname}
+
+The {\tt SetProgramName()}\mkey{SetProgramName()} sets the name the shell
+assumes the currently executing program has.
+
+\begin{verbatim}
+success = SetProgramName(name)
+D0                        D1
+
+BOOL SetProgramName(STRPTR)
+\end{verbatim}
+
+If this function is called from a shell command, it installs the supplied
+string as program name into {\tt cli\_CommandName},
+section~\ref{sec:clistruct}, and returns {\tt DOSTRUE}. If the supplied
+string does not fit into the Shell internal buffer, it is truncated without
+this function indicating failure.
+\smallskip{}
+
+If this function is not called from a shell command, it returns {\tt
+  DOSFALSE}. This function does not change {\tt IoErr()}\key{Ioerr()} in any
+case.
+
+\subsection{Obtaining the Shell Prompt}
+
+The {\tt GetPrompt()}\mkey{GetPrompt()} function copies the prompt format
+string with all formatting instructions into a caller supplied function.
+
+\begin{verbatim}
+success = GetPrompt(buf, len)
+D0                  D1   D2
+
+BOOL GetPrompt(STRPTR, LONG)
+\end{verbatim}
+
+If this function is called from a shell command, it copies the prompt format
+string including a terminating {\tt NUL} into {\tt buf} if it fits into {\tt
+  len} bytes, potentially truncating it if it does not. If truncation was
+performed, {\tt IoErr()} is set to {\tt ERROR\_LINE\_TOO\_LONG}, otherwise
+to~0. In either case, even if the string was truncated, the function returns
+{\tt DOSTRUE}.
+\smallskip{}
+
+If this function is not called from a shell command, an empty string is
+copied into {\tt buf} if {\tt len} is at least~1, and {\tt
+  IoErr()}\key{IoErr()} is set to {\tt ERROR\_OBJECT\_WRONG\_TYPE} and the
+function returns {\tt DOSFALSE}.
+\smallskip{}
+
+The shell prompt provided by this function is the unexpanded prompt
+including format strings as it is provided by the {\tt Prompt} command, and
+not the expanded prompt currently printed by the shell.
+
+\subsection{Setting the Shell Prompt}
+
+The {\tt SetPrompt()}\mkey{SetPrompt()} sets the Shell prompt format string.
+
+\begin{verbatim}
+success = SetPrompt(name)
+D0                D1
+
+BOOL SetPrompt(STRPTR)
+\end{verbatim}
+
+If called from a shell command, this function updates the shell prompt
+format string to {\tt name}, potentially truncating it to the size of the
+Shell internal buffer. It returns {\tt DOSTRUE} even if the prompt is
+truncated.
+\smallskip{}
+
+If this function is not called from a shell command, it returns {\tt
+  DOSFALSE}. In does not change {\tt IoErr()}\key{IoErr()} in any case.
+\smallskip{}
+
+The Shell prompt provided to this function may contain all format strings
+described in~\ref{sec:clistruct}, such as {\tt \%S} for the current path, or
+Shell variables and backticks to construct a prompt dynamically. The
+shell-internal buffer size for the prompt is unfortunately quite limited. If
+longer prompts are required, they could be placed in a local shell variable
+which is expanded in the prompt.
+
+\subsection{Retrieving the CLI Structure}
 
 The {\tt Cli()}\mkey{Cli()} function returns a pointer to the {\tt
   CommandLineInterface} structure describing the shell within which the
@@ -18279,455 +18742,16 @@ section~\ref{sec:doshellmethod}.
 
 This function does not change {\tt IoErr()}\key{IoErr()}.
 
-\subsection{Obtaining the Name of the Current Directory}
+\section{Access Shell Variables}
 
-The {\tt GetCurrentDirName()}\mkey{GetCurrentDirName()} function copies the
-current directory of the shell into the provided buffer if such a shell
-exists, or retrieves the current directory of the calling process instead.
+The functions in this section provide access to local and global shell
+variables, get and set them, or check whether a particular variable is
+defined.
 
-\begin{verbatim}
-success = GetCurrentDirName(buf, len)
-D0                          D1   D2
-
-BOOL GetCurrentDirName(STRPTR, LONG)
-\end{verbatim}
-
-This function checks whether the caller is a shell command. If so, it copies
-what the shell believes to be its current directory into the supplied
-buffer. That is, the function then copies {\tt cli\_SetName} into {\tt buf},
-see section~\ref{sec:clistruct}. If the current directory path fits into
-{\tt len} bytes including a terminating {\tt NUL} byte, then this function
-returns {\tt DOSTRUE} and sets {\tt IoErr()}\key{IoErr()} to~0. Otherwise,
-it truncates the name, returns {\tt DOSFALSE} and sets {\tt
-  IoErr()}\key{IoErr()} to {\tt ERROR\_LINE\_TOO\_LONG}, but still returns
-{\tt DOSTRUE}.
-\smallskip{}
-
-The shell itself does not update {\tt cli\_SetName}, namely the field this
-function depends upon, itself. Rather, the {\tt CD}, {\tt SwapCD}, {\tt
-  PushCD} and {\tt PopCD} commands attempt to keep it consistent. However,
-if a command changes {\tt pr\_CurrentDir} without updating {\tt
-  cli\_SetName}, or calls {\tt SetCurrentDirName()}\key{SetCurrentDirName()}
-without updating the current directory of its processes, then the string
-supplied by this function may not correspond to the current directory the
-shell actually uses.
-\smallskip{}
-
-If the caller is not a shell command, then the function uses the lock
-representing the current directory of the calling process, namely {\tt
-  pr\_CurrentDir}, and converts it to a string by {\tt
-  NameFromLock()}\key{\tt NameFromLock()}. This function, see
-section~\ref{sec:namefromlock}, also truncates its result to {\tt len} bytes
-and, if truncation was performed, sets {\tt IoErr()}\key{IoErr()} to {\tt
-  ERROR\_LINE\_TOO\_LONG} and returns {\tt DOSFALSE} if the directory name
-does not fit into {\tt len} bytes. On success, the function returns a
-non-zero result code, but it does not set {\tt IoErr()} consistently then.
-
-\subsection{Set the Current Directory Name}
-
-The {\tt SetCurrentDirName()}\mkey{SetCurrentDirName()} sets the buffer
-within which the shell keeps the string representing the current
-directory. It does not update the current directory itself.
-
-\begin{verbatim}
-success = SetCurrentDirName(name)
-D0                        D1
-
-BOOL SetCurrentDirName(STRPTR)
-\end{verbatim}
-
-This function updates {\tt cli\_SetName} of the shell the caller is part of,
-if such a shell exists. In such a case, it copies the supplied string into
-{\tt cli\_SetName} and potentially truncates it to the size of the
-shell-internal buffer. Even if the string is truncated, the function returns
-{\tt DOSTRUE}. It does not update {\tt IoErr()} in either case. For some
-legacy reasons, the size of this buffer is rather small, and thus may not
-reflect the full directory name supplied.
-\smallskip{}
-
-If the caller is not a shell command, this function returns {\tt DOSFALSE}
-without setting an error code.
-\smallskip{}
-
-This function does not attempt to synchronize {\tt pr\_CurrentDir} of the
-calling process to the supplied directory, If the two are not consistent,
-the path the shell could print as part of the prompt would be
-incorrect. Thus, any attempt to change {\tt cli\_SetName} through this
-function \emph{shall also} call {\tt CurrentDir()}\key{CurrentDir()} to make
-this change consistent to the Shell.
-
-\subsection{Obtaining the Current Program Name}
-
-The {\tt GetProgramName()}\mkey{GetProgramName()} function copies the name of
-the currently executed program into a buffer.
-
-\begin{verbatim}
-success = GetProgramName(buf, len)
-D0                       D1   D2
-
-BOOL GetProgramName(STRPTR, LONG)
-\end{verbatim}
-
-This function fills {\tt buf} with the what the Shell assumes to be the name
-of the currently executed command. This name is taken from {\tt
-  cli\_CommandName}, see section~\ref{sec:clistruct}, where the shell
-deposits it before executing a program. If the program name including {\tt
-  NUL} termination requires more than {\tt len} bytes, this function first
-truncates it and sets {\tt IoErr()}\key{IoErr()} to {\tt
-  ERROR\_LINE\_TOO\_LONG}. If the name including
-a terminating {\tt NUL} byte fits into {\tt len} bytes, the name is copied
-and the function sets {\tt IoErr()}\key{IoErr()} to~0. In either case, even
-if the program name is truncated, the function returns {\tt DOSTRUE}.
-\smallskip{}
-
-If this function is not called from a shell command, the function installs
-an empty string in {\tt buf} if {\tt len} is at least~1 and returns {\tt
-  DOSFALSE} and sets {\tt IoErr()} to {\tt ERROR\_OBJECT\_WRONG\_TYPE}.
-\smallskip{}
-
-The Shell buffer that keeps the current command name is unfortunately due to
-legacy reasons quite limited in size, and at present shorter than the 106
-character limit imposed by the {\tt FileInfoBlock} structure, see
-section~\ref{sec:fib}. Even though the Shell uses internally a longer buffer
-and thus is not limited in the file name size of commands it executes, the
-ability of the Shell to communicate such long command names to the caller is
-restricted, and thus the command name retrieved from this function may not
-reflect the correct file name.
-
-\subsection{Set the Current Program Name} \label{sec:setprogramname}
-
-The {\tt SetProgramName()}\mkey{SetProgramName()} sets the name the shell
-assumes the currently executing program has.
-
-\begin{verbatim}
-success = SetProgramName(name)
-D0                        D1
-
-BOOL SetProgramName(STRPTR)
-\end{verbatim}
-
-If this function is called from a shell command, it installs the supplied
-string as program name into {\tt cli\_CommandName},
-section~\ref{sec:clistruct}, and returns {\tt DOSTRUE}. If the supplied
-string does not fit into the Shell internal buffer, it is truncated without
-this function indicating failure.
-\smallskip{}
-
-If this function is not called from a shell command, it returns {\tt
-  DOSFALSE}. This function does not change {\tt IoErr()}\key{Ioerr()} in any
-case.
-
-\subsection{Obtaining the Shell Prompt}
-
-The {\tt GetPrompt()}\mkey{GetPrompt()} function copies the prompt format
-string with all formatting instructions into a caller supplied function.
-
-\begin{verbatim}
-success = GetPrompt(buf, len)
-D0                  D1   D2
-
-BOOL GetPrompt(STRPTR, LONG)
-\end{verbatim}
-
-If this function is called from a shell command, it copies the prompt format
-string including a terminating {\tt NUL} into {\tt buf} if it fits into {\tt
-  len} bytes, potentially truncating it if it does not. If truncation was
-performed, {\tt IoErr()} is set to {\tt ERROR\_LINE\_TOO\_LONG}, otherwise
-to~0. In either case, even if the string was truncated, the function returns
-{\tt DOSTRUE}.
-\smallskip{}
-
-If this function is not called from a shell command, an empty string is
-copied into {\tt buf} if {\tt len} is at least~1, and {\tt
-  IoErr()}\key{IoErr()} is set to {\tt ERROR\_OBJECT\_WRONG\_TYPE} and the
-function returns {\tt DOSFALSE}.
-\smallskip{}
-
-The shell prompt provided by this function is the unexpanded prompt
-including format strings as it is provided by the {\tt Prompt} command, and
-not the expanded prompt currently printed by the shell.
-
-\subsection{Setting the Shell Prompt}
-
-The {\tt SetPrompt()}\mkey{SetPrompt()} sets the Shell prompt format string.
-
-\begin{verbatim}
-success = SetPrompt(name)
-D0                D1
-
-BOOL SetPrompt(STRPTR)
-\end{verbatim}
-
-If called from a shell command, this function updates the shell prompt
-format string to {\tt name}, potentially truncating it to the size of the
-Shell internal buffer. It returns {\tt DOSTRUE} even if the prompt is
-truncated.
-\smallskip{}
-
-If this function is not called from a shell command, it returns {\tt
-  DOSFALSE}. In does not change {\tt IoErr()}\key{IoErr()} in any case.
-\smallskip{}
-
-The Shell prompt provided to this function may contain all format strings
-described in~\ref{sec:clistruct}, such as {\tt \%S} for the current path, or
-Shell variables and backticks to construct a prompt dynamically. The
-shell-internal buffer size for the prompt is unfortunately quite limited. If
-longer prompts are required, they could be placed in a local shell variable
-which is expanded in the prompt.
-
-\subsection{Run a Command Overloading the Calling Process}
-
-The {\tt RunCommand()}\mkey{RunCommand()} runs a shell command from a
-process, and overloads the process with the command.
-
-\begin{verbatim}
-rc = RunCommand(seglist, stacksize, argptr, argsize)
-D0                D1         D2       D3      D4
-
-LONG RunCommand(BPTR, ULONG, STRPTR, ULONG)
-\end{verbatim}
-
-This function runs a command from the calling process, and provides for this
-command its own stack, and its own arguments. It does not create a new
-process nor a new shell, but executes the command as part of the caller. The
-AmigaDOS Shell uses this function to execute loaded commands within its
-context.
-\smallskip{}
-
-The {\tt seglist} argument is a BPTR to the first segment of the executable
-to start, for example as returned by {\tt LoadSeg()}\key{LoadSeg()} for
-disk-based commands, or {\tt FindSegment()}\key{FindSegment()} for resident
-commands.
-\smallskip{}
-
-The {\tt stacksize} argument is the size of the stack in bytes to be
-provided to the command; this has to be provided by the caller as this
-function does not attempt to identify the minimum stack size necessary.
-The Shell takes the stack size from {\tt cli\_DefaultStack}, see
-section~\ref{sec:clistruct}, and multiplies it by~4. It additionally
-searches the {\tt seglist} for the stack cookie, see
-section~\ref{sec:stackcookie}, and from that potentially increases the size.
-\smallskip{}
-
-The {\tt argptr} and {\tt argsize} arguments provide command line arguments
-that are passed to the command. They are provided through several
-mechanisms: First, the CPU register {\tt a0} is loaded with {\tt argptr} and
-register {\tt d0} is filled with {\tt argsize}. Second, the {\tt
-  pr\_Arguments} element of the process is temporarly replaced by {\tt
-  argptr}, see also section~\ref{sec:process}, and thus the arguments are
-made available to~{\tt GetArgStr()}\key{GetArgStr()}. Third, a buffer for
-the input file handle {\tt pr\_CIS} of the caller is allocated and filled
-with a copy of the argument line; more on the file handle structure is in
-section~\ref{sec:filehandle}. Thus, buffered I/O operations as those listed
-in section~\ref{sec:bufferedio} will retrieve the arguments. This step is
-necessary to make the arguments available to {\tt
-  ReadArgs()}\key{ReadArgs()}, the AmigaDOS argument parser.
-\smallskip{}
-
-The {\tt ReadArgs()}\key{ReadArgs()} function, and probably many other
-parsers require that the argument is terminated by a newline, hex {\tt
-  0x0a}. While it is possible to provide an argument string containing more
-than one newline character, {\tt ReadArgs()}\key{ReadArgs()} will ignore all
-arguments behind the first newline. However, some commands such as {\tt Run}
-will make use of the entire string.
-\medskip{}
-
-All changes performed by {\tt RunCommand()} on the caller and its resources,
-namely the stack, the modifications of the input file handle and storage of
-the arguments and the modified stack are reverted when the called command
-returns.
-\smallskip{}
-
-As the program name \emph{is not} part of the command line arguments, it is
-advisable to set the path and file name of the loaded program {\tt
-  SetProgramName()}\key{SetProgramName()} upfront, more on this function in
-section~\ref{sec:setprogramname}. The startup code of many C compilers will
-construct {\tt argv[0]} from it.
-\smallskip{}
-
-This function returns the result code of the called command, or~$-1$ if
-it failed to allocate resources such as the input file handle buffer or the
-stack. {\tt IoErr()}\key{IoErr()} remains its value from the called command,
-or is set to {\tt ERROR\_NO\_FREE\_STORE} if resources could not be
-allocated.
-
-\subsection{Find a Shell Process by Task Number}
-
-The {\tt FindCliProc()}\mkey{FindCliProc()} function finds a process by its
-task number.
-
-\begin{verbatim}
-proc = FindCliProc(num)
-D0             D1
-
-struct Process *FindCliProc(ULONG)
-\end{verbatim}
-
-This function returns a process given its task number. Note, however, that
-AmigaDOS only assigns task numbers to shells and commands run within or from
-shells and not to other processes, such as those started from the workbench,
-handlers, file systems or device drivers. Thus, this function is not quite
-as useful as it seems.
-\smallskip{}
-
-The {\tt num} is the task number that identifies the process to locate. It
-is stored in the {\tt pr\_TaskNum} element of the process structure, see
-section~\ref{sec:process}.
-\smallskip{}
-
-This function returns a pointer to the process structure, see
-section~\ref{sec:process} whose task number is {\tt num}. If no such process
-exists, this function returns {\tt NULL}. However, even if it returns a
-non-{\tt NULL} result code, it is possible that the process has already
-exited and no longer exists when the function returns or an attempt is made
-to access its process structure. Furthermore, the \emph{dos.library} does
-not attempt to protect its process table within this function, and there is no
-semaphore protecting it. Therefore, this function \emph{shall only be called}
-while task switching is disabled with {\tt Forbid()} and its return value is
-only valid as long as task switching is disabled.
-\smallskip{}
-
-This function does not alter {\tt IoErr()}\key{IoErr()}, even if no process
-is found.
-
-\subsection{Retrieve the Size of the Process Table}
-
-The {\tt MaxCli()}\mkey{MaxCli()} function returns the size of the process
-table.
-
-\begin{verbatim}
-number = MaxCli()
-D0
-
-LONG MaxCli(void)
-\end{verbatim}
-
-This function returns the number of entries the process table may
-hold. However, this information is of limited value for various reasons:
-First, this information does \emph{not} correspond to the number of running
-processes, but only describes the number of entries the process table is
-able to hold. Second, only shells and commands run within or from shells
-are recorded in the process table, and other processes as those started from
-the workbench, or handlers, file systems or device drivers do not enter this
-table. Third, the size of this table changes dynamically depending on how
-many shell processes are active, even under the feed of the caller. Thus,
-this function should be avoided.
-\smallskip{}
-
-As the \emph{dos.library} does not protect the process table from
-modifications, this function \emph{shall only be called} while task
-switching is disabled with {\tt Forbid()}, and its value is only valid as
-long as the task switching remains disabled.
-
-\subsection{Request a Function of the Shell} \label{sec:doshellmethod}
-
-The {\tt DoShellMethod}\mkey{DoShellMethod()} function requests from the
-shell of the calling process a specific function. The {\tt
-  DoShellMethodTagList()}\mkey{DoShellMethodTagList()} function belongs to
-the same entry point of the \emph{dos.library}, though uses a different
-calling convention that receives the tag list as an explicit pointer instead
-of a variably sized argument list.
-
-\begin{verbatim}
-ptr = DoShellMethodTagList(method, tags)
-D0                           D0     A0
-
-APTR DoShellMethodTagList(ULONG, struct TagItem *)
-
-ptr = DoShellMethod(method, Tag1, ...)
-
-APTR DoShellMethod(ULONG, ULONG, ...)
-\end{verbatim}
-
-This function requests the from the shell of the calling process the
-execution of a function identified by {\tt method}. The arguments to the
-shell are provided in the tag list, or by a list of tags terminated by {\tt
-  TAG\_DONE}. The return value of the shell is provided in {\tt ptr}, a
-secondary return code is provided in {\tt IoErr()}.
-\medskip{}
-
-The AmigaDOS Shell supports the following methods defined in {\tt
-  dos/shell.h}:
-\smallskip{}
-
-{\tt SHELL\_METH\_METHODS} returns a {\tt const} array of methods the shell
-supports. This is an array of {\tt ULONG}s that is terminated by a {\tt 0L},
-each containing a method ID that may be provided to {\tt
-  DoShellMethod()}\key{DoShellMethod()}. Every shell shall support this
-method.
-\smallskip{}
-
-{\tt SHELL\_METH\_GETHIST} is a method of the AmigaDOS Shell that provides
-read-only access to the history. It does not take any arguments. The
-returned pointer is a {\tt MinList} structure, see {\tt exec/lists.h}. Each
-node in this list consists of a {\tt HistoryNode} structure, defined in {\tt
-  dos/shell.c}:
-
-\begin{verbatim}
-struct HistoryNode {
-  struct MinNode  hn_Node;
-  UBYTE          *hn_Line;
-};
-\end{verbatim}
-
-The {\tt hn\_Line} is a pointer to a command in the history of the
-shell. This command is \emph{not} terminated by a newline, but only by a
-{\tt NUL}. The caller \emph{shall not} alter this list. 
-\smallskip{}
-
-{\tt SHELL\_METH\_CLRHIST} erases the entire history of the AmigaDOS
-Shell. This method does not take any arguments.
-\smallskip{}
-
-{\tt SHELL\_METH\_ADDHIST} adds an entry to the newest end of the AmigaDOS
-Shell history and make it accessible to the user through the cursor
-keys. This method takes a single tag, namely {\tt SHELL\_ADDH\_LINE}. The
-argument of this tag is a {\tt UBYTE *} to a {\tt NUL}-terminated string,
-namely the entry to add to the history. The Shell copies the provided
-string, and may initial or trailing spaces. It may also limit the size of
-the history buffer by releasing the oldest entry or entries. This method
-returns a non-zero result on success, or {\tt NULL} on error.
-\smallskip{}
-
-{\tt SHELL\_METH\_FGETS} retrieves a single line from the console the shell
-runs in, while offering access to TAB expansion and access to the
-history. The difference between this method and the {\tt
-  FGets()}\key{FGets()} function is that the latter provides elementary line
-editing functions of the console, but does not have access to Shell internal
-states such as the path of the caller requird for TAB
-expansion\footnote{Readers beware: TAB expansion and the history are
-\emph{not} console features, but Shell features.}.
-\smallskip{}
-
-This method takes a single optional boolean tag, {\tt SHELL\_FGETS\_FULL},
-defined in {\tt dos/shell.h}. If this tag is {\tt DOSFALSE}, which is the
-default, then the Shell is instructed to read a string from the console that
-corresponds to a path or multiple paths relatively to the current directory
-of the caller. TAB expansion will only scan the current directory for
-matches. This mode is useful for requesting a file or multiple files from
-the user, and it is for example used by the AmigaDOS argument parser, {\tt
-  ReadArgs()}\key{ReadArgs()}, when the input is a quesion mark (``{\tt
-  ?}'') and more input is required from the user.
-\smallskip{}
-
-If {\tt SHELL\_FGETS\_FULL} is non-zero, then a full command line is
-requested from the shell. This implies that the first argument of the input
-requested from the console is a command, and is thus located somewhere on
-the \emph{path} of the caller. Thus, when performing TAB expansion within
-the first argument, the entire path is scanned, and not just the current
-directory.
-\smallskip{}
-
-This method returns a pointer to a {\tt NUL}-terminated string as result; as
-this string is kept within Shell internal buffers, the caller shall make a
-copy of the string before calling another method of the Shell.
-\medskip{}
-
-If {\tt DoShellMethod}\key{DoShellMethod()} is called from a process that is
-not part of a shell, it returns {\tt NULL} and sets {\tt
-  IoErr()}\key{IoErr()} to {\tt ERROR\_OBJECT\_WRONG\_TYPE}.
-  
 \subsection{Read a Shell Variable}
+
+The {\tt GetVar()}\mkey{GetVar()} function reads the contents of a global or
+local shell variable and copies its contents to a buffer.
 
 \begin{verbatim}
 len = GetVar( name, buffer, size, flags ) 
@@ -18736,14 +18760,143 @@ D0	       D1     D2     D3    D4
 LONG GetVar( STRPTR, STRPTR, LONG, ULONG ) 
 \end{verbatim}
 
+The {\tt name} argument is the name of the variable to retrieve; this name
+may contain one or multiple forward slashes (``({\tt /})'') which structure
+variables hierarchically. For global variables, this hierarchy is mapped to
+subdirectories of a file in the {\tt ENV:} assign where variables are
+represented as files that may also be accessed through the file system
+functions of the \emph{dos.library}. Unless specified otherwise, this
+function first checks for local shell variables, but if no matching variable
+is found, it checks for a global variable of the name provided.
+\smallskip{}
+
+The {\tt buffer} and {\tt size} arguments specify a buffer and its length
+into which the contents of the variable, if it exists, is copied. It is
+advisable to store only printable characters in variables, in which case any
+{\tt NUL} or line feed character truncates the contents of the
+variable. However, variables may also contain binary data; such binary data
+is, however, only copied if it is requested explicitly. If a variable does
+not fit into the buffer, it is truncated without setting an error code, but
+non-binary variables are always {\tt NUL}-terminated. The {\tt size}
+argument includes the byte necessary for termination.
+\medskip{}
+
+The {\tt flags} argument determines the type of variable to access, and
+whether binary contents of the variable is made accessible. The following
+flags are defined in {\tt dos/var.h}:
+\smallskip{}
+
+The lowest 8 bits of {\tt flags} identify the nature of the variable. If set
+to {\tt LV\_VAR}, this function reads variables, if set to {\tt LV\_ALIAS},
+it reads aliases. Aliases are always local to the shell and cannot be
+global.
+
+If the {\tt GVF\_GLOBAL\_ONLY} flag is set, then this function only returns
+contents of global variables, and local variables are ignored. Aliases are
+never global.
+\smallskip{}
+
+If the {\tt GVF\_LOCAL\_ONLY} flag is set, then this function only returns
+contents of local variables and ignores any global variables.
+\smallskip{}
+
+If the {\tt GVF\_BINARY\_VAR} flag is set, then copying the contents of
+variables into the supplied {\tt buffer} does not stop at newline ({\tt
+  0x0a}) or {\tt NUL} characters, but attempts to transfer the entire
+variable into the buffer, potentially truncating it if necessary. It is,
+however, {\tt NUL} terminated, unless {\tt GVF\_DONT\_NULL\_TERM} is set.
+\smallskip{}
+
+If the {\tt GVF\_DONT\_NULL\_TERM} flag is set along with {\tt
+  GVF\_BINARY\_VAR}, then this function does not attempt to {\tt
+  NUL}-terminate the supplied buffer. Rather the entire variable, if
+possible, is copied into {\tt buffer}.
+\smallskip{}
+
+On success, this function returns the size of the supplied variable after
+truncation is applied if necessary. The size does not include the
+terminating {\tt NUL}, if one is included. On success, this function sets
+{\tt IoErr()}\key{IoErr()} to the entire size of the variable in the
+database, including any bytes beyond a terminating newline or {\tt NUL}.
+\smallskip{}
+
+On error, $-1$ is returned and {\tt IoErr()}\key{IoErr()} is set to an error
+code; it is set to {\tt ERROR\_BAD\_NUMBER} if {\tt len} is~0,
+or {\tt ERROR\_OBJECT\_NOT\_FOUND} if the variable could not be found. Any
+other error code resulting from reading from {\tt ENV:} is also forwarded to
+the caller through {\tt IoErr()}\key{IoErr()}.
+
 \subsection{Setting a Shell Variable}
+
+The {\tt SetVar()}\mkey{SetVar()} assigns a value to a local or global shell
+variable, potentially creating a new variable, or potentially deleting it.
 
 \begin{verbatim}
 success = SetVar( name, buffer, size, flags ) 
-D0	           D1     D2     D3    D4
+D0                 D1     D2     D3    D4
 
 BOOL SetVar(STRPTR, STRPTR, LONG, ULONG ) 
 \end{verbatim}
+
+This function assigns the value in {\tt buffer} to the variable named {\tt
+  name}, possibly creating it if it does not exist, or deleting it if {\tt
+  buffer} is {\tt NULL}.
+\smallskip{}
+
+The {\tt name} argument is the name of the variable to create, update or
+delete. The {\tt name} may contain one or multiple slashes (``{\tt /}'')
+which corresponds to a hierarchy of variables; this hierarchy is represented
+by directories in {\tt ENV:} for global variables, and this function
+potentially creates the hierarchy, i.e. subdirectories for global variables,
+if necessary.
+\smallskip{}
+
+The {\tt buffer} and {\tt size} arguments are the contents of the variable
+and the size of the contents. It is generally advisable to only include
+printable characters in variables, even though they may include also binary
+data which can be retrieved by setting the {\tt LVF\_BINARY\_VAR} for {\tt
+  GetVar()}\key{GetVar()}. If {\tt size} is $-1$, then the {\tt buffer}
+contains a {\tt NUL}-terminated string and this function determines the
+string size internally. The terminating {\tt NUL} of such a string
+\emph{does not} become part of the variable value.
+\smallskip{}
+
+If {\tt buffer} is {\tt NULL}, then a matching variable is deleted. It is
+then equivalent to {\tt DeleteVar()}\key{DeleteVar()}.
+\medskip{}
+
+The {\tt flags} argument determines the type of the variable to be set or
+created. The following flags are defined in {\tt dos/var.h}:
+\smallskip{}
+
+{\tt LV\_VAR} sets or creates a regular shell variable, local or global.
+\smallskip{}
+
+{\tt LV\_ALIAS} sets or creates an alias. Aliases can only be local. This is
+mutually exclusive to the above.
+\smallskip{}
+
+If {\tt GVF\_GLOBAL\_ONLY} is set, then a global variable is created, deleted
+or updated. This flag \emph{shall not} be combined with {\tt
+  LV\_ALIAS}. If this flag is \emph{not} set, and {\tt buffer} is not {\tt
+  NULL}, this function only updates or creates local variables; it even
+creates a local variable if a global variable of the same name already
+exists. If this flag is \emph{not} set, and {\tt buffer} is {\tt NULL}, it
+first attempts to delete a local variable, and if none is found, attempts to
+delete a global variable of the matching name.
+\smallskip{}
+
+If {\tt GVF\_LOCAL\_ONLY} is set, then only a local variable is created,
+deleted or updated. This flag only makes a difference if {\tt buffer} is
+{\tt NULL} as all other operations default to local variables anyhow.
+\medskip{}
+
+This function returns a non-zero return value in case of success. {\tt
+  IoErr()}\key{IoErr()} is then not set consistently. On error, this
+function returns {\tt DOSFALSE} and {\tt IoErr()}\key{IoErr()} is set to an
+error code. If a variable is to be deleted by setting {\tt buffer} to {\tt
+  NULL}, and this variable does not exist, this function will set {\tt
+  IoErr()} to {\tt ERROR\_OBJECT\_NOT\_FOUND}.
 
 \subsection{Finding a Shell Variable}
 
