@@ -17541,6 +17541,8 @@ that backwards-escaping does not take place without the additional layer of
 double quotes surrounding the backticked command, same as in variable
 substitution.
 
+\subsection{Alias Substitution}
+
 \subsection{Command Execution}
 
 The Shell takes the first argument of each component of a compound command
@@ -18751,7 +18753,7 @@ defined.
 \subsection{Read a Shell Variable}
 
 The {\tt GetVar()}\mkey{GetVar()} function reads the contents of a global or
-local shell variable and copies its contents to a buffer.
+local shell variable or alias and copies its contents to a buffer.
 
 \begin{verbatim}
 len = GetVar( name, buffer, size, flags ) 
@@ -18762,12 +18764,13 @@ LONG GetVar( STRPTR, STRPTR, LONG, ULONG )
 
 The {\tt name} argument is the name of the variable to retrieve; this name
 may contain one or multiple forward slashes (``({\tt /})'') which structure
-variables hierarchically. For global variables, this hierarchy is mapped to
-subdirectories of a file in the {\tt ENV:} assign where variables are
-represented as files that may also be accessed through the file system
-functions of the \emph{dos.library}. Unless specified otherwise, this
-function first checks for local shell variables, but if no matching variable
-is found, it checks for a global variable of the name provided.
+variables hierarchically similar to directories on file systems. It is not
+case-sensitive. For global variables, this hierarchy is mapped to
+subdirectories within the {\tt ENV:} assign. There variables are represented
+as files that may also be accessed through the file system functions of the
+\emph{dos.library}. Unless specified otherwise, this function first checks
+for local shell variables, but if no matching variable is found, it checks
+for a global variable of the name provided.
 \smallskip{}
 
 The {\tt buffer} and {\tt size} arguments specify a buffer and its length
@@ -18829,7 +18832,8 @@ the caller through {\tt IoErr()}\key{IoErr()}.
 \subsection{Setting a Shell Variable}
 
 The {\tt SetVar()}\mkey{SetVar()} assigns a value to a local or global shell
-variable, potentially creating a new variable, or potentially deleting it.
+variable or an alias, potentially creating a new variable, or potentially
+deleting it.
 
 \begin{verbatim}
 success = SetVar( name, buffer, size, flags ) 
@@ -18844,17 +18848,19 @@ This function assigns the value in {\tt buffer} to the variable named {\tt
 \smallskip{}
 
 The {\tt name} argument is the name of the variable to create, update or
-delete. The {\tt name} may contain one or multiple slashes (``{\tt /}'')
-which corresponds to a hierarchy of variables; this hierarchy is represented
-by directories in {\tt ENV:} for global variables, and this function
-potentially creates the hierarchy, i.e. subdirectories for global variables,
-if necessary.
+delete. It is not case-sensitive. The {\tt name} may contain one or multiple
+slashes (``{\tt /}'') which corresponds to a hierarchy of variables that
+work similar to directories and paths on regular file systems; this
+hierarchy is represented by directories in {\tt ENV:} for global variables,
+but is also available for local variables. This function potentially creates
+levels in the hierarchy, i.e. subdirectories for global variables, if
+necessary.
 \smallskip{}
 
 The {\tt buffer} and {\tt size} arguments are the contents of the variable
 and the size of the contents. It is generally advisable to only include
 printable characters in variables, even though they may include also binary
-data which can be retrieved by setting the {\tt LVF\_BINARY\_VAR} for {\tt
+data which can be retrieved by setting the {\tt GVF\_BINARY\_VAR} for {\tt
   GetVar()}\key{GetVar()}. If {\tt size} is $-1$, then the {\tt buffer}
 contains a {\tt NUL}-terminated string and this function determines the
 string size internally. The terminating {\tt NUL} of such a string
@@ -18869,11 +18875,11 @@ The {\tt flags} argument determines the type of the variable to be set or
 created. The following flags are defined in {\tt dos/var.h}:
 \smallskip{}
 
-{\tt LV\_VAR} sets or creates a regular shell variable, local or global.
+{\tt LV\_VAR} sets, creates or deletes a regular shell variable, local or global.
 \smallskip{}
 
-{\tt LV\_ALIAS} sets or creates an alias. Aliases can only be local. This is
-mutually exclusive to the above.
+{\tt LV\_ALIAS} sets, creates or deletes an alias. Aliases can only be
+local. This is mutually exclusive to the above.
 \smallskip{}
 
 If {\tt GVF\_GLOBAL\_ONLY} is set, then a global variable is created, deleted
@@ -18900,6 +18906,9 @@ error code. If a variable is to be deleted by setting {\tt buffer} to {\tt
 
 \subsection{Finding a Shell Variable}
 
+The {\tt FindVar()}\mkey{FindVar()} locates a local shell variable or alias
+of the calling process.
+
 \begin{verbatim}
 var = FindVar( name, type ) 
 D0		D1    D2
@@ -18907,14 +18916,128 @@ D0		D1    D2
 struct LocalVar * FindVar(STRPTR, ULONG ) 
 \end{verbatim}
 
+This function finds the adminstration structure corresponding to a local
+shell variable or alias of the calling process. It does not provide access
+to global variables which are represented as files in the {\tt ENV:} assign.
+\smallskip{}
+
+The {\tt name} argument specifies the name of the local variable or alias to
+locate. It is not case-sensitive. This name may contain forward slashes
+(``{\tt /}'') to structure variables in hierarchies.
+\smallskip{}
+
+The {\tt type} argument defines whether a local shell variable or alias is
+to be found. The following types from {\tt dos/var.h} are available:
+\smallskip{}
+
+{\tt LV\_VAR} requests the function to locate a local shell variable.
+\smallskip{}
+
+{\tt LV\_ALIAS} request the function to find an alias. This is mutually
+exclusive to the above.
+\smallskip{}
+
+Only the least significant bits of {\tt type} are relevant, all other bits,
+in particular {\tt GVF\_GLOBAL\_ONLY}, are ignored.
+\smallskip{}
+
+If a matching variable or alias is found, a pointer to a {\tt LocalVar}
+structure, defined in {\tt dos/var.h} is returned:
+
+\begin{verbatim}
+struct LocalVar {
+  struct Node lv_Node;
+  UWORD       lv_Flags;
+  UBYTE      *lv_Value;
+  ULONG       lv_Len;
+};
+\end{verbatim}
+
+This structure shall never be allocated by the caller as it may grow in
+future releases. Instead, creation of variables shall only be created
+through {\tt SetVar()}\key{SetVar()}. The elements of this structure are as
+follows: 
+\smallskip{}
+
+{\tt lv\_Node} is a node structure as defined in {\tt exec/nodes.h}. It
+chains all local variables and aliases of a process in the {\tt
+  pr\_LocalVars} element of the process structure, see
+section~\ref{sec:process}. The {\tt lv\_Node.ln\_Name} element is the
+full path to the variable, including all directory elements and its name,
+separated by forward slashes (``{\tt /}''). The type of the node, namely
+{\tt lv\_Node.ln\_Type} identifies whether this structure describes a
+variable or an alias. It can be either {\tt LV\_VAR} or {\tt LV\_ALIAS}.
+\smallskip{}
+
+{\tt lv\_Flags} contains flags. Currently, only a single flag is used here,
+and that is {\tt GVF\_BINARY\_VAR}. If this flag is set, then a
+non-printable text was set as contents of the variable. However, this flag
+is currently only set, but never used by AmigaDOS; instead, the {\tt flags}
+argument of {\tt GetVar()}\key{GetVar()} determines whether the variable
+contents is interpreted as text or as binary value.
+\smallskip{}
+
+{\tt lv\_Value} is a pointer to the value of the variable. This value is
+\emph{not} a {\tt NUL}-terminated string, but rather an array of bytes whose
+size is found in {\tt lv\_Len}.
+\medskip{}
+
+On success, this function does not alter {\tt IoErr()}\key{IoErr()}. If no
+matching variable or alias is found, this function returns {\tt NULL} and
+sets {\tt IoErr()} to {\tt ERROR\_OBJECT\_NOT\_FOUND}.
+
 \subsection{Deleting a Shell Variable}
+
+The {\tt DeleteVar()}\mkey{DeleteVar()} deletes a global or local shell
+variable or alias.
 
 \begin{verbatim}
 success = DeleteVar( name, flags ) 
-D0		      D1    D2
+D0                   D1    D2
 
 BOOL DeleteVar(STRPTR, ULONG ) 
 \end{verbatim}
+
+This function removes a shell variable or alias from the local or global
+pool of shell variables. This function is equivalent to {\tt
+  SetVar(name,NULL,0,flags)}.
+\smallskip{}
+
+The {\tt name} argument is the name of the variable or alias to remove. It
+is not case-sensitive. This name may contain slashes (``{\tt /}'') that work
+similar to path separates. This allows variables to form a hierarchy similar
+to a file system. Without additional flags, this function first attempts to
+find a local variable and then deletes it if it exists. If no such variable
+exists, the function attempts to find a global variable of the same name and
+attempts to delete it. It does not delete directories of variables.
+\smallskip{}
+
+The {\tt flags} argument provides information on which type of variables or
+alias are to be deleted. The following flags are honored:
+\smallskip{}
+
+{\tt LV\_VAR} deletes a regular shell variable.
+\smallskip{}
+
+{\tt LV\_ALIAS} deletes an alias. Aliases can only be local. This is
+mutually exclusive to the above.
+\smallskip{}
+
+If {\tt GVF\_GLOBAL\_ONLY} is set, then only a global variable is to be
+deleted; the function then does not attempt to find a local variable of the
+given name.
+\smallskip{}
+
+If {\tt GVF\_LOCAL\_ONLY} is set, then only a local variable is to be
+deleted.
+\medskip{}
+
+This function returns a non-zero return value in case of success. {\tt
+  IoErr()}\key{IoErr()} is then not set consistently. On error, this
+function returns {\tt DOSFALSE} and {\tt IoErr()}\key{IoErr()} is set to an
+error code. This function will set {\tt IoErr()} to {\tt
+  ERROR\_OBJECT\_NOT\_FOUND} if an attempt is made to delete a non-existing
+variable or alias.
 
 \section{Parsing Arguments}
 
