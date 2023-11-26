@@ -2147,8 +2147,9 @@ to a handler, but to a string in memory containing the commands.
 \smallskip{}
 
 The shell itself is using the same technique to pass arguments to the
-commands it executes; it deposits the command arguments in the file
-handle buffer of the input stream where {\tt ReadArgs()} collects them.
+commands it executes; it deposits the command arguments in the file handle
+buffer of the input stream where {\tt ReadArgs()}\key{ReadArgs()} collects
+them.
 \medskip{}
 
 The idea is to allocate a {\tt struct FileHandle} and initialize its
@@ -19304,17 +19305,22 @@ command line, that is, command line help through the supplied {\tt template}
 parameter or {\tt RDA\_ExtHelp} is not provided.
 \medskip{}
 
-On success, this function returns a {\tt RDArgs} structure; as this
-structure administrates the resources accquired by {\tt
+On success, this function returns a {\tt RDArgs} structure, either the same
+as passed in through {\tt rdargs}, or one that was created by this function;
+as this structure administrates the resources accquired by {\tt
   ReadArgs()}\key{ReadArgs()}, it shall be released by {\tt
   FreeArgs()}\key{FreeArgs()} once all arguments have been interpreted and
 worked on. Note that the strings and string arrays pointed to by the {\tt
-  array} are part of the resources released by {\tt FreeArgs()}\key{FreeArgs()}.
+  array} are part of the resources released by {\tt
+  FreeArgs()}\key{FreeArgs()}.
 \smallskip{}
 
-On failure, this function returns {\tt NULL}. All resources such as
-temporary buffers or buffer extensions, including a temporary {\tt RDArgs}
-structure if none was provided will be relased.
+On failure, this function returns {\tt NULL}. All resources such as buffers
+allocated through {\tt ReadArgs()}\key{ReadArgs()} will be released. If a
+custom {\tt rdargs} structure was provided by the caller as {\tt rdargs}
+parameter, then this structure is \emph{not} released; instead {\tt
+  FreeDosObject()}\key{FreeDosObject()} shall be called to dispose a user
+provided structure.
 \smallskip{}
 
 Amongst errors related to input and output operations, the following
@@ -19337,6 +19343,40 @@ too long and could not be processed. This happens for example if a {\tt M}
 (multi-argument) keyword is present in the template and too many arguments
 are supplied.
 
+\subsection{Releasing the Argument Parser}
+
+The {\tt FreeArgs()}\mkey{FreeArgs()} function releases all resources
+allocated by {\tt ReadArgs()}\key{ReadArgs()}.
+
+\begin{verbatim}
+FreeArgs(rdargs)
+           D1
+
+void FreeArgs(struct RDArgs *)
+\end{verbatim}
+
+This function releases all resources accquired by the AmigaDOS argument
+parser given an {\tt RDArgs} structure. This includes temporary buffers, and
+--- unless a custom {\tt RDArgs} structure was passed into {\tt
+  ReadArgs()}\key{ReadArgs} --- als the {\tt RDArgs} structure itself. If a
+custom allocated {\tt RDArgs} structure was provided to {\tt
+  ReadArgs()}\key{ReadArgs()}, then this structure shall be disposed
+manually by {\tt FreeDosObject()}\key{FreeDosObject()}, it is not released
+by {\tt FreeArgs()}\key{FreeArgs()}.
+\smallskip{}
+
+The {\tt rdargs} argument is a pointer to a {\tt RDArgs} structure whose
+resources, including potentially itself, shall be released. It is safe to
+pass in {\tt NULL}, in which case this function does nothing.
+\smallskip{}
+
+This function shall be called once all arguments of a {\tt
+  ReadArgs()}\key{ReadArgs()} call have been processed. Its only argument is
+either the result of {\tt ReadArgs()}\key{ReadArgs()}, or the {\tt rdargs}
+structure passed into it. This function potentially releases all elements of
+the {\tt array} argument of {\tt ReadArgs()}\key{ReadArgs()}, and thus its
+contents is no longer usable after calling {\tt FreeArgs()}\key{FreeArgs()}.
+
 \subsection{Reading a Single Argument from the Command Line}
 
 \begin{verbatim}
@@ -19353,15 +19393,6 @@ index = FindArg(template, keyword)
 D0                D1        D2
 
 LONG FindArg(STRPTR, STRPTR)
-\end{verbatim}
-
-\subsection{Releasing the Argument Parser}
-
-\begin{verbatim}
-FreeArgs(rdargs)
-           D1
-
-void FreeArgs(struct RDArgs *)
 \end{verbatim}
 
 
