@@ -17244,12 +17244,13 @@ is flexible enough to allow custom shells and make them available to user
 applications. The Shell is also responsible for booting up the system by
 executing the {\tt Startup-Sequence} script in the {\tt S:} assign.
 
-\section{The Shell Syntax}
+\section{The Shell Syntax} \label{sec:shellsyntax}
 
 The Shell reads commands along with its arguments line by line from the
 console or a script. Each line consists of at least one command upfront and
 its arguments, where the arguments amongst each other and the command are
-are separated by spaces. The command refers to a file within the
+are separated by spaces, tabulators or by equals-signs (``{\tt = }'') which
+separates keywords from its values. The command refers to a file within the
 \emph{path}, a list of directories that can be adjusted by the user. It
 always contains the current directory and the {\tt C:} assign, though
 additional directories can be added or removed with the {\tt path} command
@@ -17268,7 +17269,7 @@ handler to which commands can refer by the special file name
 {\tt *}. Optionally, they can be provided with an error stream through which
 diagnostic messages are printed. The shell allows redirecting or creating
 these streams by operators on the command line that shall also be separated
-by the spaces from the arguments and the command.
+by the spaces or tabulators from the arguments and the command.
 \smallskip{}
 
 The shell supports the following redirection operators:
@@ -17336,7 +17337,7 @@ forming \emph{compound} commands. The following operators go \emph{between}
 commands such that the last argument of the first command is directly to the
 left of such an operator, and the next argument start to the right. As for
 arguments, these operators need to be separated by arguments and commands
-with blank spaces:
+with blank spaces or tabulators:
 
 \begin{itemize}
   \item[{\tt |}] The vertical bar creates a pipe such that the standard
@@ -17358,9 +17359,9 @@ with blank spaces:
 The brackets ``{\tt (}'' and ``{\tt )}'' group commands and execute the
 grouped command in a separate process in a sub-shell. For this, both the
 opening and closing bracket shall be separated by commands and arguments by
-at least a single space as otherwise the shell interprets them as part of
-the command or arguments. This provides logical grouping of commands into
-compound commands.
+at least a single space or tabulator as otherwise the shell interprets them
+as part of the command or arguments. This provides logical grouping of
+commands into compound commands.
 
 \subsection{Unary Shell Operators}
 
@@ -17389,19 +17390,22 @@ between commands, but only at their end or at the end of the command line.
   explained in section~\ref{sec:stringstreams}. This sub-shell will thus
   receive a shell script as input which consists of multiple lines, and will
   execute the commands one after another.
+\item[;] The semicolon ends a command line and starts a commend. All
+  characters beyond the semicolon are ignored.
 \end{itemize}
 
 \subsection{Quoting and Escaping} \label{sec:shellquotes}
 
-To allow spaces and the above operators as parts of command names and
-arguments, e.g. to handle file names containing spaces, the Shell allows
-quoting. Blank spaces within double quotes (``{\tt "}'') become part of the
-argument, and are not interpreted by the shell. A quote only starts a quoted
-argument or command and is thus a functional element of the Shell if it is
-preceeded by a blank space, quotes \emph{within} an otherwise unquoted
+To allow spaces, tabulators, equals-signs and the above operators as parts
+of command names and arguments, e.g. to handle file names containing such
+characters, the Shell allows quoting. Blank spaces, tabulators, semicola and
+equals-signs within double quotes (``{\tt "}'') become part of the argument,
+and are not interpreted by the shell. A quote only starts a quoted argument
+or command and is thus a functional element of the Shell if it is preceeded
+by a blank space or a tabulator, quotes \emph{within} an otherwise unquoted
 argument are literals and stand for itself. A quote, however, does terminate
-a quoted string even if it is \emph{not} followed by a blank
-space.
+a quoted string even if it is \emph{not} followed by a blank space or
+tabulator.
 \smallskip{}
 
 Within quotes, the Shell recognizes the asterisk ``{\tt *}'' as an escape
@@ -17497,12 +17501,13 @@ Variables are substituted by the Shell \emph{before} the resulting argument
 line is provided to the command, i.e. it is not necessary to expand
 variables within commands. The Shell does not attempt to generate pairs of
 double quotes to ensure that an expanded variable corresponds to a single
-argument. In fact, if a variable contains spaces and it is not included in
-double quotes, it will be seen in the expanded command line as multiple
-arguments. However, if a variable contains asterisks or double quotes, and
-the variable appears within double quotes, such asterisks or double quotes
-are escaped by the Shell with an (additional) asterik as escape character to
-ensure the resulting argument is represented appropriately.
+argument. In fact, if a variable contains spaces, tabulators or equals-signs
+and it is not included in double quotes, it will be seen in the expanded
+command line as multiple arguments. However, if a variable contains
+asterisks or double quotes, and the variable appears within double quotes,
+such asterisks or double quotes are escaped by the Shell with an
+(additional) asterik as escape character to ensure the resulting argument is
+represented appropriately.
 \smallskip{}
 
 If the variable name is started with ``{\tt \$?}'' instead of ``{\tt \$}'',
@@ -17680,10 +17685,11 @@ pseudo-command shall be present within a script.
 present on the command line that invoked the script. It takes two arguments,
 first the key --- the formal name of the parameter for which a default is to
 be provided --- and the default value itself. Key and default value can be
-either separated by blank spaces, or an equals-sign ``({\tt =})''. If no
-default value is provided, an empty string is used. One {\tt .default}
-peudo-command can be provided per formal parameter. Another mechanism to
-provide default parameters is through the ``{\tt \$}'' character.
+either separated by blank spaces, tabulators, or an equals-sign ``({\tt
+  =})''. If no default value is provided, an empty string is used. One {\tt
+  .default} peudo-command can be provided per formal parameter. Another
+mechanism to provide default parameters is through the ``{\tt \$}''
+character.
 \smallskip{}
 
 {\tt .bra} defines the character that marks the beginning of a formal
@@ -17727,13 +17733,13 @@ Formal argument substitution otherwise follows the same path as variable
 expansion, and {\tt Execute} attempts to preserve the original command line
 arguments as good as possible. That is, if a formal parameter is enclosed
 within double quotes in the script, asterisks and double quotes are escaped
-properly. If the formal parameter included spaces and thus was quoted on the
-command line, {\tt Execute} generates suitable double quotes when
-substituting the formal parameter with its value, unless the formal
-parameter is already enclosed in double quotes. If a formal parameter
-takes multiple arguments, as indicated by a {\tt /M} modifier in its
-template (see section~\ref{sec:readargs}), then {\tt Execute} also expands
-it as multiple parameter in scripts.
+properly. If the formal parameter included spaces or tabulators and thus was
+quoted on the command line, {\tt Execute} generates suitable double quotes
+when substituting the formal parameter with its value, unless the formal
+parameter is already enclosed in double quotes. If a formal parameter takes
+multiple arguments, as indicated by a {\tt /M} modifier in its template (see
+section~\ref{sec:readargs}), then {\tt Execute} also expands it as multiple
+parameter in scripts.
 \medskip{}
 
 The generated script after substitution of formal parameters is placed into
@@ -18251,7 +18257,7 @@ Shell history and make it accessible to the user through the cursor
 keys. This method takes a single tag, namely {\tt SHELL\_ADDH\_LINE}. The
 argument of this tag is a {\tt UBYTE *} to a {\tt NUL}-terminated string,
 namely the entry to add to the history. The Shell copies the provided
-string, and may initial or trailing spaces. It may also limit the size of
+string, and may strip initial or trailing spaces. It may also limit the size of
 the history buffer by releasing the oldest entry or entries. This method
 returns a non-zero result on success, or {\tt NULL} on error.
 \smallskip{}
@@ -19086,7 +19092,7 @@ functions in this section have the advantage that they are aware of the
 delicate syntax of the AmigaDOS shell and its quoting and escaping rules as
 laid out in section~\ref{sec:shellquotes}.
 
-\subsection{Parsing Command Line Arguments}
+\subsection{Parsing Command Line Arguments} \label{sec:readargs}
 
 The {\tt ReadArgs()}\mkey{ReadArgs()} function parses one or multiple
 arguments from the command line of the caller using a template, and writes
@@ -19132,8 +19138,8 @@ each other.
 
 This function performs parsing by matching keywords on the command line to
 keywords in the template; the keyword either stands for itself for boolean
-tags, or is followed by its value, either separated by spaces or an
-equals-sign (``{\tt =}''), i.e. {\tt FROM=org} or {\tt FROM org} on the
+tags, or is followed by its value, either separated by spaces, tabulators or
+an equals-sign (``{\tt =}''), i.e. {\tt FROM=org} or {\tt FROM org} on the
 command line assign to the keyword {\tt FROM} in the template the value {\tt
   org}. If no keyword is present, then remaining arguments that do not
 explicitly require the keyword are filled left to right from the command
@@ -19227,7 +19233,7 @@ For a custom command line source, an {\tt RDArgs} structure as documented in
 struct RDArgs {
   struct  CSource RDA_Source;     /* Select input source */
   LONG    RDA_DAList;             /* PRIVATE. */
-  UBYTE   *RDA_Buffer;            /* Optional string parsing space. */
+  UBYTE   *RDA_Buffer;            /* Optional buffer. */
   LONG    RDA_BufSiz;             /* Size of RDA_Buffer (0..n) */
   UBYTE   *RDA_ExtHelp;           /* Optional extended help */
   LONG    RDA_Flags;              /* Flags for any required control */
@@ -19379,12 +19385,70 @@ contents is no longer usable after calling {\tt FreeArgs()}\key{FreeArgs()}.
 
 \subsection{Reading a Single Argument from the Command Line}
 
+The {\tt ReadItem()}\mkey{ReadItem()} reads a single item from the command
+line or from a provided {\tt CSource} structure.
+
 \begin{verbatim}
 value = ReadItem(buffer, maxchars, input)
 D0                D1        D2      D3
 
 LONG ReadItem(STRPTR, LONG, struct CSource *)
 \end{verbatim}
+
+This function reads a single argument from the command line, i.e. the buffer
+of the input file handle of the calling process, or the supplied {\tt
+  CSource} structure. This structure is defined in {\tt dos/rdargs.h} and
+specified in section~\ref{sec:readargs}.
+\smallskip{}
+
+An argument is delimted by spaces, tabulators, or equals-signs (``{\tt
+  =}''), unless they are enclosed in double quotes. A newline, semicolon
+(``{\tt ;}'') or EOF always terminates an
+argument. Section~\ref{sec:shellsyntax} provides more details on the shell
+syntax. The {\tt ReadItem()}\key{ReadItem()} function handles some escaping
+rules, namely the first class of escape sequences listed in
+section~\ref{sec:shellquotes}. This includes the sequences {\tt *"}, {\tt
+  *E}, {\tt *N} and {\tt **}. Once an argument delimiter is found, {\tt
+  ReadItem()}\key{ReadItem()} terminates, but places the terminator back
+into its source such that the caller is able to identify it.
+\smallskip{}
+
+The {\tt buffer} argument provides a user-supplied buffer into which the
+parsed off argument is copied. This buffer has a capacity of {\tt
+  maxchars}; if this buffer overflows, this function aborts parsing and
+returns {\tt ITEM\_ERROR}. It does not attempt to allocate an extension
+buffer, unlike {\tt ReadArgs()}\key{ReadArgs()}.
+\smallskip{}
+
+The {\tt input} argument provides an alternative source for the command line
+to be parsed; this source consists of a buffer pointer, a character count and an
+offset in the form of a {\tt CSource} structure explained in
+section~\ref{sec:readargs}.
+\medskip{}
+
+This function returns the following result codes defined in {\tt dos/dos.h}:
+\smallskip{}
+
+{\tt ITEM\_EQUAL}: an equals-sign (``{\tt =}'') was found as terminator.
+\smallskip{}
+
+{\tt ITEM\_ERROR}: the supplied user buffer is too small or the source run
+out of data before matching a closing quote was found for an opening double
+quote.
+\smallskip{}
+
+{\tt ITEM\_NOTHING}: no argument could be retrieved because the source run
+into the end of the command line, i.e. either a newline, semiolon or EOF.
+\smallskip{}
+
+{\tt ITEM\_UNQUOTED}: an unquoted item was found and retrieved from the
+command line.
+\smallskip{}
+
+{\tt ITEM\_QUOTED}: a quoted item was found and retrieved.
+\smallskip{}
+
+This function does not set {\tt IoErr()}\key{IoErr()}.
 
 \subsection{Finding an Argument}
 
