@@ -19084,13 +19084,14 @@ error code. This function will set {\tt IoErr()} to {\tt
   ERROR\_OBJECT\_NOT\_FOUND} if an attempt is made to delete a non-existing
 variable or alias.
 
-\section{Parsing Arguments}
+\section{Command Line Argument Parsing}
 
 The functions in this section support applications in parsing command line
 arguments. While programs are free to use custom algorithms instead, the
 functions in this section have the advantage that they are aware of the
 delicate syntax of the AmigaDOS shell and its quoting and escaping rules as
-laid out in section~\ref{sec:shellquotes}.
+laid out in section~\ref{sec:shellquotes} and integrate a simple help system
+for command line tools.
 
 \subsection{Parsing Command Line Arguments} \label{sec:readargs}
 
@@ -19349,7 +19350,7 @@ too long and could not be processed. This happens for example if a {\tt M}
 (multi-argument) keyword is present in the template and too many arguments
 are supplied.
 
-\subsection{Releasing the Argument Parser}
+\subsection{Releasing Argument Parser Resources}
 
 The {\tt FreeArgs()}\mkey{FreeArgs()} function releases all resources
 allocated by {\tt ReadArgs()}\key{ReadArgs()}.
@@ -19450,7 +19451,10 @@ command line.
 
 This function does not set {\tt IoErr()}\key{IoErr()}.
 
-\subsection{Finding an Argument}
+\subsection{Find an Argument in a Template}
+
+The {\tt FindArg()}\mkey{FindArg()} function finds the index of a keyword in
+a {\tt ReadArgs()}\key{ReadArgs()} compatible template. 
 
 \begin{verbatim}
 index = FindArg(template, keyword)
@@ -19459,6 +19463,26 @@ D0                D1        D2
 LONG FindArg(STRPTR, STRPTR)
 \end{verbatim}
 
+This function scans a template as those provided to {\tt
+  ReadArgs()}\key{ReadArgs()} for a specific keyword and returns the
+(zero-based) count of the keyword within the template. See
+section~\ref{sec:readargs} for how templates look like.
+\smallskip{}
+
+The {\tt template} argument a pointer to a {\tt NUL}-terminated C string
+that contains the template; the syntax of the template is specfied in
+section~\ref{sec:readargs}.
+\smallskip{}
+
+The {\tt keyword} argument provides a keyword that is to be found in the
+template. It is provided as a pointer to a {\tt NUL}-terminated C
+string. Searching is case-insensitive.
+\smallskip{}
+
+This function returns a zero-based index which argument in the template
+matches the supplied keyword matches, i.e.~0 for the first keyword, 1~ for
+the second and so on. It returns~$-1$ if no matching argument is found in
+the template. {\tt IoErr()}\key{IoErr()} is not touched.
 
 \subsection{Initializing a new Shell}
 
