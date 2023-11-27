@@ -17575,7 +17575,7 @@ command. The result of alias expansion is another command that undergoes
 alias expansion again, except that the same alias cannot be used twice to
 avoid endless recursion.
 
-\subsection{Command Execution}
+\subsection{Command Execution} \label{sec:cmdexecution}
 
 After alias expansion, the Shell takes the leftmost element of each
 component of a compound command as a command to be executed. The Shell
@@ -19484,23 +19484,166 @@ matches the supplied keyword matches, i.e.~0 for the first keyword, 1~ for
 the second and so on. It returns~$-1$ if no matching argument is found in
 the template. {\tt IoErr()}\key{IoErr()} is not touched.
 
-\subsection{Initializing a new Shell}
+\section{Resident Segments} \label{sec:resident}
+
+AmigaDOS keeps a list of resident segments that that are available
+immediately without requiring them to load from disk. This list of
+segments include resident commands, but also ROM-resident system segments
+that have been placed there during initialization of AmigaDOS through the
+System-startup module.
+\smallskip{}
+
+This list of resident segments should not be confused with the exec list of
+resident modules kept in {\tt SysBase->ResModules}, even though its purpose
+is quite similar\footnote{This duplication of structures is again a historic
+accident due to the origin of AmigaDOS.}.
+\smallskip{}
+
+Segments enter this list in multiple ways: First, commands whose {\tt p}
+protection bit (see section~\ref{sec:fib}) is set may be added to this list
+explicitly through the {\tt Resident} command. This bit indicates that the
+command is ``pure'', which means that it does not alter its code or data,
+and its code can be executed from several processes at once. Unfortunately,
+AmigaDOS makes no attempt to verify these requirements but only depends on
+this bit. The AmigaDOS Shell scans the list of resident commands, and if the
+requested command is not found there, searches the \emph{path} instead to
+load the command from disk.
+\medskip{}
+
+Second, if a command has the {\tt p} and {\tt h} protection bits set, it is
+automatically added to the list of resident segments. The {\tt h} stands for
+``hold'', meaning that a command will be held resident once used.
+\smallskip{}
+
+Third, the AmigaDOS Shell adds its built-in commands during its
+initialization to this list. This includes elementary commands such as
+{\tt CD} or {\tt Execute} that do not need to be loaded from disk.
+\smallskip{}
+
+Fourth, some segments are added to the list during initialization of AmigaDOS
+through System-Startup. These include the Console-Handler, the RAM-Handler,
+the FFS which is named ``FileHandler'' there, and --- finally -- the Shell.
+\smallskip{}
+
+The Shell is even added three times to this list. First, as {\tt shell},
+which is the the shell that is used by default by the {\tt Shell} icon and
+the {\tt System()}\key{System()} function. A user shell may replace this
+entry and thus make it available by default to the entire system. Second, as
+{\tt BootShell}, which shall remain unchanged. It always refers to the shell
+that booted the system, and is also the shell that is used by the {\tt
+  Execute()}\key{Execute()} function. Third, as {\tt CLI}, which is only
+present for legacy reasons and not used by the system at all, unless
+requested explicitly by the {\tt SYS\_CustomShell} tag of the {\tt
+  System()}\key{System()} function, see section~\ref{sec:system}.
+\medskip{}
+
+A resident segment is described by the {\tt Segment} structure defined in
+{\tt dos/dos.h}:
 
 \begin{verbatim}
-flags = CliInitRun( packet )
-D0		      A0
-
-LONG CliInitRun( struct DosPacket * )
+struct Segment {
+  BPTR  seg_Next;
+  LONG  seg_UC;
+  BPTR  seg_Seg;
+  UBYTE seg_Name[4];
+};
 \end{verbatim}
+
+This structure shall never be allocated by a user program, it is created by
+{\tt AddSegment()}\key{AddSegment()} instead. Its elements have the
+following function:
+\smallskip{}
+
+The {\tt seg\_Next} element is a BPTR to the next segment in the list of
+resident segments; it is {\tt ZERO} for the last resident segment. This BPTR
+shall not be modified by the user.
+\smallskip{}
+
+The {\tt seg\_UC} element is a use counter. It is incremented every time the
+segment is used, e.g. when the shell locates a command in the resident
+segment list, and decremented once the segment is not used anymore, e.g. if
+the resident command terminates execution. It is confusingly initially~1
+(not 0) if the segment is unused. Resident commands with a {\tt seg\_UC}
+counter larger than~1 cannot be unloaded as they are currently in use
+\footnote{The {\tt Resident} command prints {\tt seg\_UC} - 1 instead of
+{\tt seg\_UC}.}.
+\smallskip{}
+
+Despite these regular entries used for disk-based commands made resident,
+the following special values for {\tt seg\_UC} exist. They are also defined
+in {\tt dos/dosextens.h}:
+\smallskip{}
+
+The value {\tt CMD\_INTERNAL} indicates a command that is avaiable for
+execution, but whose code is part of the ROM. The AmigaDOS Shell adds these
+commands to the resident list during its initialization.
+\smallskip{}
+
+Segments indicated by {\tt CMD\_SYSTEM} are not commands that could be
+executed, but rather segments of system components. The RAM-Handler, the
+Console-Handler and the FFS aka FileHandler are indicated as system
+segments. These segments cannot be executed and are not found by the Shell
+when scanning the resident list for commands.
+\smallskip{}
+
+Segments with a {\tt seg\_UC} smaller or equal than {\tt CMD\_DISABLED} are
+neither found by the Shell; they are rather marked as temporarily
+disabled. This type is created if a built-in command or a system segment is
+``removed'' by the {\tt Resident} command.
+\medskip{}
+
+The {\tt seg\_Seg} element is a BPTR to the actual segment list
+corresponding to the loaded or resident command or system segment. It is a
+segment list as those loaded through {\tt LoadSeg()}\key{LoadSeg()}.
+\smallskip{}
+
+The {\tt seg\_Name} is, actually, not only 4 characters long as indicated,
+but a variable length field. It contains the name of the command or system
+segment as BSTR.
 
 \subsection{Finding a Resident Command}
 
+The {\tt FindSegment()}\mkey{FindSegment()} locates a resident segment by
+name.
+
 \begin{verbatim}
 segment = FindSegment(name, start, system)
-D0		       D1     D2     D3
+D0                    D1     D2     D3
 
 struct Segment *FindSegment(STRPTR, struct Segment *, LONG)
 \end{verbatim}
+
+This function locates the segment named {\tt name} in the list of resident
+segments, scanning either the entire list if {\tt start} is {\tt NULL}, or
+at all segments behind the segment pointed to by {\tt start}. This allows
+continuing a scan for another segment of the same name. It returns the
+resident segment found, or {\tt NULL} in case no matching segment is found.
+\smallskip{}
+
+The {\tt system} flag indicates whether the function scans for regular
+segments or system/internal segments. If {\tt system} is~{\tt DOSFALSE},
+only regular entres with a positive {\tt seg\_UC} counter are located. If
+{\tt system} is {\tt DOSTRUE}, only system or built-in segments whose {\tt
+  seg\_UC} value is negative are found. In the latter case, the above
+function does not attempt to filter out disabled segments; if required, this
+must be done by the caller.
+\smallskip{}
+
+This function neither increases the use counter of a found resident segment
+and thus, it cannot guarantee that the segment will be unloaded by another
+process at the time the function returns. Thus, this function should be
+called while a {\tt Forbid()} is active, and the caller shall increment
+{\tt seg\_UC} for non-system segments it attempts to use them before calling
+{\tt Permit()}.
+\smallskip{}
+
+Unlike regular segments, system segments cannot go away, they can only be
+marked as {\tt CMD\_DISABLED}, and thus {\tt seg\_UC} need not to be altered
+by the caller.
+\smallskip{}
+
+This function does not alter {\tt IoErr()} on success, but it sets it to
+{\tt ERROR\_OBJECT\_NOT\_FOUND} in case no matching segment could be found.
 
 \subsection{Adding a Resident Command}
 
@@ -19519,6 +19662,16 @@ D0		        D1
 
 BOOL RemSegment(struct Segment *)
 \end{verbatim}
+
+\subsection{Initializing a new Shell}
+
+\begin{verbatim}
+flags = CliInitRun( packet )
+D0		      A0
+
+LONG CliInitRun( struct DosPacket * )
+\end{verbatim}
+
 
 \section{Miscellaneous Functions}
 
