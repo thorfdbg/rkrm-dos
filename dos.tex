@@ -19647,14 +19647,57 @@ This function does not alter {\tt IoErr()} on success, but it sets it to
 
 \subsection{Adding a Resident Command}
 
+The {\tt AddSegment}\mkey{AddSegment()} adds a segment to the list of
+resident segments and makes it available to other processes.
+
 \begin{verbatim}
 success = AddSegment(name, seglist, type)
-D0		      D1     D2      D3
+D0                   D1     D2      D3
 
 BOOL AddSegment(STRPTR, BPTR, LONG)
 \end{verbatim}
 
+This function adds the segment {\tt seglist}, e.g. as returned by {\tt
+  LoadSeg()}\key{LoadSeg()}, under the given {\tt name} to the list of
+resident segments. The {\tt seg\_UC} type and use counter is initialized to
+the value {\tt type}.
+\smallskip{}
+
+The {\tt name} is copied and may be released after the function returns, but
+the segment becomes part of the system database of resident segments.
+\smallskip{}
+
+The value of {\tt type} shall be selected as follows: For regular pure
+executables that are made resident and by that available to other
+processors, {\tt type} shall be set to~1\footnote{The official autodocs and
+\cite{Bantam} are wrong in this regard, they suggest~0, but this value is
+incorrect and not even valid.}.
+\smallskip{}
+
+For system segments that are not commands, {\tt type} shall be set to {\tt
+  CMD\_SYSTEM}; this value is defined in {\tt dos/dosextends.h}. Note that
+such segments cannot be safely unloaded anymore and remain resident for the
+lifetime of the system.
+\smallskip{}
+
+While other values such as {\tt CMD\_INTERNAL} and {\tt CMD\_DISABLED} are
+possible, they do not serve a practical use. The first one indicates
+commands that are provided by the AmigaDOS Shell, and this value shall only
+be used by the ROM shell. The second value indicates system segments or
+built-in commands that are currently disabled. It is only used by the {\tt
+  Resident} command on an attempt to remove system or internal segments.
+\smallskip{}
+
+On success, this function returns a non-zero value and does not alter {\tt
+  IoErr()}. On error, it returns {\tt DOSFALSE} and sets {\tt
+  IoErr()}\key{IoErr()} to {\tt ERROR\_NO\_FREE\_STORE}.
+
 \subsection{Removing a Resident Command}
+
+The {\tt RemSegment()}\mkey{RemSegment()} function removes a resident
+segment from the system database of resident segments and makes it
+unavailable to other processes. It also releases all resources associated to
+this segment.
 
 \begin{verbatim}
 success = RemSegment(segment)
@@ -19662,6 +19705,33 @@ D0		        D1
 
 BOOL RemSegment(struct Segment *)
 \end{verbatim}
+
+This function attempts to remove the resident segment provided as argument
+from the AmigaDOS database of resident commands. If an attempt is made to
+remove a system segment, an internal command or a regular resident command
+that is currently in use, {\tt DOSFALSE} is returned and the resident
+segment is left in the list. Otherwise, the segment is removed, and all its
+resources are released, including the segment list associated to the
+resident segment which is purged through {\tt UnLoadSeg()}\key{UnLoadSeg()}.
+\smallskip{}
+
+The resident segment to be removed is typically accquired by {\tt
+  FindSegment()}\key{FindSegment()}. However, any other process can attempt
+to unload the same resident segment at the same time, causing a race
+condition. Therefore, a caller should first stop multitasking with {\tt
+  Forbid()}, then locate the segment with {\tt
+  FindSegment()}\key{FindSegment()}, and if this function succeeds, unload
+the found segment with {\tt RemSegment()}\key{FindSegment()}.  Then,
+finally, {\tt Permit()} should be called to re-enable multitasking.
+\smallskip{}
+
+If segment passed in cannot be removed because it is in use or a system
+segment, this function returns {\tt DOSFALSE} and sets {\tt IoErr()} to {\tt
+  ERROR\_OBJECT\_IN\_USE}. On success, it returns {\tt DOSTRUE}\footnote{Due
+to a defect in the current version of the \emph{dos.library} it
+unfortunately \emph{also} sets {\tt IoErr()} to the same error code.}.
+
+\section{Writing Custom Shells}
 
 \subsection{Initializing a new Shell}
 
