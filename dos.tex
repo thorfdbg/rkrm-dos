@@ -17742,25 +17742,27 @@ section~\ref{sec:readargs}), then {\tt Execute} also expands it as multiple
 parameter in scripts.
 \medskip{}
 
-The generated script after substitution of formal parameters is placed into
-the {\tt T:} assign, its name in {\tt cli\_CommandFile} and the command
-input of the invoking Shell, namely {\tt cli\_CurrentInput} (see
-section~\ref{sec:clistructure}), is redirected to a \emph{file handle} to
-this temporary script. Thus, the shell continues execution of commands, but
-rather takes its input from the temporary file rather than its current
-input. As this construction would forbid the recursive execution of another
-Shell script within a Shell script, the Shell detects {\tt Execute} as a
-special case for which it keeps a ``stack'' of script files and active
-redirections. Through that, it provides each recursive execution a ``clean''
+The generated script after substitution of formal parameters is placed
+into the {\tt T:} assign, its name in {\tt cli\_CommandFile} and the
+command input of the invoking Shell, namely {\tt cli\_CurrentInput}
+(see section~\ref{sec:clistructure}), is redirected to a \emph{file
+  handle} to this temporary script. Thus, the shell continues
+execution of commands, but rather takes its input from the temporary
+file rather than its current input. As this construction would forbid
+the recursive execution of another Shell script within a Shell script,
+the Shell detects {\tt Execute} as a special case for which it keeps a
+``stack'' of script files and active redirections. Through that, it
+provides each recursive execution a ``clean''
 environment\footnote{This is a major difference compared to previous
-versions of AmigaShell which instead resolved this situation by appending
-recursively executed scripts to each other. This construction had a series
-of bad side effects, one being that a script could not skip backwards over
-an {\tt Execute} command.} that allows redirection of its input. Once {\tt
-  cli\_CurrentInput} exhausted, the Shell terminates execution there, closes
-the \emph{file handle} stored there, deletes the temporary file whose name
-is stored in {\tt cli\_CommandFile} and continues execution from {\tt
-  cli\_StandardInput}.
+  versions of AmigaShell which instead resolved this situation by
+  appending recursively executed scripts to each other. This
+  construction had a series of bad side effects, one being that a
+  script could not skip backwards over an {\tt Execute} command.} that
+allows redirection of its input. Once {\tt cli\_CurrentInput}
+exhausted, the Shell terminates execution there, closes the \emph{file
+  handle} stored there, deletes the temporary file whose name is
+stored in {\tt cli\_CommandFile} and, depending on how it was
+initiated, continues execution from {\tt cli\_StandardInput}.
 
 \section{Shell Process Control}
 
@@ -19601,7 +19603,7 @@ The {\tt seg\_Name} is, actually, not only 4 characters long as indicated,
 but a variable length field. It contains the name of the command or system
 segment as BSTR.
 
-\subsection{Finding a Resident Command}
+\subsection{Finding a Resident Segment}
 
 The {\tt FindSegment()}\mkey{FindSegment()} locates a resident segment by
 name.
@@ -19645,7 +19647,7 @@ by the caller.
 This function does not alter {\tt IoErr()} on success, but it sets it to
 {\tt ERROR\_OBJECT\_NOT\_FOUND} in case no matching segment could be found.
 
-\subsection{Adding a Resident Command}
+\subsection{Adding a Resident Segment}
 
 The {\tt AddSegment}\mkey{AddSegment()} adds a segment to the list of
 resident segments and makes it available to other processes.
@@ -19692,7 +19694,7 @@ On success, this function returns a non-zero value and does not alter {\tt
   IoErr()}. On error, it returns {\tt DOSFALSE} and sets {\tt
   IoErr()}\key{IoErr()} to {\tt ERROR\_NO\_FREE\_STORE}.
 
-\subsection{Removing a Resident Command} \label{sec:remresident}
+\subsection{Removing a Resident Segment} \label{sec:remresident}
 
 The {\tt RemSegment()}\mkey{RemSegment()} function removes a resident
 segment from the system database of resident segments and makes it
@@ -19741,8 +19743,8 @@ launching a shell with the {\tt System()}\key{System()} function, a
 custom shell may be requested by providing the name of its resident
 segment to the {\tt SYS\_CustomShell} tag. A custom shell may even
 replace the AmigaDOS Shell it by making it resident under the name
-``shell''. On the AmigaDOS shell, the following command will perform
-the necessary steps:
+``{\tt shell}''. On the AmigaDOS Shell, the following command will
+perform the necessary steps:
 
 \begin{verbatim}
 resident shell MyShell replace system
@@ -19877,14 +19879,131 @@ void __asm main(register __a0 struct DosPacket *pkt)
 }
 \end{verbatim}
 
+When the shell replies the startup packet and when it terminates
+depends on the flags returned by {\tt
+  CliInitRun()}\key{CliInitRun()}. This is described in the following
+section.
+
 \subsection{Initializing a new Shell} \label{sec:cliinitrun}
+
+The {\tt CliInitRun()}\mkey{CliInitRun()} function initializes a
+process and its {\tt CommandLineInterface} structure from a shell
+startup package.
 
 \begin{verbatim}
 flags = CliInitRun( packet )
-D0		      A0
+D0                    A0
 
 LONG CliInitRun( struct DosPacket * )
 \end{verbatim}
+
+This function is part of the shell initialization. The {\tt packet} is
+the {\tt DosPacket} the shell received as startup information; the
+function initializes from it all elements of the {\tt
+  CommandLineInterface} structure stored in the {\tt pr\_CLI} BPTR of
+the calling process.
+\smallskip{}
+
+The arguments of the packet are intentionally not documented here, and
+AmigaDOS may change or extend the packet in the future.
+\medskip{}
+
+This function returns a collection of flags packet in a 32-bit {\tt
+  LONG} value. Unfortunately, these flags are not defined in any of
+the official AmigaDOS headers; instead, names for these bits are
+suggested here:
+
+\begin{rkrmtabular}{{\tt\bf CliInitRun()} flags} \label{table:cliinitrunflags}
+\begin{longtable}{|l|l|l|} \hline
+{\bf Acronym}       & {\bf Bit Number} & {\bf Notes} \\ \hline \hline
+{\tt FN\_VALID}     & 31     & indiates that remaining bits are valid \\ \hline
+{\tt FN\_ASYNC}     & 3      & asynchronous execution intended \\ \hline
+{\tt FN\_SYSTEM}    & 2      & shell terminates on EOF of {\tt cli\_CurrentInput} \\ \hline
+{\tt FN\_USERINPUT} & 1      & if~0, close {\tt cli\_StandardInput} on exit \\ \hline
+{\tt FN\_RUNOUTPUT} & 0      & if~1, close {\tt cli\_StandardOutput} on exit \\ \hline
+\end{longtable}
+\end{rkrmtabular}
+
+If bit {FN\_VALID} {\tt flags} is~0 and {\tt IoErr()} equals pointer to the
+pointer of the process structure of the caller, then initialization
+failed. At this point, the passed in packet has already been replied,
+and the shell shall only release the resources it accquired so far and
+exit. In all other cases, {\tt packet} has not yet been returned to
+the caller yet.
+\medskip{}
+
+If the bit {\tt FN\_VALID} of {\tt flags} is~0 and {\tt IoErr()} does
+\emph{not} equal the pointer to the process structure of the caller,
+then initialization was successful. In such a case, the startup packet
+shall only be replied after the first command executed by the shell,
+leaving the {\tt dp\_Res1} and {\tt dp\_Res2} unaltered from the
+values left by {\tt CliInitRun()}\key{CliInitRun()}. When the shell
+terminates, the shell shall close the {\tt cli\_StandardOutput} and
+the {\tt cli\_StandardInput} file handles of the {\tt
+  CommandLineInterface} structure. This type of startup is typically
+used when the shell is instructed to execute commands in the
+background, e.g. by the {\tt Run} command, and if {\tt
+  System()}\key{System()} is called with {\tt NULL} as its first
+argument, see section~\ref{sec:system}.
+\smallskip{}
+
+The reason for delaying the startup packet after execution of the
+first command is to avoid unnecessary head movements of floppies as
+otherwise two processes could attempt to access the disk
+simultaneously: the shell starting a command with {\tt Run}, and the
+command that executes in the background.
+\medskip{}
+
+If the bits {\tt FN\_VALID} and {\tt FN\_ASYNC} are set, then
+asynchronous command execution is requested. The shell shall then
+reply the startup packet immediately, leaving {\tt dp\_Res1} and {\tt
+  dp\_Res2} unaltered from the values left by {\tt
+  CliInitRun()}\key{CliInitRun()}. If {\tt FN\_VALID} is set and {\tt
+  FN\_ASYNC} is not set, then the startup packet shall only be replied
+when the last command of the shell returned. Then, {\tt dp\_Res1}
+shall be set to the return code of this command as found in {\tt
+  cli\_ReturnCode}, and {\tt dp\_Res2} shall be set to the error code
+the command left in {\tt cli\_Result2}. The {\tt FN\_ASYNC} bit
+reflects the value of {\tt SYS\_Asynch} of the {\tt
+  System()}\key{System()} call.
+\medskip{}
+
+If bits {\tt FN\_VALID} and {\tt FN\_SYSTEM} are set then the shell
+shall terminate if the {\tt cli\_CurrentInput} runs into an EOF and
+there is no higher level script to continue executing from. This
+corresponds to the case where the first argument of {\tt
+  System()}\key{System()} is non-{\tt NULL}. In such a case, the
+commands from this string are executed, and once done, the shell stops
+and returns.
+\smallskip{}
+
+If the {\tt FN\_VALID} flag is set and {\tt FN\_SYSTEM} is reset, then
+the shell continues to read commands from {\tt cli\_StandardInput} once
+{\tt cli\_CurrentInput} depletes and there is no higher level script
+to continue executing from. Only if the two input streams are equal
+and and EOF condition is detected, the shell terminates. This
+corresponds to the case where the the shell was initiated through {\tt
+  Execute()}, or {\tt System()} with a {\tt NULL} command string.
+\medskip{}
+
+If bits {\tt FN\_VALID} and {\tt FN\_USERINPUT} are set, then the
+shell \emph{shall not} close {\tt cli\_StandardInput} when
+terminating. If {\tt FN\_VALID} is set and {\tt FN\_USERINPUT} is
+reset, then {\tt cli\_StandardInput} shall be closed on exit.
+\smallskip{}
+
+If the bits {\tt FN\_VALID} and {\tt FN\_RUNOUTPUT} are set, then {\tt
+  cli\_StandardOutput} shall be closed when the shell process
+terminates. Otherwise, if {\tt FN\_VALID} is set and {\tt
+  FN\_RUNOUTPUT} is reset, then the {\tt cli\_StandardOutput} shall remain
+open. Note that the {\tt FN\_RUNOUTPUT} logic is the inverse of the
+{\tt FN\_USERINPUT} logic.
+\smallskip{}
+
+A successful startup with {\tt FN\_VALID} reset is thus approximately
+equivalent to the bit combination of {\tt FN\_RUNOUTPUT} and {\tt
+  FN\_ASYNC}, except that the elements of the {\tt
+  CommandLineInterface} structure are initialized differently.
 
 
 \section{Miscellaneous Functions}
