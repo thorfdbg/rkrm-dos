@@ -8505,8 +8505,9 @@ section~\ref{sec:getfilesystask}.
 
 The {\tt GetProgramDir()}\mkey{GetProgramDir()} returns a lock to the
 directory that contains the binary from which the caller executes, if
-such a directory exists. If the executable was made resident, this
-function returns {\tt ZERO}.
+such a directory exists. If the executable was taken from the list of
+resident segments (see section~\ref{sec:resident}), this function
+returns {\tt ZERO}.
 
 \begin{verbatim}
 lock = GetProgramDir()
@@ -17177,7 +17178,7 @@ ULONG *block;
   block         = readKey(rootkey);
 
   /* Check whether the bitmap is linked in the root 
-  ** block or not. The first 25 are
+  ** block or not. The first 25 are.
   */
   if (bitmap < 25) {
     /* Bring the proper keymap into memory */
@@ -17214,9 +17215,9 @@ ULONG *block;
 
 \subsection{The Deleted Block}
 
-The FFS also mark unused administration blocks as deleted to ensure that a
-disk scan does not confuse them with a used block. This does not happen to
-data blocks.
+The FFS also mark unused administration blocks as deleted to ensure
+that a disk scan does not confuse them with a used block. This change
+of the block type does not happen to data blocks of deleted files.
 
 \begin{rkrmtabular}{Deleted Block} \label{table:deletedblock}
 \begin{longtable}{|l|l|l|} \hline
@@ -17745,7 +17746,7 @@ parameter in scripts.
 The generated script after substitution of formal parameters is placed
 into the {\tt T:} assign, its name in {\tt cli\_CommandFile} and the
 command input of the invoking Shell, namely {\tt cli\_CurrentInput}
-(see section~\ref{sec:clistructure}), is redirected to a \emph{file
+(see section~\ref{sec:clistruct}), is redirected to a \emph{file
   handle} to this temporary script. Thus, the shell continues
 execution of commands, but rather takes its input from the temporary
 file rather than its current input. As this construction would forbid
@@ -17762,7 +17763,11 @@ allows redirection of its input. Once {\tt cli\_CurrentInput}
 exhausted, the Shell terminates execution there, closes the \emph{file
   handle} stored there, deletes the temporary file whose name is
 stored in {\tt cli\_CommandFile} and, depending on how it was
-initiated, continues execution from {\tt cli\_StandardInput}.
+initiated and configured, continues execution from {\tt
+  cli\_StandardInput}. The {\tt System()}\key{System()} function with
+a non-{\tt NULL} {\tt command} argument will terminate after {\tt
+  cli\_CurrentInput} runs out of data, otherwise the shell switches
+over to {\tt cli\_StandardInput}, see section~\ref{sec:cliinitrun}.
 
 \section{Shell Process Control}
 
@@ -18638,8 +18643,9 @@ string stored here. The {\tt CD} command and its {\tt PushCD}, {\tt
   PopCD} and {\tt SwapCD} variants update this element.
 \smallskip{}
 
-{\tt cli\_CommandDir} contains a linked list of directories that are scanned
-for commands. It is a BPTR to the following (undocumented) structure:
+{\tt cli\_CommandDir} contains a linked list of directories that are
+scanned for commands. It is a BPTR to the following (undocumented, but
+trivial) structure:
 
 \begin{verbatim}
 struct PathComponent {
@@ -18714,16 +18720,19 @@ through the {\tt SYS\_Input} or {\tt SYS\_InName} tags of the {\tt
 exhaused, the Shell terminates.
 \smallskip{}
 
-{\tt cli\_CurrentInput} is a BPTR to a file handle from which the shell is
-currently executing commands. This stream is either comming from the {\tt
-  SYS\_CmdStream} or {\tt SYS\_CmdIn} tags of the {\tt
-  System()}\key{System()} function, or a string stream constructed from its
-first argument. Also, the {\tt Execute} command, see
-section~\ref{sec:executecmd}, places here the file handle of the original or
-processed shell script that is to be executed. Once this file is exhaused,
-the Shell will close it, and set this BPTR to {\tt cli\_StandardInput}. This
-happens, for example, if a script reaches its end of file or is aborted by
-the {\tt Exit} command.
+{\tt cli\_CurrentInput} is a BPTR to a file handle from which the
+shell is currently executing commands. This stream is either comming
+from the {\tt SYS\_CmdStream} or {\tt SYS\_CmdIn} tags of the {\tt
+  System()}\key{System()} function, or a string stream constructed
+from its first argument. Also, the {\tt Execute} command, see
+section~\ref{sec:executecmd}, places here the file handle of the
+original or processed shell script that is to be executed. Once this
+file is exhaused, the Shell will close it. This happens, for example,
+if a script reaches its end of file or is aborted by the {\tt Exit}
+command. Depending on how the shell was created and configured, see
+section~\ref{sec:cliinitrun}, the shell then sets this BPTR to {\tt
+  cli\_StandardInput} and continues execution, or in other
+configurations, terminates.
 \smallskip{}
 
 {\tt cli\_CommandFile} is a BPTR to the BSTR of a temporary shell script
@@ -18736,12 +18745,13 @@ that this temporary script is deleted again. For details on how {\tt
   Execute} actually works see section~\ref{sec:executecmd}.
 \smallskip{}
 
-{\tt cli\_Interactive} is a boolean flag that indicates whether the Shell is
-interactive, i.e. requesting data from the console. If this boolean is
-non-zero and {\tt cli\_Background} is {\tt DOSFALSE}, a prompt is printed
-before attempting to read a command from {\tt cli\_CurrentInput}. If the
-shell is executing a script, this element becomes {\tt DOSFALSE} and the
-Shell then checks for a Ctrl-D signal to potentially abort a running script.
+{\tt cli\_Interactive} is a boolean flag that indicates whether the
+Shell is interactive, i.e. requesting data from the console. If this
+boolean is non-zero and {\tt cli\_Background} is {\tt DOSFALSE}, a
+prompt is printed before attempting to read a command from {\tt
+  cli\_CurrentInput}. If the shell is executing a script, this element
+is {\tt DOSFALSE} and the Shell then checks for a Ctrl-D signal to
+potentially abort a running script.
 \smallskip{}
 
 {\tt cli\_Background} is a boolean that indicates whether the Shell runs in
@@ -18779,11 +18789,11 @@ technique for load and stay resident commands is to set this BPTR to {\tt
 it in memory.
 \medskip{}
 
-Even though the {\tt CommandLineInterface} function is typically constructed
+Even though the {\tt CommandLineInterface} structure is typically constructed
 by AmigaDOS, e.g. through the {\tt System()}\key{System()} function, it is
 sometimes necessary to create it manually. Allocation of this structure
 shall happen only through {\tt AllocDosObject()}\key{AllocDosObject()} as
-this structure contains some Shell-internal fields for extended Shell
+this structure contains some Shell-internal elements for extended Shell
 features. These extended features are instead accessible through the {\tt
   DoShellMethod()}\key{DoShellMethod()} function specified in
 section~\ref{sec:doshellmethod}.
@@ -19149,14 +19159,15 @@ explicitly require the keyword are filled left to right from the command
 line.
 \smallskip{}
 
-Upon return, each argument is placed in one of the elements of {\tt array},
-the first argument into the first element, the second into the second, in
-the order they appear in the template. While formally this an array of {\tt
-  LONG}s, the actual type of an element depends on the nature of the
-argument as specified through the options, and may be a {\tt UBYTE *}, a
-{\tt UBYTE **} or a {\tt LONG *} casted to {\tt LONG} instead. The {\tt
-  array} shall be created and cleared upfront by the caller of the function,
-and it shall be large enough to include one entry per command line argument.
+Upon return, each argument is placed in one of the elements of {\tt
+  array}, the first argument into the first element, the second into
+the second, in the order they appear in the template. While formally
+this an array of {\tt LONG}s, the actual type of an element depends on
+the nature of the argument as specified through the options, and may
+be a {\tt UBYTE *}, a {\tt UBYTE **} or a {\tt LONG *} casted to {\tt
+  LONG} instead. The {\tt array} shall be created and zero-initialized
+upfront by the caller of the function, and it shall be large enough to
+hold one entry per command line argument in the template.
 \smallskip{}
 
 The following options are supported:
@@ -19172,21 +19183,21 @@ The following options are supported:
     command line. That is, if the keyword appears an odd number of times,
     the element in {\tt array} is non-zero, otherwise it becomes~0.
   \item[{\tt /K}] This argument is only filled in if its keyword appears on the
-    command line, otherwise arguments are also matched by position. For
+    command line, arguments without {\tt /K} are also matched by position. For
     example, if the template is {\tt FROM/K}, then its element in {\tt
       array} is not filled in unless {\tt FROM} appears on the command
     line. Remaining command line arguments are filled to non-{\tt
-      K} keyword slots left to right.
+      /K} keyword slots left to right.
   \item[{\tt /A}] This argument is required. If it is not present on the
     command line, {\tt ReadArgs()}\key{ReadArgs()} returns an error.
   \item[{\tt /N}] The argument is a number. If the argument is present on
     the command line, then the corresponding element in {\tt array} is
     filled with a \emph{pointer} to a {\tt LONG}. If the argument is not
     present, the element in {\tt array} remains {\tt NULL}. This allows the
-    caller to identify non-specified command lines.
+    caller to identify non-specified command line arguments.
   \item[{\tt /M}] This keyword matches multiple strings. Any command line
     argument that could not be matched to the template will be associated to
-    this keyword. Clearly, at most one {\tt M} keyword may be specified in a
+    this keyword. Clearly, at most one {\tt /M} keyword may be specified in a
     template. The corresponding entry in {\tt array} consists of a pointer
     to an array of {\tt UBYTE *}s, each of them contains one of the
     matching arguments of the command line. The last entry in this array is
@@ -19236,9 +19247,9 @@ For a custom command line source, an {\tt RDArgs} structure as documented in
 struct RDArgs {
   struct  CSource RDA_Source;     /* Select input source */
   LONG    RDA_DAList;             /* PRIVATE. */
-  UBYTE   *RDA_Buffer;            /* Optional buffer. */
+  UBYTE  *RDA_Buffer;             /* Optional buffer. */
   LONG    RDA_BufSiz;             /* Size of RDA_Buffer (0..n) */
-  UBYTE   *RDA_ExtHelp;           /* Optional extended help */
+  UBYTE  *RDA_ExtHelp;            /* Optional extended help */
   LONG    RDA_Flags;              /* Flags for any required control */
 };
 \end{verbatim}
@@ -19367,7 +19378,7 @@ void FreeArgs(struct RDArgs *)
 This function releases all resources accquired by the AmigaDOS argument
 parser given an {\tt RDArgs} structure. This includes temporary buffers, and
 --- unless a custom {\tt RDArgs} structure was passed into {\tt
-  ReadArgs()}\key{ReadArgs} --- als the {\tt RDArgs} structure itself. If a
+  ReadArgs()}\key{ReadArgs} --- also the {\tt RDArgs} structure itself. If a
 custom allocated {\tt RDArgs} structure was provided to {\tt
   ReadArgs()}\key{ReadArgs()}, then this structure shall be disposed
 manually by {\tt FreeDosObject()}\key{FreeDosObject()}, it is not released
@@ -19974,7 +19985,8 @@ there is no higher level script to continue executing from. This
 corresponds to the case where the first argument of {\tt
   System()}\key{System()} is non-{\tt NULL}. In such a case, the
 commands from this string are executed, and once done, the shell stops
-and returns.
+and returns. Shells created this way are never interactive, i.e. {\tt
+  cli\_Interactive} shall always be {\tt DOSFALSE}.
 \smallskip{}
 
 If the {\tt FN\_VALID} flag is set and {\tt FN\_SYSTEM} is reset, then
@@ -20004,7 +20016,24 @@ A successful startup with {\tt FN\_VALID} reset is thus approximately
 equivalent to the bit combination of {\tt FN\_RUNOUTPUT} and {\tt
   FN\_ASYNC}, except that the elements of the {\tt
   CommandLineInterface} structure are initialized differently.
+\medskip{}
 
+Historically, two additional functions existed to initialize a
+shell. {\tt CliInit()}\key{CliInit()} had to be called by the {\tt
+  Initial CLI} and not only initialized the shell to read from the
+{\tt S:Startup-Sequence}, it also initialized the \emph{dos.library}
+and mounted all ROM-resident handlers. These tasks are now taken over
+by a kickstart module of its own, {\tt System-Startup}, which in its
+final step, creates the {\tt Initial CLI} through the {\tt
+  System()}\key{System()} function. 
+\smallskip{}
+
+The second function to initialize a shell was {\tt
+  CliInitNewShell()}\key{CliInitNewShell()} which was exclusively used
+by a shell created by the {\tt NewShell} command. In the latest
+version of AmigaDOS, {\tt NewShell} also calls through {\tt
+  System()}\key{System()} and thus only depends on {\tt
+  CliInitRun()}\key{CliInitRun()}.
 
 \section{Miscellaneous Functions}
 
