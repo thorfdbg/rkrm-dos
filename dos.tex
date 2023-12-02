@@ -20224,7 +20224,20 @@ Passing {\tt NULL} as {\tt ptr} performs nothing, the function exits
 in this case without performing any action.  This function does not
 set {\tt IoErr()}\key{IoErr()}.
 
+\section{Reporting Errors}
+
+While AmigaDOS identifies errors by a unique ID returned by {\tt
+  IoErr()}\key{IoErr()}, only printing a number as error report is not
+very helpful. The \emph{dos.library} provides multiple functions to
+generate human readable error messages, either to be printed on the
+console, or by creating a requester with a message on a screen.
+  
 \subsection{Display an Error Requester}
+
+The {\tt ErrorReport}\mkey{ErrorReport()} function creates an error
+requester based on an error code and a file system object such as a
+file handle or a lock and waits a the response of the user who may
+either abort or retry an activity.
 
 \begin{verbatim}
 status = ErrorReport(code, type, arg1, device)
@@ -20232,6 +20245,70 @@ D0                    D1    D2    D3     D4
 
 BOOL ErrorReport(LONG, LONG, ULONG, struct MsgPort *)
 \end{verbatim}
+
+This function creates an error requester either on the workbench
+screen, or on a screen that is given by the {\tt pr\_WindowPtr} of the
+calling process. If {\tt pr\_WindowPtr} is~$-1$, then no requester is
+shown and the function returns immediately with a non-zero return
+code, indicating that cancelation of the activity is desired. This
+function is typically called by AmigaDOS handlers attempting to
+generate an error requester, or the \emph{dos.library}
+itself. However, user code may also use this function to generate an
+AmigaDOS standard requester.
+\smallskip{}
+
+The {\tt code} argument is an error identifier returned by {\tt
+  IoErr()}\key{IoErr()}. Only a subset of the error identifies listed
+in section~\ref{sec:ioerr} are supported by this function; they are
+defined in the include files {\tt dos/dos.h} and {\tt
+  dos/dosextends.h}. Table~\ref{table:reporterrors} lists them:
+
+\begin{rkrmtable}{Errors supported by {\tt \bf ErrorReport()}} \label{table:reporterrors}
+{\bf Error} & {\bf Description}\\ \hline \hline
+{\tt ERROR\_DISK\_NOT\_VALIDATED} & Reports that a disk is corrupt and not validated \\ \hline
+{\tt ERROR\_DISK\_WRITE\_PROTECTED} & Reports that a disk is write protected \\ \hline
+{\tt ERROR\_DISK\_FULL} & Reports that a volume is full \\ \hline
+{\tt ERROR\_DEVICE\_NOT\_MOUNTED} & A particular handler or file system is not mounted \\ \hline
+{\tt ERROR\_NOT\_A\_DOS\_DISK} & A volume does not carry a valid file system \\ \hline
+{\tt ERROR\_NO\_DISK} & No physical medium is inserted in a drive \\ \hline
+{\tt ABORT\_DISK\_ERROR} & Reports that a medium has a physical read/write error \\ \hline
+{\tt ABORT\_BUSY} & Requests to insert a particular medium into a drive \\ \hline
+\end{rkrmtable}
+
+The {\tt type} argument provides the type of the AmigaDOS object
+passed in as {\tt arg1}; it provides an additional source of
+information used to generate the error requester. This information is
+used for example to include a device or volume name in the
+requester. The following types, defined in {\tt dos/dosextens.h} are
+supported by this function:
+
+\begin{rkrmtable}{Error sources supported by {\tt \bf ErrorReport()}} \label{table:errorsource}
+{\bf Type} & {\bf Description} \\ \hline \hline
+{\tt REPORT\_STREAM} & {\tt arg1} is a BPTR to a {\tt FileHandle} structure \\ \hline
+{\tt REPORT\_LOCK} & {\tt arg1} is a BPTR to a {\tt FileLock} structure \\ \hline
+{\tt REPORT\_VOLUME} & {\tt arg1} is a BPTR\footnote{Unlike what the official documentation says, this is a BPTR, not a regular pointer.} to a {\tt DosList} structure \\ \hline
+{\tt REPORT\_INSERT} & {\tt arg1} is a \emph{regular} pointer to a path separated at ``{\tt :}'' \\ \hline
+\end{rkrmtable}
+
+The {\tt REPORT\_INSERT} type shall be a pointer to an absolute path
+name containing a colon (``{\tt :}'') from which a volume or device
+name is extracted.
+\smallskip{}
+
+The {\tt device} argument is a (regular) pointer to a {\tt MsgPort}
+structure that is only used if {\tt type} is {\tt REPORT\_LOCK} and
+{\tt arg1} is {\tt ZERO}. This port is assumed to be a {\tt MsgPort}
+of a file handler that is contacted to learn about the name of the
+currently inserted volume. This could be the {\tt pr\_FileSystemTask}
+of the calling process which contains the {\tt MsgPort} of the file
+handler responsible for the {\tt ZERO} lock.
+\medskip{}
+
+This function returns a boolean indicator whether the currently
+ongoing operation should be aborted or retried. If the result code is
+{\tt DOSFALSE}, the operation should be retried. On return, this
+function also sets {\tt IoErr()} to the error identifier in
+{\tt code}.
 
 \subsection{Generating an Error Message}
 
