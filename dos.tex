@@ -20312,12 +20312,54 @@ function also sets {\tt IoErr()} to the error identifier in
 
 \subsection{Generating an Error Message}
 
+The {\tt Fault()} function fills a buffer with an error message from
+an error code and an initial string.
+
 \begin{verbatim}
 len = Fault(code, header, buffer, len)
 D0           D1     D2      D3    D4
 
 LONG Fault(LONG, STRPTR, STRPTR, LONG)
 \end{verbatim}
+
+This function fills the {\tt buffer} that is {\tt len} bytes long with
+an optional {\tt header}, followed by a colon (``{\tt :}'') followed
+by a string generated from the error {\tt code} given as first
+argument.
+\smallskip{}
+
+If {\tt header} is non-{\tt NULL}, it is first copied into the {\tt
+  buffer} followed by a colon (``{\tt :}). The colon is not copied if
+{\tt header} is {\tt NULL}. This is followed by a (localized) error
+message created from {\tt code}. If {\tt code} is~0, the buffer is
+left untouched and nothing is inserted into the {\tt buffer}. If no
+localized error message is available, the numeric value of the error
+is inserted instead.
+\smallskip{}
+
+The {\tt len} of {\tt buffer} shall not be~0. It includes the
+{\tt NUL} byte terminating the string created in {\tt buffer}.
+\smallskip{}
+
+This function returns {\tt len-1} regardless of whether or what was
+inserted into {\tt buffer}\footnote{This is probably an implementation
+  defect, the official documentation states that the length of the
+  inserted string is returned instead.}. This information is not very
+useful; as a workaround, to find the length of the inserted string,
+use {\tt strlen()} on the buffer if {\tt code} is non-zero:
+
+\begin{verbatim}
+if (code) {
+  Fault(code,header,buffer,len);
+  len = strlen(buffer);
+} else {
+  len = 0;
+}
+\end{verbatim}
+
+Note that {\tt buffer} remains unchanged for a~0 argument of {\tt
+  code}, and thus {\tt strlen()} does not return a reliable result in
+this case.
 
 \subsection{Printing an Error Message}
 
