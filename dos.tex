@@ -18199,6 +18199,35 @@ stack. {\tt IoErr()}\key{IoErr()} remains its value from the called command,
 or is set to {\tt ERROR\_NO\_FREE\_STORE} if resources could not be
 allocated.
 
+\subsection{Checking for Signals}
+
+The {\tt CheckSignal()}\mkey{CheckSignal()} function tests whether
+particular signals, as for example those to break process or a shell
+script, are set in the process of the caller.
+
+\begin{verbatim}
+signals = CheckSignal(mask)
+D0                    D1
+
+ULONG CheckSignal(ULONG)
+\end{verbatim}
+
+This function tests those signals that are set in the {\tt mask} and
+returns their state. Typical signals to check for are defined in {\tt
+  dos/dos.h} and include those bits that are set by {\tt Ctrl+C}
+through {\tt Ctrl+F} console key combinations. The function returns a
+mask of all signals set in the process, and clears those signals that
+are set in the mask. A typical example is
+
+\begin{verbatim}
+if (CheckSignal(SIGBREAKF_CTRL_C)) {
+  break; /* abort the command */
+}
+\end{verbatim}
+
+which checks whether the user pressed {\tt Ctrl+C}, and also clears
+this bit. This function does not alter {\tt IoErr()}\key{IoErr()}.
+
 \subsection{Request a Function of the Shell} \label{sec:doshellmethod}
 
 The {\tt DoShellMethod}\mkey{DoShellMethod()} function requests from the
@@ -20194,17 +20223,6 @@ object to be destroyed. In case type is {\tt DOS\_STDPKT}, the {\tt
 Passing {\tt NULL} as {\tt ptr} performs nothing, the function exits
 in this case without performing any action.  This function does not
 set {\tt IoErr()}\key{IoErr()}.
-
-\subsection{Checking for Signals}
-
-\begin{verbatim}
-signals = CheckSignal(mask)
-D0		      D1
-
-ULONG CheckSignal(ULONG)
-\end{verbatim}
-
-
 
 \subsection{Display an Error Requester}
 
