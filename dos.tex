@@ -19821,32 +19821,46 @@ is not a regular program otherwise and shall be implemented according
 to the following guidelines:
 \smallskip{}
 
-First of all, the shell will be initialized as a BCPL program, and
-thus makes use of the BCPL run-time binding protocol explained in
-section~\ref{sec:bcplbinding}. As part of this protocol, the shell
-receives a startup-package in the form of a {\tt DosPacket} structure
-similar to handlers and file systems. The startup code from
-section~\ref{sec:bcplbinding} provides a minimal interface to this
-BCPL runtime binder and will provide the startup package as argument
-to a {\tt main()} function. For the following example code, it is
-assumed that this startup code is the first segment of the shell code,
-and that its {\tt main()} function is called through this minimal BCPL
-interface. AmigaDOS, in its current incarnation, initializes the shell
-startup packet as follows:
+First of all, AmigaDOS supports a BCPL shell under the name ``{\tt
+  CLI}'' which will be initialized as BCPL programs using the BCPL
+runtime binding protocol explained in
+section~\ref{sec:bcplbinding}. AmigaDOS also supports C and assembler
+based shells under the names ``{\tt shell}'' and ``{\tt
+  BootShell}''. A user shell replacing the ``{\tt shell}'' entry in
+the resident segment list will thus follow C or assembler binding.
 \smallskip{}
 
-{\tt dp\_Type} is non-zero, and {\tt dp\_Res1} and {\tt dp\_Res2} are
-both~0. All other startup packet types are obsolete and are no longer
-in use by AmigaDOS. However, the current AmigaDOS Shell launches
-instances of itself as new processes, for example to implement pipes
-or the run-back operator (``{\tt \&}''), see
-sections~\ref{sec:binaryops} and~\ref{sec:unaryops}, and to indicate
-this private startup mechanism, the AmigaDOS Shell places other values
-in these three elements. As this is a shell-internal mechanism that is
-not imposed by AmigaDOS, it will not to be documented here. Custom
-shells may use whatever mechanism they seem fit if they need to start
-instances of itself, provided it does not conflict with the above
-identification of AmigaDOS startup packet.
+Regardless of whether the Shell is run as BCPL or C program, it
+receives a startup-package in the form of a {\tt DosPacket} structure
+similar to handlers and file systems. The startup code from
+section~\ref{sec:bcplbinding} provides a minimal interface for the
+BCPL runtime binding, and is also safe to use for C shells.  For the
+following example code, it is assumed that this startup code is the
+first segment of the shell code, and that its {\tt main()} function is
+called through this minimal interface. AmigaDOS, in its current
+incarnation, initializes the shell startup packet as follows:
+\smallskip{}
+
+If {\tt dp\_Type} is non-zero, and {\tt dp\_Res1} and {\tt dp\_Res2}
+are both~0, this is a regular shell startup, and this is the only
+startup type that still exists. If, deriving from the above, {\tt
+  dp\_Type} is zero, then this indicated the creation of the ``Initial
+CLI'', and if {\tt dp\_Res1} is non-zero, this used to indicate the
+creation of a shell through {\tt NewShell}. These two startup types no
+longer exist and are no longer in use. All other startup packet types are
+not used by AmigaDOS.
+\smallskip{}
+
+In addition, the current AmigaDOS Shell launches instances of itself
+as new processes, for example to implement pipes or the run-back
+operator (``{\tt \&}''), see sections~\ref{sec:binaryops}
+and~\ref{sec:unaryops}, and to indicate this private startup
+mechanism, the AmigaDOS Shell uses an even different combination of
+values in these three elements. As this is a shell-internal mechanism
+that is not imposed by AmigaDOS, it will not to be documented
+here. Custom shells may use whatever mechanism they seem fit if they
+need to start instances of itself, provided it does not conflict with
+the above identification of AmigaDOS startup packet.
 \smallskip{}
 
 Next, the shell shall allocate all system resources it
@@ -19898,20 +19912,27 @@ The following code implements minimal shell startup handling:
 void __asm main(register __a0 struct DosPacket *pkt)
 {
   struct Library *DOSBase;
-  struct Library *SysBase;
+  struct Library *SysBase = *(struct ExecBase **)(4L);
+  struct Process *proc = (struct Process *)(FindTask(NULL));
+  
+  /* C startup needs to wait for the */
+  /* startup packet manually         */
+  if (pkt == NULL) {
+    struct Message *msg;
+    WaitPort(&proc->pr_MsgPort);
+    msg = GetMsg(&proc->pr_MsgPort);
+    pkt = (struct DosPacket *)(msg->mn_Node.ln_Name);
+  }
 
   /* check the packet for validity */
-  if (ptk == NULL  || pkt->dp_Type == 0 || 
-      pkt->dp_Res2 || pkt->dp_Res1) {
+  if (pkt->dp_Type == 0 || pkt->dp_Res2 || pkt->dp_Res1) {
       /* Some other form of startup, not from the Os */
       /* In worst case, run into Alert()             */
       ...
   } else {
    LONG fn;
-   struct Process *proc;
    BPTR segs;
    /* Perform shell initialization, here an example */
-   SysBase = *(struct ExecBase **)(4L);
    DOSBase = OpenLibrary("dos.library",47);
    if (DOSBase == NULL) {
      /* Initialization failed, return a meaningful  */
@@ -19923,7 +19944,6 @@ void __asm main(register __a0 struct DosPacket *pkt)
      return;
    }
    /* fixup the segment array */
-   proc = (struct Process *)FindTask(NULL);
    segs = BADDR(process->pr_SegList);
    /* move shell's seg list to the next slot */
    if (segarray[4] == NULL) {
