@@ -535,7 +535,7 @@ times, or delay the system for a given time. They represent times --- and
 dates if appropriate --- in the {\tt DateStamp} structure as a triple of
 days, minutes and ticks.
 
-\subsection{Obtaining the Time and Date}
+\subsection{Obtaining the Time and Date} \label{sec:datestamp}
 
 The {\tt DateStamp()}\mkey{DateStamp()} function obtains the current date
 and time from AmigaDOS:
@@ -573,7 +573,7 @@ This function takes two pointers to {\tt DateStamp} structures as
 than {\tt date2}, a positive number if {\tt date2} is later than {\tt date1},
 or 0 if the two dates are identical.
 
-\subsection{Delaying Program Execution}
+\subsection{Delaying Program Execution} \label{sec:delay}
 
 The {\tt Delay()}\mkey{Delay()} function delays the execution of the calling
 process by a specific amount of ticks.
@@ -4732,204 +4732,6 @@ Afterwards, the {\tt notifystructure} is again available for the
 caller, for example to either release its memory, or to start another
 notification request.
 
-\chapter{File System Support Functions} \label{sec:filesysmisc}
-
-Functions in this section act on a \emph{file system} as a whole;
-thus, they do not need a file or a lock to operate on, but modify the
-file system globally.
-
-\subsection{Adjusting File System Buffers} \label{sec:addbuffers}
-
-The {\tt AddBuffers()}\mkey{AddBuffers()} function increases or
-reduces the number of buffers of a file system.
-
-\begin{verbatim}
-success = AddBuffers(filesystem, number)
-D0		       D1          D2
-
-BOOL AddBuffers(STRPTR, LONG)
-\end{verbatim}
-
-This function adds {\tt number} buffers to the file system whose name
-is given by {\tt filesystem}. This name consists of a filename,
-volume, or assign on the \emph{file system} whose buffer count shall
-be modified, see also {\tt GetDeviceProc()}\key{GetDeviceProc()} in
-section~\ref{sec:getdeviceproc} how a file system is located.
-\smallskip{}
-
-The {\tt number} argument may be both positive --- for adding buffers
-to the file system --- or negative, to reduce the number of buffers.
-The purpose of these buffers is file-system dependent. The Fast File
-System in ROM uses it to buffer administrative information such as
-directory contents, but also blocks that describe the location of file
-content on the disk; thus adding more buffers can help to improve the
-performance of random-access into the file with {\tt Seek()}\key{Seek()}.
-\smallskip{}
-
-A third purpose of the buffers is to store input and output data of
-{\tt Read()}\key{Read()} or {\tt Write()}\key{Write()} if the
-operation is not aligned to block boundaries or if the source or
-target buffer is considered unsuitable for direct transfer to the
-underlying hardware exec device.
-\medskip{}
-
-This function returns a non-zero result on success and~0 on
-failure. In first case, it sets {\tt IoErr()} to~0, otherwise it is
-set to an error code. Some file systems return the current number of
-buffers allocated; callers should thus be prepared that the return
-code is not equal to {\tt DOSTRUE} to indicate success.
-
-\subsection{Change the Name of a Volume}
-
-The {\tt Relabel()} function changes the name of a volume a file
-system operates on.
-
-\begin{verbatim}
-success = Relabel(volumename,name)
-D0                    D1      D2
-
-BOOL Relabel(STRPTR,STRPTR)
-\end{verbatim}
-
-This function relables the volume that resides on the \emph{file
-  system} corresponding to the {\tt volumename} path. This path is
-resolved through {\tt GetDeviceProc()}\key{GetDeviceProc()} and thus
-may be a relative or absolute path, the device or the volume name. As
-{\tt filesystem} is interpreted as a path, a device or volume name
-passed in shall include a colon (``{\tt :}'') as it would be otherwise
-interpreted as a path relative to the current directory.
-\smallskip{}
-
-The volume name of the medium or partition is then changed to {\tt
-  name}. Unlike the first argument, {\tt name} shall \emph{not}
-contain a colon (``{\tt :}'') nor a slash (``{\tt /}'').
-\smallskip{}
-
-This function returns a non-zero result code for success or~0 for an
-error. In the first case, it sets {\tt IoErr()}\key{IoErr()} to~0, in
-the latter case to an error code.
-
-\subsection{Initializing a File System}
-
-The {\tt Format()} function initializes a complete file system,
-writing administration information on the file system that corresponds
-to an empty medium. Thus, this function erases all information stored
-in it.
-
-\begin{verbatim}
-success = Format(filesystem, volumename, dostype)
-D0                   D1          D2         D3
-
-BOOL Format(STRPTR, STRPTR, ULONG)
-\end{verbatim}
-
-This function erases all information on the medium or partition
-identified by {\tt filesystem}, which is interpreted as a path. Thus,
-it may be a device or volume name, which shall then be terminated by a
-colon (``{\tt :}''). However, all other path names also work; however,
-if they do not include a colon, the argument is interpreted as a path
-name relative to the current directory, and thus will initialize the
-file system corresponding to it. This is probably not desirable.
-\smallskip{}
-
-To block processes from accessing information on the file system while
-it is initializing, it should be inhibited upfront, e.g by {\tt
-  Inhibit(filesystem,DOSTRUE)} or lower level direct communication to
-the handler, see section~\ref{sec:action_inhibit}.  Initializing is
-the only operation file systems are able to perform while being
-inhibited.
-\smallskip{}
-
-The {\tt Format()} function \emph{does not} attempt a low-level
-initialization of the corresponding medium; that is, it does not
-attempt to low-level format it on the physical layer as required when
-a floppy disk shall be prepared for initial use. This step needs to be
-performed manually by first blocking access of the file system to the
-floppy through {\tt Inhibit()}, then initializing the physical
-layer through the exec device driver upfront, e.g. by the command {\tt
-  TD\_FORMAT}, and then finally by calling this function.
-\medskip{}
-
-The volume name of the medium or partition is initialized to {\tt
-  volumename}, which \emph{shall not} contain a colon (``{\tt :}'')
-nor a slash (``{\tt /}''). Note that not all file systems support
-volume names. In such cases, this argument is ignored.
-\smallskip{}
-
-The {\tt dostype} defines the flavour of file system created on the
-device if the file system allows multiple variations. The variations
-the Fast File System supports along with other file systems are listed in
-table~\ref{table:ffsflavours}. This corresponds to the {\tt DOSTYPE}
-in the mount list. File systems may also ignore this argument if they
-only support a single flavour.
-
-Unfortunately, AmigaDOS does not provide an easy way to access the flavours
-supported by a file system. The {\tt Format} command of the workbench offers
-the types listed in the first half of table~\ref{table:ffsflavours} if the
-mount entry of the file system indicates that it is the FFS, and otherwise
-does not offer any choices and just copies the {\tt dostype} from the {\tt
-  de\_DosType} of the {\tt DosEnvec} structure, see also section~\ref{mountlist}.
-\smallskip{}
-
-After initializing the \emph{file system}, use {\tt
-  Inhibit(filesystem,DOSFALSE)} or the corresponding lower level
-packet {\tt ACTION\_INHIBIT} to grant the file system access to the
-partition or medium again. As the volume name can be different and
-\emph{locks} or \emph{file handles} on the original file system
-clearly became invalid, it is advisable to pass the \emph{device name}
-of the \emph{file system} to {\tt Inhibit()} if this call is used, see
-also sections~\ref{sec:deviceoverview} and~\ref{sec:inhibit}.
-\medskip{}
-
-This function returns a boolean success indicator that is non-zero on
-success or~0 on error. In either case, {\tt IoErr()} is set to~0 on
-success or an error code on failure.
-
-\subsection{Inhibiting a File System} \label{sec:inhibit}
-
-The {\tt Inhibit()}\mkey{Inhibit()} function disables or enables
-access of the \emph{file system} to the underlying exec device
-driver. Typical application for this function are disk editors or file
-system salvage tools that require exclusive access to the file system
-structure.
-
-\begin{verbatim}
-success = Inhibit(filesystem, flag)
-D0                    D1       D2
-
-BOOL Inhibit(STRPTR,LONG)
-\end{verbatim}
-
-This call controls whether the file system identified by the path name
-given as {\tt filesystem} is allowed to access the medium or partition
-it usually operates on. The {\tt filesystem} argument is interpreted
-through {\tt GetDeviceProc()}\key{GetDeviceProc()} to find the process
-responsible for the medium. That is, the function resolves relative
-and absolute paths, device and volume names, and even assigns. As {\tt
-  filesystem} is interpreted as a path, a device or volume name passed
-in shall include a colon (``{\tt :}'') as it would be otherwise
-interpreted as a path relative to the current directory.
-\smallskip{}
-
-The {\tt flag} argument controls whether access to the medium is
-allowed or disallowed. If {\tt flag} is set to {\tt DOSTRUE}, access
-is inhibited and the \emph{file system} stops accessing the partition
-or volume. It also sets {\tt id\_DiskType} to the four-character code
-{\tt 'BUSY'}, which will be interpreted by the workbench to ghost the
-corresponding drive icon. Application programs are then allowed to
-access the exec device driver directly to access or modify blocks
-within the partition managed by the inhibited \emph{file system}.
-\smallskip{}
-
-If {\tt flag} is set to {\tt DOSFALSE}, access to the medium is
-allowed again. The \emph{file system} then performs a consistency
-check of the file system structure of the disk, i.e. validates it.
-\smallskip{}
-
-This function returns a non-zero result code for success and then sets
-{\tt IoErr()}\key{IoErr()} to~0. On error, it returns~0 and provides an
-error code in {\tt IoErr()}.
-
 \chapter{Administration of Volumes, Devices and Assigns} \label{sec:devicelist}
 
 The \emph{dos.library} is just a layer of AmigaDOS that provides a
@@ -5931,7 +5733,7 @@ typically identical. However, as the former is returned by {\tt
   GetFileSysTask()} and the latter is part of the \emph{device list}
 \emph{assign}, they can be different.
 
-\section{Iterating and Accessing the Device List}
+\section{Iterating and Accessing the Device List} \label{sec:devlistaccess}
 
 While {\tt GetDeviceProc()}\key{GetDeviceProc()} uses the \emph{device
   list} to locate a particular \emph{MsgPort} and \emph{Lock}, all
@@ -6754,6 +6556,230 @@ does not set {\tt IoErr()} consistently in all cases, and thus, the
 cause of an error cannot be determined upon return. Possible causes
 of error are that {\tt name} does not exist, or that it is not a
 \emph{assign} or a \emph{multi-assign}.
+
+\section{File System Support Functions} \label{sec:filesysmisc}
+
+Functions in this section act on a \emph{file system} as a whole;
+thus, they do not need a file or a lock to operate on, but modify the
+file system globally.
+
+\subsection{Adjusting File System Buffers} \label{sec:addbuffers}
+
+The {\tt AddBuffers()}\mkey{AddBuffers()} function increases or
+reduces the number of buffers of a file system.
+
+\begin{verbatim}
+success = AddBuffers(filesystem, number)
+D0		       D1          D2
+
+BOOL AddBuffers(STRPTR, LONG)
+\end{verbatim}
+
+This function adds {\tt number} buffers to the file system whose name
+is given by {\tt filesystem}. This name consists of a filename,
+volume, or assign on the \emph{file system} whose buffer count shall
+be modified, see also {\tt GetDeviceProc()}\key{GetDeviceProc()} in
+section~\ref{sec:getdeviceproc} how a file system is located.
+\smallskip{}
+
+The {\tt number} argument may be both positive --- for adding buffers
+to the file system --- or negative, to reduce the number of buffers.
+The purpose of these buffers is file-system dependent. The Fast File
+System in ROM uses it to buffer administrative information such as
+directory contents, but also blocks that describe the location of file
+content on the disk; thus adding more buffers can help to improve the
+performance of random-access into the file with {\tt Seek()}\key{Seek()}.
+\smallskip{}
+
+A third purpose of the buffers is to store input and output data of
+{\tt Read()}\key{Read()} or {\tt Write()}\key{Write()} if the
+operation is not aligned to block boundaries or if the source or
+target buffer is considered unsuitable for direct transfer to the
+underlying hardware exec device.
+\medskip{}
+
+This function returns a non-zero result on success and~0 on
+failure. In first case, it sets {\tt IoErr()} to~0, otherwise it is
+set to an error code. Some file systems return the current number of
+buffers allocated; callers should thus be prepared that the return
+code is not equal to {\tt DOSTRUE} to indicate success.
+
+\subsection{Change the Name of a Volume}
+
+The {\tt Relabel()} function changes the name of a volume a file
+system operates on.
+
+\begin{verbatim}
+success = Relabel(volumename,name)
+D0                    D1      D2
+
+BOOL Relabel(STRPTR,STRPTR)
+\end{verbatim}
+
+This function relables the volume that resides on the \emph{file
+  system} corresponding to the {\tt volumename} path. This path is
+resolved through {\tt GetDeviceProc()}\key{GetDeviceProc()} and thus
+may be a relative or absolute path, the device or the volume name. As
+{\tt filesystem} is interpreted as a path, a device or volume name
+passed in shall include a colon (``{\tt :}'') as it would be otherwise
+interpreted as a path relative to the current directory.
+\smallskip{}
+
+The volume name of the medium or partition is then changed to {\tt
+  name}. Unlike the first argument, {\tt name} shall \emph{not}
+contain a colon (``{\tt :}'') nor a slash (``{\tt /}'').
+\smallskip{}
+
+This function returns a non-zero result code for success or~0 for an
+error. In the first case, it sets {\tt IoErr()}\key{IoErr()} to~0, in
+the latter case to an error code.
+
+\subsection{Initializing a File System}
+
+The {\tt Format()} function initializes a complete file system,
+writing administration information on the file system that corresponds
+to an empty medium. Thus, this function erases all information stored
+in it.
+
+\begin{verbatim}
+success = Format(filesystem, volumename, dostype)
+D0                   D1          D2         D3
+
+BOOL Format(STRPTR, STRPTR, ULONG)
+\end{verbatim}
+
+This function erases all information on the medium or partition
+identified by {\tt filesystem}, which is interpreted as a path. Thus,
+it may be a device or volume name, which shall then be terminated by a
+colon (``{\tt :}''). However, all other path names also work; however,
+if they do not include a colon, the argument is interpreted as a path
+name relative to the current directory, and thus will initialize the
+file system corresponding to it. This is probably not desirable.
+\smallskip{}
+
+To block processes from accessing information on the file system while
+it is initializing, it should be inhibited upfront, e.g by {\tt
+  Inhibit(filesystem,DOSTRUE)} or lower level direct communication to
+the handler, see section~\ref{sec:action_inhibit}.  Initializing is
+the only operation file systems are able to perform while being
+inhibited.
+\smallskip{}
+
+The {\tt Format()} function \emph{does not} attempt a low-level
+initialization of the corresponding medium; that is, it does not
+attempt to low-level format it on the physical layer as required when
+a floppy disk shall be prepared for initial use. This step needs to be
+performed manually by first blocking access of the file system to the
+floppy through {\tt Inhibit()}, then initializing the physical
+layer through the exec device driver upfront, e.g. by the command {\tt
+  TD\_FORMAT}, and then finally by calling this function.
+\medskip{}
+
+The volume name of the medium or partition is initialized to {\tt
+  volumename}, which \emph{shall not} contain a colon (``{\tt :}'')
+nor a slash (``{\tt /}''). Note that not all file systems support
+volume names. In such cases, this argument is ignored.
+\smallskip{}
+
+The {\tt dostype} defines the flavour of file system created on the
+device if the file system allows multiple variations. The variations
+the Fast File System supports along with other file systems are listed in
+table~\ref{table:ffsflavours}. This corresponds to the {\tt DOSTYPE}
+in the mount list. File systems may also ignore this argument if they
+only support a single flavour.
+
+Unfortunately, AmigaDOS does not provide an easy way to access the flavours
+supported by a file system. The {\tt Format} command of the workbench offers
+the types listed in the first half of table~\ref{table:ffsflavours} if the
+mount entry of the file system indicates that it is the FFS, and otherwise
+does not offer any choices and just copies the {\tt dostype} from the {\tt
+  de\_DosType} of the {\tt DosEnvec} structure, see also section~\ref{mountlist}.
+\smallskip{}
+
+After initializing the \emph{file system}, use {\tt
+  Inhibit(filesystem,DOSFALSE)} or the corresponding lower level
+packet {\tt ACTION\_INHIBIT} to grant the file system access to the
+partition or medium again. As the volume name can be different and
+\emph{locks} or \emph{file handles} on the original file system
+clearly became invalid, it is advisable to pass the \emph{device name}
+of the \emph{file system} to {\tt Inhibit()} if this call is used, see
+also sections~\ref{sec:deviceoverview} and~\ref{sec:inhibit}.
+\medskip{}
+
+This function returns a boolean success indicator that is non-zero on
+success or~0 on error. In either case, {\tt IoErr()} is set to~0 on
+success or an error code on failure.
+
+\subsection{Inhibiting a File System} \label{sec:inhibit}
+
+The {\tt Inhibit()}\mkey{Inhibit()} function disables or enables
+access of the \emph{file system} to the underlying exec device
+driver. Typical application for this function are disk editors or file
+system salvage tools that require exclusive access to the file system
+structure.
+
+\begin{verbatim}
+success = Inhibit(filesystem, flag)
+D0                    D1       D2
+
+BOOL Inhibit(STRPTR,LONG)
+\end{verbatim}
+
+This call controls whether the file system identified by the path name
+given as {\tt filesystem} is allowed to access the medium or partition
+it usually operates on. The {\tt filesystem} argument is interpreted
+through {\tt GetDeviceProc()}\key{GetDeviceProc()} to find the process
+responsible for the medium. That is, the function resolves relative
+and absolute paths, device and volume names, and even assigns. As {\tt
+  filesystem} is interpreted as a path, a device or volume name passed
+in shall include a colon (``{\tt :}'') as it would be otherwise
+interpreted as a path relative to the current directory.
+\smallskip{}
+
+The {\tt flag} argument controls whether access to the medium is
+allowed or disallowed. If {\tt flag} is set to {\tt DOSTRUE}, access
+is inhibited and the \emph{file system} stops accessing the partition
+or volume. It also sets {\tt id\_DiskType} to the four-character code
+{\tt 'BUSY'}, which will be interpreted by the workbench to ghost the
+corresponding drive icon. Application programs are then allowed to
+access the exec device driver directly to access or modify blocks
+within the partition managed by the inhibited \emph{file system}.
+\smallskip{}
+
+If {\tt flag} is set to {\tt DOSFALSE}, access to the medium is
+allowed again. The \emph{file system} then performs a consistency
+check of the file system structure of the disk, i.e. validates it.
+\smallskip{}
+
+This function returns a non-zero result code for success and then sets
+{\tt IoErr()}\key{IoErr()} to~0. On error, it returns~0 and provides an
+error code in {\tt IoErr()}.
+
+\subsection{Receive Information when a Volume is Request}
+
+qThe {\tt VolumeRequestHook()}\mkey{VolumeRequestHook()} function is
+called by the \emph{dos.library} whenever it attempts to request the
+user to insert a volume.
+
+\begin{verbatim}
+res = VolumeRequestHook(volume)
+D0                        D1
+
+LONG VolumeRequestHook(UBYTE *volume)
+\end{verbatim}
+
+This function is not supposed to be called by clients, it is rather
+called by the \emph{dos.library} and provided to be patched by
+application programs that want to learn whenever AmigaDOS is about to
+show a requester to ask for a specific volume.
+\smallskip{}
+
+The argument this function receives is the name of the volume AmigaDOS
+is about to ask for. without a trailing colon (``{\tt :}''). If this
+function returns {\tt DOSTRUE}, then the \emph{dos.library} progresses
+to show a requester to ask the user to insert {\tt volume}. If this
+function returns {\tt DOSFALSE}, the requester is suppressed as if the
+user pressed {\tt Cancel} on it, thus refusing to insert the volume.
 
 \chapter{Pattern Matching} \label{sec:patternmatch}
 Unlike other operating systems, it is neither the file system nor the shell
@@ -18336,7 +18362,7 @@ If {\tt DoShellMethod}\key{DoShellMethod()} is called from a process that is
 not part of a shell, it returns {\tt NULL} and sets {\tt
   IoErr()}\key{IoErr()} to {\tt ERROR\_OBJECT\_WRONG\_TYPE}.
 
-\subsection{Find a Shell Process by Task Number}
+\subsection{Find a Shell Process by Task Number} \label{sec:findcliproc}
 
 The {\tt FindCliProc()}\mkey{FindCliProc()} function finds a process by its
 task number.
@@ -19643,7 +19669,7 @@ The {\tt seg\_Name} is, actually, not only 4 characters long as indicated,
 but a variable length field. It contains the name of the command or system
 segment as BSTR.
 
-\subsection{Finding a Resident Segment}
+\subsection{Finding a Resident Segment} \label{sec:findsegment}
 
 The {\tt FindSegment()}\mkey{FindSegment()} locates a resident segment by
 name.
@@ -20310,7 +20336,7 @@ ongoing operation should be aborted or retried. If the result code is
 function also sets {\tt IoErr()} to the error identifier in
 {\tt code}.
 
-\subsection{Generating an Error Message}
+\subsection{Generating an Error Message} \label{sec:fault}
 
 The {\tt Fault()} function fills a buffer with an error message from
 an error code and an initial string.
@@ -20329,24 +20355,22 @@ argument.
 \smallskip{}
 
 If {\tt header} is non-{\tt NULL}, it is first copied into the {\tt
-  buffer} followed by a colon (``{\tt :}). The colon is not copied if
-{\tt header} is {\tt NULL}. This is followed by a (localized) error
-message created from {\tt code}. If {\tt code} is~0, the buffer is
-left untouched and nothing is inserted into the {\tt buffer}. If no
-localized error message is available, the numeric value of the error
-is inserted instead.
+  buffer} followed by a colon and a space (``{\tt :~}). The colon and
+space are not copied if {\tt header} is {\tt NULL}. This is followed
+by a (localized) error message created from {\tt code}. If {\tt code}
+is~0, the buffer is left untouched and nothing is inserted into the
+{\tt buffer}. If no localized error message is available, the numeric
+value of the error is inserted instead.
 \smallskip{}
 
 The {\tt len} of {\tt buffer} shall not be~0. It includes the
 {\tt NUL} byte terminating the string created in {\tt buffer}.
 \smallskip{}
 
-This function returns {\tt len-1} regardless of whether or what was
-inserted into {\tt buffer}\footnote{This is probably an implementation
-  defect, the official documentation states that the length of the
-  inserted string is returned instead.}. This information is not very
-useful; as a workaround, to find the length of the inserted string,
-use {\tt strlen()} on the buffer if {\tt code} is non-zero:
+Unlike documented, the return value of this function is \emph{not} the
+number of characters inserted into the buffer and is thus not usable.
+As a workaround, to find the length of the inserted string, use {\tt
+  strlen()} on the buffer if {\tt code} is non-zero:
 
 \begin{verbatim}
 if (code) {
@@ -20363,6 +20387,10 @@ this case.
 
 \subsection{Printing an Error Message}
 
+The {\tt PrintFault()}\mkey{PrintFault()} function prints an error
+message consisting of a header and a description of an error code over
+the error output channel of the calling process.
+
 \begin{verbatim}
 success = PrintFault(code, header)
 D0                    D1     D2   
@@ -20370,7 +20398,31 @@ D0                    D1     D2
 BOOL PrintFault(LONG, STRPTR)
 \end{verbatim}
 
+This function implements elementary error reporting by printing an
+error message over the error output {\tt pr\_CES} of the calling
+process. If that stream does not exist, the error is reported over the
+standard output stream {\tt pr\_COS} of the caller.
+\smallskip{}
+
+If {\tt header} is non-{\tt NULL}, this string is printed first,
+followed by a colon and a space (``{\tt :~}''). If a textual
+description of the error code {\tt code} is available, it is printed
+behind it. Otherwise, just a generic error message with the error
+value is printed.
+\smallskip{}
+
+If {\tt code} is~0, nothing is printed at all. Otherwise, this
+function sets {\tt IoErr()}\key{IoErr()} to {\tt code}.
+\smallskip{}
+
+This function returns a boolean success code. It currently is,
+however, always non-zero indicating success, and thus not particularly
+helpful.
+
 \subsection{Printing a String to the Error Stream}
+
+The {\tt PutErrStr()}\mkey{PutErrStr()} function writes a string to
+the error output stream of the calling process.
 
 \begin{verbatim}
 error = PutErrStr(str)
@@ -20379,14 +20431,276 @@ D0                D1
 LONG PutErrStr(STRPTR)
 \end{verbatim}
 
-\subsection{Receive Information when a Volume is Request}
+This function writes the {\tt NUL} terminated string {\tt str} over
+the error output {\tt pr\_CES} of the calling process. If this stream
+does not exist, this function writes the string over the standard
+output {\tt pr\_COS} of the caller.
+\smallskip{}
+
+This function returns $0$ on success, or {\tt ENDSTREAMCH} on an
+error. The latter constant is defined in {\tt dos/stdio.h} and equals
+to~$-1$. The error code {\tt IoErr()}\key{IoErr()} is only adjusted
+if the buffer of the used file handle is flushed.
+
+\chapter{The DOS Library}
+
+This chapter documents the \emph{dos.library} base structure and
+structures linked from it. These structures should not be accessed
+directly as the library provides accessor and manipulator functions
+for their elements.
+
+\section{The Library Structure}
+
+The \emph{dos.library} base structure is documented in {\tt
+  dos/dosextens.h} and looks as follows:
 
 \begin{verbatim}
-res = VolumeRequestHook(volume)
-D0			  D1
-
-LONG VolumeRequestHook(UBYTE *volume)
+struct DosLibrary {
+    struct Library dl_lib;
+    struct RootNode *dl_Root;
+    APTR    dl_GV;
+    LONG    dl_A2;
+    LONG    dl_A5;
+    LONG    dl_A6;
+    struct ErrorString *dl_Errors;
+    struct timerequest *dl_TimeReq;
+    struct Library     *dl_UtilityBase;
+    struct Library     *dl_IntuitionBase;
+};
 \end{verbatim}
+
+The elements of this library are as follows:
+\smallskip{}
+
+The {\tt dl\_lib} element forms a regular exec library as it is defined in {\tt exec/libraries.h}.
+\smallskip{}
+
+The {\tt dl\_Root} pointer points to the {\tt RootNode} structure
+documented in section~\ref{sec:rootnode}. Most useful information can be reached from there.
+\smallskip{}
+
+The {\tt dl\_GV} is the pointer to the (fake) BCPL \emph{global
+  vector} which contains a table of (BCPL compiled) functions the
+\emph{dos.library} provides to (legacy) BCPL components. Today,
+nothing should depend on this vector anymore as all AmigaDOS
+components have been rewritten in C or assembler.
+\smallskip{}
+
+The {\tt dl\_A2}, {\tt dl\_A5} and {\tt gl\_A6} elements are the
+initializers for the BCPL runtime system. They are not relevant
+nowadays anymore. {\tt dl\_A2} is a pointer to global vector and thus
+identical to {\tt dl\_GV}.  {\tt dl\_A5} is a function pointer to the
+BCPL function caller, and {\tt dl\_A6} is a pointer to the BCPL
+``return from subroutine'' function.
+\smallskip{}
+
+The {\tt dl\_Errors} pointer provides (localized) strings for all
+messages the \emph{dos.library} generates, including error
+messages. This element is private and shall not be accessed. Instead,
+localized error messages can be retrieved by the {\tt
+  Fault()}\key{Fault()} function of section~\ref{sec:fault} which
+accesses this string.
+\smallskip{}
+
+The {\tt dl\_TimeReq} element is a private pointer to a {\tt
+  timerequest} structure the \emph{dos.library} uses for functions
+such as {\tt Delay()}\key{Delay()} in section~\ref{sec:delay}. It
+shall not be used by clients.
+\smallskip{}
+
+The {\tt dl\_UtilityBase} element provides a pointer to the
+\emph{utility.library} the \emph{dos.library} uses for parsing tag
+lists.
+\smallskip{}
+
+The {\tt dl\_IntuitionBase} is the pointer to the
+\emph{intuition.library} that is used to generate requesters.
+
+\section{The Root Node}
+
+The {\tt RootNode}\mkey{RootNode} structure is accessible from the {\tt dl\_Root}
+pointer in the {\tt DosLibrary} structure and provides global
+information of the library. It is also defined in {\tt
+  dos/dosextens.h}:
+
+\begin{verbatim}
+struct RootNode {
+    BPTR    rn_TaskArray;
+    BPTR    rn_ConsoleSegment;
+    struct  DateStamp rn_Time;
+    LONG    rn_RestartSeg;
+    BPTR    rn_Info;
+    BPTR    rn_FileHandlerSegment;
+    struct MinList rn_CliList;
+    struct MsgPort *rn_BootProc;
+    BPTR    rn_ShellSegment;
+    LONG    rn_Flags;
+};
+\end{verbatim}
+
+The {\tt rn\_TaskArray} element is a BPTR the (legacy) Tripos process
+table, and is part of the complete table reachable through {\tt
+  rn\_CliList}. Instead of going through these elements, the {\tt
+  FindCliProc()}\key{FindCliProc()} function specified in
+section~\ref{sec:findcliproc} shall be used. This first array consists
+of a long-word that indicates the size of the first part of the table,
+all remaining entries are pointers to {\tt Process} structures (see
+section~\ref{sec:process}) or {\tt NULL}. This array is indexed by the
+CLI number, though only processes that are associated to a shell are
+listed here.
+\smallskip{}
+
+The {\tt rn\_ConsoleSegment} is the pointer to the BCPL entry point of
+the shell. Even though this pointer is initialized, it is no longer
+used. Instead, the shell is located on the resident segments with {\tt
+  FindSegment()}\key{FindSegment()} of
+section~\ref{sec:findsegment}. The corresponding resident segment has
+the name ``CLI''.
+\smallskip{}
+
+The {\tt rn\_Time} contains the current time of the system, it is
+updated every time {\tt DateStamp()}\key{DateStamp()} (see
+section~\ref{sec:datestamp} is called, and this is also the
+recommended way of obtaining the time instead of copying it from here.
+\smallskip{}
+
+The {\tt rn\_RestartSeg} is obsolete and no longer in used. This used
+to be a BCPL program that performed validation of inserted disks and
+restarted the file system. Today, this function is integrated into the
+file system itself.
+\smallskip{}
+
+The {\tt rn\_Info} element is a BPTR to the {\tt DosInfo} structure
+described in section~\ref{sec:dosinfo}. It contains further
+global information.
+\smallskip{}
+
+The {\tt rn\_FileHandlerSegment} element is the BPTR to the segment of
+the ROM default AmigaDOS file system. This element is no longer in use
+today. This element is filled from the resident segment
+``FileHandler'', and is also updated if a newer version of the FFS is
+found in the RDB of the booting disk. Today, file systems are found
+through the ``FileSystem.resource'' and not through this BPTR.
+\smallskip{}
+
+The {\tt rn\_CliList} contains the full process table containing all
+shell processes accessible through {\tt
+  FindCliProc()}\key{FindCliProc()}. This element is a {\tt MinList}
+structure as defined in {\tt exec/lists.h}. Each node on this list
+keeps a consecutive number of shells and looks as follows:
+
+\begin{verbatim}
+struct CliProcList {
+  struct MinNode cpl_Node;
+  LONG cpl_First;	   
+  struct MsgPort **cpl_Array;
+};
+\end{verbatim}
+
+This structure \emph{shall not} be allocated by the user; instead, it
+is potentially created by the \emph{dos.library} if the current
+process table is too small when creating a new shell through {\tt
+  System()}\key{System()} or {\tt Execute()}\key{Execute()}.
+\smallskip{}
+
+The {\tt cpl\_Node} is a {\tt MinNode} structure that queues
+all {\tt CliProcList} nodes in the {\tt rn\_CliList}.
+\smallskip{}
+
+The {\tt cpl\_First} element is the CLI number of the first shell in
+this node, and thus the process number kept in {\tt cpl\_Array[1]}.
+\smallskip{}
+
+The {\tt cpl\_Array} element contains pointers to the {\tt Process}
+structures of the shell, except that the {\tt cpl\_Array[0]} entry is
+the number of shell processes adminstrated in this node. The actual
+process pointers start from the second entry onwards.
+\smallskip{}
+
+The {\tt cpl\_Array} of the first {\tt CliProcList} structure is also
+accessible through {rn\_TaskArray}, and the nodes kept here are part
+of an extension that overcomes the limitation of at most~10 shells in
+AmigaDOS 1.3 and before.
+\medskip{}
+
+The {\tt rn\_BootProc} element is a pointer to the {\tt MsgPort} of
+the file system that booted the system. This is not necessary the file
+system whose segment is recorded in {\tt rn\_FileHandlerSegment}. It
+is different if the booting file system is not the ROM-based FFS
+neither an updated version of it from the RDB. This pointer is used to
+initialize the {\tt pr\_FileSystemTask} of all processes AmigaDOS
+creates, and thus the file system responsible for the {\tt ZERO} lock.
+\smallskip{}
+
+The {\tt rn\_ShellSegment} is a pointer to the C entry point of the
+shell. This pointer is also not used anymore, but still intialized. It
+corresponds to the resident segments ``shell'' and ``BootShell'',
+where the former may be replaced by a custom user-provided shell and
+the latter is always the shell that booted the system. Today, the
+shell segment is located via {\tt FindSegment()}\key{FindSegment()}
+instead.
+\smallskip{}
+
+The {\tt rn\_Flags} element contains flags that configure
+AmigaDOS. There is currently only one publicly accessible flag defined
+here, namely {\tt RNF\_WILDSTAR}. If this flag is set, the pattern
+matcher discussed in section~\ref{sec:patternmatch} supports ``{\tt
+  *}'' as a synonym for ``{\tt \#?}'', i.e. the pattern that matches a
+sequence of arbitrary characters. While this seemingly brings AmigaDOS
+closer to other contemporary operating systems, it is a rather bad
+choice as the asterisk is also the file name of the current console
+and the escape character of the AmigaDOS Shell. It is therefore
+recommended \emph{not} to set this flag.
+
+\section{The DosInfo Structure}
+
+The {\tt DosInfo}\mkey{DosInfo} structure is pointed to by the {\tt
+  rn\_Info} element of the RootNode. It contains the \emph{device
+  list} structure discussed in section~\ref{sec:devicelist} and the
+resident segments from section~\ref{sec:resident}.
+
+\begin{verbatim}
+struct DosInfo {
+    BPTR    di_McName;
+    BPTR    di_DevInfo;
+    BPTR    di_Devices;	
+    BPTR    di_Handlers; 
+    APTR    di_NetHand;	
+    struct  SignalSemaphore di_DevLock;
+    struct  SignalSemaphore di_EntryLock; 
+    struct  SignalSemaphore di_DeleteLock;
+};
+\end{verbatim}
+
+Unlike what the official includes suggest, {\tt di\_McName} is
+\emph{not} the list of resident segments. It is instead unused.
+\smallskip{}
+
+The {\tt di\_DevInfo} element is a BPTR to the first entry of the
+\emph{device list} introduced in section~\ref{sec:devicelist}. This is
+a BPTR to a {\tt DosList} structure which form a singly linked list
+whose head is here. However, client programs should not access this
+BPTR directly, but rather go through the functions provided in
+section~\ref{sec:devlistaccess}.
+\smallskip{}
+
+The {\tt di\_Devices} and {\tt di\_Handlers} elements are Tripos
+legacies and not in use.
+\smallskip{}
+
+The {\tt di\_NetHand} element contains the resident segments, despite
+its name. This element is neither an APTR as the official includes
+suggest, but is rather a BPTR. It points to a {\tt Segment} structure
+as introduced in section~\ref{sec:resident}, and all resident segments
+are queued here in a singly linked list. This list of resident
+segments should not be accessed through this element, but through the
+functions in section~\ref{sec:resident}.
+\smallskip{}
+
+The {\tt di\_DevLock}, {\tt di\_EntryLock} and {\tt di\_DeleteLock}
+semaphores are private to the \emph{dos.library}. They are used by the
+{\tt LockDosList()}\key{LockDosList()} function of
+section~\ref{sec:lockdoslist}.
 
 \begin{thebibliography}{99}
 \bibitem{Bantam} Commodore-Amiga Inc:
