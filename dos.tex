@@ -3370,7 +3370,7 @@ the tree structure of the file system.
 
 \section{Examining Objects on File Systems} \label{sec:fib}
 
-Given a lock on a file or a directory, further information on such an
+Given a lock on a file or a directory, information on the locked
 object can be requested by the {\tt Examine()}\key{Examine()} function
 of the \emph{dos.library}. To read multiple directory entries at once
 and minimizing the calling overhead, {\tt ExAll()}\key{ExAll()}
@@ -3426,7 +3426,7 @@ object. It shall not be used, and programs shall not make any
 assumptions on its meaning.
 \smallskip{}
 
-{\tt fib\_DirEntryType} identifies the type of an object. Object types
+{\tt fib\_DirEntryType} identifies the type of an object. The types
 are defined in {\tt dos/dosextens.h}, replicated in
 table~\ref{table:direntrytypes}:
 
@@ -3543,8 +3543,8 @@ accessed.
 
 \subsection{Retrieving Information on an Directory Entry}
 
-The {\tt Examine()}\mkey{Examine()} function retrieves information on the object
-identified by a \emph{lock} and fills a {\tt FileInfoBlock} from it.
+The {\tt Examine()}\mkey{Examine()} function fills information on an
+object identified by a \emph{lock} into a {\tt FileInfoBlock}.
 
 \begin{verbatim}
 success = Examine( lock, FileInfoBlock )
@@ -3629,9 +3629,9 @@ element in the scanned directory, or on an error, it returns {\tt
 namely to $0$ in case of success, or to an error code otherwise.
 \smallskip{}
 
-At the end of the directory, the function returns {\tt DOSFALSE}, and
-the error code as obtained from {\tt IoErr()} is set to {\tt
-  ERROR\_NO\_MORE\_ENTRIES}.
+At the end of the directory, {\tt ExNext()}\key{ExNext()} returns {\tt
+  DOSFALSE}, and error code returned by {\tt IoErr()} is set to
+{\tt ERROR\_NO\_MORE\_ENTRIES}.
 
 \punchline{Same Lock, Same FIB}{To iterate through a directory, a lock
   to the same directory as passed into {\tt Examine()}\key{Examine()}
@@ -3744,17 +3744,17 @@ linked list of {\tt ExAllData} structures that look as follows:
 \mkey{ExAllData}
 \begin{verbatim}
 struct ExAllData {
-        struct ExAllData *ed_Next;
-        UBYTE  *ed_Name;
-        LONG    ed_Type;
-        ULONG   ed_Size;
-        ULONG   ed_Prot;
-        ULONG   ed_Days;
-        ULONG   ed_Mins;
-        ULONG   ed_Ticks;
-        UBYTE  *ed_Comment;     /* strings will be after last used field */
-        UWORD   ed_OwnerUID;    /* new for V39 */
-        UWORD   ed_OwnerGID;
+   struct ExAllData *ed_Next;
+   UBYTE  *ed_Name;
+   LONG    ed_Type;
+   ULONG   ed_Size;
+   ULONG   ed_Prot;
+   ULONG   ed_Days;
+   ULONG   ed_Mins;
+   ULONG   ed_Ticks;
+   UBYTE  *ed_Comment;
+   UWORD   ed_OwnerUID;
+   UWORD   ed_OwnerGID;
 };
 \end{verbatim}
 
@@ -4499,7 +4499,8 @@ structure representing {\tt lock}, see section~\ref{sec:filelock}.
 \smallskip{}
 
 If {\tt size} is too small to hold the adjusted path, the function
-returns $0$ and sets {\tt IoErr()} to {\tt ERROR\_LINE\_TOO\_LONG}.
+returns $0$ and the {\tt IoErr()}\key{IoErr()} function returns
+{\tt ERROR\_LINE\_TOO\_LONG}.
 \smallskip{}
 
 The function returns non-zero in case of success, or $0$ in case of
@@ -4895,14 +4896,15 @@ $19$. It corresponds to the {\tt Priority} entry of the mount list.
 \smallskip{}
 
 {\tt dol\_Startup} is a handler-specific startup value that is used to
-commumicate a configuration to the handler during startup. While this value
-may be whatever the handler requires, the {\tt mount} command either
-deposits here a small integer, or a pointer to the {\tt FileSysStartupMsg}
-structure defined in {\tt dos/filehandler.h}. Section~\ref{sec:handlers}
-provides more details on mounting handlers and how the startup mechanism
-works. Unfortunately, it is hard to interpret {\tt dol\_Startup}
-correctly. One way to set this member is to set {\tt Startup} in the mount
-list, see~\ref{sec:filesysstartup} for details.
+commumicate a configuration to the handler during startup. While this
+value may be whatever the handler requires, the {\tt mount} command
+either deposits here a pointer to the {\tt FileSysStartupMsg}
+structure defined in {\tt dos/filehandler.h}, a BPTR to a BSTR, or a
+small integer. Section~\ref{sec:handlers} provides more details on
+mounting handlers and how the startup mechanism works. Unfortunately,
+it is hard to interpret {\tt dol\_Startup} correctly. One way to set
+this member is through {\tt Startup} in the mount list,
+see~\ref{sec:filesysstartup} for details.
 \smallskip{}
 
 {\tt dol\_SegList} is a \emph{BPTR} to the chained segment list of the
@@ -5001,7 +5003,7 @@ the assign at which {\tt dol\_Lock} is populated.
 \smallskip{}
 
 {\tt dol\_List} contains additional locks for \emph{multi-assigns} and
-is only used if {\tt dol\_Type} is {\tt DLT\_DIRECTORY}. In such a
+is thus only used if {\tt dol\_Type} equals {\tt DLT\_DIRECTORY}. In such a
 case, {\tt dol\_Lock} is the lock to the first directory of the
 \emph{multi-assign}, while {\tt dol\_List} contains all following
 \emph{locks} in a singly-linked list of {\tt AssignList} structures:
@@ -5018,7 +5020,7 @@ struct AssignList {
 \emph{multi-assign} and {\tt al\_Lock} is the lock itself. This
 structure is also defined in {\tt dos/dosextens.h}.
 
-\section{The Device List and the Mount List} \label{sec:mountlist}
+\section{The Device List and the Mountlist} \label{sec:mountlist}
 
 Entries of the type {\tt DLT\_DEVICE} can be created through a {\tt
   Mountlist} and the {\tt Mount} command. Other sources of these entries are
@@ -5033,7 +5035,7 @@ the {\tt DosEnvec} structure pointed to there.
 \subsection{Keywords defining the DosList structure} \label{sec:mountdoslist}
 
 The {\tt HANDLER}, {\tt EHANDLER} and {\tt FILESYSTEM} keywords in the
-{\tt Mountlist} do all three into the {\tt dol\_Handler} member. Which
+{\tt Mountlist} all define the {\tt dol\_Handler} element. Which
 keyword is used impacts, however, other elements of the {\tt DosList}
 structure, most notably {\tt dol\_Startup}.
 \smallskip{}
@@ -5251,14 +5253,14 @@ depending on limitations of the {\tt fssm\_Device}, it is unfortunately
 up to the user to provide a suitable {\tt BUFMEMTYPE}.
 \smallskip{}
 
-The {\tt MASK} keyword defines the {\tt de\_Mask} element of the
-{\tt DosEnvec} structure. The mask is a workaround for defect device drivers
-that cannot read or write to all memory types. In particular, if the address
-of the host memory buffer has bits set in positions where the mask contains 0
-bits, the\emph{file system} shall assume that the device cannot reach this
-memory. Instead, it shall perform input or output indirectly through its
-buffers, and copy with the CPU between those buffers and the target or
-source memory block.
+The {\tt MASK} keyword defines the {\tt de\_Mask} element of the {\tt
+  DosEnvec} structure. This is a workaround for defect device drivers
+that cannot read from or write to all memory types. In particular, if
+the address of the host memory buffer has bits set in positions where
+the mask contains 0 bits, the\emph{file system} shall assume that the
+device cannot reach this memory. Instead, it shall perform input or
+output indirectly through its buffers, and copy with the CPU between
+those buffers and the target or source memory block.
 
 \punchline{Masking Defects}{The purpose of the mask is to hide defects in
   device drivers and provide a working system in the absence of a fully
@@ -5636,13 +5638,14 @@ itself and no further activity is necessary.
 
 The {\tt dvp\_Port} or {\tt dvp\_Lock} within the {\tt DevProc}
 structure shall not be used after releasing it with {\tt
-  FreeDeviceProc()}. If a \emph{lock} is needed afterwards, a copy of
-{\tt dvp\_Lock} shall be made with {\tt DupLock()}\key{DupLock()}. If
-the port of the \emph{handler} or \emph{file system} is needed
-afterwards, a resource of this handler shall be obtained, e.g. by
-opening a file or obtaining a lock on it. Both the {\tt
-  FileHandle}\key{FileHandle} and the {\tt FileLock}\key{FileLock}
-structures contain a pointer to the port of the corresponding handler.
+  FreeDeviceProc()}. If the \emph{lock} is required after releasing a
+{\tt DevProc} structure, a copy of {\tt dvp\_Lock} shall be made with
+{\tt DupLock()}\key{DupLock()}. If the port of the \emph{handler} or
+\emph{file system} is needed afterwards, a resource of this handler
+shall be obtained, e.g. by opening a file or obtaining a lock on
+it. Both the {\tt FileHandle}\key{FileHandle} and the {\tt
+  FileLock}\key{FileLock} structures contain a pointer to the port of
+the corresponding handler.
 \smallskip{}
 
 It is safe to call {\tt FreeDeviceProc()} with a {\tt NULL} argument;
@@ -6112,22 +6115,22 @@ processes may attempt to access the \emph{device list} simultaneously,
 and they also ensure proper linkage of the structures.
 \smallskip{}
 
-\punchline{Locking the device list in file systems}{There is one particular
-  race condition \emph{file system} authors should be aware of. When opening
-  a file, or obtaining a \emph{lock}, the \emph{dos.library} calls through
-  {\tt GetDeviceProc()} to identify a \emph{handler} responsible for the
-  requested path. As {\tt GetDeviceProc()}\key{LockDosList()} requires
-  access to the \emph{device list}, it will secure access to it through {\tt
-    LockDosList()}\key{LockDosList()}, then possibly start up the
-  \emph{handler}, and then unlock the list. Thus, at the time the handler is
-  initiated, it may find the \emph{device list} unaccessible. Attempting to
-  lock it would result in a \emph{deadlock} situation as the
-  \emph{dos.library} waits for the \emph{handler} to reply its startup
-  packet, and the \emph{handler} waits for the \emph{dos.library} to grant
-  access to the \emph{device list}. The following sections provide
+\punchline{Locking the device list in file systems}{There is one
+  particular race condition file system authors should be aware
+  of. When opening a file, or obtaining a lock, the \emph{dos.library}
+  calls through {\tt GetDeviceProc()}\key{LockDosList()} to identify a
+  handler responsible for the requested path. As this function
+  requires access to the device list, it will secure access to it
+  through {\tt LockDosList()}\key{LockDosList()}, then possibly start
+  up the handler, and then unlock the list. Thus, at the time the
+  handler is initiated, it may find the device list
+  unaccessible. Attempting to lock it would result in a deadlock
+  situation as the \emph{dos.library} waits for the handler to reply
+  its startup packet, and the handler waits for the dos.library to
+  grant access to the device list. The following sections provide
   workarounds how to avoid this situation, see also
-  section~\ref{sec:handlers} for details on the \emph{handler} and \emph{file
-  system} startup mechanism.}
+  section~\ref{sec:handlers} for details on the handler and file
+  system startup mechanism.}
 
 \subsection{Adding an Entry to the Device List}
 
@@ -6702,7 +6705,7 @@ does not offer any choices and just copies the {\tt dostype} from the {\tt
 \smallskip{}
 
 After initializing the file system, use {\tt
-  Inhibit(filesystem,DOSFALSE)} or its corresponding packet {\tt
+  Inhibit(filesystem,DOSFALSE)} or the corresponding packet {\tt
   ACTION\_INHIBIT} to grant the file system access to the partition or
 medium again. As the volume name can be different and \emph{locks} or
 \emph{file handles} on the original file system clearly became
@@ -7004,10 +7007,11 @@ interreted by the caller.
 \medskip{}
 
 {\tt ap\_BreakBits} of the {\tt AnchorPath} structure shall be
-initialized to a signal mask upon which {\tt MatchNext()} aborts a
-directory scan. This is typically a combination of signal masks
-defined in the {\tt dos/dos.h} include file, e.g. {\tt
-  SIGBREAKF\_CTRL\_C} to abort on a {\tt Ctrl-C} in the console.
+initialized to a signal mask upon their detection the {\tt
+  MatchNext()}\key{MatchNext()} function aborts a directory scan. This
+is typically a combination of signal masks defined in the {\tt
+  dos/dos.h} include file, e.g. {\tt SIGBREAKF\_CTRL\_C} to abort on a
+{\tt Ctrl-C} in the console.
 \smallskip{}
 
 {\tt ap\_FoundBreak} contains, if {\tt MatchNext()} aborts with
@@ -7871,9 +7875,9 @@ the signature of this function.
   NP\_ExitCode} function in register {\tt D1} when the process terminates.
 \smallskip{}
 
-While the official documentation also mentions the tags {\tt
-  NP\_NotifyOnDeath} and {\tt NP\_Synchronous}, these tags are currently
-ignored and do not perform any function.
+While {\tt dos/dostags.h} also defines the tags {\tt
+  NP\_NotifyOnDeath} and {\tt NP\_Synchronous}, these tags are
+currently ignored and do not perform any function.
 \medskip{}
 
 The {\tt CreateNewProc()} function returns on success a pointer to the
@@ -8376,8 +8380,9 @@ systems} if a write is attempted  to a file that is write protected,
 i.e. whose {\tt FIBB\_WRITE} bit is set.
 \smallskip{}
 
-{\tt ERROR\_READ\_PROTECTED}: This error is generated on an attempt to read
-from a while whose {\tt FIBB\_READ} bit is set to indicate read protection.
+{\tt ERROR\_READ\_PROTECTED}: This error is generated on an attempt to
+read from a file that is protected from reading by having its {\tt
+  FIBB\_READ} bit is set.
 \smallskip{}
 
 {\tt ERROR\_NOT\_A\_DOS\_DISK}: This error is generated by a \emph{file
@@ -8751,7 +8756,7 @@ The following pseudo-code describes the top-level syntax of a binary
 executable file AmigaDOS is able to bring to memory:
 
 \begin{rkrmtabular}{Regular Executable File} \label{table:executable}
-\begin{longtable}{|l|p{6cm}|p{6cm}|} \hline
+\begin{longtable}{|l|p{7.4cm}|p{5.5cm}|} \hline
 {\bf Size} & {\bf Code} & {\bf Syntax} \\ \hline \hline
 ? & \tt HUNK\_HEADER & Defines all segments, see section~\ref{sec:hunk_header} for details \\ \hline
  & \tt $i = t_{\mbox{num}}$ & Start with the first hunk, $t_{\mbox{num}}$ is defined in the {\tt HUNK\_HEADER} \\ \hline
@@ -8764,19 +8769,19 @@ executable file AmigaDOS is able to bring to memory:
 32 & \tt $\quad\quad$ l & Read length of advisory hunk \\ \hline
 32 $\times$ l & & $l$ long words of hunk contents ignored \\ \hline
 & \tt $\quad$ \} & \\ \hline
-& \tt $\quad$ else if (h == HUNK\_END) i++; & Advance to next segment, see~\ref{sec:hunk_end} \\ \hline
-& \tt $\quad$ else if (h == HUNK\_BREAK) break; & Terminate loading an overlay, see~\ref{sec:hunk_break} \\ \hline
-? & \tt $\quad$ else if (h == HUNK\_NAME) parse\_NAME; & See section~\ref{sec:hunk_name} \\ \hline
-? & \tt $\quad$ else if (h == HUNK\_CODE) parse\_CODE; & See section~\ref{sec:hunk_code} \\ \hline
-? & \tt $\quad$ else if (h == HUNK\_DATA) parse\_DATA; & See section~\ref{sec:hunk_data} \\ \hline
-? & \tt $\quad$ else if (h == HUNK\_BSS) parse\_BSS; & See section~\ref{sec:hunk_bss} \\ \hline
-? & \tt $\quad$ else if (h == HUNK\_RELOC32) parse\_RELOC32; & See section~\ref{sec:hunk_reloc32} \\ \hline
-? & \tt $\quad$ else if (h == HUNK\_SYMBOL) parse\_SYMBOL; & See section~\ref{sec:hunk_symbol} \\ \hline
-? & \tt $\quad$ else if (h == HUNK\_DEBUG) parse\_DEBUG; & See section~\ref{sec:hunk_debug} \\ \hline
-? & \tt $\quad$ else if (h == HUNK\_OVERLAY) \{ parse\_OVERLAY; break \} & See section~\ref{sec:hunk_overlay} \\ \hline
-? & \tt $\quad$ else if (h == HUNK\_DREL32) parse\_RELOC32SHORT; & This is a compatibility kludge for some older versions of the \emph{dos.library}, new tools should use {\tt HUNK\_RELOC32SHORT} instead, see section~\ref{sec:hunk_reloc32short} \\ \hline
-? & \tt $\quad$ else if (h == HUNK\_RELOC32SHORT) parse\_RELOC32SHORT; & See section~\ref{sec:hunk_reloc32short} \\ \hline
-? & \tt $\quad$ else if (h == HUNK\_RELRELOC32) parse\_RELRELOC32; & See section~\ref{sec:hunk_relreloc32} \\ \hline
+& \tt $\quad$ else if (h == HUNK\_END) \par \qquad i++; & Advance to next segment, see~\ref{sec:hunk_end} \\ \hline
+& \tt $\quad$ else if (h == HUNK\_BREAK) \par \qquad break; & Terminate an overlay, see~\ref{sec:hunk_break} \\ \hline
+? & \tt $\quad$ else if (h == HUNK\_NAME) \par \qquad parse\_NAME; & See section~\ref{sec:hunk_name} \\ \hline
+? & \tt $\quad$ else if (h == HUNK\_CODE) \par \qquad parse\_CODE; & See section~\ref{sec:hunk_code} \\ \hline
+? & \tt $\quad$ else if (h == HUNK\_DATA) \par \qquad parse\_DATA; & See section~\ref{sec:hunk_data} \\ \hline
+? & \tt $\quad$ else if (h == HUNK\_BSS) \par \qquad parse\_BSS; & See section~\ref{sec:hunk_bss} \\ \hline
+? & \tt $\quad$ else if (h == HUNK\_RELOC32) \par \qquad parse\_RELOC32; & See section~\ref{sec:hunk_reloc32} \\ \hline
+? & \tt $\quad$ else if (h == HUNK\_SYMBOL) \par \qquad parse\_SYMBOL; & See section~\ref{sec:hunk_symbol} \\ \hline
+? & \tt $\quad$ else if (h == HUNK\_DEBUG) \par \qquad parse\_DEBUG; & See section~\ref{sec:hunk_debug} \\ \hline
+? & \tt $\quad$ else if (h == HUNK\_OVERLAY) \par \qquad \{ parse\_OVERLAY; break \} & See section~\ref{sec:hunk_overlay} \\ \hline
+? & \tt $\quad$ else if (h == HUNK\_DREL32) \par \qquad parse\_RELOC32SHORT; & Compatibility kludge \par Use {\tt HUNK\_RELOC32SHORT} instead\par See section~\ref{sec:hunk_reloc32short} \\ \hline
+? & \tt $\quad$ else if (h == HUNK\_RELOC32SHORT) \par \qquad parse\_RELOC32SHORT; & See section~\ref{sec:hunk_reloc32short} \\ \hline
+? & \tt $\quad$ else if (h == HUNK\_RELRELOC32) \par \qquad parse\_RELRELOC32; & See section~\ref{sec:hunk_relreloc32} \\ \hline
 & \tt $\quad$ else ERROR\_BAD\_HUNK; & Everything else is invalid \\ \hline
 & \tt \} while(true) & repeat until all hunks done \\ \hline
 \end{longtable}
@@ -8816,7 +8821,7 @@ executable, and the amount of memory to reserve for each
 segment.
     
 \begin{rkrmtabular}{Hunk Header Syntax} \label{table:hunk_header}
-\begin{tabular}{|l|p{6cm}|p{6cm}|} \hline
+\begin{tabular}{|l|p{7.4cm}|p{5.5cm}|} \hline
 {\bf Size} & {\bf Code} & {\bf Syntax} \\ \hline \hline
 32 & \tt HUNK\_HEADER [0x3f3] & Every executable file shall start with this hunk \\ \hline
 32 & \tt $0$ & Number of resident libraries, BCPL legacy, shall be zero \\ \hline
@@ -8829,7 +8834,7 @@ segment.
    & \tt $\quad$ if ($m[i]$ == 3) \{ & if the memory type is $3$ \\ \hline
 32 & $\quad \quad m_t[i]$ & Memory type is explicitly provided \\ \hline
    & \tt $\quad$ \tt \} & End of special memory condition \\ \hline
-   & \tt $\quad$ $m_a[i]$ = AllocVec(sizeof(BPTR) + $m_s[i] \times$ sizeof(LONG),$m_t[i] | $ \mbox{MEMF\_PUBLIC}) + sizeof(BPTR) &
+   & \tt $\quad$ $m_a[i]$ = AllocVec( \par \qquad sizeof(BPTR) + \par \qquad $m_s[i] \times$ sizeof(LONG), \par \qquad $m_t[i] | $ \mbox{MEMF\_PUBLIC}) + \par \qquad sizeof(BPTR) &
 Get memory for segment \\ \hline
    & \tt \} & End of loop over segments \\ \hline
 \end{tabular}
@@ -8884,7 +8889,7 @@ i.e. compiled code and constant data.
 
 The structure of this hunk is as follows:
 \begin{rkrmtabular}{Hunk Code Syntax} \label{table:hunk_code}
-\begin{tabular}{|l|p{6cm}|p{6cm}|} \hline
+\begin{tabular}{|l|p{7.4cm}|p{5.5cm}|} \hline
 {\bf Size} & {\bf Code} & {\bf Syntax} \\ \hline \hline
    & \tt HUNK\_CODE [0x3e9] & A hunk describing a segment of code and constant data \\ \hline
 32 & \tt $l \le m_s[i]$ & Size of the payload\\ \hline
@@ -8908,7 +8913,7 @@ initialized data. \mkey{HUNK\_DATA}
 
 The structure of this hunk is otherwise identical to {\tt HUNK\_CODE}:
 \begin{rkrmtabular}{Hunk Data Syntax} \label{table:hunk_data}
-\begin{tabular}{|l|p{6cm}|p{6cm}|} \hline
+\begin{tabular}{|l|p{7.4cm}|p{5.5cm}|} \hline
 {\bf Size} & {\bf Code} & {\bf Syntax} \\ \hline \hline
    & \tt HUNK\_CODE [0x3ea] & A hunk describing a segment of data\\ \hline
 32 & \tt $l \le m_s[i]$ & Size of the payload\\ \hline
@@ -8930,7 +8935,7 @@ payload. \mkey{HUNK\_BSS}
 
 The structure of this hunk is as follows:
 \begin{rkrmtabular}{Hunk BSS Syntax} \label{table:hunk_bss}
-\begin{tabular}{|l|p{6cm}|p{6cm}|} \hline
+\begin{tabular}{|l|p{7.4cm}|p{5.5cm}|} \hline
 {\bf Size} & {\bf Code} & {\bf Syntax} \\ \hline \hline
    & \tt HUNK\_CODE [0x3eb] & A hunk describing zero-initialized data\\ \hline
 32 & \tt $l \le m_s[i]$ & Size of the segment in long-words\\ \hline
@@ -8957,7 +8962,7 @@ indicated offsets of the previous segments. \mkey{HUNK\_RELOC32}
 
 The structure of this hunk is as follows:
 \begin{rkrmtabular}{Hunk Reloc32 Syntax} \label{table:hunk_reloc32}
-\begin{longtable}{|l|p{6cm}|p{6cm}|} \hline
+\begin{longtable}{|l|p{7.4cm}|p{5.5cm}|} \hline
 {\bf Size} & {\bf Code} & {\bf Syntax} \\ \hline \hline
    & \tt HUNK\_RELOC32 [0x3ec] & A hunk containing relocation information\\ \hline
    & \tt do \{ & Loop over relocation entries \\ \hline
@@ -8997,7 +9002,7 @@ appropriately. \mkey{HUNK\_RELOC32SHORT}
 
 The structure of this hunk is as follows:
 \begin{rkrmtabular}{Hunk Reloc32Short Syntax} \label{table:hunk_reloc32short}
-\begin{longtable}{|l|p{6cm}|p{6cm}|} \hline
+\begin{longtable}{|l|p{7.4cm}|p{5.5cm}|} \hline
 {\bf Size} & {\bf Code} & {\bf Syntax} \\ \hline \hline
    & \tt HUNK\_RELOC32SHORT [0x3fc] & A hunk containing relocation information\\ \hline
    & \tt $p$=$1$ & Padding count\\ \hline
@@ -9033,7 +9038,7 @@ segments. \mkey{HUNK\_RELRELOC32}
 
 The structure of this hunk is as follows:
 \begin{rkrmtabular}{Hunk RelReloc32 Syntax} \label{table:hunk_relreloc32}
-\begin{tabular}{|l|p{6cm}|p{6cm}|} \hline
+\begin{tabular}{|l|p{7.4cm}|p{5.5cm}|} \hline
 {\bf Size} & {\bf Code} & {\bf Syntax} \\ \hline \hline
    & \tt HUNK\_RELRELOC32 [0x3fd] & A hunk containing relocation information\\ \hline
    & \tt do \{ & Loop over relocation entries \\ \hline
@@ -9042,7 +9047,7 @@ The structure of this hunk is as follows:
 32 & \tt $\quad$ $j \in [0,t_{\mbox{size}}-1]$ & Read the hunk to which the relocation is relative to \\ \hline
    & \tt $\quad$ do \{ & Loop over the relocation entries \\ \hline
 32 & \tt $\quad\quad$ $r_o \in [0,m_s[i] \times 4 - 4]$ & Relocation offset into this hunk as byte address \\ \hline
-   & \tt $\quad\quad$ (UBYTE **)($m_a[i]+r_o$) += $m_a[j] - m_a[i] - r_o$ & Fixup this hunk by the start
+   & \tt $\quad\quad$ (UBYTE **)($m_a[i]+r_o$) += \par \qquad $m_a[j] - m_a[i] - r_o$ & Fixup this hunk by the start
 address of the selected hunk \\ \hline
    & \tt $\quad$ \} while(-{}-c); & until all entries are used \\ \hline
    & \tt \} while(true); & until a zero-count is read. \\ \hline
@@ -9072,7 +9077,7 @@ together to a single segment. \mkey{HUNK\_NAME}
 
 The structure of this hunk is as follows:
 \begin{rkrmtabular}{Hunk Name Syntax} \label{table:hunk_name}
-\begin{tabular}{|l|p{6cm}|p{6cm}|} \hline
+\begin{tabular}{|l|p{7.4cm}|p{5.5cm}|} \hline
 {\bf Size} & {\bf Code} & {\bf Syntax} \\ \hline \hline
    & \tt HUNK\_NAME [0x3e8] & A hunk assigning a name to the current segment\\ \hline
 32 & \tt l & Size of the name in long-words \\ \hline
@@ -9102,7 +9107,7 @@ for debugging purposes. \mkey{HUNK\_SYMBOL}
 
 The syntax of this hunk reads as follows:
 \begin{rkrmtabular}{Hunk Symbol Syntax} \label{table:hunk_symbol}
-\begin{tabular}{|l|p{6cm}|p{6cm}|} \hline
+\begin{tabular}{|l|p{7.4cm}|p{5.5cm}|} \hline
 {\bf Size} & {\bf Code} & {\bf Syntax} \\ \hline \hline
    & \tt HUNK\_SYMBOL [0x3f0] & A hunk assigning symbols to positions within a segment\\ \hline
    & \tt do \{ & Repeat $\ldots$ \\ \hline
@@ -9185,15 +9190,13 @@ into the hunk to the code that was compiled from this line.
 
 The syntax of this hunk is as follows:
 \begin{rkrmtabular}{Hunk Debug Syntax} \label{table:hunk_debug}
-\begin{longtable}{|l|p{6cm}|p{6cm}|} \hline
+\begin{longtable}{|l|p{7.4cm}|p{5.5cm}|} \hline
 {\bf Size} & {\bf Code} & {\bf Syntax} \\ \hline \hline    
    & HUNK\_DEBUG [0x3f1] & Hunk including debug information \\ \hline
 32 & l > 3 & Size of the hunk in long-words \\ \hline
 \multicolumn{3}{|l|}{Compiler- and configuration specific data for line-debug data:} \\ \hline
 32 & \tt $h_o$ & Offset of symbols into the hunk \\ \hline
-32 & \tt 'LINE' & These four bytes shall contain the
-ASCII characters {\tt 'L','I','N','E'} identifying the type of the
-debug information \\ \hline
+32 & \tt 'LINE' & Identifies the type of debug information \\ \hline
 32 & \tt $l_n$ & Size of the source file name in long-words \\ \hline
 32 $\times l_n$ & $n_f$ & source file name that compiled to the current segment in $l_n$ long-words \\ \hline
    & \tt $l -= 3 + l_n$ & Remove long-words read so far \\ \hline
@@ -9230,7 +9233,7 @@ This hunk terminates the current segment and advances to the next
 segment, if any. It does not contain any data. \mkey{HUNK\_END}
 
 \begin{rkrmtabular}{Hunk End Syntax} \label{table:hunk_end}
-\begin{tabular}{|l|p{6cm}|p{6cm}|} \hline
+\begin{tabular}{|l|p{7.4cm}|p{5.5cm}|} \hline
 {\bf Size} & {\bf Code} & {\bf Syntax} \\ \hline \hline
   & \tt HUNK\_END [0x3f2] & Terminate a segment\\ \hline
 \end{tabular}
@@ -9623,7 +9626,7 @@ include an overlay manager. Each entry in its overlay table describes
 a symbol that is located in one of the overlay nodes. The format of
 {\tt HUNK\_OVERLAY} reads as follows:
 \begin{rkrmtabular}{MANX Hunk Overlay Syntax} \label{table:hunk_overlay}%
-\begin{longtable}{|l|p{6cm}|p{6cm}|} \hline
+\begin{longtable}{|l|p{7.4cm}|p{5.5cm}|} \hline
 {\bf Size} & {\bf Code} & {\bf Syntax} \\ \hline \hline
    & \tt HUNK\_OVERLAY [0x3f5] & Overlay table definition\\ \hline
 32 & \tt $l$ & Size of the overlay table, it is $l+1$ long-words large. \\ \hline
@@ -9790,7 +9793,7 @@ overlay node. The hunk itself does not contain any
 data. \mkey{HUNK\_BREAK}
 
 \begin{rkrmtabular}{Hunk Break Syntax} \label{table:hunk_break}
-\begin{tabular}{|l|p{6cm}|p{6cm}|} \hline
+\begin{tabular}{|l|p{7.4cm}|p{5.5cm}|} \hline
 {\bf Size} & {\bf Code} & {\bf Syntax} \\ \hline \hline
   & \tt HUNK\_BREAK [0x3f6] & Terminate a segment\\ \hline
 \end{tabular}
@@ -10283,7 +10286,7 @@ struct ManxOverlayHeader {
 
 The overlay structure for the MANX compiler reads on disk as follows:
 \begin{rkrmtabular}{Hunk Overlay Syntax} \label{table:hunk_overlay_manx}%
-\begin{longtable}{|l|p{6cm}|p{6cm}|} \hline
+\begin{longtable}{|l|p{7.4cm}|p{5.5cm}|} \hline
 {\bf Size} & {\bf Code} & {\bf Syntax} \\ \hline \hline
    & \tt HUNK\_OVERLAY [0x3f5] & Overlay table definition for MANX\\ \hline
 32 & \tt $l$ & Size of the overlay table, it is $l+1$ long-words large. \\ \hline
@@ -10358,7 +10361,7 @@ by~$o_t[i]$, that is, by {\tt ot\_TrampolineOff}.
 
 Each trampoline looks as follows on disk:
 \begin{rkrmtabular}{MANX Overlay Trampoline} \label{table:trampoline_manx}%
-\begin{longtable}{|l|p{6cm}|p{6cm}|} \hline
+\begin{longtable}{|l|p{7.4cm}|p{5.5cm}|} \hline
 {\bf Size} & {\bf Code} & {\bf Syntax} \\ \hline \hline
 16 & \tt 0x6100 & 68K Opcode of {\tt bsr.w} \\ \hline
 16 & \tt $t_j$  & Branch offset to overlay manager \\ \hline
@@ -10674,7 +10677,7 @@ as output.
 
 The overall structure of an object file is depicted in table~\ref{table:objfile}:
 \begin{rkrmtabular}{Object File Format} \label{table:objfile}
-\begin{longtable}{|l|p{6cm}|p{6cm}|} \hline
+\begin{longtable}{|l|p{7.4cm}|p{5.5cm}|} \hline
 {\bf Size} & {\bf Code} & {\bf Syntax} \\ \hline \hline
 ?  & \tt HUNK\_UNIT & Defines the start of a translation unit, see~\ref{sec:hunk_unit} \\ \hline
    & \tt do \{ & Multiple segments follow \\ \hline
@@ -10725,7 +10728,7 @@ linkers. \mkey{HUNK\_UNIT}
 
 The structure of this hunk is as follows:
 \begin{rkrmtabular}{Hunk Unit Syntax} \label{table:hunk_unit}
-\begin{tabular}{|l|p{6cm}|p{6cm}|} \hline
+\begin{tabular}{|l|p{7.4cm}|p{5.5cm}|} \hline
 {\bf Size} & {\bf Code} & {\bf Syntax} \\ \hline \hline
    & \tt HUNK\_UNIT [0x3e7] & A hunk identifying a translation unit\\ \hline
 32 & \tt l & Size of the name in long-words \\ \hline
@@ -10753,7 +10756,7 @@ within the segment are only 16 bits in size, and refer to PC-relative
 addressing modes, including PC-relative 16-bit wide branches.
 
 \begin{rkrmtabular}{Hunk Reloc16 Syntax} \label{table:hunk_reloc16}
-\begin{tabular}{|l|p{6cm}|p{6cm}|} \hline
+\begin{tabular}{|l|p{7.4cm}|p{5.5cm}|} \hline
 {\bf Size} & {\bf Code} & {\bf Syntax} \\ \hline \hline
    & \tt HUNK\_RELOC16 [0x3ed] & 16-bit PC-relative relocation information\\ \hline
    & \tt \ldots & See table~\ref{table:hunk_relreloc32} \\ \hline
@@ -10814,7 +10817,7 @@ hunk. This will instruct the linker to merge hunks of the same type.
 \smallskip{}
 
 \begin{rkrmtabular}{Hunk Reloc8 Syntax} \label{table:hunk_reloc8}
-\begin{tabular}{|l|p{6cm}|p{6cm}|} \hline
+\begin{tabular}{|l|p{7.4cm}|p{5.5cm}|} \hline
 {\bf Size} & {\bf Code} & {\bf Syntax} \\ \hline \hline
    & \tt HUNK\_RELOC8 [0x3ee] & 8-bit PC-relative relocation information\\ \hline
    & \tt \ldots & See table~\ref{table:hunk_relreloc32} \\ \hline
@@ -10852,7 +10855,7 @@ which this hunk is merged; in some cases, linkers can include an additional
 adjustment, see the next paragraph for details.
 
 \begin{rkrmtabular}{Hunk DReloc32 Syntax} \label{table:hunk_dreloc32}
-\begin{tabular}{|l|p{6cm}|p{6cm}|} \hline
+\begin{tabular}{|l|p{7.4cm}|p{5.5cm}|} \hline
 {\bf Size} & {\bf Code} & {\bf Syntax} \\ \hline \hline
    & \tt HUNK\_DRELOC32 [0x3f7] & 32-bit base-relative relocation information\\ \hline
    & \tt \ldots & See table~\ref{table:hunk_reloc32} \\ \hline
@@ -10886,7 +10889,7 @@ adjusted by the position of the first byte of this hunk relative to the
 start of the {\tt \_\_MERGED} hunk into which this hunk is merged. 
 
 \begin{rkrmtabular}{Hunk DReloc16 Syntax} \label{table:hunk_dreloc16}
-\begin{tabular}{|l|p{6cm}|p{6cm}|} \hline
+\begin{tabular}{|l|p{7.4cm}|p{5.5cm}|} \hline
 {\bf Size} & {\bf Code} & {\bf Syntax} \\ \hline \hline
    & \tt HUNK\_DRELOC16 [0x3f8] & 16-bit base-relative relocation information\\ \hline
    & \tt \ldots & See table~\ref{table:hunk_reloc32} \\ \hline
@@ -10916,7 +10919,7 @@ adjusted by the position of the first byte of this hunk relative to the
 start of the {\tt \_\_MERGED} hunk into which this hunk is merged.
 
 \begin{rkrmtabular}{Hunk DReloc8 Syntax} \label{table:hunk_dreloc8}
-\begin{tabular}{|l|p{6cm}|p{6cm}|} \hline
+\begin{tabular}{|l|p{7.4cm}|p{5.5cm}|} \hline
 {\bf Size} & {\bf Code} & {\bf Syntax} \\ \hline \hline
    & \tt HUNK\_DRELOC8 [0x3f9] & 8-bit base-relative relocation information\\ \hline
    & \tt \ldots & See table~\ref{table:hunk_reloc32} \\ \hline
@@ -10934,7 +10937,7 @@ resolve symbols with external linkage.\mkey{HUNK\_EXT}
 
 The syntax of this hunk reads as follows:
 \begin{rkrmtabular}{Hunk EXT Syntax} \label{table:hunk_ext}
-\begin{longtable}{|l|p{6cm}|p{6cm}|} \hline
+\begin{longtable}{|l|p{7.4cm}|p{5.5cm}|} \hline
 {\bf Size} & {\bf Code} & {\bf Syntax} \\ \hline \hline
    & \tt HUNK\_EXT [0x3ef] & A hunk assigning symbols to positions within a segment\\ \hline
    & \tt do \{ & Repeat $\ldots$ \\ \hline
@@ -11088,7 +11091,7 @@ that are repeated until the end of the file.
 The overall format of indexed libraries is depicted in
 table~\ref{table:indexedlib}.
 \begin{rkrmtabular}{Indexed Library} \label{table:indexedlib}
-\begin{tabular}{|l|p{6cm}|p{6cm}|} \hline
+\begin{tabular}{|l|p{7.4cm}|p{5.5cm}|} \hline
 {\bf Size} & {\bf Code} & {\bf Syntax} \\ \hline \hline
    & \tt do \{ & Multiple repetitions of the following \\ \hline
 ?  & \tt $\quad$ HUNK\_LIB [0x3fa] & Object code modules, see section~\ref{sec:hunk_lib} \\ \hline
@@ -11107,7 +11110,7 @@ hunk, with a couple of changes noted below.
 
 Table~\ref{table:hunk_lib} depicts the syntax of this hunk.
 \begin{rkrmtabular}{Hunk LIB Format} \label{table:hunk_lib}
-\begin{longtable}{|l|p{6cm}|p{6cm}|} \hline
+\begin{longtable}{|l|p{7.4cm}|p{5.5cm}|} \hline
 {\bf Size} & {\bf Code} & {\bf Syntax} \\ \hline \hline
 ?  & \tt HUNK\_LIB [0x3fa] & Identifies the start of an indexed library \\ \hline
 32 & \tt $l$ & Length of this hunk in long-words not including the header and this length field \\ \hline
@@ -11163,7 +11166,7 @@ preceding {\tt HUNK\_LIB}.
 
 Table~\ref{table:hunk_index} depicts the syntax of this hunk.
 \begin{rkrmtabular}{Hunk Index Format} \label{table:hunk_index}
-\begin{longtable}{|l|p{6cm}|p{6cm}|} \hline
+\begin{longtable}{|l|p{7.4cm}|p{5.5cm}|} \hline
 {\bf Size} & {\bf Code} & {\bf Syntax} \\ \hline \hline
 32 & \tt HUNK\_INDEX [0x3fb] & Defines symbols and references into the library \\ \hline
 32 & \tt $l$   & Length of this hunk in long-words \\ \hline
