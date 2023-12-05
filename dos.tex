@@ -9107,9 +9107,9 @@ for debugging purposes. \mkey{HUNK\_SYMBOL}
 
 The syntax of this hunk reads as follows:
 \begin{rkrmtabular}{Hunk Symbol Syntax} \label{table:hunk_symbol}
-\begin{tabular}{|l|p{7.4cm}|p{5.5cm}|} \hline
+\begin{tabular}{|l|p{7.4cm}|p{5.4cm}|} \hline
 {\bf Size} & {\bf Code} & {\bf Syntax} \\ \hline \hline
-   & \tt HUNK\_SYMBOL [0x3f0] & A hunk assigning symbols to positions within a segment\\ \hline
+   & \tt HUNK\_SYMBOL [0x3f0] & A hunk assigning symbols to offsets within a segment\\ \hline
    & \tt do \{ & Repeat $\ldots$ \\ \hline
 8  & \tt $\quad$ $s_t$ & Symbol type \\ \hline
 24 & \tt $\quad$ $s_l$ & Symbol length in long-words \\ \hline
@@ -9255,11 +9255,17 @@ form a \emph{BPTR} to the following segment of the loaded binary, or
 {\tt ZERO} for the last segment.
 \smallskip{}
 
-Segment lists describe loaded executables and as such may be used to
-created processes through {\tt CreateNewProc()}\key{CreateNewProc()}
-explained in section~\ref{sec:createnewproc} or run as command within
-the current process via {\tt RunCommand}\key{RunCommand()} introduced
-in section~\ref{sec:runcommand}.
+Segment lists describe loaded executables. The loaded code can be, for
+example, either launched as a new process through {\tt
+  CreateNewProc()}\key{CreateNewProc()} explained in
+section~\ref{sec:createnewproc} or run as command within the current
+process via {\tt RunCommand}\key{RunCommand()} introduced in
+section~\ref{sec:runcommand}. Processes and commands using the C or
+assembler binding are started from offset 0 of the first hunk
+loaded. Segments loaded as BCPL handlers through a particular {\tt
+  GLOBVEC} entry, see table~\ref{table:gvvalues}
+in chapter~\ref{sec:devicelist} use the mechanism of
+section~\ref{sec:bcplbinding} instead.
 
 \subsection{Loading an Executable} \label{sec:loadseg}
 
@@ -9382,11 +9388,12 @@ only a copy of the {\tt fh} argument provided to {\tt
 \smallskip{}
 
 The {\tt AllocMem()} function allocates {\tt d0} bytes of memory,
-using requirement flags from {\tt exec/memory.h} such as {\tt
-  MEMF\_CHIP} to require chip memory or {\tt MEMF\_FAST} for fast
-memory. This function shall return a pointer to the allocated memory
-in register {\tt d0}, or {\tt NULL} in case of failure. Register {\tt a6}
-is loaded with a pointer to the \emph{exec.library}.
+satisfying the requirements as contained in {\tt d1}. The requirements
+are encoded as flags from {\tt exec/memory.h} such as {\tt MEMF\_CHIP}
+to request chip memory or {\tt MEMF\_FAST} for fast memory. This
+function shall return a pointer to the allocated memory in register
+{\tt d0}, or {\tt NULL} in case of failure. Register {\tt a6} is
+loaded with a pointer to the \emph{exec.library}.
 \smallskip{}
 
 The {\tt FreeMem()} function releases a block of {\tt d0} bytes
@@ -9403,14 +9410,14 @@ value identifying the source. This argument is not interpreted, it is
 rather passed into {\tt funcs->ReadFunc()} in register {\tt d1}.
 \smallskip{}
 
-When allocating memory, the {\tt InternalLoadSeg()} function follows
-the conventions of the {\tt AllocVec()} and {\tt FreeVec()} functions
-and stores the number of allocated bytes in the first four bytes of
-the allocated memory block. In specific, the memory allocator and
-memory releaser functions provided in the {\tt LoadSegFuncs} structure
-\emph{do not need} to store the memory sizes, and the exec {\tt
-  AllocMem()} and {\tt FreeMem()} functions satisfy the interfaces for
-{\tt InternalLoadSeg()} function already.
+The {\tt InternalLoadSeg()} function follows the protocol of the {\tt
+  AllocVec()} and {\tt FreeVec()} functions and stores the number of
+allocated bytes in the first four bytes of every memory block
+allocated. In specific, the memory allocator and memory releaser
+functions provided in the {\tt LoadSegFuncs} structure \emph{do not
+  need} to store the memory sizes, and the exec {\tt AllocMem()} and
+{\tt FreeMem()} functions satisfy the interfaces for {\tt
+  InternalLoadSeg()} function already.
 \smallskip{}
 
 This function does not set {\tt IoErr()}\key{IoErr()} consistently,
@@ -9639,7 +9646,7 @@ a symbol that is located in one of the overlay nodes. The format of
    & \tt $s  = 0$   & Start with symbol $0$ \\ \hline
    & \tt while($l \ge 0$) \{ & Repeat over the overlay table \\ \hline
 
-32 & \tt $\quad$ $o_p[s]$ & Absolute file offset of the {\tt
+32 & \tt $\quad$ $o_p[s]$ & Absolute offset of the {\tt
   HUNK\_HEADER} of the overlay node containing the symbol. \\ \hline
 64 & \tt $\quad$ & Two reserved long-words. \\ \hline
 
@@ -9913,8 +9920,8 @@ perform potentially different algorithms.
 \smallskip{}
 
 First, it finds the previous segment upfront the segment to be
-unloaded, and cleans there the {\tt NextSegment} pointer to unlink all
-following segments.  Then these following segments are released
+unloaded, and cleans its {\tt NextSegment} pointer to unlink all
+following segments. Then the following segments are released
 through {\tt FreeVec()} or, in case a custom allocator was provided for
 {\tt InternalLoadSeg()}, whatever memory release function is appropriate.
 \smallskip{}
@@ -10076,13 +10083,13 @@ Start:
         dc.l       $ABCD                ;Magic longword for UnLoadSeg
 
 ;* The next four LWs are filled by the loader (LoadSeg())
-ol_FileHandle:  dc.l 0                  ;Overlay file handle (points to me)
-ol_OverlayTab:  dc.l 0                  ;Overlay table as found in the overlay hunk
+ol_FileHandle:  dc.l 0                  ;Overlay file handle
+ol_OverlayTab:  dc.l 0                  ;Overlay table 
 ol_HunkTable:   dc.l 0                  ;BPTR to Overlay hunk table
-ol_GlobVec:     dc.l 0                  ;BPTR to global vector (what for ?)
+ol_GlobVec:     dc.l 0                  ;BPTR to global vector (unused)
 
-                dc.l MajikLibWord       ;Majik library word as identifier
-                dc.b 7,"Overlay"        ;Majik identifier
+                dc.l MajikLibWord       ;Identifier word
+                dc.b 7,"Overlay"        ;Identifier
 
 ;* the following data is specific to this manger
 
@@ -10107,15 +10114,15 @@ ol_DOSBase:     dc.l 0                  ;to libraries
         lsl.l #2,d0
         adda.l d0,a4
         move.l ot_Ordinate(a3),d0       ;get required ordinate level
-        cmp.l (a4),d0                   ;compare with current ordinate level
+        cmp.l (a4),d0                   ;compare ordinate level
         beq.s .gotsegment
                                         ;not correct level
-                                        ;clear all other entries behind this
+                                        ;clear all other entries
         move.l d0,(a4)+                 ;fill with new overlay entries
 
         moveq #0,d1
         do                              ;macros in action! ;-)
-         tst.l (a4)                     ;terminate, if end of table found
+         tst.l (a4)                     ;terminate on end of table
          break.s eq
          move.l d1,(a4)+                ;clear this
         loop.s
@@ -10275,12 +10282,12 @@ that data within the overlay hunk is organized differently:
 
 \begin{verbatim}
 struct ManxOverlayHeader {
-    UWORD          oh_Jump[2];   /* Forms a branch to the startup code */
-    LONG           oh_Magic;     /* Shall be 0x0000abcd                */
-    BPTR           oh_FileHandle;/* Filled by the loader with the fh   */
-    struct MANXOv *oh_OVTab;     /* Overlay table from HUNK_OVERLAY    */
-    BPTR           oh_Segments;  /* Array of segment BPTRs             */
-    BPTR           oh_GV;        /* standard Global Vector             */
+  UWORD          oh_Jump[2];   /* Forms a branch to the startup code */
+  LONG           oh_Magic;     /* Shall be 0x0000abcd                */
+  BPTR           oh_FileHandle;/* Filled by the loader with the fh   */
+  struct MANXOv *oh_OVTab;     /* Overlay table from HUNK_OVERLAY    */
+  BPTR           oh_Segments;  /* Array of segment BPTRs             */
+  BPTR           oh_GV;        /* standard Global Vector             */
 };
 \end{verbatim}
 
@@ -10293,7 +10300,7 @@ The overlay structure for the MANX compiler reads on disk as follows:
 \multicolumn{3}{|l|}{Format for the MANX overlay manager, $l+1$ long-words.} \\ \hline
 32 & \tt $o_d$ & Number of nodes in the overlay, excluding the root node \\ \hline
    & \tt for($i$ = 1;$i$ < $o_d$;i++) \{ & For all nodes, excluding the root node \\ \hline
-32 & \tt $\quad$ $o_p[i]$ & Absolute file offset of the {\tt HUNK\_HEADER} of the overlay node \\ \hline
+32 & \tt $\quad$ $o_p[i]$ & Absolute offset of the {\tt HUNK\_HEADER} of the overlay node \\ \hline
 16 & \tt $\quad$ $o_t[i]$ & Offset of the first trampoline relative to the
 data hunk of the root node \\ \hline
 16 & \tt $\quad$ $o_s[i]$ & Offset to the symbol table relative to $o_p[0]$ \\ \hline
@@ -10677,30 +10684,30 @@ as output.
 
 The overall structure of an object file is depicted in table~\ref{table:objfile}:
 \begin{rkrmtabular}{Object File Format} \label{table:objfile}
-\begin{longtable}{|l|p{7.4cm}|p{5.5cm}|} \hline
+\begin{longtable}{|l|p{8cm}|p{5cm}|} \hline
 {\bf Size} & {\bf Code} & {\bf Syntax} \\ \hline \hline
 ?  & \tt HUNK\_UNIT & Defines the start of a translation unit, see~\ref{sec:hunk_unit} \\ \hline
    & \tt do \{ & Multiple segments follow \\ \hline
 ?  & \tt $\quad$ HUNK\_NAME & Name of the hunk, defines hunks to merge, see~\ref{sec:hunk_name} \\ \hline
 2  & \tt $\quad$ $m_t$ & Read the memory type of the next hunk \\ \hline
 30 & \tt $\quad$ $h_t$ & Read the next hunk type \\ \hline
-   & \tt $\quad$ if ($h_t$ == HUNK\_CODE) parse\_CODE & Code and constant data, see~\ref{sec:hunk_code} \\ \hline
-   & \tt $\quad$ else if ($h_t$ == HUNK\_DATA) parse\_DATA & Data, see~\ref{sec:hunk_data} \\ \hline
-   & \tt $\quad$ else if ($h_t$ == HUNK\_BSS) parse\_BSS & Zero-initialized data, see~\ref{sec:hunk_bss} \\ \hline
+   & \tt $\quad$ if ($h_t$ == HUNK\_CODE) \par \quad \qquad parse\_CODE & Code and constant data, see~\ref{sec:hunk_code} \\ \hline
+   & \tt $\quad$ else if ($h_t$ == HUNK\_DATA) \par \quad \qquad parse\_DATA & Data, see~\ref{sec:hunk_data} \\ \hline
+   & \tt $\quad$ else if ($h_t$ == HUNK\_BSS) \par \quad \qquad parse\_BSS & Zero-initialized data, see~\ref{sec:hunk_bss} \\ \hline
    & \tt $\quad$ else if ($m_t$ != 0) ERROR\_BAD\_HUNK & Upper bits shall be 0 for all other hunks \\ \hline
    & \tt $\quad$ else do \{ & Loop over auxiliary information \\ \hline
-   & \tt $\quad\quad$ if ($h_t$ == HUNK\_RELOC32) parse\_RELOC32 & 32-bit relocation, see~\ref{sec:hunk_reloc32} \\ \hline
-   & \tt $\quad\quad$ else if ($h_t$ == HUNK\_RELOC32SHORT) parse\_RELOC32SHORT & 32-bit relocation, see~\ref{sec:hunk_reloc32short} \\ \hline
-   & \tt $\quad\quad$ else if ($h_t$ == HUNK\_RELRELOC32) parse\_RELRELOC32 & 32-bit PC-relative relocation, see~\ref{sec:hunk_relreloc32} \\ \hline
-   & \tt $\quad\quad$ else if ($h_t$ == HUNK\_RELOC16) parse\_RELOC16 & 16-bit PC-relative relocation, see~\ref{sec:hunk_reloc16} \\ \hline
-   & \tt $\quad\quad$ else if ($h_t$ == HUNK\_RELOC8) parse\_RELOC8 & 8-bit PC-relative relocation, see~\ref{sec:hunk_reloc16} \\ \hline
-   & \tt $\quad\quad$ else if ($h_t$ == HUNK\_DRELOC32) parse\_RELOC32 & 32-bit base-relative relocation, see~\ref{sec:hunk_dreloc32} \\ \hline
-   & \tt $\quad\quad$ else if ($h_t$ == HUNK\_DRELOC16) parse\_RELOC16 & 16-bit base-relative relocation, see~\ref{sec:hunk_dreloc16} \\ \hline
-   & \tt $\quad\quad$ else if ($h_t$ == HUNK\_DRELOC8) parse\_RELOC8 & 8-bit base-relative relocation, see~\ref{sec:hunk_dreloc8} \\ \hline
-   & \tt $\quad\quad$ else if ($h_t$ == HUNK\_EXT) parse\_EXT & External symbol definition, see~\ref{sec:hunk_ext} \\ \hline
-   & \tt $\quad\quad$ else if ($h_t$ == HUNK\_SYMBOL) parse\_SYMBOL & Symbol definition, see~\ref{sec:hunk_symbol} \\ \hline
-   & \tt $\quad\quad$ else if ($h_t$ == HUNK\_DEBUG) parse\_DEBUG & Debug information, see~\ref{sec:hunk_debug} \\ \hline
-   & \tt $\quad\quad$ else if ($h_t$ == HUNK\_END) break & abort this segment \\ \hline
+   & \tt $\quad\quad$ if ($h_t$ == HUNK\_RELOC32) \par \quad \qquad parse\_RELOC32 & 32-bit relocation, see~\ref{sec:hunk_reloc32} \\ \hline
+   & \tt $\quad\quad$ else if ($h_t$ == HUNK\_RELOC32SHORT) \par \quad \qquad parse\_RELOC32SHORT & 32-bit relocation, see~\ref{sec:hunk_reloc32short} \\ \hline
+   & \tt $\quad\quad$ else if ($h_t$ == HUNK\_RELRELOC32) \par \quad \qquad parse\_RELRELOC32 & 32-bit PC-relative relocation,\par see~\ref{sec:hunk_relreloc32} \\ \hline
+   & \tt $\quad\quad$ else if ($h_t$ == HUNK\_RELOC16)\par \quad \qquad  parse\_RELOC16 & 16-bit PC-relative relocation,\par see~\ref{sec:hunk_reloc16} \\ \hline
+   & \tt $\quad\quad$ else if ($h_t$ == HUNK\_RELOC8) \par \quad \qquad parse\_RELOC8 & 8-bit PC-relative relocation,\par  see~\ref{sec:hunk_reloc16} \\ \hline
+   & \tt $\quad\quad$ else if ($h_t$ == HUNK\_DRELOC32)\par \quad \qquad  parse\_RELOC32 & 32-bit base-relative relocation,\par see~\ref{sec:hunk_dreloc32} \\ \hline
+   & \tt $\quad\quad$ else if ($h_t$ == HUNK\_DRELOC16) \par \quad \qquad parse\_RELOC16 & 16-bit base-relative relocation,\par see~\ref{sec:hunk_dreloc16} \\ \hline
+   & \tt $\quad\quad$ else if ($h_t$ == HUNK\_DRELOC8) \par \quad \qquad parse\_RELOC8 & 8-bit base-relative relocation,\par see~\ref{sec:hunk_dreloc8} \\ \hline
+   & \tt $\quad\quad$ else if ($h_t$ == HUNK\_EXT) \par \quad \qquad parse\_EXT & External symbol definition,\par see~\ref{sec:hunk_ext} \\ \hline
+   & \tt $\quad\quad$ else if ($h_t$ == HUNK\_SYMBOL) \par \quad \qquad parse\_SYMBOL & Symbol definition, see~\ref{sec:hunk_symbol} \\ \hline
+   & \tt $\quad\quad$ else if ($h_t$ == HUNK\_DEBUG) \par \quad \qquad parse\_DEBUG & Debug information, see~\ref{sec:hunk_debug} \\ \hline
+   & \tt $\quad\quad$ else if ($h_t$ == HUNK\_END) \par \quad \qquad break & abort this segment \\ \hline
    & \tt $\quad\quad$ else ERROR\_INVALID\_HUNK & an error \\ \hline
 32 & \tt $\quad\quad$ $h_t$ & Read next hunk type \\ \hline
    & \tt $\quad$ \} while(true) & Repeated until {\tt HUNK\_END} \\ \hline
@@ -10817,7 +10824,7 @@ hunk. This will instruct the linker to merge hunks of the same type.
 \smallskip{}
 
 \begin{rkrmtabular}{Hunk Reloc8 Syntax} \label{table:hunk_reloc8}
-\begin{tabular}{|l|p{7.4cm}|p{5.5cm}|} \hline
+\begin{tabular}{|l|p{7.4cm}|p{5cm}|} \hline
 {\bf Size} & {\bf Code} & {\bf Syntax} \\ \hline \hline
    & \tt HUNK\_RELOC8 [0x3ee] & 8-bit PC-relative relocation information\\ \hline
    & \tt \ldots & See table~\ref{table:hunk_relreloc32} \\ \hline
@@ -10937,7 +10944,7 @@ resolve symbols with external linkage.\mkey{HUNK\_EXT}
 
 The syntax of this hunk reads as follows:
 \begin{rkrmtabular}{Hunk EXT Syntax} \label{table:hunk_ext}
-\begin{longtable}{|l|p{7.4cm}|p{5.5cm}|} \hline
+\begin{longtable}{|l|p{7.0cm}|p{5.8cm}|} \hline
 {\bf Size} & {\bf Code} & {\bf Syntax} \\ \hline \hline
    & \tt HUNK\_EXT [0x3ef] & A hunk assigning symbols to positions within a segment\\ \hline
    & \tt do \{ & Repeat $\ldots$ \\ \hline
@@ -10965,7 +10972,7 @@ zero-padded; the name is not zero-terminated if it does fill an
 integer number of long-words, though.
 \medskip{}
 
-The symbol type $s_t$ defines the nature of the symbol. The symbol
+The symbol type $s_t$ defines the nature of the symbol. The 
 types are defined in {\tt dos/doshunks.h} and shared with the {\tt
   HUNK\_SYMBOL} hunk, see section~\ref{sec:hunk_symbol}.\key{HUNK\_SYMBOL}
 \smallskip{}
@@ -10982,7 +10989,7 @@ executable binary, but they may appear within an object file and are
 then resolved by corresponding symbol definitions from the above table
 by the linker:
 \begin{rkrmtabular}{Symbol types in HUNK\_EXT} \label{table:extsymboltypes}
-\begin{longtable}{|lc|p{9cm}|} \hline
+\begin{longtable}{|lc|p{9.6cm}|} \hline
 \tt EXT\_REF32 & [0x81] & Reference to a 32-bit symbol that is resolved
 by a corresponding {\tt EXT\_ABS} to an absolute value or by a {\tt
   EXT\_DEF} definition to a relocation information to this or another
@@ -11091,7 +11098,7 @@ that are repeated until the end of the file.
 The overall format of indexed libraries is depicted in
 table~\ref{table:indexedlib}.
 \begin{rkrmtabular}{Indexed Library} \label{table:indexedlib}
-\begin{tabular}{|l|p{7.4cm}|p{5.5cm}|} \hline
+\begin{tabular}{|l|p{6cm}|p{6.9cm}|} \hline
 {\bf Size} & {\bf Code} & {\bf Syntax} \\ \hline \hline
    & \tt do \{ & Multiple repetitions of the following \\ \hline
 ?  & \tt $\quad$ HUNK\_LIB [0x3fa] & Object code modules, see section~\ref{sec:hunk_lib} \\ \hline
@@ -11110,29 +11117,29 @@ hunk, with a couple of changes noted below.
 
 Table~\ref{table:hunk_lib} depicts the syntax of this hunk.
 \begin{rkrmtabular}{Hunk LIB Format} \label{table:hunk_lib}
-\begin{longtable}{|l|p{7.4cm}|p{5.5cm}|} \hline
+\begin{longtable}{|l|p{7.9cm}|p{5cm}|} \hline
 {\bf Size} & {\bf Code} & {\bf Syntax} \\ \hline \hline
 ?  & \tt HUNK\_LIB [0x3fa] & Identifies the start of an indexed library \\ \hline
 32 & \tt $l$ & Length of this hunk in long-words not including the header and this length field \\ \hline
    & \tt do \{ & Multiple segments follow \\ \hline
 2  & \tt $\quad$ $m_t$ & Read the memory type of the next hunk \\ \hline
 30 & \tt $\quad$ $h_t$ & Read the next hunk type \\ \hline
-   & \tt $\quad$ if ($h_t$ == HUNK\_CODE) parse\_CODE & Code and constant data, see~\ref{sec:hunk_code} \\ \hline
-   & \tt $\quad$ else if ($h_t$ == HUNK\_DATA) parse\_DATA & Data, see~\ref{sec:hunk_data} \\ \hline
-   & \tt $\quad$ else if ($h_t$ == HUNK\_BSS) parse\_BSS & Zero-initialized data, see~\ref{sec:hunk_bss} \\ \hline
+   & \tt $\quad$ if ($h_t$ == HUNK\_CODE) \par \qquad parse\_CODE & Code and constant data, see~\ref{sec:hunk_code} \\ \hline
+   & \tt $\quad$ else if ($h_t$ == HUNK\_DATA) \par \qquad parse\_DATA & Data, see~\ref{sec:hunk_data} \\ \hline
+   & \tt $\quad$ else if ($h_t$ == HUNK\_BSS) \par \qquad parse\_BSS & Zero-initialized data, see~\ref{sec:hunk_bss} \\ \hline
    & \tt $\quad$ else if ($m_t$ != 0) ERROR\_BAD\_HUNK & Upper bits shall be 0 for all other hunks \\ \hline
    & \tt $\quad$ else do \{ & Loop over auxiliary information \\ \hline
-   & \tt $\quad\quad$ if ($h_t$ == HUNK\_RELOC32) parse\_RELOC32 & 32-bit relocation, see~\ref{sec:hunk_reloc32} \\ \hline
-   & \tt $\quad\quad$ else if ($h_t$ == HUNK\_RELOC32SHORT) parse\_RELOC32SHORT & 32-bit relocation, see~\ref{sec:hunk_reloc32short} \\ \hline
-   & \tt $\quad\quad$ else if ($h_t$ == HUNK\_RELRELOC32) parse\_RELRELOC32 & 32-bit PC-relative relocation, see~\ref{sec:hunk_relreloc32} \\ \hline
-   & \tt $\quad\quad$ else if ($h_t$ == HUNK\_RELOC16) parse\_RELOC16 & 16-bit PC-relative relocation, see~\ref{sec:hunk_reloc16} \\ \hline
-   & \tt $\quad\quad$ else if ($h_t$ == HUNK\_RELOC8) parse\_RELOC8 & 8-bit PC-relative relocation, see~\ref{sec:hunk_reloc16} \\ \hline
-   & \tt $\quad\quad$ else if ($h_t$ == HUNK\_DRELOC32) parse\_RELOC32 & 32-bit base-relative relocation, see~\ref{sec:hunk_dreloc32} \\ \hline
-   & \tt $\quad\quad$ else if ($h_t$ == HUNK\_DRELOC16) parse\_RELOC16 & 16-bit base-relative relocation, see~\ref{sec:hunk_dreloc16} \\ \hline
-   & \tt $\quad\quad$ else if ($h_t$ == HUNK\_DRELOC8) parse\_RELOC8 & 8-bit base-relative relocation, see~\ref{sec:hunk_dreloc8} \\ \hline
-   & \tt $\quad\quad$ else if ($h_t$ == HUNK\_EXT) parse\_EXT & External symbol definition, see~\ref{sec:hunk_ext} \\ \hline
-   & \tt $\quad\quad$ else if ($h_t$ == HUNK\_SYMBOL) parse\_SYMBOL & Symbol definition, see~\ref{sec:hunk_symbol} \\ \hline
-   & \tt $\quad\quad$ else if ($h_t$ == HUNK\_DEBUG) parse\_DEBUG & Debug information, see~\ref{sec:hunk_debug} \\ \hline
+   & \tt $\quad\quad$ if ($h_t$ == HUNK\_RELOC32) \par \quad \qquad parse\_RELOC32 & 32-bit relocation,\par see~\ref{sec:hunk_reloc32} \\ \hline
+   & \tt $\quad\quad$ else if ($h_t$ == HUNK\_RELOC32SHORT)\par \quad \qquad parse\_RELOC32SHORT & 32-bit relocation,\par see~\ref{sec:hunk_reloc32short} \\ \hline
+   & \tt $\quad\quad$ else if ($h_t$ == HUNK\_RELRELOC32) \par \quad \qquad parse\_RELRELOC32 & 32-bit PC-relative relocation,\par see~\ref{sec:hunk_relreloc32} \\ \hline
+   & \tt $\quad\quad$ else if ($h_t$ == HUNK\_RELOC16) \par \quad \qquad parse\_RELOC16 & 16-bit PC-relative relocation,\par see~\ref{sec:hunk_reloc16} \\ \hline
+   & \tt $\quad\quad$ else if ($h_t$ == HUNK\_RELOC8) \par \quad \qquad parse\_RELOC8 & 8-bit PC-relative relocation,\par see~\ref{sec:hunk_reloc16} \\ \hline
+   & \tt $\quad\quad$ else if ($h_t$ == HUNK\_DRELOC32) \par \quad \qquad parse\_RELOC32 & 32-bit base-relative relocation,\par see~\ref{sec:hunk_dreloc32} \\ \hline
+   & \tt $\quad\quad$ else if ($h_t$ == HUNK\_DRELOC16) \par \quad \qquad parse\_RELOC16 & 16-bit base-relative relocation,\par see~\ref{sec:hunk_dreloc16} \\ \hline
+   & \tt $\quad\quad$ else if ($h_t$ == HUNK\_DRELOC8) \par \quad \qquad parse\_RELOC8 & 8-bit base-relative relocation,\par see~\ref{sec:hunk_dreloc8} \\ \hline
+   & \tt $\quad\quad$ else if ($h_t$ == HUNK\_EXT) \par \quad \qquad parse\_EXT & External symbol definition,\par see~\ref{sec:hunk_ext} \\ \hline
+   & \tt $\quad\quad$ else if ($h_t$ == HUNK\_SYMBOL) \par \quad \qquad parse\_SYMBOL & Symbol definition, see~\ref{sec:hunk_symbol} \\ \hline
+   & \tt $\quad\quad$ else if ($h_t$ == HUNK\_DEBUG) \par \quad \qquad parse\_DEBUG & Debug information, see~\ref{sec:hunk_debug} \\ \hline
    & \tt $\quad\quad$ else if ($h_t$ == HUNK\_END) break & abort this segment \\ \hline
    & \tt $\quad\quad$ else ERROR\_INVALID\_HUNK & an error \\ \hline
 32 & \tt $\quad\quad$ $h_t$ & Read next hunk type \\ \hline
@@ -11142,17 +11149,17 @@ Table~\ref{table:hunk_lib} depicts the syntax of this hunk.
 \end{rkrmtabular}
 
 Additional restrictions arise for the {\tt HUNK\_EXT}\key{HUNK\_EXT}
-hunk; as symbol definitions are included in the {\tt HUNK\_INDEX}\key{HUNK\_INDEX} hunk,
-they shall be removed from this hunk; the corresponding symbol typtes to be removed are listed in
+hunk. Since symbol definitions are now included in the {\tt HUNK\_INDEX}\key{HUNK\_INDEX} hunk,
+they shall be removed from {\tt HUNK\_EXT}\key{HUNK\_EXT}. The corresponding symbol types to be removed are listed in
 table~\ref{table:symboltypes}. Unlike symbol definitions, symbol references
 as given by table~\ref{table:extsymboltypes} shall be retained as only the
 reference, but not the type of the reference is included in {\tt HUNK\_INDEX}.
 \smallskip{}
 
-The translation unit name and the hunk names shall also stripped,
-i.e. neither {\tt HUNK\_UNIT} nor {\tt HUNK\_NAME} shall be included in
-{\tt HUNK\_LIB}. The corresponding names are also defined in
-{\tt HUNK\_INDEX} by means of the string table included there.
+The translation unit name and the hunk names shall also be stripped,
+that is, neither {\tt HUNK\_UNIT} nor {\tt HUNK\_NAME} shall be
+included in {\tt HUNK\_LIB}. The corresponding names are also defined
+in {\tt HUNK\_INDEX} by means of the string table included there.
 \smallskip{}
 
 Due to restrictions of {\tt HUNK\_INDEX}, the size of a {\tt HUNK\_LIB}
@@ -11166,7 +11173,7 @@ preceding {\tt HUNK\_LIB}.
 
 Table~\ref{table:hunk_index} depicts the syntax of this hunk.
 \begin{rkrmtabular}{Hunk Index Format} \label{table:hunk_index}
-\begin{longtable}{|l|p{7.4cm}|p{5.5cm}|} \hline
+\begin{longtable}{|l|p{7cm}|p{5.9cm}|} \hline
 {\bf Size} & {\bf Code} & {\bf Syntax} \\ \hline \hline
 32 & \tt HUNK\_INDEX [0x3fb] & Defines symbols and references into the library \\ \hline
 32 & \tt $l$   & Length of this hunk in long-words \\ \hline
