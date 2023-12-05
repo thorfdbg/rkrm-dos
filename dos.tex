@@ -2040,10 +2040,12 @@ In the following sections, this structure and its functions are documented.
 
 \subsection{The struct FileHandle} \label{sec:filehandle}
 
-When opening a file via {\tt Open()}, the \emph{file handle} is allocated by
-the \emph{dos.library} by going through {\tt AllocDosObject()}\key{AllocDosObject()},
-and then forwarded to the file system or handler for second-level initialization. It is
-defined by the include file {\tt dos/dosextens.h} as replicated here:
+A file is represented by a {\tt FileHandle} structure; the {\tt
+  Open()}\key{Open()} function returns a BPTR to such a structure.  It
+is allocated by the \emph{dos.library} through {\tt
+  AllocDosObject()}\key{AllocDosObject()}, and then forwarded to the
+file system or handler for second-level initialization. It is defined
+by the include file {\tt dos/dosextens.h} as replicated here:
 \mkey{FileHandle}
 \begin{verbatim}
 struct FileHandle {
@@ -2335,9 +2337,9 @@ for signed and {\tt \%lu} for unsigned integers.
 \smallskip{}
 
 As {\tt RawDoFmt()}\key{RawDoFmt()} is also patched by the
-\emph{locale.library}, additional syntax elements from the
-{\tt FormatString()} function of this library become available for
-{\tt VFPrintf()} and {\tt FPrintf()}.
+\emph{locale.library}, syntax elements from the {\tt FormatString()}
+function of this library become available for {\tt VFPrintf()} and
+{\tt FPrintf()}.
 \smallskip{}
 
 The result {\tt count} delivers the number of characters written to
@@ -2346,7 +2348,7 @@ the file, or $-1$ for an error. In the latter case,
 
 \subsection{BCPL Style Formatted Print to a File}
 
-The {\tt VFWritef()}\mkey{VFwrite()} function formats several
+The {\tt VFWritef()}\mkey{VFwrite()} function formats its
 arguments according to a format string similar to {\tt
   VFPrintf()}\key{VFprintf()}, but uses the formatting syntax of the
 BCPL language. The main purpose of this function is to offer formatted
@@ -2513,8 +2515,8 @@ BOOL LockRecord(BPTR,ULONG,ULONG,ULONG,ULONG)
 
 This function attempts to lock the region of the file identified by
 {\tt fh} starting from the byte offset {\tt offset} and the byte size
-{\tt length}. The {\tt mode} shall be taken from the following
-constants, defined in {\tt dos/record.h}:
+{\tt length}. The {\tt mode} shall be taken from the 
+constants defined in {\tt dos/record.h}:
 
 \begin{rkrmtable}{Record Locking Modes} \label{table:reclockmode}
 {\bf Record Locking Mode} & {\bf Description}\\ \hline \hline
@@ -3020,11 +3022,12 @@ $0$ in case of success, or an error code on failure.
 
 The {\tt ParentOfFH()}\mkey{ParentOfFH()} function obtains a
 \emph{shared lock} on the parent directory of the file associated to
-the \emph{file handle} passed in. That is, it is roughly equivalent to
-first obtaining a lock on the file through {\tt DupLockFromFile()}
-\key{DupLockFromFile()}, and then calling {\tt ParentDir()}\key{ParentDir()}
-on it, except that this function also applies to files opened in
-the {\tt MODE\_NEWFILE}\key{MODE\_NEWFILE} mode.
+the \emph{file handle} passed in. That is, this function it is roughly
+equivalent to first obtaining a lock on the file through {\tt
+  DupLockFromFile()} \key{DupLockFromFile()}, and then calling {\tt
+  ParentDir()}\key{ParentDir()} on it, except that this function also
+applies to files opened in the {\tt MODE\_NEWFILE}\key{MODE\_NEWFILE}
+mode.
 
 \begin{verbatim}
 lock = ParentOfFH(fh)
@@ -3202,18 +3205,20 @@ considered inconsistent by setting {\tt id\_DiskState} to {\tt
 \smallskip{}
 
 AmigaDOS currently defines the following disk types in {\tt dos/dos.h}:
-\begin{rkrmtable}{Disk Types} \label{table:disktype}
+\begin{rkrmtabular}{Disk Types} \label{table:disktype}
+\begin{longtable}{|ll|} \hline
 {\bf Disk Type} & {\bf Description}\\ \hline \hline
 {\tt ID\_NO\_DISK\_PRESENT} & No disk is inserted \\ \hline
 {\tt ID\_UNREADABLE\_DISK} & Reading disk data failed at exec device level \\ \hline
 {\tt ID\_DOS\_DISK} & The disk is in a format the file system attempts to interpret \\ \hline
-{\tt ID\_NOT\_REALLY\_DOS} & While disk contents can be accessed, it is not in a suitable structure\\ \hline
+{\tt ID\_NOT\_REALLY\_DOS} & While physically accessible, the disk structure is invalid\\ \hline
 {\tt ID\_KICKSTART\_DISK} & A disk containing an A1000 kickstart \\ \hline
 {\tt 'BUSY'} & The file system is currently inhibited \\ \hline
 {\tt 'CON\textbackslash0'} & Not a file system, but the Con-Handler \\ \hline
 {\tt 'RAW\textbackslash0'} & Not a file system, but the Con-Handler \\ \hline
 All others & The first long word of the first block of the medium \\ \hline
-\end{rkrmtable}
+\end{longtable}
+\end{rkrmtabular}
 
 As mentioned above {\tt ID\_DOS\_DISK} is the {\tt id\_DiskType} \emph{file
 systems} should return in case they recognize the structure and attempt to
@@ -3233,7 +3238,7 @@ the {\tt dostype} as reported in table~\ref{table:ffsflavours}.
   third-party designs do not follow this convention.}
 
 {\tt ID\_NOT\_REALLY\_DOS} and {\tt ID\_UNREADABLE\_DISK} both
-indicates disks the file system cannot make use of. The first because
+indicate disks the file system cannot make use of. The first because
 the logical structure of the disk content cannot be interpreted, and
 the second because the underlying exec device cannot gain access to
 the contents of the blocks, i.e. the physical layer of the disk is not
@@ -3324,8 +3329,10 @@ can be any data type, potentially a pointer to some internal
 management object. It shall not be interpreted in any particular way.
 \smallskip{}
 
-The {\tt fl\_Access} member keeps the type of the lock. It is either {\tt SHARED\_LOCK}\key{SHARED\_LOCK}
-or {\tt EXCLUSIVE\_LOCK}\key{EXCLUSIVE\_LOCK}.
+The {\tt fl\_Access} member keeps the access type of the lock and
+reflects the {\tt accessMode} parameter of the {\tt Lock()}\key{Lock()}
+function. It is either {\tt SHARED\_LOCK}\key{SHARED\_LOCK} or {\tt
+  EXCLUSIVE\_LOCK}\key{EXCLUSIVE\_LOCK}.
 \smallskip{}
 
 The {\tt fl\_Task} member points to the message port of the file
@@ -5602,6 +5609,8 @@ be detected by the caller, and in such a case,
   special cases need to be filtered out by the caller. Namely ``{\tt *}''
   indicating the current console, and {\tt NIL:} for the {\tt NIL}
   pseudo-device are not handled here.}
+
+% Also note: device names currently restricted to 30 characters!
  
 \subsection{Releasing DevProc Information}
 
@@ -12744,16 +12753,16 @@ The structure of the root block is as follows:
 3          & \tt HTSize  & entries in the hash table = Block size - 56 \\ \hline
 4          & \tt 0       & reserved for future use \\ \hline
 5          & \tt Chksum  & LW sum over block is 0 \\ \hline
-6          & \tt Hash    & hash chains for objects in the root \\ \hline
+6          & \tt Hash    & hash chains for objects in the root \\ 
 \multicolumn{3}{;{1.5pt/1.5pt}c;{1.5pt/1.5pt}}{} \\ \hline
 L-50       & \tt BMFlag  & -1 if Bitmap is valid \\ \hline
-L-49       & \tt BMKeys  & keys of the bitmap \\ \hline
+L-49       & \tt BMKeys  & keys of the bitmap \\ 
 \multicolumn{3}{;{1.5pt/1.5pt}c;{1.5pt/1.5pt}}{} \\ \hline
 L-24       & \tt BMExt   & key of the bitmap extension block \\ \hline
 L-23       & \tt Days    & \multirow{3}{*}{timestamp of last directory change} \\ \cline{1-2}
 L-22       & \tt Mins    & \\ \cline{1-2}
 L-21       & \tt Ticks   & \\ \hline
-L-20       & \tt Name    & volume name as BSTR \\ \hline
+L-20       & \tt Name    & volume name as BSTR \\
 \multicolumn{3}{;{1.5pt/1.5pt}c;{1.5pt/1.5pt}}{} \\ \hline
 L-12       & \tt 0       & reserved for future use \\ \hline
 L-11       & \tt 0       & reserved for future use \\ \hline
@@ -12908,25 +12917,25 @@ long-file variants {\tt DOS\textbackslash{}06} and {\tt
 3          & \tt 0       & reserved for future use \\ \hline
 4          & \tt 0       & reserved for future use \\ \hline
 5          & \tt Chksum  & LW sum over block is 0 \\ \hline
-6          & \tt Hash    & hash chains for objects in the directory \\ \hline
+6          & \tt Hash    & hash chains for objects in the directory \\
 \multicolumn{3}{;{1.5pt/1.5pt}c;{1.5pt/1.5pt}}{} \\ \hline
 L-50       & \tt 0       & reserved for future use \\ \hline
 L-49       & \tt Owner   & reserved for owner ID \\ \hline
 L-48       & \tt PrtBits & protection bits as in section~\ref{sec:fib} \\ \hline
 L-47       & \tt 0       & reserved for future use \\ \hline
-L-46       & \tt Comment & directory comment as BSTR \\ \hline
+L-46       & \tt Comment & directory comment as BSTR \\
 \multicolumn{3}{;{1.5pt/1.5pt}c;{1.5pt/1.5pt}}{} \\ \hline
-L-26       & \tt 0       & reserved for future use \\ \hline
+L-26       & \tt 0       & reserved for future use \\
 \multicolumn{3}{;{1.5pt/1.5pt}c;{1.5pt/1.5pt}}{} \\ \hline
 L-23       & \tt Days    & \multirow{3}{*}{timestamp of last directory change} \\ \cline{1-2}
 L-22       & \tt Mins    & \\ \cline{1-2}
 L-21       & \tt Ticks   & \\ \hline
-L-20       & \tt Name    & directory name as BSTR \\ \hline
+L-20       & \tt Name    & directory name as BSTR \\
 \multicolumn{3}{;{1.5pt/1.5pt}c;{1.5pt/1.5pt}}{} \\ \hline
 L-12       & \tt NameX1  & name extension for {\tt DOS\textbackslash08} \\ \hline
 L-11       & \tt 0       & reserved for future use \\ \hline
 L-10       & \tt BckLink & key of first hard-link to this object \\ \hline
-L-9        & \tt NameX2  & name extension for {\tt DOS\textbackslash08} \\ \hline
+L-9        & \tt NameX2  & name extension for {\tt DOS\textbackslash08} \\
 \multicolumn{3}{;{1.5pt/1.5pt}c;{1.5pt/1.5pt}}{} \\ \hline
 L-4        & \tt NxtHash & next key of the same hash \\ \hline
 L-3        & \tt Parent  & key of the parent directory \\ \hline
@@ -13019,13 +13028,13 @@ somewhat different:
 3          & \tt 0       & reserved for future use \\ \hline
 4          & \tt 0       & reserved for future use \\ \hline
 5          & \tt Chksum  & LW sum over block is 0 \\ \hline
-6          & \tt Hash    & hash chains for objects in the directory \\ \hline
+6          & \tt Hash    & hash chains for objects in the directory \\
 \multicolumn{3}{;{1.5pt/1.5pt}c;{1.5pt/1.5pt}}{} \\ \hline
 L-50       & \tt 0       & reserved for future use \\ \hline
 L-49       & \tt Owner   & reserved for owner ID \\ \hline
 L-48       & \tt PrtBits & protection bits as in section~\ref{sec:fib} \\ \hline
 L-47       & \tt 0       & reserved for future use \\ \hline
-L-46       & \tt NaC     & name and comment BSTR \\ \hline
+L-46       & \tt NaC     & name and comment BSTR \\ 
 \multicolumn{3}{;{1.5pt/1.5pt}c;{1.5pt/1.5pt}}{} \\ \hline
 L-18       & \tt CmtBlk  & key of comment block if necessary \\ \hline
 L-17       & \tt 0       & reserved for future use \\ \hline
@@ -13036,7 +13045,7 @@ L-13       & \tt Ticks   & \\ \hline
 L-12       & \tt 0       & reserved for future use \\ \hline
 L-11       & \tt 0       & reserved for future use \\ \hline
 L-10       & \tt BckLink & key of first hard-link to this object \\ \hline
-L-9        & \tt 0       & reserved for future use \\ \hline
+L-9        & \tt 0       & reserved for future use \\ 
 \multicolumn{3}{;{1.5pt/1.5pt}c;{1.5pt/1.5pt}}{} \\ \hline
 L-4        & \tt NxtHash & next key of the same hash \\ \hline
 L-3        & \tt Parent  & key of the parent directory \\ \hline
@@ -13081,25 +13090,25 @@ to all FFS variants except the long-file variants {\tt
 3          & \tt 0       & reserved for future use \\ \hline
 4          & \tt Data1st & first data block of the file \\ \hline
 5          & \tt Chksum  & LW sum over block is 0 \\ \hline
-6          & \tt DataBlk & first $L-56$ data blocks of the file \\ \hline
+6          & \tt DataBlk & first $L-56$ data blocks of the file \\ 
 \multicolumn{3}{;{1.5pt/1.5pt}c;{1.5pt/1.5pt}}{} \\ \hline
 L-50       & \tt 0       & reserved for future use \\ \hline
 L-49       & \tt Owner   & reserved for owner ID \\ \hline
 L-48       & \tt PrtBits & protection bits as in section~\ref{sec:fib} \\ \hline
 L-47       & \tt Size    & size of the file in bytes \\ \hline
-L-46       & \tt Comment & file comment as BSTR \\ \hline
+L-46       & \tt Comment & file comment as BSTR \\ 
 \multicolumn{3}{;{1.5pt/1.5pt}c;{1.5pt/1.5pt}}{} \\ \hline
-L-26       & \tt 0       & reserved for future use \\ \hline
+L-26       & \tt 0       & reserved for future use \\ 
 \multicolumn{3}{;{1.5pt/1.5pt}c;{1.5pt/1.5pt}}{} \\ \hline
 L-23       & \tt Days    & \multirow{3}{*}{timestamp of last file change} \\ \cline{1-2}
 L-22       & \tt Mins    & \\ \cline{1-2}
 L-21       & \tt Ticks   & \\ \hline
-L-20       & \tt Name    & directory name as BSTR \\ \hline
+L-20       & \tt Name    & directory name as BSTR \\ 
 \multicolumn{3}{;{1.5pt/1.5pt}c;{1.5pt/1.5pt}}{} \\ \hline
 L-12       & \tt NameX1  & name extension for {\tt DOS\textbackslash08} \\ \hline
 L-11       & \tt 0       & reserved for future use \\ \hline
 L-10       & \tt BckLink & key of first hard-link to this object \\ \hline
-L-9        & \tt NameX2  & name extension for {\tt DOS\textbackslash08} \\ \hline
+L-9        & \tt NameX2  & name extension for {\tt DOS\textbackslash08} \\ 
 \multicolumn{3}{;{1.5pt/1.5pt}c;{1.5pt/1.5pt}}{} \\ \hline
 L-4        & \tt NxtHash & next key of the same hash \\ \hline
 L-3        & \tt Parent  & key of the parent directory \\ \hline
@@ -13208,13 +13217,13 @@ somewhat different:
 3          & \tt 0       & reserved for future use \\ \hline
 4          & \tt Data1st & first data block of the file \\ \hline
 5          & \tt Chksum  & LW sum over block is 0 \\ \hline
-6          & \tt DataBlk & first $L-56$ keys of data blocks \\ \hline
+6          & \tt DataBlk & first $L-56$ keys of data blocks \\ 
 \multicolumn{3}{;{1.5pt/1.5pt}c;{1.5pt/1.5pt}}{} \\ \hline
 L-50       & \tt 0       & reserved for future use \\ \hline
 L-49       & \tt Owner   & reserved for owner ID \\ \hline
 L-48       & \tt PrtBits & protection bits as in section~\ref{sec:fib} \\ \hline
 L-47       & \tt 0       & reserved for future use \\ \hline
-L-46       & \tt NaC     & name and comment BSTR \\ \hline
+L-46       & \tt NaC     & name and comment BSTR \\ 
 \multicolumn{3}{;{1.5pt/1.5pt}c;{1.5pt/1.5pt}}{} \\ \hline
 L-18       & \tt CmtBlk  & key of comment block if necessary \\ \hline
 L-17       & \tt 0       & reserved for future use \\ \hline
@@ -13225,7 +13234,7 @@ L-13       & \tt Ticks   & \\ \hline
 L-12       & \tt 0       & reserved for future use \\ \hline
 L-11       & \tt 0       & reserved for future use \\ \hline
 L-10       & \tt BckLink & key of first hard-link to this object \\ \hline
-L-9        & \tt 0       & reserved for future use \\ \hline
+L-9        & \tt 0       & reserved for future use \\ 
 \multicolumn{3}{;{1.5pt/1.5pt}c;{1.5pt/1.5pt}}{} \\ \hline
 L-4        & \tt NxtHash & next key of the same hash \\ \hline
 L-3        & \tt Parent  & key of the parent directory \\ \hline
@@ -13270,25 +13279,25 @@ to all FFS variants except the long-file variants {\tt
 3          & \tt 0       & reserved for future use \\ \hline
 4          & \tt 0       & reserved for future use \\ \hline
 5          & \tt Chksum  & LW sum over block is 0 \\ \hline
-6          & \tt Target  & link target for soft-links \\ \hline
+6          & \tt Target  & link target for soft-links \\ 
 \multicolumn{3}{;{1.5pt/1.5pt}c;{1.5pt/1.5pt}}{} \\ \hline
 L-50       & \tt 0       & reserved for future use \\ \hline
 L-49       & \tt Owner   & reserved for owner ID \\ \hline
 L-48       & \tt PrtBits & protection bits as in section~\ref{sec:fib} \\ \hline
 L-47       & \tt 0       & reserved for future use \\ \hline
-L-46       & \tt Comment & link comment as BSTR \\ \hline
+L-46       & \tt Comment & link comment as BSTR \\ 
 \multicolumn{3}{;{1.5pt/1.5pt}c;{1.5pt/1.5pt}}{} \\ \hline
-L-26       & \tt 0       & reserved for future use \\ \hline
+L-26       & \tt 0       & reserved for future use \\ 
 \multicolumn{3}{;{1.5pt/1.5pt}c;{1.5pt/1.5pt}}{} \\ \hline
 L-23       & \tt Days    & \multirow{3}{*}{timestamp of link creation} \\ \cline{1-2}
 L-22       & \tt Mins    & \\ \cline{1-2}
 L-21       & \tt Ticks   & \\ \hline
-L-20       & \tt Name    & link name as BSTR \\ \hline
+L-20       & \tt Name    & link name as BSTR \\ 
 \multicolumn{3}{;{1.5pt/1.5pt}c;{1.5pt/1.5pt}}{} \\ \hline
 L-12       & \tt NameX1  & name extension for {\tt DOS\textbackslash08} \\ \hline
 L-11       & \tt Link    & key of link target for hard-links \\ \hline
 L-10       & \tt BckLink & key of next hard-link to the same object \\ \hline
-L-9        & \tt NameX2  & name extension for {\tt DOS\textbackslash08} \\ \hline
+L-9        & \tt NameX2  & name extension for {\tt DOS\textbackslash08} \\ 
 \multicolumn{3}{;{1.5pt/1.5pt}c;{1.5pt/1.5pt}}{} \\ \hline
 L-4        & \tt NxtHash & next key of the same hash \\ \hline
 L-3        & \tt Parent  & key of the parent directory \\ \hline
@@ -13398,13 +13407,13 @@ somewhat different:
 3          & \tt 0       & reserved for future use \\ \hline
 4          & \tt 0       & reserved for future use \\ \hline
 5          & \tt Chksum  & LW sum over block is 0 \\ \hline
-6          & \tt Target  & link target for soft-links \\ \hline
+6          & \tt Target  & link target for soft-links \\ 
 \multicolumn{3}{;{1.5pt/1.5pt}c;{1.5pt/1.5pt}}{} \\ \hline
 L-50       & \tt 0       & reserved for future use \\ \hline
 L-49       & \tt Owner   & reserved for owner ID \\ \hline
 L-48       & \tt PrtBits & protection bits as in section~\ref{sec:fib} \\ \hline
 L-47       & \tt 0       & reserved for future use \\ \hline
-L-46       & \tt NaC     & name and comment BSTR \\ \hline
+L-46       & \tt NaC     & name and comment BSTR \\
 \multicolumn{3}{;{1.5pt/1.5pt}c;{1.5pt/1.5pt}}{} \\ \hline
 L-18       & \tt CmtBlk  & key of comment block if necessary \\ \hline
 L-17       & \tt 0       & reserved for future use \\ \hline
@@ -13415,7 +13424,7 @@ L-13       & \tt Ticks   & \\ \hline
 L-12       & \tt 0       & reserved for future use \\ \hline
 L-11       & \tt Link    & key of link target for hard-links \\ \hline
 L-10       & \tt BckLink & key of next hard-link to the same object \\ \hline
-L-9        & \tt 0       & reserved for future use \\ \hline
+L-9        & \tt 0       & reserved for future use \\
 \multicolumn{3}{;{1.5pt/1.5pt}c;{1.5pt/1.5pt}}{} \\ \hline
 L-4        & \tt NxtHash & next key of the same hash \\ \hline
 L-3        & \tt Parent  & key of the parent directory \\ \hline
@@ -13457,9 +13466,9 @@ keys. It looks as follows:
 3          & \tt 0       & reserved for future use \\ \hline
 4          & \tt 0       & reserved for future use \\ \hline
 5          & \tt Chksum  & LW sum over block is 0 \\ \hline
-6          & \tt DataBlk & next $L-56$ keys of data blocks \\ \hline
+6          & \tt DataBlk & next $L-56$ keys of data blocks \\
 \multicolumn{3}{;{1.5pt/1.5pt}c;{1.5pt/1.5pt}}{} \\ \hline
-L-50       & \tt 0       & reserved for future use \\ \hline
+L-50       & \tt 0       & reserved for future use \\
 \multicolumn{3}{;{1.5pt/1.5pt}c;{1.5pt/1.5pt}}{} \\ \hline
 L-3        & \tt Parent  & key of the file header block \\ \hline
 L-2        & \tt NextExt & key of next file extension block \\ \hline
@@ -13510,7 +13519,7 @@ This block has the following structure:
 \begin{rkrmtabular}{Bitmap Extension Block} \label{table:bitmapextensionblock}
 \begin{longtable}{|l|l|l|} \hline
 {\bf Long-word Offset} & {\bf Content} & {\bf Notes} \\ \hline \hline
-0          & \tt BMKeys  & additional $L-1$ bitmap keys \\ \hline
+0          & \tt BMKeys  & additional $L-1$ bitmap keys \\ 
 \multicolumn{3}{;{1.5pt/1.5pt}c;{1.5pt/1.5pt}}{} \\ \hline
 L-1        & \tt BMNext  & key of another bitmap extension block \\ \hline
 \end{longtable}
@@ -13540,9 +13549,9 @@ keep both the file name and the file comment.
 3          & \tt 0       & reserved for future use \\ \hline
 4          & \tt 0       & reserved for future use \\ \hline
 5          & \tt Chksum  & LW sum over block is 0 \\ \hline
-6          & \tt Comment & object comment as BSTR \\ \hline
+6          & \tt Comment & object comment as BSTR \\ 
 \multicolumn{3}{;{1.5pt/1.5pt}c;{1.5pt/1.5pt}}{} \\ \hline
-26         & \tt 0       & reserved for future use \\ \hline
+26         & \tt 0       & reserved for future use \\
 \multicolumn{3}{;{1.5pt/1.5pt}c;{1.5pt/1.5pt}}{} \\ \hline
 \end{longtable}
 \end{rkrmtabular}
@@ -13587,7 +13596,7 @@ as follows:
 3          & \tt NumNtry & number of entries in this block \\ \hline
 4          & \tt NextBlk & key of the next directory cache block \\ \hline
 5          & \tt Chksum  & LW sum over block is 0 \\ \hline
-6          & \tt Entries & Directory content (see below) \\ \hline
+6          & \tt Entries & Directory content (see below) \\ 
 \multicolumn{3}{;{1.5pt/1.5pt}c;{1.5pt/1.5pt}}{} \\ \hline
 \end{longtable}
 \end{rkrmtabular}
@@ -13743,7 +13752,7 @@ The following table describes the structure of an OFS data block:
 3          & \tt Size    & data bytes in this block \\ \hline
 4          & \tt NxtBlk  & next data block of this file \\ \hline
 5          & \tt Chksum  & LW sum over block is 0 \\ \hline
-6          & \tt Data    & payload data \\ \hline
+6          & \tt Data    & payload data \\ 
 \multicolumn{3}{;{1.5pt/1.5pt}c;{1.5pt/1.5pt}}{} \\ \hline
 \end{longtable}
 \end{rkrmtabular}
@@ -13796,7 +13805,7 @@ The structure of a bitmap block is as follows:
 \begin{longtable}{|l|l|l|} \hline
 {\bf Long-word Offset} & {\bf Content} & {\bf Notes} \\ \hline \hline
 0          & \tt Chksum  & LW sum over block is 0 \\ \hline
-1          & \tt Bitmap  & bitmap of avaiable blocks \\ \hline
+1          & \tt Bitmap  & bitmap of avaiable blocks \\ 
 \multicolumn{3}{;{1.5pt/1.5pt}c;{1.5pt/1.5pt}}{} \\ \hline
 \end{longtable}
 \end{rkrmtabular}
@@ -13904,7 +13913,7 @@ of the block type does not happen to data blocks of deleted files.
 \begin{longtable}{|l|l|l|} \hline
 {\bf Long-word Offset} & {\bf Content} & {\bf Notes} \\ \hline \hline
 0          & \tt Type    & shall be 1, this is T.DELETED \\ \hline
-1          & \tt junk    & whatever remained here \\ \hline
+1          & \tt junk    & whatever remained here \\ 
 \multicolumn{3}{;{1.5pt/1.5pt}c;{1.5pt/1.5pt}}{} \\ \hline
 \end{longtable}
 \end{rkrmtabular}
