@@ -13951,37 +13951,6 @@ systems support. Third party handlers may support additional packets.
 It is permissible to implement additional packet types as long as they
 do not conflict with existing packets. In particular, the range from
 2050 to 2999 is available for third party handler implementations.
-\smallskip{}
-
-The following packets are not implemented nor defined by AmigaDOS but
-are either obsolete or currently in use by some third-party
-handlers. Their functionality is beyond the scope of this work. This
-list does not claim to be complete:
-
-\begin{rkrmtable}{Some Third Party Packets} \label{table:thirdpartypackets}
-{\bf \tt \bf dp\_Type} & {\bf Purpose} \\ \hline \hline
-\tt ACTION\_GET\_BLOCK(2) & obsolete, used by the BCPL file system \\ \hline
-\tt ACTION\_SET\_MAP(4) & obsolete, used by the BCPL file system \\ \hline
-\tt ACTION\_EVENT(6) & obsolete, used by the BCPL file system \\ \hline
-\tt ACTION\_DISK\_TYPE(32) & obsolete, used by the BCPL file system \\ \hline
-\tt ACTION\_DISK\_CHANGE(33) & not used, not related to {\tt C:DiskChange} \\ \hline
-\tt ACTION\_FINDREADONLY(1009) & open a file for exclusive reading \\ \hline
-\tt ACTION\_FINDONEWRITER(1010) & open a file for exclusive writing \\ \hline
-\tt ACTION\_DIRECT\_READ(1900) & used by the CDTV \\ \hline
-\tt ACTION\_DOUBLE(2000) & create two file handles for a pipe \\ \hline
-\tt ACTION\_PEEK(2005) & retrieve console input line \\ \hline
-\tt ACTION\_REPLACE(2006) & replace console input line \\ \hline
-\tt ACTION\_GET\_HISTORY(2007) & retrieve history of the console \\ \hline
-\tt ACTION\_HANDLER\_DEBUG(2010) & install a debug hook into a handler \\ \hline
-\tt ACTION\_SET\_TRANS\_TYPE(2011) & configure LF/CR translation \\ \hline
-\tt ACTION\_NETWORK\_HELLO(2012) & network handler support package \\ \hline
-\tt ACTION\_JUMP\_SCREEN(2020) & move console to another screen \\ \hline
-\tt ACTION\_SET\_HISTORY(2021) & update or set console history \\ \hline
-\tt ACTION\_GET\_DISK\_FSSM(4201) & get {\tt FileSysStartupMsg} structure \\ \hline
-\tt ACTION\_FFS\_INTERNAL1(7654) & was reserved for the v37 FFS \\ \hline
-\tt ACTION\_FFS\_INTERNAL2(8765) & was reserved for the v37 FFS \\ \hline
-\tt ACTION\_TOGGLE\_INTL(331122) & reserved to toggle the international mode \\ \hline
-\end{rkrmtable}
 
 \section{Packets for File Interactions} \label{sec:fileactions}
 
@@ -14919,7 +14888,7 @@ corresponding next entry.
 This function continues a directory scan by providing information on the
 next subsequent object in the directory identified by the lock in {\tt
   dp\_Arg1}. Meta-information on the object itself is copied into the {\tt
-  FileInfoBlock} structure pointed to by the BPTR in {\tt dp\_Arg2}. Similar
+  FileInfoBlock} structure in the BPTR in {\tt dp\_Arg2}. Similar
 to {\tt ACTION\_EXAMINE\_OBJECT}\key{ACTION\_EXAMINE\_OBJECT} discussed
 in~\ref{sec:actionexamineobject}, the file name and comment shall be
 provided as BSTRs and not as {\tt NUL}-terminated C strings. Conversion to
@@ -15180,7 +15149,7 @@ success and no additional resources need to be released.
 \smallskip{}
 
 On any other error, {\tt dp\_Res1} shall be set to {\tt DOSFALSE} and {\tt
-  dp\_Res2} to an error code from {\tt dos/dos.h}.
+  dp\_Res2} to an error code.
 
 \subsection{Examining from a File Handle}
 
@@ -16281,7 +16250,7 @@ by this argument.
 \smallskip{}
 
 {\tt dp\_Arg2} is \emph{file system} specific information that may be used
-to define its flavour. For example, {\tt dp\_Arg2} carries for the FFS the
+to define its flavour. For example, for the FFS {\tt dp\_Arg2} carries the
 {\tt DosType}, which shall be one of the values documented in
 table~\ref{table:ffsflavours} in section~\ref{sec:envec}. If such a change
 of the {\tt DosType} also happens, and the handler allows formatting while
@@ -17333,7 +17302,7 @@ replied {\tt IORequest}s and incoming packets as both appear as {\tt
 \smallskip{}
 
 The {\tt io\_Message.mn\_Node.ln\_Name} points to the {\tt DosPacket}
-structure, and its {\tt dp\_Link} elements points back to qthe {\tt
+structure, and its {\tt dp\_Link} elements points back to the {\tt
   IORequest}. Handlers dispatch these {\tt IORequest} to exec devices
 asynchronously with {\tt SendIO()}, and continue to process requests while
 the exec device is busy with the requested input or output command. Due to
@@ -17387,11 +17356,45 @@ a {\tt timer.device} request to wait for a time period.
 \end{rkrmtable}
 
 This packet does \emph{not} constitute a request to the handler, it rather
-indicates that the {\tt IORequest} pointed to by {\tt dp\_Link} completed
+indicates that the {\tt timerequest} pointed to by {\tt dp\_Link} completed
 and the requested time span passed. As such, this packet shall never be
 replied. The FFS uses this packet to turn off the drive motor after the last
 read or write operation, and interactive handlers such as the console use it
 to implement {\tt ACTION\_WAIT\_CHAR}\key{ACTION\_WAIT\_CHAR}.
+
+\section{Obsolete and Third-Party Packets}
+
+The following packets are not implemented nor defined by AmigaDOS but
+are either obsolete or currently in use by some third-party
+handlers. Their functionality is beyond the scope of this work. This
+list does not claim to be complete:
+
+\begin{rkrmtabular}{Some Third Party Packets} \label{table:thirdpartypackets}
+\begin{longtable}{|ll|} \hline
+{\bf \tt \bf dp\_Type} & {\bf Purpose} \\ \hline \hline
+\tt ACTION\_GET\_BLOCK(2) & obsolete, used by the BCPL file system \\ \hline
+\tt ACTION\_SET\_MAP(4) & obsolete, used by the BCPL file system \\ \hline
+\tt ACTION\_EVENT(6) & obsolete, used by the BCPL file system \\ \hline
+\tt ACTION\_DISK\_TYPE(32) & obsolete, used by the BCPL file system \\ \hline
+\tt ACTION\_DISK\_CHANGE(33) & not used, not related to {\tt C:DiskChange} \\ \hline
+\tt ACTION\_FINDREADONLY(1009) & open a file for exclusive reading \\ \hline
+\tt ACTION\_FINDONEWRITER(1010) & open a file for exclusive writing \\ \hline
+\tt ACTION\_DIRECT\_READ(1900) & used by the CDTV \\ \hline
+\tt ACTION\_DOUBLE(2000) & create two file handles for a pipe \\ \hline
+\tt ACTION\_PEEK(2005) & retrieve console input line \\ \hline
+\tt ACTION\_REPLACE(2006) & replace console input line \\ \hline
+\tt ACTION\_GET\_HISTORY(2007) & retrieve history of the console \\ \hline
+\tt ACTION\_HANDLER\_DEBUG(2010) & install a debug hook into a handler \\ \hline
+\tt ACTION\_SET\_TRANS\_TYPE(2011) & configure LF/CR translation \\ \hline
+\tt ACTION\_NETWORK\_HELLO(2012) & network handler support package \\ \hline
+\tt ACTION\_JUMP\_SCREEN(2020) & move console to another screen \\ \hline
+\tt ACTION\_SET\_HISTORY(2021) & update or set console history \\ \hline
+\tt ACTION\_GET\_DISK\_FSSM(4201) & get {\tt FileSysStartupMsg} structure \\ \hline
+\tt ACTION\_FFS\_INTERNAL1(7654) & was reserved for the v37 FFS \\ \hline
+\tt ACTION\_FFS\_INTERNAL2(8765) & was reserved for the v37 FFS \\ \hline
+\tt ACTION\_TOGGLE\_INTL(331122) & reserved to toggle the international mode \\ \hline
+\end{longtable}
+\end{rkrmtabular}
 
 \chapter{The AmigaDOS Shell} \label{sec:shell}
 The Shell is the command line interpreter of AmigaDOS and is a simple
@@ -18421,11 +18424,10 @@ The AmigaDOS Shell supports the following methods defined in {\tt
   dos/shell.h}:
 \smallskip{}
 
-{\tt SHELL\_METH\_METHODS} returns a {\tt const} array of methods the shell
-supports. This is an array of {\tt ULONG}s that is terminated by a {\tt 0L},
-each containing a method ID that may be provided to {\tt
-  DoShellMethod()}\key{DoShellMethod()}. Every shell shall support this
-method.
+{\tt SHELL\_METH\_METHODS} returns a {\tt const} array of methods the
+shell supports. This is an array of {\tt ULONG}s, each representing a
+method ID. The array is is terminated by a {\tt 0UL}. Every shell
+shall support this method.
 \smallskip{}
 
 {\tt SHELL\_METH\_GETHIST} is a method of the AmigaDOS Shell that provides
@@ -19516,14 +19518,16 @@ command line, that is, command line help through the supplied {\tt template}
 parameter or {\tt RDA\_ExtHelp} is not provided.
 \medskip{}
 
-On success, this function returns a {\tt RDArgs} structure, either the same
-as passed in through {\tt rdargs}, or one that was created by this function;
-as this structure administrates the resources accquired by {\tt
-  ReadArgs()}\key{ReadArgs()}, it shall be released by {\tt
-  FreeArgs()}\key{FreeArgs()} once all arguments have been interpreted and
-worked on. Note that the strings and string arrays pointed to by the {\tt
-  array} are part of the resources released by {\tt
-  FreeArgs()}\key{FreeArgs()}.
+On success, this function returns a {\tt RDArgs} structure, either the
+same as passed in through {\tt rdargs}, or one that was created by
+this function; as this structure administrates the resources accquired
+during argument parsing, it shall be released by {\tt
+  FreeArgs()}\key{FreeArgs()} once all arguments have been interpreted
+and worked on, regardless of whether the {\tt RDArgs} structure was
+allocated by the {\tt ReadArgs()}\key{ReadArgs()} call, or upfront
+through {\tt AllocDosObject()}\key{AllocDosObject()}. Note that the
+strings and string arrays pointed to by the {\tt array} are part of
+the resources released by {\tt FreeArgs()}\key{FreeArgs()}.
 \smallskip{}
 
 On failure, this function returns {\tt NULL}. All resources such as buffers
@@ -19899,7 +19903,7 @@ On success, this function returns a non-zero value and does not alter {\tt
 \subsection{Removing a Resident Segment} \label{sec:remresident}
 
 The {\tt RemSegment()}\mkey{RemSegment()} function removes a resident
-segment from the system database of resident segments and makes it
+segment from the system list of resident segments and makes it
 unavailable to other processes. It also releases all resources associated to
 this segment.
 
@@ -19911,7 +19915,7 @@ BOOL RemSegment(struct Segment *)
 \end{verbatim}
 
 This function attempts to remove the resident segment provided as argument
-from the AmigaDOS database of resident commands. If an attempt is made to
+from the AmigaDOS list of resident commands. If an attempt is made to
 remove a system segment, an internal command or a regular resident command
 that is currently in use, {\tt DOSFALSE} is returned and the resident
 segment is left in the list. Otherwise, the segment is removed, and all its
@@ -19922,7 +19926,7 @@ resident segment which is purged through {\tt UnLoadSeg()}\key{UnLoadSeg()}.
 The resident segment to be removed is typically accquired by {\tt
   FindSegment()}\key{FindSegment()}. However, any other process can attempt
 to unload the same resident segment at the same time, causing a race
-condition. Therefore, a caller should first stop multitasking with {\tt
+condition. Therefore, a caller should stop multitasking with {\tt
   Forbid()}, then locate the segment with {\tt
   FindSegment()}\key{FindSegment()}, and if this function succeeds, unload
 the found segment with {\tt RemSegment()}\key{FindSegment()}.  Then,
