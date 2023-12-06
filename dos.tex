@@ -11250,13 +11250,15 @@ into $a_s$, $a_o$ and $d_o$.
 
 \chapter{Handlers, Devices and File Systems} \label{sec:handlers}
 
-Handlers are AmigaDOS processes that provide all the services to implement
-many functions of the \emph{dos.library}. Operations on files, such as
-opening files, reading data or seeking in files are implemented in the
-corresponding handler and not the \emph{dos.library} itself. \emph{File
-systems} are special handlers that organize data streams on volumes such as
-hard disks in files, and also provide locks to reserve access rights to
-files. Most file systems also support directories and thus a hierarchical
+The \emph{dos.library} does not implement all of its functions itself;
+operations that are related to files, locks, notification requests and
+many others are off-loaded to file systems or handlers. Thus, the
+\emph{dos.library} provides a virtual file system that provides a
+common function interface for its clients, but requires the services
+of handlers to implement them. \emph{File systems} are special
+handlers that organize data streams on volumes such as hard disks in
+files, and also provide locks to reserve access rights to files. Most
+file systems also support directories and thus a hierarchical
 organization of files.
 \smallskip{}
 
@@ -11788,14 +11790,14 @@ target port. If {\tt pr\_CurrentDir} is {\tt ZERO}, the {\tt
   pr\_FileSystemTask} is used as target port.
 \smallskip{}
 
-If the handler is contacted through a \emph{File Handle}, for example to
-read or write bytes from a file, the {\tt fh\_Type} element of the handle is
-used as destination port. A file system may place a custom port in this
-element on opening files through {\tt ACTION\_FINDINPUT}, {\tt
-  ACTION\_FINDOUTPUT} or {\tt ACTION\_FINDUPDATE} in the {\tt fh\_Type}
-element of the handle to receive all packets associated to this particular
-file on an alternative port. The \emph{dos.library} places by default
-there the port it found through the path, see above.
+If the handler is contacted through a \emph{File Handle}, for example
+to read or write bytes from a file, the {\tt fh\_Type} element of the
+handle is used as destination port. A file system may place a custom
+port in this element on opening files by {\tt ACTION\_FINDINPUT}, {\tt
+  ACTION\_FINDOUTPUT} or {\tt ACTION\_FINDUPDATE} in the {\tt
+  fh\_Type} element of the handle to receive all packets associated to
+this particular file on an alternative port. The \emph{dos.library}
+places by default there the port it found through the path, see above.
 \smallskip{}
 
 If the handler is contacted through a lock, the {\tt fl\_Task} element of
@@ -11819,10 +11821,11 @@ documented within AmigaDOS, though third-party handlers may implement
 additional packet types.
 \smallskip{}
 
-A handler or file system receiving a packet it does not implement shall set
-its {\tt dp\_Res2} element to {\tt ERROR\_ACTION\_NOT\_KNOWN}. {\tt
-  dp\_Res1} shall be set for non-implemented packets according to the packet
-type as shown in the following table:
+A handler or file system receiving a packet it does not implement
+shall set the {\tt dp\_Res2} element of the packet to {\tt
+  ERROR\_ACTION\_NOT\_KNOWN}. The primary result code {\tt dp\_Res1}
+shall be set for non-implemented packets according to the packet type
+as shown in the following table:
 
 \begin{rkrmtable}{Primary Result Code for Unimplemented Packets} \label{table:unimp}
 {\bf \tt \bf dp\_Type} & {\bf \tt \bf dp\_Res1} \\ \hline \hline
@@ -12284,8 +12287,8 @@ BPTR with bit 30 set    & cooked mode open on a device specified by a
 FileSysStartupMsg \\ \hline
 \end{rkrmtable}
 
-The values~0 to~3 configure the line buffer mode and are correspond to the
-buffer mode selected through~{\tt SetMode()}\key{SetMode()}. The buffer
+The values~0 to~3 configure the line buffer mode and correspond to the
+{\tt mode} selected by~{\tt SetMode()}\key{SetMode()}. The buffer
 mode~3 is currently not used and reserved for future extensions.
 \smallskip{}
 
@@ -12607,19 +12610,20 @@ structure and organization of on disk. Table~\ref{table:ffsflavours} in
 section~\ref{sec:envec} provides an overview on the available flavours.
 \smallskip{}
 
-As standard file system, the FFS supports all file-system relevant packets
-listed from section~\ref{sec:fileactions} onwards with the exclusion of
+As a full hierarchical file system, the FFS supports all file-system
+relevant packets listed from section~\ref{sec:fileactions} onwards;
 packets specific to interactive handlers listed in
-section~\ref{sec:packetsinteractive}, and the {\tt ACTION\_SET\_OWNER}
-packet which remains exclusive to multi-user network file systems. The FFS does
-support record locking, soft- and hard links and notification
-requests. External links remain currently exclusive to the RAM-Handler and
-are neither supported. Latest versions of the FFS can also be shut down by
-{\tt ACTION\_DIE}.
+section~\ref{sec:packetsinteractive} are an exception and not
+implemented, and the {\tt ACTION\_SET\_OWNER} packet is neither
+implemented and remains exclusive to to multi-user network file
+systems. The FFS does support record locking, soft- and hard links and
+notification requests. External links remain currently exclusive to
+the RAM-Handler and are neither supported. Latest versions of the FFS
+can also be shut down by {\tt ACTION\_DIE}.
 
 \subsection{Configuring the FFS}
 
-The FFS is configured through multiple sources. First of all, the {\tt
+The FFS is customized through multiple sources. First of all, the {\tt
   DosList}, the {\tt FileSysStartupMsg} pointed to by this structure, and
 the environment vector in the latter. Section~\ref{sec:mountlist} provides a
 list of the configurable options and the corresponding entries in the
@@ -14453,15 +14457,16 @@ record lock on a portion of a file.
 \tt dp\_Res2  & Error code \\ \hline
 \end{rkrmtable}
 
-This packet implements the {\tt UnLockRecord()}\key{UnLockRecord()} function
-of the \emph{dos.library} and releases a lock on a subset of a file,
-identified by start position and length. There is no packet corresponding to
-{\tt UnLockRecords()}; instead, the \emph{dos.library} sequentially calls
+This packet implements the {\tt UnLockRecord()}\key{UnLockRecord()}
+function of the \emph{dos.library} and releases a lock on a subset of
+a file, identified by start position and length. The {\tt
+  UnLockRecords()}\key{UnlockRecords()} function is not implemented by
+a separate packet, instead, the \emph{dos.library} sequentially calls
 {\tt UnLockRecord()} for each record.
 \smallskip{}
 
-The file itself is identified by {\tt dp\_Arg1} which is a copy from the
-{\tt fh\_Arg1} element of the {\tt FileHandle} structure. The record to
+The file is identified by {\tt dp\_Arg1} which is a copy from the {\tt
+  fh\_Arg1} element of the {\tt FileHandle} structure. The record to
 release is given by the start offset within the file provided by {\tt
   dp\_Arg2} and the byte size of the record in {\tt dp\_Arg3}.
 \smallskip{}
@@ -14885,12 +14890,12 @@ should prepare for a scan over this directory and potentially initialize an
 internal state machine.
 \smallskip{}
 
-This function returns a boolean success code in {\tt dp\_Res1}, it shall be
-either set to {\tt DOSTRUE} in case information on the locked object could
-be retrieved and had been successfully deposited into the {\tt
-  FileInfoBlock} given by {\tt dp\_Arg2}, or shall be set to {\tt DOSFALSE}
-in case of error. In the success case, {\tt dp\_Res2} shall be set to~0, or
-to an error code otherwise.
+This function returns a boolean success code in {\tt dp\_Res1}, it
+shall be either set to {\tt DOSTRUE} in case information on the locked
+object could be retrieved and inserted into the {\tt FileInfoBlock}
+given by {\tt dp\_Arg2}. In that case, {\tt dp\_Res2} shall be set
+to~0. In case of an error, {\tt dp\_Res1} shall be set to {\tt
+  DOSFALSE} and {\tt dp\_Res2} to an error code.
 
 \subsection{Scanning Directory Contents}
 
