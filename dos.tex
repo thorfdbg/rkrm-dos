@@ -2714,7 +2714,7 @@ if the file system does not expose this lock to the caller.
 
 As long as at least a single lock is held of an object on a particular
 volume, the file system will keep the volume within the
-\emph{device list} of the \emph{dos.library}, see section~\ref{sec:devicelist}.
+device list of the \emph{dos.library}, see section~\ref{sec:devicelist}.
 This has, for example, the consequence that the workbench will
 continue to show an icon representing the volume in its window.
 
@@ -3342,7 +3342,7 @@ goes through this port.
 \smallskip{}
 
 The {\tt fl\_Volume}\mkey{fl\_Volume} is a \emph{BPTR} to the \emph{volume node} on the
-\emph{device list}\key{Device List}. The \emph{volume node} identifies
+device list\key{Device List}. The \emph{volume node} identifies
 the volume the locked object is located
 on. Section~\ref{sec:devicelist} provides further information on this
 list and its entries.
@@ -4740,16 +4740,15 @@ Afterwards, the {\tt notifystructure} is again available for the
 caller, for example to either release its memory, or to start another
 notification request.
 
-% Updating the index up to here
 \chapter{Administration of Volumes, Devices and Assigns} \label{sec:devicelist}
 
 The \emph{dos.library} is just a layer of AmigaDOS that provides a
 common API for input/output operations; these operations are not
-implemented by the library itself, but forwarded to
-file systems or handlers. This forwarding is based on the
-exec \emph{message} and \emph{message port} system, and to this
-end, the {\tt FileLock} structure and the {\tt FileHandle}\key{FileHandle} structure
-contain a pointer to a {\tt MsgPort}.
+implemented by the library itself, but forwarded to file systems or
+handlers. This forwarding is based on the exec \emph{message} and
+\emph{message port} system, and to this end, the {\tt FileLock}
+structure and the {\tt FileHandle}\key{FileHandle} structure contain a
+pointer to a {\tt MsgPort}.
 \smallskip{}
 
 However, the \emph{dos.library} also needs to obtain this port from
@@ -4759,22 +4758,22 @@ provides it. For absolute paths, i.e. paths that contain a colon
 ('{\tt :}'), the string upfront the colon identifies handler, directly
 or indirectly. If this string is empty, i.e. the path starts with a
 colon, it is again the handler of the current directory that is
-contacted, but otherwise, the dos searches the \emph{device list} to
+contacted, but otherwise, the dos searches the \emph{device list}\mkey{Device List} to
 find a suitable \emph{message port}. This algorithm is also available
 as a function, namely {\tt GetDeviceProc()}\key{GetDeviceProc()},
 which is documented in section~\ref{sec:getdeviceproc}.
 \smallskip{}
 
 Internally, the \emph{dos.library} keeps the relation between such
-names and the corresponding ports in the {\tt DosList} structure. Such
+names and the corresponding ports in the {\tt DosList}\key{DosList} structure. Such
 a structure is also created when \emph{mounting} a handler,
 i.e. advertizing the handler to the system, or when creating an
-\emph{Assign}, see section~\ref{sec:assignlist}, or when inserting a
+\emph{assign}\key{Assign}, see section~\ref{sec:assignlist}, or when inserting a
 disk into a drive, thus making a particular \emph{volume} available to
 the system (see also~\ref{sec:volumelist}). Only the names from
 table~\ref{table:specialdevices} in~\ref{sec:deviceoverview} are
 special cases and hard-coded into the~\emph{dos.library} without
-requiring an entry in the \emph{device list} in the form of a
+requiring an entry in the device list in the form of a
 {\tt DosList} structure.
 \smallskip{}
 
@@ -4817,39 +4816,40 @@ struct DosList {
 and its members have the following purpose:
 \smallskip{}
 
-{\tt dol\_Next} is a \emph{BPTR} to the corresponding next entry in a
-singly linked list of {\tt DosList} structures. However, this list
-should not be walked manually, but instead {\tt FindDosEntry()}\key{FindDosEntry()} should be used for
+{\tt dol\_Next}\mkey{dol\_Next} is a \emph{BPTR} to the corresponding
+next entry in a singly linked list of {\tt DosList}\key{DosList}
+structures. However, this list should not be walked manually, but
+instead {\tt FindDosEntry()}\key{FindDosEntry()} should be used for
 iterating through this list.
 \smallskip{}
 
-{\tt dol\_Type} identifies the type of the entry, and by that also the
+{\tt dol\_Type}\mkey{dol\_Type} identifies the type of the entry, and by that also the
 layout of the structure, i.e. which members of the unions are
 used. The following types are defined in {\tt dos/dosextens.h}:
 
 \begin{rkrmtable}{\emph{DosList} Entry Types} \label{table:doslisttypes}
 {\tt \bf dol\_Type} & {\bf Description}\\ \hline \hline
-{\tt DLT\_DEVICE} & A file system or handler, see~\ref{sec:deviceoverview}\\ \hline
-{\tt DLT\_DIRECTORY} & A regular assign, see~\ref{sec:assignlist}\\ \hline
-{\tt DLT\_VOLUME} & A volume, see~\ref{sec:volumelist}\\ \hline
-{\tt DLT\_LATE} & A late binding assign, see~\ref{sec:assignlist}\\ \hline
-{\tt DLT\_NONBINDING} & A non-binding assign, see~\ref{sec:assignlist}\\ \hline
+{\tt DLT\_DEVICE}\mkey{DLT\_DEVICE} & A file system or handler, see~\ref{sec:deviceoverview}\\ \hline
+{\tt DLT\_DIRECTORY}\mkey{DLT\_DIRECTORY} & A regular assign, see~\ref{sec:assignlist}\\ \hline
+{\tt DLT\_VOLUME}\mkey{DLT\_VOLUME} & A volume, see~\ref{sec:volumelist}\\ \hline
+{\tt DLT\_LATE}\mkey{DLT\_LATE} & A late binding assign, see~\ref{sec:assignlist}\\ \hline
+{\tt DLT\_NONBINDING}\mkey{DLT\_NONBINDING} & A non-binding assign, see~\ref{sec:assignlist}\\ \hline
 \end{rkrmtable}
 
-{\tt dol\_Task} is the \emph{MsgPort} of the handler to contact for
-the particular handler, \emph{assign} or \emph{volume}. It may
+{\tt dol\_Task}\mkey{dol\_Task} is the \emph{MsgPort} of the handler to contact for
+the particular handler, assign or volume. It may
 be {\tt NULL} if the handler is not started, or a new handler
 process is supposed to be started for each file opened. This is, for
 example, the case for the console which requires a process for each
-window it handles. \emph{File systems} usually provide their port here
+window it handles. File systems usually provide their port here
 such that the same process is used for all objects on the
-volume. \emph{Volumes} keep here the \emph{MsgPort} of the \emph{file
-  system} that operates the volume, but it to {\tt NULL} in case the
-volume goes away, e.g. is ejected. For \emph{regular assigns}, this is
+volume. Volumes keep here the \emph{MsgPort} of the file
+  system that operates the volume, but it to {\tt NULL} in case the
+volume goes away, e.g. is ejected. For regular assigns, this is
 also the pointer to the \emph{MsgPort} of the file system the
 assign binds to; in case the assign is a \emph{multi-assign}, this is
 the \emph{MsgPort} of the first directory bound to. All additional
-ports are part of the {\tt AssignList}. For \emph{late assigns} this
+ports are part of the {\tt dol\_List}\key{dol\_List}. For \emph{late assigns} this
 member is initially {\tt NULL}, but will be filled in as soon as the
 assign in bound to a particular directory, and then becomes the
 pointer to the \emph{MsgPort} of the handler the assign is bound
@@ -4857,61 +4857,63 @@ to. Finally, for \emph{non-binding assigns} this member always stays
 {\tt NULL}.
 \smallskip{}
 
-{\tt dol\_Lock} is only used for \emph{assigns}, and only if it is
+{\tt dol\_Lock}\mkey{dol\_Lock} is only used for assigns, and only if it is
 bound to a particular directory. That is, the member remains
 {\tt ZERO} for \emph{non-binding assigns} and is initially {\tt ZERO} for
-\emph{late assigns}. For all other types, this member stays {\tt ZERO}.
+late assigns. For all other types, this member stays {\tt ZERO}.
 \smallskip{}
 
-{\tt dol\_Name} is a \emph{BPTR} to a \emph{BSTR} is the name under
-which the handler, \emph{volume} or \emph{assign} is
-accessed. That is, this string corresponds to the path component
-upfront the colon. As a courtesy to C and assembler functions,
-AmigaDOS ensures that this string is {\tt NUL} terminated, i.e.
-{\tt dol\_Name + 1} is a regular C string whose length is available in
-{\tt dol\_Name[0]}.
+{\tt dol\_Name}\mkey{dol\_Name} is a \emph{BPTR} to a \emph{BSTR} is
+the name under which the handler, volume or assign is accessed. That
+is, this string corresponds to the path component upfront the
+colon. As a courtesy to C and assembler functions, AmigaDOS ensures
+that this string is {\tt NUL} terminated, i.e.  {\tt dol\_Name + 1} is
+a regular C string whose length is available in {\tt dol\_Name[0]}.
 \medskip{}
 
-The members within {\tt dol\_handler} are used by handlers and
-file systems, i.e. if {\tt dol\_Type} is {\tt DLT\_DEVICE}.
+The members within {\tt dol\_handler}\mkey{dol\_handler} are used by handlers and
+file systems, i.e. if {\tt dol\_Type} is {\tt DLT\_DEVICE}\key{DLT\_DEVICE}.
 \smallskip{}
 
-{\tt dol\_Handler} is a \emph{BPTR} to a \emph{BSTR} containing the
+{\tt dol\_Handler}\mkey{dol\_Handler} is a \emph{BPTR} to a \emph{BSTR} containing the
 file name from which the handler or file system is
 loaded from. It corresponds to the {\tt Handler}, {\tt FileSystem} and
 {\tt EHandler} fields of the mount list. They all deposit the file
 name here.
 \smallskip{}
 
-{\tt dol\_StackSize} specifies the size of the stack for creating the
-handler or file system process. Interestingly, the unit
-of the stack size depends on the {\tt dol\_GlobVec} entry. If {\tt
-  dol\_GlobVec} is negative indicating a C or assembler handler, {\tt
-  dol\_StackSize} is in bytes. Otherwise, that is, for BCPL handlers,
-it is in 32-bit long words. This member corresponds to the {\tt
-  Stacksize} entry of the mount list.
+{\tt dol\_StackSize}\mkey{dol\_StackSize} specifies the size of the
+stack for creating the handler or file system process. Interestingly,
+the unit of the stack size depends on the {\tt dol\_GlobVec} entry. If
+{\tt dol\_GlobVec}\key{dol\_GlobVec} indicates a C or assembler
+handler, {\tt dol\_StackSize} is in bytes. Otherwise, that is, for
+BCPL handlers, it is in 32-bit long words. Table~\ref{table:gvvalues}
+indicates the type of the handler. This member corresponds to the
+{\tt Stacksize} entry of the mount list.
 \smallskip{}
 
-{\tt dol\_Priority} is priority of the handler process. Even though it
-is a {\tt LONG}, it shall be a number between $-128$ and $127$ because
-priorities of the exec task scheduler are {\tt BYTE}s. For all
-practical purposes, the priority should be a value between $0$ and
-$19$. It corresponds to the {\tt Priority} entry of the mount list.
+{\tt dol\_Priority}\mkey{dol\_Priority} is priority of the handler
+process. Even though it is a {\tt LONG}, it shall be a number between
+$-128$ and $127$ because priorities of the exec task scheduler are
+{\tt BYTE}s. For all practical purposes, the priority should be a
+value between $0$ and $19$. It corresponds to the {\tt Priority} entry
+of the mount list.
 \smallskip{}
 
-{\tt dol\_Startup} is a handler-specific startup value that is used to
-commumicate a configuration to the handler during startup. While this
-value may be whatever the handler requires, the {\tt mount} command
-either deposits here a pointer to the {\tt FileSysStartupMsg}
-structure defined in {\tt dos/filehandler.h}, a BPTR to a BSTR, or a
-small integer. Section~\ref{sec:handlers} provides more details on
-mounting handlers and how the startup mechanism works. Unfortunately,
-it is hard to interpret {\tt dol\_Startup} correctly. One way to set
-this member is through {\tt Startup} in the mount list,
-see~\ref{sec:filesysstartup} for details.
+{\tt dol\_Startup}\mkey{dol\_Startup} is a handler-specific startup
+value that is used to commumicate a configuration to the handler
+during startup. While this value may be whatever the handler requires,
+the {\tt Mount} command either deposits here a pointer to the {\tt
+  FileSysStartupMsg} structure defined in {\tt dos/filehandler.h}, a
+BPTR to a BSTR, or a small integer. Section~\ref{sec:handlers}
+provides more details on mounting handlers and how the startup
+mechanism works. Unfortunately, it is hard to interpret {\tt
+  dol\_Startup} correctly. One way to set this member is through {\tt
+  Startup} in the mount list, see~\ref{sec:filesysstartup} for
+details.
 \smallskip{}
 
-{\tt dol\_SegList} is a \emph{BPTR} to the chained segment list of the
+{\tt dol\_SegList}\mkey{dol\_SegList} is a \emph{BPTR} to the chained segment list of the
 handler if it is loaded. For disk-based handlers, this member is
 initially {\tt ZERO}. When a program attempts to access a file on the
 handler, the \emph{dos.library} first checks whether this field is
@@ -4922,7 +4924,7 @@ process of loading a handler depends on the nature of the handler and
 explained in more detail in section~\ref{sec:handlerstartup}.
 \smallskip{}
 
-{\tt dol\_GlobVec} identifies the nature of the handler as AmigaDOS
+{\tt dol\_GlobVec}\mkey{dol\_GlobVec} identifies the nature of the handler as AmigaDOS
 supports (still) BPCL and C/assembler handlers and defines how access
 to the \emph{dos list} is secured for handler loading and startup.
 BCPL handlers use a somewhat more complex loading and linking
@@ -4930,10 +4932,10 @@ mechanism as the language-specific \emph{global vector} needs to be
 populated. This is not required for C or assembler handlers where a
 simpler mechanism is sufficient, more on this in
 section~\ref{sec:handlerstartup}. Another aspect of the startup process is how
-the \emph{device list} is protected from conflicting accesses from
+the device list is protected from conflicting accesses from
 multiple processes. Two types of access protection are possible:
 Exclusive access to the list, or shared access to the list. Exclusive
-access protects the \emph{device list} from any changes while the
+access protects the device list from any changes while the
 handler is loaded and until handler startup completed. This prevents
 any other modification to the list, but also read access from any
 other process to the list. Shared access allows read accesses to the
@@ -4942,7 +4944,7 @@ list while preventing exclusive access to it.
 
 The value in {\tt dol\_GlobVec} corresponds to the {\tt GlobVec} entry
 in the mount list. It shall be one of the values in
-table~\ref{table:gvvalues}.
+table~\ref{table:gvvalues}:
 
 \begin{rkrmtable}{GlobVec Values} \label{table:gvvalues}
 {\tt \bf dol\_Type} & {\bf Description}\\ \hline \hline
@@ -4954,7 +4956,7 @@ table~\ref{table:gvvalues}.
 \end{rkrmtable}
 
 The values $0$, $-3$ and $>0$ all setup a BCPL handler, but differ in
-the access type to the \emph{device list} and how the BCPL
+the access type to the device list and how the BCPL
 \emph{global vector} is populated. This vector contains all global
 objects and all globally reachable functions of a BCPL program,
 including functions of the \emph{dos.library}. The values $0$ and $-3$
@@ -4968,109 +4970,114 @@ the \emph{dos.library} somehow. For new code, BCPL linkage and binding
 should not be used anymore.
 \medskip{}
 
-Members of the {\tt dol\_volume} structure are used if {\tt dol\_Type}
-is {\tt DLT\_VOLUME}, identifying this entry as belonging to a known
+Members of the {\tt dol\_volume}\mkey{dol\_volume} structure are used if {\tt dol\_Type}\key{dol\_Type}
+is {\tt DLT\_VOLUME}\key{DLT\_VOLUME}, identifying this entry as belonging to a known
 specific data carrier.
 \smallskip{}
 
-{\tt dol\_VolumeDate} is the creation date of the volume. It is a
+{\tt dol\_VolumeDate}\mkey{dol\_VolumeDate} is the creation date of the volume. It is a
 {\tt DateStamp}\ref{sec:datestamp} structure that is specified in
 section~\ref{sec:datestamp}. It is used to uniquely identify the volume,
 and to distinguish this volume from any other volume of the same name.
 \smallskip{}
 
-{\tt dol\_LockList} is a pointer to a singly-linked list of
+{\tt dol\_LockList}\mkey{dol\_LockList} is a pointer to a singly-linked list of
 locks on the volume. This list is created by the
 file system when the volume is ejected, and contains all locks on this
 volume. It is stored here to allow a similar file system to pick up
 the locks once the volume is re-inserted, even if it is re-inserted
 into another device. Note that the linkage is performed with
-\emph{BPTR}s and the {\tt fl\_Link} member of the {\tt FileLock}
+\emph{BPTR}s and the {\tt fl\_Link}\key{fl\_Link} member of the {\tt FileLock}\key{FileLock}
 structure.
 \smallskip{}
 
-{\tt dol\_DiskType} is an identifier of the \emph{file system type}
-that operated the volume and placed here such that an alternative
-process of the same file system is able to pick up or refuse the locks
-stored here for non-available volumes.
+{\tt dol\_DiskType}\mkey{dol\_DiskType} is an identifier of the
+\emph{file system type} that operated the volume and placed here such
+that an alternative process of the same file system is able to pick up
+or refuse the locks stored here for non-available
+volumes. Table~\ref{table:ffsflavours} lists the flavours the FFS
+supports, other file systems will deposit their own identifier here.
 \medskip{}
 
-Members of the {\tt dol\_assign} structure are used for all other
+Members of the {\tt dol\_assign}\mkey{dol\_assign} structure are used for all other
 types, i.e. all types of \emph{assigns}.
 \smallskip{}
 
-{\tt dol\_AssignName} is pointer to the target name of the assign for
+{\tt dol\_AssignName}\mkey{dol\_AssignName} is pointer to the target name of the assign for
 \emph{non-binding} and \emph{late assigns}. The \emph{dos.library}
-uses this string to locate the target of the assign. For \emph{late
-  assigns}, this member is used only on the first attempt to access
-the assign at which {\tt dol\_Lock} is populated.
+uses this string to locate the target of the assign. For late assigns, this member
+is used only on the first attempt to access the assign at which {\tt dol\_Lock}\key{dol\_Lock} is populated.
 \smallskip{}
 
-{\tt dol\_List} contains additional locks for \emph{multi-assigns} and
-is thus only used if {\tt dol\_Type} equals {\tt DLT\_DIRECTORY}. In such a
-case, {\tt dol\_Lock} is the lock to the first directory of the
+{\tt dol\_List}\key{dol\_List} contains additional locks for multi-assigns and
+is thus only used if {\tt dol\_Type}\key{dol\_Type} equals {\tt DLT\_DIRECTORY}\key{DLT\_DIRECTORY}. In such a
+case, {\tt dol\_Lock}\key{dol\_Lock} is the lock to the first directory of the
 \emph{multi-assign}, while {\tt dol\_List} contains all following
 locks in a singly-linked list of {\tt AssignList} structures:
 
 \mkey{AssignList}
 \begin{verbatim}
 struct AssignList {
-        struct AssignList *al_Next;
-        BPTR               al_Lock;
+  struct AssignList *al_Next;
+  BPTR               al_Lock;
 };
 \end{verbatim}
 
-{\tt al\_Next} points to the next lock that is part of the
-\emph{multi-assign} and {\tt al\_Lock} is the lock itself. This
+{\tt al\_Next}\mkey{al\_Next} points to the next lock that is part of the
+multi-assign and {\tt al\_Lock}\mkey{al\_Lock} is the lock itself. This
 structure is also defined in {\tt dos/dosextens.h}.
 
 \section{The Device List and the Mountlist} \label{sec:mountlist}
 
-Entries of the type {\tt DLT\_DEVICE} can be created through a {\tt
-  Mountlist} and the {\tt Mount} command. Other sources of these entries are
+Entries of the type {\tt DLT\_DEVICE}\key{DLT\_DEVICE} can be created through a {\tt
+  mountlist}\mkey{Mountlist} and the {\tt Mount} command. Other sources of these entries are
 the \emph{expansion.library} which is called from autoconfiguring boot
 devies, such as SCSI hostadapters or other media interfaces.
 \smallskip{}
 
 Many keywords in the {\tt Mountlist} map directly to entries in the {\tt
-  DosList} structure, others to entries in the {\tt FileSysStartupMsg} and
-the {\tt DosEnvec} structure pointed to there.
+  DosList}\key{DosList} structure, others to entries in the {\tt FileSysStartupMsg}\key{FileSysStartupMsg} and
+the {\tt DosEnvec}\key{DosEnvec} structure pointed to there.
 
 \subsection{Keywords defining the DosList structure} \label{sec:mountdoslist}
 
-The {\tt HANDLER}, {\tt EHANDLER} and {\tt FILESYSTEM} keywords in the
-{\tt Mountlist} all define the {\tt dol\_Handler} element. Which
-keyword is used impacts, however, other elements of the {\tt DosList}
-structure, most notably {\tt dol\_Startup}.
+The {\tt HANDLER}\mkey{HANDLER}, {\tt EHANDLER}\mkey{EHANDLER} and
+{\tt FILESYSTEM}\mkey{FILESYSTEM} keywords in the mountlist\key{Mountlist} all
+define the {\tt dol\_Handler}\key{dol\_Handler} element. Which keyword is used impacts,
+however, other elements of the {\tt DosList}\key{DosList} structure, most notably
+{\tt dol\_Startup}\key{dol\_Startup}.
 \smallskip{}
 
-The {\tt STACKSIZE} keyword sets {\tt dol\_StackSize} element. This is in
+The {\tt STACKSIZE}\mkey{STACKSIZE} keyword sets {\tt dol\_StackSize}\key{dol\_StackSize} element. This is in
 bytes for C and assembler handlers, and in long-words for BCPL handlers. The
-type of the handler is determined by {\tt GLOBVEC}.
+type of the handler is determined by {\tt GLOBVEC}\key{GLOBVEC}.
 \smallskip{}
 
-The {\tt PRIORITY} keyword sets {\tt dol\_Priority} and with that the
-priority of the process running the handler.
+The {\tt PRIORITY}\mkey{PRIORITY} keyword sets {\tt
+  dol\_Priority}\key{dol\_Priority} and with that the priority of the
+process running the handler.
 \smallskip{}
 
-The {\tt GLOBVEC} keyword sets {\tt dol\_GlobVec} element, and by that also
-the type of the handler. Table~\ref{table:gvvalues} in~\ref{sec:devicelist}
+The {\tt GLOBVEC}\mkey{GLOBVEC} keyword sets {\tt
+  dol\_GlobVec}\key{dol\_GlobVec} element, and by that also the type
+of the handler. Table~\ref{table:gvvalues} in~\ref{sec:devicelist}
 lists the possible values and their interpretation.
 \smallskip{}
 
-If the {\tt HANDLER} keyword is present, the {\tt STARTUP} entry in the {\tt
-  Mountlist} sets {\tt dol\_Startup}. It can be either an integer value, or
-if the argument is enclosed in double quotes, a string. In the latter case,
-{\tt dol\_Startup} is set to a \emph{BPTR} to a \emph{BSTR} that is, to ease
-handler implementation, also {\tt NUL} terminated. The terminator is,
-however, not included in the size of the \emph{BSTR}. It is therefore up to
-the user to ensure that the arguments in the {\tt Mountlist} are what the
-handler expects.
+If the {\tt HANDLER}\key{HANDLER} keyword is present, the {\tt
+  STARTUP}\mkey{STARTUP} entry in the mountlist sets {\tt
+  dol\_Startup}\key{dol\_Startup}. It can be either an integer value,
+or if the argument is enclosed in double quotes, a string. In the
+latter case, {\tt dol\_Startup} is set to a \emph{BPTR} to a
+\emph{BSTR} which is, to ease handler implementation, also {\tt NUL}
+terminated. The terminator is, however, not included in the size of
+the \emph{BSTR}. It is up to the user to ensure that the arguments in
+the mountlist are what the handler expects.
 
 \subsection{Keywords controlling the FileSysStartupMsg} \label{sec:filesysstartup}
 
-If the {\tt EHANDLER} or {\tt FILESYSTEM} keyword is present, the {\tt
-  dol\_Startup} element is instead a \emph{BPTR} to a {\tt FileSysStartupMsg}
+If the {\tt EHANDLER}\key{EHANDLER} or {\tt FILESYSTEM}\key{FILESYSTEM} keyword is present, the {\tt
+  dol\_Startup}\key{dol\_Startup} element is instead a \emph{BPTR} to a {\tt FileSysStartupMsg}
 structure, defined in the include file {\tt dos/filehandler.h}:
 \mkey{FileSysStartupMsg}
 \begin{verbatim}
@@ -5082,38 +5089,38 @@ struct FileSysStartupMsg {
 };
 \end{verbatim}
 It is again up to the user to ensure that the handler is really expecting
-such a structure and setup the {\tt Mountlist} appropriately.
+such a structure and setup the Mountlist appropriately.
 \medskip{}
 
 The elements of the above structure identify an exec type device on top of
 which the handler or file system is supposed to operate. Some
 extended handlers, i.e. {\tt EHANDLER}s, also use this structure; the V47
-{\tt Port-Handler} can be setup this way to operate on top of a third-party
+Port-Handler can be setup this way to operate on top of a third-party
 serial device driver.
 \smallskip{}
 
-The {\tt DEVICE} keyword of the {\tt Mountlist} sets {\tt fssm\_Device}
+The {\tt DEVICE}\mkey{DEVICE} keyword of the mountlist sets {\tt fssm\_Device}\mkey{fssm\_Device}
 entry. This element is initialized to a \emph{BSTR}. To avoid further string
 conversion when calling {\tt OpenDevice()}\key{OpenDevice()}, this
-\emph{BSTR} is {\tt NUL}-terminated.
+BSTR is {\tt NUL}-terminated.
 \smallskip{}
 
-The {\tt UNIT} keyword sets {\tt fssm\_Unit} and therefore the unit number
+The {\tt UNIT}\mkey{UNIT} keyword sets {\tt fssm\_Unit}\mkey{fssm\_Unit} and therefore the unit number
 of the exec device on top of which the file system or handler should
 operate.
 \smallskip{}
 
-The {\tt FLAGS} keyword sets {\tt fssm\_Flags} element, and thus the flags
+The {\tt FLAGS}\mkey{FLAGS} keyword sets {\tt fssm\_Flags}\mkey{fssm\_Flags} element, and thus the flags
 for opening an exec type. Its purpose and meaning is specific to the device
-identified by {\tt fssm\_Device}.
+identified by {\tt fssm\_Device}\key{fssm\_Device}.
 \smallskip{}
 
 \subsection{Keywords controlling the Environment Vector} \label{sec:envec}
 
-The {\tt fssm\_Environ} element of the {\tt FileSysStartupMsg} is a
+The {\tt fssm\_Environ}\mkey{fssm\_Environ} element of the {\tt FileSysStartupMsg}\key{FileSysStartupMsg} is a
 \emph{BPTR} to another structure that describes, amongst others, the layout
 of a file system on a disk; beyond file systems, extended
-handlers mounted by the {\tt EHANDLER} keyword may also make use of it.
+handlers mounted by the {\tt EHANDLER}\key{EHANDLER} keyword may also make use of it.
 \smallskip{}
 
 This structure is also defined in {\tt dos/filehandler.h} and looks as
@@ -5142,43 +5149,45 @@ struct DosEnvec {
     ULONG de_BootBlocks;
 };
 \end{verbatim}
-The elements in this structure, except the first one, are also initialized
+The elements in this structure, except the first one, are also represented
 by keywords in the mount list.
 \smallskip{}
 
-{\tt de\_TableSize} defines how many elements in this structure are actually
-valid and thsu may be accessed by the handler or \emph{file
-system}. It is \emph{not} a byte count, but an element count, excluding {\tt
-  de\_TableSize}. In other words, the {\tt DosEnvec} is a typical BCPL
-vector whose vector size is indicated in its first element --- note that all
-elements of the structure are 32-bits wide.
+{\tt de\_TableSize}\mkey{de\_TableSize} defines how many elements in
+this structure are actually valid and thus may be accessed by the
+handler or file system. It is \emph{not} a byte count, but an element
+count, excluding {\tt de\_TableSize}. In other words, the {\tt
+  DosEnvec} is a typical BCPL vector whose vector size is indicated in
+its first element --- note that all elements of the structure are
+32-bits wide.
 \smallskip{}
 
-The keyword {\tt SECTORSIZE} and {\tt BLOCKSIZE} set both {\tt
-  de\_SizeBlock}. While the {\tt Mountlist} keywords take a byte count, this
+The keyword {\tt SECTORSIZE}\mkey{SECTORSIZE} and {\tt BLOCKSIZE}\mkey{BLOCKSIZE} set both {\tt
+  de\_SizeBlock}\mkey{de\_SizeBlock}. While the mountlist keywords take a byte count, this
 byte count is divided by 4 to form a long-word count that is inserted into
 {\tt de\_SizeBlock}. As the name suggests, it defines the size of a storage
 unit on a medium. Typical values are 128 for 512 byte blocks, or 1024 for
 4096 byte blocks. However, not all file systems support all block sizes, and
 some only support the default value of 128, i.e. 512 byte blocks, the {\tt
-  Mount} command fills in without further information.
+  Mount} command fills in by default.
 \smallskip{}
 
-{\tt de\_SecOrg} is not used and shall be~0; consequently, the {\tt Mount}
-command does not provide a keyword to set it.
+{\tt de\_SecOrg}\mkey{de\_SecOrg} is not used and shall be~0;
+consequently, the {\tt Mount} command does not provide a keyword to
+set it.
 \smallskip{}
 
-The {\tt SURFACES} keyword sets {\tt de\_Surfaces}. A possible meaning for
+The {\tt SURFACES}\mkey{SURFACES} keyword sets {\tt de\_Surfaces}\mkey{de\_Surfaces}. A possible meaning for
 this member is to interpret it as the number of read-write heads of a
 magnetic disk drive. However, as the exec device {\tt trackdisk} interface
 for magnetic storage media does not actually allow access to such low-level
-features that are rather abstracted away by the device, file systems
-rather use this value along with {\tt de\_BlocksPerTrack} the number of
+features that are instead abstracted away by the device, file systems
+use this value along with {\tt de\_BlocksPerTrack}\key{de\_BlocksPerTrack} and the number of
 cylinders computed from {\tt de\_LowCyl} and {\tt de\_HighCyl} to determine
 the capacity of the medium.
 \smallskip{}
 
-The {\tt SECTORSPERBLOCK} keyword sets the {\tt de\_SectorsPerBlock}, and
+The {\tt SECTORSPERBLOCK}\mkey{SECTORSPERBLOCK} keyword sets the {\tt de\_SectorsPerBlock}\mkey{SectorsPerBlock}, and
 thus the number of physical sectors on a disk the file system
 combines to one longical storage block. Not all file systems support
 values different from~1 here; the FFS does, and always reads and writes data
@@ -5186,45 +5195,48 @@ in units of {\tt de\_SectorsPerBlock} times {\tt de\_SizeBlock} of
 long-words. For the exec {\tt trackdisk} interface, the byte size is the
 only value that matters; however, the ``direct SCSI'' transfer latest FFS
 releases offer addresses the disk in terms of physical sectors, and then
-{\tt de\_SizeBlock} defines the size of a sector in long-words as addressed
-by SCSI commands, whereas {\tt de\_SectorsPerBlock} is the number of
+{\tt de\_SizeBlock}\key{de\_SizeBlock} defines the size of a sector in long-words as addressed
+by SCSI commands, whereas {\tt de\_SectorsPerBlock}\key{de\_SectorsPerBlock} is the number of
 physical sectors the FFS reads for one logical block.
 \smallskip{}
 
-The {\tt SECTORSPERTRACK} and {\tt BLOCKSPERTRACK} keywords set both the
-{\tt de\_BlocksPerTrack} element of the {\tt DosEnvec} structure. The first
+The {\tt SECTORSPERTRACK}\mkey{SECTORSPERTRACK} and {\tt BLOCKSPERTRACK}\mkey{BLOCKSPERTRACK} keywords set both the
+{\tt de\_BlocksPerTrack}\mkey{de\_BlocksPerTrack} element of the {\tt DosEnvec}\key{DosEnvec} structure. The first
 name is actually most appropriate as this element defines the number of
 physical sectors, and not the number of logical blocks a track of a disk
-contains. Thus, naming is a historical accident. As for the {\tt SURFACES}
+contains. Thus, naming is a historical accident. As for the {\tt SURFACES}\key{SURFACES}
 keyword, the number of sectors per track is only in so far relevant as it
 defines along with the first and last cylinder the storage capacity of the
-medium or partition. The values never enter the exec layer.
+medium or partition. The values never enter the exec device layer.
 \smallskip{}
 
-The {\tt RESERVED} keyword sets the {\tt de\_Reserved} element of {\tt
-  DosEnvec} and defines the number of (logical) blocks not used by the
+The {\tt RESERVED}\mkey{RESERVED} keyword sets the {\tt de\_Reserved}\mkey{de\_Reserved} element of {\tt
+  DosEnvec}\key{DosEnvec} and defines the number of (logical) blocks not used by the
 file system at the start of the disk or partition. For floppies,
 these reserved blocks hold a (minimal) boot procedure that initializes the
 \emph{dos.library}.
 \smallskip{}
 
-The {\tt PREALLOC} keyword installs the {\tt de\_PreAlloc} element, which is
-supposed to be the number of logical blocks set aside at the end of the
-partition. However, current FFS versions completely ignore this element.
+The {\tt PREALLOC}\mkey{PREALLOC} keyword installs the {\tt
+  de\_PreAlloc}\mkey{de\_PreAlloc} element, which is supposed to be
+the number of logical blocks set aside at the end of the
+partition. However, current FFS versions completely ignore its value.
 \smallskip{}
 
-The {\tt INTERLEAVE} keyword defines the lower 16 bits of the {\tt
-  de\_Interleave} element. TRIPOS might have reserved the entire long-word
-to define the interleave factor of the disk, and the difference between two
-sector addresses the file system is supposed to reserve for subsequent
-storage. This interleave factor helped to speed up transfers for ancient
-harddisks, but neither the original OFS nor the latest FFS make use of this
-mechanism and allocate sectors contiguously, i.e. with an interleave factor
-of~1. The upper 16 bits of {\tt de\_Interleave} suit now a different
-purpose and are set by separate keywords of {\tt Mount}.
+The {\tt INTERLEAVE}\mkey{INTERLEAVE} keyword defines the lower 16
+bits of the {\tt de\_Interleave}\mkey{de\_Interleave} element. Tripos
+reserved the entire long-word to define the interleave factor of the
+disk, which is the difference between two sector addresses the file
+system is supposed to reserve for subsequent storage. This interleave
+factor helped to speed up transfers for ancient harddisks, but neither
+the original OFS nor the latest FFS make use of this mechanism and
+allocate sectors contiguously, i.e. with an interleave factor of~1,
+regardless of what is set here. The upper 16 bits of {\tt
+  de\_Interleave}\key{de\_Interleave} suit now a different purpose and
+are set by separate keywords of {\tt Mount}.
 \smallskip{}
 
-The {\tt LOWCYL} keyword initializes the {\tt de\_LowCyl} element of the
+The {\tt LOWCYL}\mkey{LOWCYL} keyword initializes the {\tt de\_LowCyl}\mkey{de\_LowCyl} element of the
 {\tt DosEnvec} structure. It sets the lower end of the partition on the
 storage medium, i.e. {\tt de\_LowCyl} $\times$ {\tt de\_Surfaces} $\times$
 {\tt de\_BlocksPerTrack} + {\tt de\_Reserved} $\times$ {\tt
@@ -5232,37 +5244,40 @@ storage medium, i.e. {\tt de\_LowCyl} $\times$ {\tt de\_Surfaces} $\times$
 can carry payload data of the file system.
 \smallskip{}
 
-The {\tt HIGHCYL} keyword sets the {\tt de\_HighCyl} element; it defines the
+The {\tt HIGHCYL}\mkey{HIGHCYL} keyword sets the {\tt de\_HighCyl}\mkey{de\_HighCyl} element; it defines the
 (inclusive) upper end of the partition in units of cylinders. That is, ({\tt
   de\_HighCyl} + 1) $\times$ {\tt de\_Surfaces} $\times$ {\tt
   de\_BlocksPerTrack} $- 1$ is the last sector of the partition or medium the
 file system can allocate for payload data.
 \smallskip{}
 
-The {\tt BUFFERS} keyword sets the {\tt de\_NumBuffers} element; it defines
-the (initial) number of file system buffers allocated for caching metadata
-and storing data not directly accessible through the exec device driver. The
-number of buffers may be changed later with {\tt
-  AddBuffers()}\key{AddBuffers()},
-see section~\ref{sec:addbuffers}. Each buffer is one (logical) block large.
+The {\tt BUFFERS}\mkey{BUFFERS} keyword sets the {\tt
+  de\_NumBuffers}\mkey{de\_NumBuffers} element; it defines the
+(initial) number of file system buffers allocated for caching metadata
+and storing data not directly accessible through the exec device
+driver. The number of buffers may be changed later with {\tt
+  AddBuffers()}\key{AddBuffers()}, see
+section~\ref{sec:addbuffers}. Each buffer holds data of one (logical)
+block, though a small adminstrative overhead is required on top for
+its administration.
 \smallskip{}
 
-The {\tt BUFMEMTYPE} defines the {\tt de\_BufMemType} element. It defines
+The {\tt BUFMEMTYPE}\mkey{BUFMEMTYPE} defines the {\tt de\_BufMemType}\mkey{de\_BufMemType} element. It defines
 the memory type, i.e. the second argument of {\tt AllocMem()}, for
 allocating memory keeping the file system buffers. While exec device drivers
 should be able read and write data to any memory type, several legacy rivers
-may not be able reach all memory; this may be due to limitations of the
+are not able reach every memory type; this is often due to limitations of the
 hardware such that Zorro-II hardware cannot reach 32-bit memory. Thus,
-depending on limitations of the {\tt fssm\_Device}, it is unfortunately
-up to the user to provide a suitable {\tt BUFMEMTYPE}.
+depending on limitations of the {\tt fssm\_Device}\key{fssm\_Device}, it is unfortunately
+up to the user to provide a suitable {\tt BUFMEMTYPE}\key{BUFMEMTYPE}.
 \smallskip{}
 
-The {\tt MASK} keyword defines the {\tt de\_Mask} element of the {\tt
-  DosEnvec} structure. This is a workaround for defect device drivers
+The {\tt MASK}\mkey{MASK} keyword defines the {\tt de\_Mask}\mkey{de\_Mask} element of the {\tt
+  DosEnvec}\key{DosEnvec} structure. This is a workaround for defect device drivers
 that cannot read from or write to all memory types. In particular, if
 the address of the host memory buffer has bits set in positions where
 the mask contains 0 bits, the file system shall assume that the
-device cannot reach this memory. Instead, it shall perform input or
+device cannot reach memory of such an address. Instead, it shall perform input or
 output indirectly through its buffers, and copy with the CPU between
 those buffers and the target or source memory block.
 
@@ -5272,12 +5287,12 @@ those buffers and the target or source memory block.
     0x00ffffff}, indicating that the device cannot reach 32-bit memory. A
   suitable memory type would then be {\tt MEMF\_24BITDMA | MEMF\_PUBLIC},
   i.e. 513 as decimal value. This requests 24-bit memory for the buffers.
-  Note that providing a mask is useless if the memory type does not allocate
+  Note that providing a mask is useless if the memory type does not request
   memory that fits to the mask.}
 
-The {\tt MAXTRANSFER} keyword sets {\tt de\_MaxTransfer}. This value sets
+The {\tt MAXTRANSFER}\mkey{MAXTRANSFER} keyword sets {\tt de\_MaxTransfer}\mkey{de\_MaxTransfer}. This value sets
 the maximum number of bytes the file system shall read or write by a
-single I/O operation. Similar to {\tt MASK}, it is a workaround required to
+single I/O operation. Similar to {\tt MASK}\key{MASK}, it is a workaround required to
 avoid problems with defect device drivers that corrupt data if too many
 bytes are read or written in one go.
 
@@ -5288,24 +5303,24 @@ bytes are read or written in one go.
   the problem device drivers have is typically not the transfer rate, but
   the amount of data to transfer.}
 
-The {\tt BOOTPRI} keyword sets the {\tt de\_BootPri} element which defines
+The {\tt BOOTPRI}\mkey{BOOTPRI} keyword sets the {\tt de\_BootPri}\mkey{de\_BootPri} element which defines
 the order in which the system attempts to boot from a partition or
-medium. Obvously, it makes little sense to set this keyword in a {\tt
-  Mountlist} that is interpreted after the system had already
+medium. Obvously, it makes little sense to set this keyword in a mountlist
+that is interpreted after the system had already
 booted. However, autobooting devices may set an appropriate value here, for
 example by reading it from the RDB of its disk.
 \smallskip{}
 
-The {\tt DOSTYPE} keyword sets the {\tt de\_DosType} element, identifying
+The {\tt DOSTYPE}\mkey{DOSTYPE} keyword sets the {\tt de\_DosType}\mkey{de\_DosType} element, identifying
 the type and flavour of the file system to use for the medium or
-partitiion. If the {\tt FILESYSTEM} keyword is present, but the {\tt
-  FORCELOAD} is either not present or set to 0, then the {\tt Mount} command
+partition. If the {\tt FILESYSTEM}\key{FILESYSTEM} keyword is present, but the {\tt
+  FORCELOAD}\key{FORCELOAD} is either not present or set to 0, then the {\tt Mount} command
 first attempts to find a suitable file system in the {\tt
-  FileSystem.resource} whose {\tt fse\_DosType} matches {\tt de\_DosType},
+  FileSystem.resource} whose {\tt fse\_DosType}\key{fse\_DosType} matches {\tt de\_DosType}\key{de\_DosType},
 avoiding to load the same file system again. If a match is found, the {\tt
-  FileSysEntry} of the resource is used to initialize the {\tt DosEnvec}, in
-particular {\tt dol\_SegList}. Table~\ref{table:ffsflavours} in
-lists the available file systems.
+  FileSysEntry}\key{FileSysEntry} of the resource is used to initialize the {\tt DosEnvec}\key{DosEnvec}, in
+particular {\tt dol\_SegList}\key{dol\_SegList}. Table~\ref{table:ffsflavours}
+lists the available AmigaDOS file systems:
 \smallskip{}
 
 \begin{rkrmtable}{Fast File System Flavours} \label{table:ffsflavours}
@@ -5323,13 +5338,13 @@ to FFS \\ \hline \hline
 {\tt 'MSD\textbackslash0'} & FAT on a disk without partition table \\ \hline
 {\tt 'MDD\textbackslash0'} & identical to the above, FAT on a floppy \\ \hline
 {\tt 'MSH\textbackslash0'} & FAT on a partition \\ \hline
-{\tt 'FAT\textbackslash0'} & FAT, switched by the SuperFloppy disk \\ \hline \hline
+{\tt 'FAT\textbackslash0'} & FAT, used on a partition or a SuperFloppy \\ \hline \hline
 {\tt 'CD0\textbackslash0'} & Original CD File system \\ \hline
 {\tt 'CD0\textbackslash1'} & CD File System with Joliet support \\ \hline
 \end{rkrmtable}
 
 The first part of the table indicates various versions of the ROM file
-system; the original version from TRIPOS is here denoted as OFS, though this
+system; the original version from Tripos is here denoted as OFS, though this
 name mostly distignuishes it from its later reimplementation, the FFS.
 \smallskip{}
 
@@ -5393,7 +5408,7 @@ FAT is native, the second partition is indicated by the last character of
 \smallskip{}
 
 The last type indicates a file system either on a floppy or the first
-partition of a MBR-formatted disk, depending on the {\tt SUPERFLOPPY}
+partition of a MBR-formatted disk, depending on the {\tt SUPERFLOPPY}\key{SUPERFLOPPY}
 keyword, see below.
 \medskip{}
 
@@ -5404,13 +5419,13 @@ support for Joliet extensions and audio track support. Otherwise, the types
 are identical.
 \medskip{}
 
-The {\tt BAUD} keyword fills the {\tt de\_Baud} element; it is obviously not
+The {\tt BAUD}\mkey{BAUD} keyword fills the {\tt de\_Baud}\mkey{de\_Baud} element; it is obviously not
 used by file systems but extended handlers that are indicated by
-the {\tt EHANDLER} keyword. For them, it provides the baud rate for an
+the {\tt EHANDLER}\key{EHANDLER} keyword. For them, it provides the baud rate for an
 (assumed) serial connection.
 \smallskip{}
 
-The {\tt CONTROL} keyword sets the {\tt de\_Control} element. Even though
+The {\tt CONTROL}\mkey{CONTROL} keyword sets the {\tt de\_Control}\mkey{de\_Control} element. Even though
 this element is here indicated as an {\tt ULONG}, it can be either an
 integer or a string. In the latter case, the argument to {\tt CONTROL} shall
 be enclosed in double quotes, and the {\tt Mount} command then places a
@@ -5420,48 +5435,49 @@ learn from the handler documentation what the handler expects to find in the
 type is indicated.
 \smallskip{}
 
-The {\tt BOOTBLOCKS} keyword initializes the {\tt de\_BootBlocks} element;
+The {\tt BOOTBLOCKS}\mkey{BOOTBLOCKS} keyword initializes the {\tt de\_BootBlocks}\mkey{de\_BootBlocks} element;
 it is currently not used by any AmigaDOS file system. The FFS instead
-depends on {\tt de\_Reserved}.
+depends on {\tt de\_Reserved}\key{de\_Reserved}.
 \smallskip{}
 
-The {\tt SUPERFLOPPY} keyword takes a boolean 0 or 1 argument and by that
-either sets or clears the {\tt ENVF\_SUPERFLOPPY} flag. This flag has been
+The {\tt SUPERFLOPPY}\mkey{SUPERFLOPPY} keyword takes a boolean 0 or 1 argument and by that
+either sets or clears the {\tt ENVF\_SUPERFLOPPY}\mkey{ENVF\_SUPERFLOPPY} flag. This flag has been
 cut off (or reserved) from the otherwise deprecated and thus unused {\tt
-  de\_Interleave} element. It is by default cleared.
+  de\_Interleave}\key{de\_Interleaved} element. It is by default cleared.
 \smallskip{}
 
-If this flag in {\tt de\_Interleave} is set, then the file system is
+If this flag in {\tt de\_Interleave}\key{de\_Interleave} is set, then the file system is
 informed that the partition extends over the entire medium and no partition
 table or RDB is found. Instead, to find the size of the medium, the file
-system is authorized to issue a {\tt TD\_GETGEOMETRY} command to the low
+system is authorized to issue a {\tt TD\_GETGEOMETRY} command to the exec
 level device driver which will report the layout of the disk. This driver
-information is then used to adjust {\tt de\_LowCyl}, {\tt de\_HighCyl}, {\tt
-  de\_SizeBlock} and {\tt de\_Surfaces}. Thus, a file system mounted with
+information is then used to adjust {\tt de\_LowCyl}\key{de\_LowCyl}, {\tt de\_HighCyl}\key{de\_HighCyl},
+{\tt de\_SizeBlock}\key{de\_SizeBlock} and {\tt de\_Surfaces}\key{de\_Surfaces}.
+Thus, a file system mounted with
 this flag set is able to extract the device layout directly from the
-hardware driver. This is important for drives that allow variously sized
+hardware driver. This is important for drives that allow variably sized
 media, such as floppy disks (supporting both DD and HD disks) as well as ZIP
 drives (supporting 100MB to 250MB drives).
 \smallskip{}
 
 AmigaDOS up to release V40 hardwired this special case to ROM-based
-devices that support variably sized media, namely to the {\tt
+devices that supported variably sized media, namely to the {\tt
   trackdisk.device} and {\tt carddisk.device}, i.e. the floppy and
 memory cards in the PCMCIA slot. Newer releases allow to extend
 this mechanism to other device drivers as well. As of V47, the FAT and
-ROM file system both support this mechanism, though it has to be
+the FFS both support this mechanism, though it has to be
 enabled with the {\tt 'FAT\textbackslash0'} {\tt dostype} for the
 former driver.
 \medskip{}
 
-The {\tt SCSIDIRECT} keyword is also a boolean 0/1 indicator and controls
-the {\tt ENVF\_SCSIDIRECT} flag which is also part of the otherwise
-deprecated {\tt de\_Interleave} element. It is cleared by default,
+The {\tt SCSIDIRECT}\mkey{SCSIDIRECT} keyword is also a boolean 0/1 indicator and controls
+the {\tt ENVF\_SCSIDIRECT}\mkey{ENVF\_SCSIDIRECT} flag which is also part of the otherwise
+deprecated {\tt de\_Interleave}\key{de\_Interleave} element. It is cleared by default,
 indicating that the file system should use the {\tt trackdisk} command set
 to access data.
 \smallskip{}
 
-If this flag is enabled, the file system is instructed to communicate with
+If this flag is set, the file system is instructed to communicate with
 the underlying device through the {\tt HD\_SCSICMD} interface, i.e. SCSI
 commands. This may help some legacy device drivers that do not speak the
 64-bit dialect of the {\tt trackdisk} commands to access data beyond the 4GB
@@ -5469,55 +5485,60 @@ barrier. Very anchient device drivers may not even support this command
 type.
 \medskip{}
 
-The {\tt ENABLENSD} keyword is again a boolean 0/1 indicator for the
-{\tt ENVF\_DISABLENSD} flag cut off from the {\tt de\_Interleave} field; it
-is, however, set in inverse logic, i.e. the {\tt ENVF\_DISABLENSD} is set if
-the mount parameter is 0, and reverse.
+The {\tt ENABLENSD}\mkey{ENABLENSD} keyword is again a boolean 0/1
+indicator for the {\tt ENVF\_DISABLENSD}\mkey{ENVF\_DISABLENSD} flag
+cut out off from the {\tt de\_Interleave}\key{de\_Interleave} field;
+it is, however, set in inverse logic, i.e. the {\tt
+  ENVF\_DISABLENSD}\key{ENVF\_DISABLENSD} is set if the mount
+parameter is 0, and reverse.
 \smallskip{}
 
-If the flag in {\tt de\_Interleave} is set, and thus {\tt ENABLENSD} is set
-to $0$ in the mount list, the file system is instructed not to attempt to
-use {\tt NSD}-style commands to access data beyond the 4GB barrier. This may
-be necessary on some device drivers that ignore the most significant bits of
-the {\tt io\_Command} field or react otherwise allergic to commands beyond
+If the flag in {\tt de\_Interleave}\mkey{de\_Interleave} is set, and
+thus {\tt ENABLENSD}\mkey{ENABLENSD} is set to $0$ in the mount list,
+the file system is instructed not to attempt to use {\tt NSD}-style
+commands to access data beyond the 4GB barrier. This may be necessary
+on some device drivers that ignore the most significant bits of the
+{\tt io\_Command} field or react otherwise allergic to commands beyond
 the usual range.
 \smallskip{}
 
 Unfortunately, multiple command sets exist to access (moderately) large
-disks. If {\tt DIRECTSCSI} is enabled, SCSI commands will always be used,
-even for probing the medium size if {\tt SUPERFLOPPY} is set. If SCSI
+disks. If {\tt DIRECTSCSI}\key{DIRECTSCSI} is enabled, SCSI commands will always be used,
+even for probing the medium size if {\tt SUPERFLOPPY}\key{SUPERFLOPPY} is set. If SCSI
 commands are not enabled, the FFS first attempts to use regular
 {\tt trackdisk} commands if the requested region of the device does not cross
 the 4GB barrier. If that is not possible, it probes the {\tt TD64} command
 set as it is historically the most popular extension. As last resort, it
 tries {\tt NSD} commands. This last step can be disabled by the line {\tt
-  ENABLENSD = 0} in the {\tt Mountlist} if it creates problems.
+  ENABLENSD = 0} in the mountlist if it creates problems.
 \medskip{}
 
-The {\tt ACTIVATE} keyword in the {\tt Mountlist} is synonym to the {\tt
-  MOUNT} keyword, and it also takes a boolean 0/1 indicator. If it is set,
+The {\tt ACTIVATE}\mkey{ACTIVATE} keyword in the mountlist is synonym to the {\tt
+  MOUNT}\mkey{MOUNT} keyword, and it also takes a boolean 0/1 indicator. If it is set,
 then the {\tt Mount} command will already load and initiate the handler
 corresponding to the mount entry, even if it is at this point not yet
 needed.
 \smallskip{}
 
-The {\tt FORCELOAD} keyword of the {\tt Mountlist}, finally, is another
-boolean 0/1 flag. If it is set to 1, it indicates to the {\tt Mount} command
-not to scan the {\tt FileSystem.resource} for a fitting {\tt dostype} but
-rather forcibly load the file system from the path indicated by the
-{\tt FILESYSTEM} keyword. This option is, for example, useful for testing.
+The {\tt FORCELOAD}\mkey{FORCELOAD} keyword of the mountlist, finally,
+is another boolean 0/1 flag. If it is set to 1, it indicates to the
+{\tt Mount} command not to scan the {\tt FileSystem.resource} for a
+fitting {\tt dostype} but rather forcibly load the file system from
+the path indicated by the {\tt FILESYSTEM}\key{FILESYSTEM}
+keyword. This option is, for example, useful for testing.
 
 \section{Finding Handler or File System Ports}
 
 The following functions find the \emph{MsgPort} of the handler
 or file system that is responsible for a given object. The
-functions search the \emph{device list}, check whether the handler is
+functions search the device list, check whether the handler is
 already loaded or load it if necessary, then check whether the handler
 is already running, and if not, launch an instance of it. If
 \emph{multi-assigns} are involved, it can become necessary to contact
 multiple file systems to resolve the task and thus to iterate
 through multiple potential file systems to find the right one.
 
+% up to this point
 \subsection{Iterate through Devices Matching a Path} \label{sec:getdeviceproc}
 
 The {\tt GetDeviceProc()}\mkey{GetDeviceProc()} find a handler, or the
@@ -5681,11 +5702,11 @@ file systemable to handle the path {\tt name}. It returns
 If the passed in {\tt name} is part of an \emph{assign}, the handler
 port of the directory the assign binds to is returned, and {\tt
   IoErr()} is set to the lock of the assign. Unfortunately, one
-cannot safely make use of this lock as the \emph{device list}
+cannot safely make use of this lock as the device list
 may be altered any time, including the time between the return from
 this function and its first use by the caller. Thus, {\tt
   GetDeviceProc()} shall be used instead which locks resources such as
-the \emph{device list}; they are released through {\tt
+the device list; they are released through {\tt
   FreeDeviceProc()}.
 
 \punchline{Obsolete and not fully functional}{{\tt DeviceProc()} function
@@ -5742,7 +5763,7 @@ an \emph{assign} and paths starting with {\tt SYS:} do therefore not
 require resolution through this function, though the default
 file system and the file system handling {\tt SYS:} are
 typically identical. However, as the former is returned by {\tt
-  GetFileSysTask()} and the latter is part of the \emph{device list}
+  GetFileSysTask()} and the latter is part of the device list
 \emph{assign}, they can be different.
 
 \section{Iterating and Accessing the Device List} \label{sec:devlistaccess}
@@ -5750,14 +5771,14 @@ typically identical. However, as the former is returned by {\tt
 While {\tt GetDeviceProc()}\key{GetDeviceProc()} uses the \emph{device
   list} to locate a particular \emph{MsgPort} and lock, all
 other members of the {\tt DosList} structure remain unavailable. For
-them, the \emph{device list} containing these structures need to be
+them, the device list containing these structures need to be
 scanned manually. The \emph{dos.library} provides functions to grant
 access, search and release access to this list.
 
 \subsection{Gaining Access to the Device List} \label{sec:lockdoslist}
 
 The {\tt LockDosList()}\mkey{LockDosList()} function requests shared
-or exclusive access to a subset of entries of the \emph{device list}
+or exclusive access to a subset of entries of the device list
 containing all handlers, \emph{volumes} and \emph{assigns} and
 blocks until access is granted. It requires as input multiple sets
 that specify which parts of the list to access:
@@ -5784,9 +5805,9 @@ defined in {\tt dos/dosextens.h}:
 {\tt LDF\_VOLUMES} & Access \emph{volumnes}, see~\ref{sec:volumelist} \\ \hline
 {\tt LDF\_ASSIGNS} & Access \emph{assigns}, see~\ref{sec:assignlist} \\ \hline \hline
 {\tt LDF\_ENTRY}  & Lock access to a {\tt DosList} entries \\ \hline
-{\tt LDF\_DELETE} & Lock \emph{device list} for deletion \\ \hline \hline
-{\tt LDF\_READ} & Shared access to the \emph{device list} \\ \hline
-{\tt LDF\_WRITE} & Exclusive access to the \emph{device list} \\ \hline
+{\tt LDF\_DELETE} & Lock device list for deletion \\ \hline \hline
+{\tt LDF\_READ} & Shared access to the device list \\ \hline
+{\tt LDF\_WRITE} & Exclusive access to the device list \\ \hline
 \end{rkrmtable}
 
 At least {\tt LDF\_READ} or {\tt LDF\_WRITE} shall be included in the
@@ -5795,7 +5816,7 @@ combined to access multiple types.
 \smallskip{}
 
 {\tt LDF\_ENTRY} and {\tt LDF\_DELETE} are additional flags that
-moderate access to entries of the \emph{device list}. If {\tt
+moderate access to entries of the device list. If {\tt
   LDF\_ENTRY} is set, then exclusive access to the selected entries is
 requested and entries shall not be altered or removed. The {\tt
   LDF\_ENTRY} flag shall not be combined with {\tt LDF\_READ}. If
@@ -5816,7 +5837,7 @@ This function does not alter {\tt IoErr()}.
 \subsection{Requesting Access to the Device List}
 
 The {\tt AttemptLockDosList()}\mkey{AttemptLockDosList()} requests
-access to the \emph{device list} or a subset of its entries, and, in
+access to the device list or a subset of its entries, and, in
 case it cannot gain access, returns {\tt NULL}. Unlike
 {\tt LockDosList()}\key{LockDosList()}, it does not block.
 
@@ -5859,14 +5880,14 @@ UnLockDosList(flags)
 void UnLockDosList(ULONG)
 \end{verbatim}
 
-This function releases access to the \emph{device list} again. The
+This function releases access to the device list again. The
 {\tt flags} argument shall be identical to the {\tt flags}argument
 provided to {\tt LockDosList()}\key{LockDosList()}.
 
 \subsection{Iterate through the Device List}
 
 The {\tt NextDosEntry()}\mkey{NextDosEntry()} iterates to the next
-entry in the \emph{device list} given the current entry or the handle
+entry in the device list given the current entry or the handle
 returned by {\tt LockDosList()}.
 
 \begin{verbatim}
@@ -5877,7 +5898,7 @@ struct DosList *NextDosEntry(struct DosList *,ULONG)
 \end{verbatim}
 
 This function returns the next {\tt DosList}\key{DosList} structure of the
-\emph{device list} which shall have been locked with {\tt LockDosList()}. The
+device list which shall have been locked with {\tt LockDosList()}. The
 {\tt dlist} argument shall be either the return code of a previous
 {\tt NextDosEntry()} or {\tt FindDosEntry()}\key{FindDosEntry()}
 call, or the handle returned by {\tt LockDosEntry()}.
@@ -5908,7 +5929,7 @@ D0                       D1    D2   D3
 struct DosList *FindDosEntry(struct DosList *,STRPTR,ULONG)
 \end{verbatim}
 
-This function scans through the \emph{device list} starting at the
+This function scans through the device list starting at the
 entry {\tt dlist}, or the handle returned by {\tt LockDosList()}, and
 returns the next {\tt DosList} structure that is of the type indicated
 by {\tt flags} and has the name {\tt name}.
@@ -5939,7 +5960,7 @@ the subsequent entry.
 Passing {\tt NULL} as {\tt dlist} is safe and returns {\tt NULL},
 i.e. the end of the list. Note that the (pseudo-) devices from
 tables~\ref{table:specialdevices} and \ref{table:specialassigns} are
-not part of the \emph{device list}, i.e. {\tt NIL}, {\tt CONSOLE},
+not part of the device list, i.e. {\tt NIL}, {\tt CONSOLE},
 {\tt *} and {\tt PROGDIR} cannot be found and are special cases of
 {\tt GetDeviceProc()}\key{GetDeviceProc()}.
 \smallskip{}
@@ -6113,9 +6134,9 @@ incorrect {\tt Mountlist} and by that crash the system.
 \section{Adding or Removing Entries to the Device List}
 
 The \emph{dos.library} provides two service functions to add or remove
-{\tt DosList} structures from the \emph{device list}. They secure the
+{\tt DosList} structures from the device list. They secure the
 \emph{dos.library} internal state from inconsistencies as other
-processes may attempt to access the \emph{device list} simultaneously,
+processes may attempt to access the device list simultaneously,
 and they also ensure proper linkage of the structures.
 \smallskip{}
 
@@ -6139,7 +6160,7 @@ and they also ensure proper linkage of the structures.
 \subsection{Adding an Entry to the Device List}
 
 The {\tt AddDosEntry()}\mkey{AddDosEntry()} adds an initialized {\tt
-  DosList} structure to the \emph{device list}.
+  DosList} structure to the device list.
 
 \begin{verbatim}
 success = AddDosEntry(dlist)
@@ -6149,9 +6170,9 @@ LONG AddDosEntry(struct DosList *)
 \end{verbatim}
 
 This function takes an initialized {\tt DosList} entry pointed to by
-{\tt dlist} and attempts to add it to the \emph{device list}. For
+{\tt dlist} and attempts to add it to the device list. For
 this, it requests write access to the list, i.e. locking of the
-\emph{device list} through the caller is not necessary.
+device list through the caller is not necessary.
 The {\tt DosList} may be either created manually, by
 {\tt MakeDosEntry()}\key{MakeDosEntry()} of the \emph{dos.library}
 or by {\tt MakeDosNode()}\key{MakeDosNode()} of the \emph{expansion.library}.
@@ -6159,7 +6180,7 @@ While there the structure is called a {\tt DeviceNode}, it is still a
 particular incarnation of a {\tt DosList} and may be safely used here.
 \medskip{}
 
-\emph{Assigns} \emph{shall not} be added to the \emph{device list}
+\emph{Assigns} \emph{shall not} be added to the device list
 through this function, but rather through the functions in
 section~\ref{sec:assigns}. This avoids memory management problems when
 releasing or changing assigns.
@@ -6172,7 +6193,7 @@ locked by the \emph{dos.library} to secure the list from modifications
 within a {\tt GetDeviceProc()}\key{GetDeviceProc()} function, a
 deadlock may result where file system and \emph{dos.library}
 mutually block access. To prevent this from happening handlers should
-check upfront whether the \emph{device list} is available for
+check upfront whether the device list is available for
 modifications by {\tt AttemptLockDosList()}\key{AttemptLockDosList()}, e.g.
 
 \begin{verbatim}
@@ -6202,7 +6223,7 @@ returns $0$ and {\tt IoErr()} is set to {\tt ERROR\_OBJECT\_EXISTS}.
 \subsection{Removing an Entry from the Device List}
 
 The {\tt RemDosEntry()}\mkey{RemDosEntry()} removes a {\tt DosList}
-entry from the \emph{device list}, making it unacessible for AmigaDOS.
+entry from the device list, making it unacessible for AmigaDOS.
 
 \begin{verbatim}
 success = RemDosEntry(dlist)
@@ -6212,15 +6233,15 @@ BOOL RemDosEntry(struct DosList *)
 \end{verbatim}
 
 This function attempts to find the {\tt DosList} structure pointed to
-by {\tt dlist} in the \emph{device list} and, if present, removes
+by {\tt dlist} in the device list and, if present, removes
 it. Unlike what some other documentation says, this function locks the
-\emph{device list} properly before attempting to remove an entry,
+device list properly before attempting to remove an entry,
 locking it upfront is not necessary.
 \smallskip{}
 
 The function does \emph{not} attempt to release the memory allocated
 for the {\tt DosList} passed in, or any of its members, it just
-removes the {\tt DosList} from the \emph{device list}. While
+removes the {\tt DosList} from the device list. While
 file systems may know how they allocated the {\tt DosList}
 structures represening their \emph{volumes} and hence should be aware
 how to release the memory taken by them, there is no good solution on
@@ -6239,7 +6260,7 @@ locked by the \emph{dos.library} to secure the list from modifications
 within a {\tt GetDeviceProc()}\key{GetDeviceProc()} function, a
 deadlock may result where file system and \emph{dos.library}
 mutually block access. To prevent this from happening handlers should
-check upfront whether the \emph{device list} is available for
+check upfront whether the device list is available for
 modifications by {\tt AttemptLockDosList()}\key{AttemptLockDosList()}, e.g.
 
 \begin{verbatim}
@@ -6256,7 +6277,7 @@ and attempt adding the entry later.
 This function returns a success indicator; it returns non-zero if the
 function succeeds, and $0$ in case it fails. The only reason for
 failure is that {\tt dlist} is not a member of the
-\emph{device list}. This function does not touch {\tt IoErr()}.
+device list. This function does not touch {\tt IoErr()}.
 
 \section{Creating and Deleting Device List Entries}
 
@@ -6292,7 +6313,7 @@ tolerate the memory leak.
 The {\tt MakeDosEntry()}\mkey{MakeDosEntry()} creates an empty
 {\tt DosList} structure of the given type, and makes all elementary
 initializations. It does not acquire any additional resources, and neither
-inserts it into the \emph{device list}.
+inserts it into the device list.
 \smallskip{}
 
 If an \emph{assign} is to be created, the functions in
@@ -6327,7 +6348,7 @@ unaltered.
 
 The {\tt FreeDosEntry()}\mkey{FreeDosEntry()} function releases
 a {\tt DosList} structure allocated by {\tt MakeDosEntry()}\key{MakeDosEntry()}.
-The {\tt DosList} shall be already removed from the \emph{device list} by
+The {\tt DosList} shall be already removed from the device list by
 \emph{RemDosEntry()}. While this call releases the memory holding the
 name of the entry, and also the {\tt DosList} structure itself, it
 does not release any other resources. They shall be released by the
@@ -6391,7 +6412,7 @@ This function cannot fail, and it does not touch {\tt IoErr()}.
 
 \section{Creating and Updating Assigns} \label{sec:assigns}
 While {\tt MakeDosEntry()}\key{MakeDosEntry()} creates a {\tt DosList}
-entry for the \emph{device list}, it only performs minimal
+entry for the device list, it only performs minimal
 initialization of the structure. For \emph{assigns}, specifically, the
 \emph{dos.library} provides specialized functions that allocate,
 initialize and enqueue {\tt DosList} structures representing assigns
@@ -6401,7 +6422,7 @@ in a single call and are thus easier to use.
 
 The {\tt AssignAdd()}\mkey{AssignAdd()} function creates a new assign
 to a directory from a lock, and then enqueues it into the
-\emph{device list}.
+device list.
 
 \begin{verbatim}
 success = AssignLock(name,lock)
@@ -6430,7 +6451,7 @@ same name (regardless of which type) already exists, the error code is
 \subsection{Create a Non-Binding Assign}
 
 The {\tt AssignPath()}\mkey{AssignPath()} function creates a
-\emph{non-binding assign} and adds it to the \emph{device list}. This
+\emph{non-binding assign} and adds it to the device list. This
 type of assign binds to a path independent of the volume the path is
 located on; that is, the \emph{assign} resolves to whatever
 \emph{volume}, handler or even other \emph{assign} matches the
@@ -6480,7 +6501,7 @@ BOOL AssignLate(STRPTR,STRPTR)
 \end{verbatim}
 This function creates a \emph{late binding assign} of the name {\tt
   name} pointing to {\tt path} as its destination and adds it to the
-\emph{device list}. The {\tt name} shall not contain a trailing colon
+device list. The {\tt name} shall not contain a trailing colon
 (``{\tt :}''). While not explicitly required by this function, the
 {\tt path} should better be an absolute path as otherwise
 resolving the \emph{assign} can be very confusing. The {\tt path}
@@ -6531,7 +6552,7 @@ On error, the function returns $0$ and the {\tt lock} remains
 available to the caller. Unfortunately, this function does not set
 {\tt IoErr()}\key{IoErr()} consistently, i.e. it is unclear on failure
 what caused the error, i.e. whether the function run out of memory,
-whether no fitting \emph{device list} entry was found, or whether the
+whether no fitting device list entry was found, or whether the
 entry found was not a \emph{regular assign}.
 
 \subsection{Remove a Directory From a Multi-Assign}
@@ -6541,7 +6562,7 @@ directory, represented by a {\tt lock}, from a {\tt multi-assign}. If
 only a single directory remains in the \emph{multi-assign}, it is
 converted into a \emph{regular assign}. If the \emph{assign} was a
 regular assign, and the only directory is removed from it, the
-\emph{assign} itself is removed from the \emph{device list} and
+\emph{assign} itself is removed from the device list and
 released, destroying it and releasing all resources.
 
 \begin{verbatim}
@@ -6555,7 +6576,7 @@ This function removes the directory identified by {\tt lock} from a
 name shall not contain a trailing colon (``{\tt :}''). If only a
 single directory remains in the \emph{assign}, it is converted to a
 \emph{regular assign}. If no directory remains at all, the
-\emph{assign} is deleted and removed from the \emph{device list}. The
+\emph{assign} is deleted and removed from the device list. The
 {\tt lock} remains available to the caller, regardless of the
 result code. Note that the {\tt lock} passed in does not need to be
 identical to the lock contained in the \emph{assign}, but it
@@ -11266,7 +11287,7 @@ file systems also support directories and thus a hierarchical
 organization of files.
 \smallskip{}
 
-Handlers are recognized by an entry in the \emph{device list} whose
+Handlers are recognized by an entry in the device list whose
 {\tt dol\_Task} element provides a pointer to a message port through which the
 \emph{dos.library} communicates with the handler,
 section~\ref{sec:devicelist} provides further details on this structure.
@@ -11284,7 +11305,7 @@ includes the port through which communication with the file system
 concerning the lock is routed. Unlike {\tt FileHandle}s, the {\tt FileLock}
 structure is created by the file system itself which initializes its
 {\tt fh\_Type}. This is again in many cases identical to the {\tt dol\_Task}
-message port within the \emph{device list}.
+message port within the device list.
 \medskip{}
 
 \section{The DosPacket Structure} \label{sec:dospacket}
@@ -11378,7 +11399,7 @@ sources. If low-level file I/O is to be performed, the best source for the
 port is the {\tt fh\_Type} pointer in the {\tt FileHandle} structure. If the
 communication is related to a lock, the {\tt fl\_Task} member of the
 {\tt FileLock} is the right source. For activities unrelated to locks or
-files, the {\tt dol\_Task} member of the \emph{device list} is another
+files, the {\tt dol\_Task} member of the device list is another
 source.
 \smallskip{}
 
@@ -11571,9 +11592,9 @@ provide to its clients.
 
 When a user of the \emph{dos.library} attempts to access an absolute path,
 i.e. a path including a device name, the \emph{dos.library} walks the
-\emph{device list} (see section~\ref{sec:devicelist}) to find the handler
+device list (see section~\ref{sec:devicelist}) to find the handler
 responsible for it by comparing the device name in the path with the {\tt
-  dol\_Name} element of the \emph{device list}. Once a suitable entry has
+  dol\_Name} element of the device list. Once a suitable entry has
 been found, the \emph{dos.library} checks whether a handler is already
 running by checking the {\tt dol\_Task} field of the {\tt DosList}. If
 so, a packet corresponding to the called \emph{dos.library} function is send
@@ -11593,7 +11614,7 @@ to this packet.
 \smallskip{}
 
 How the startup packet is delivered depends on the {\tt dol\_GlobVec}
-element of the \emph{device list} entry, see Table~\ref{table:gvvalues}. For
+element of the device list entry, see Table~\ref{table:gvvalues}. For
 C or assembler handlers with a {\tt dol\_GlobVec} value of $-1$ or $-2$, the
 startup packet is delivered to the {\tt pr\_MsgPort} of the handler
 process. For all other values of {\tt dol\_GlobVec}, the startup packet
@@ -11747,9 +11768,9 @@ If startup succeeded, the primary result code for the packet shall be
 then proceed by waiting for incoming packets, and processing them one by another.
 \medskip{}
 
-The \emph{dos.library} keeps the \emph{device list} locked while the handler
+The \emph{dos.library} keeps the device list locked while the handler
 is starting up. This means in particular that an attempt to gain access to
-the \emph{device list} with {\tt LockDosList()}\key{LockDosList()}, see
+the device list with {\tt LockDosList()}\key{LockDosList()}, see
 section~\ref{sec:lockdoslist}, can deadlock. Even if such a call is not made
 explicitly, \emph{dos.library} functions can require implicitly such a lock,
 and thus attempting to access files or lock objects within handlers should
@@ -11758,7 +11779,7 @@ be avoided, not only during startup.
 
 If {\tt dol\_GlobVec} is $-2$ or $-3$, the \emph{dos.library} will only
 acquire a shared lock, and thus will allow the handler to retrieve a shared
-lock on the \emph{device list} as well.
+lock on the device list as well.
 \medskip{}
 
 Once started up, handlers or file systems should wait for incoming
@@ -11778,7 +11799,7 @@ handler.
 \smallskip{}
 
 If the handler is contacted through an absolute path, the \emph{dos.library}
-scans the \emph{device list} to locate a {\tt DosList} structure whose {\tt
+scans the device list to locate a {\tt DosList} structure whose {\tt
   dol\_Name} element matches the device name in the path. The {\tt
   dol\_Task} field, if non-{\tt NULL}, is then used as destination of a
 packet. If it is {\tt NULL}, a new process of the handler is created. From
@@ -12668,7 +12689,7 @@ right-shift for the sector size is necessary because the environment vector
 measures it in long-words rather than bytes as provided by the drive
 geometry, and {\tt dg\_Cylinders} is a count, whereas {\tt de\_HighCyl} is
 an inclusive upper bound. In particular, {\tt dg\_BufMemType} is not copied
-over, and therefore {\tt de\_BufMemType} shall be setup though the mountlist
+over, and therefore {\tt de\_BufMemType} shall be setup though the mountlist\key{Mountlist}
 or the rigid disk block. Ideally, of course, any memory type should be
 supported and this workaround should not be necessary.
 \smallskip{}
@@ -16075,7 +16096,7 @@ currently inserted volume, or {\tt ZERO} if no volume is inserted, shall be
 returned. Unfortunately, as the volume may be ejected any time, it is
 unclear whether the {\tt DosList} entry provided in {\tt dp\_Res1} is still
 valid at the time it is interpreted by the issuer of of this packet. In such
-a case, the issuer of the packet should lock the \emph{device list} upfront,
+a case, the issuer of the packet should lock the device list upfront,
 and should copy the name before the list is unlocked again, i.e.
 
 \begin{verbatim}
@@ -16196,7 +16217,7 @@ volume name of a medium.
 This packet implements the {\tt Relabel()}\key{Relabel()} function of the
 \emph{dos.library} and changes the volume name of a medium. As such, it
 shall also change the name of the {\tt DosList} representing the volume in
-the \emph{device list}, i.e. adjust the {\tt dol\_Name} element of the {\tt
+the device list, i.e. adjust the {\tt dol\_Name} element of the {\tt
   DosList} structure. Unfortunately, there is no guarantee that the volume
 that is inserted in the drive or partition managed by the file system when
 this packet is issued by the client is identical to the volume in the drive
@@ -17111,7 +17132,7 @@ changeed the file system structure, the volume name or the date, or may have
 even written a completely new file system structure to it. This check thus
 implies checking the flavour of the file system, e.g. the {\tt DosType} for
 the FFS, and potentially creating and inserting a {\tt DosList} entry into
-the \emph{device list} representing the volume. Thus, first inhbiting and
+the device list representing the volume. Thus, first inhbiting and
 uninhibiting a file system is equivalent to simulating a medium change; in
 fact, the {\tt DiskChange} command enforces a medium change by first
 inhibiting and then unhibiting the file system.
@@ -17218,7 +17239,7 @@ This packet is not exposed through the \emph{dos.library}; rather, the
 packet needs to be send through the packet interface, i.e. through {\tt
   DoPkt()}\key{DoPkt()}. This packet requests the file system to release all resources,
 set the {\tt dol\_Task} elements of the {\tt DosList} structures in the
-\emph{device list} to {\tt NULL}, and then terminate the process.
+device list to {\tt NULL}, and then terminate the process.
 \smallskip{}
 
 A file system may not exit as long as client programs cache copies of
@@ -20841,7 +20862,7 @@ Unlike what the official includes suggest, {\tt di\_McName} is
 \smallskip{}
 
 The {\tt di\_DevInfo} element is a BPTR to the first entry of the
-\emph{device list} introduced in section~\ref{sec:devicelist}. This is
+device list introduced in section~\ref{sec:devicelist}. This is
 a BPTR to a {\tt DosList} structure which form a singly linked list
 whose head is here. However, client programs should not access this
 BPTR directly, but rather go through the functions provided in
