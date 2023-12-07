@@ -452,7 +452,7 @@ limit imposed by the BCPL convention.
   passed into the \emph{dos.library} are internally converted to
   \emph{BSTR}s and thus cannot exceed a length of 255 characters.}
 
-Unfortunately, even as of the latest version of \emph{AmigaDos}, the
+Unfortunately, even as of the latest version of \emph{AmigaDOS}, the
 \emph{dos.library} is ill-prepared to take longer strings, and will
 likely fail or mis-interpret the string passed in. If longer strings
 are required, e.g. as part of a \emph{\key{path}path}, it is
@@ -3483,7 +3483,7 @@ altered since the last backup.
 
 The {\tt FIBB\_PURE}\mkey{FIBB\_PURE} flag indicates an additional property of
 executable binaries; if the flag is set, the binaries do not alter
-their segments and their code can be loaded in \emph{RAM} and stay
+their segments\key{Segment} and their code can be loaded in \emph{RAM} and stay
 there to be executed from multiple processes in parallel. This avoids
 loading the binary multiple times. The \emph{Shell} command
 {\tt resident} can load such binaries into \emph{RAM} for future usage.
@@ -4913,7 +4913,7 @@ mechanism works. Unfortunately, it is hard to interpret {\tt
 details.
 \smallskip{}
 
-{\tt dol\_SegList}\mkey{dol\_SegList} is a \emph{BPTR} to the chained segment list of the
+{\tt dol\_SegList}\mkey{dol\_SegList} is a \emph{BPTR} to the chained segment\key{Segment} list of the
 handler if it is loaded. For disk-based handlers, this member is
 initially {\tt ZERO}. When a program attempts to access a file on the
 handler, the \emph{dos.library} first checks whether this field is
@@ -5538,7 +5538,6 @@ is already running, and if not, launch an instance of it. If
 multiple file systems to resolve the task and thus to iterate
 through multiple potential file systems to find the right one.
 
-% up to this point
 \subsection{Iterate through Devices Matching a Path} \label{sec:getdeviceproc}
 
 The {\tt GetDeviceProc()}\mkey{GetDeviceProc()} find a handler, or the
@@ -5570,7 +5569,7 @@ already.
 The {\tt DevProc} structure, defined in {\tt dos/dosextens.h}
 looks as follows:
 
-\key{DevProc}
+\mkey{DevProc}
 \begin{verbatim}
 struct DevProc {
         struct MsgPort *dvp_Port;
@@ -5580,7 +5579,7 @@ struct DevProc {
 };
 \end{verbatim}
 
-{\tt dvp\_Port} is a pointer to a candidate \emph{MsgPort} that should
+{\tt dvp\_Port}\mkey{dvp\_Port} is a pointer to a candidate \emph{MsgPort} that should
 be tried to resolve {\tt name}.
 \smallskip{}
 
@@ -5590,7 +5589,7 @@ relative to this directory. This lock shall not be released,
 but it may be copied with {\tt DupLock}\key{DupLock()}.
 \smallskip{}
 
-{\tt dvp\_Flags} identifies the nature of the found port. If the bit
+{\tt dvp\_Flags}\mkey{dvp\_Flags} identifies the nature of the found port. If the bit
 {\tt DVPB\_ASSIGN} is set, i.e {\tt dvp\_Flags \& DVPF\_ASSIGN} is
 non-zero, then the found match is part of a \emph{multi-assign} and
 {\tt GetDeviceProc()} may be called again with the {\tt devproc}
@@ -5605,27 +5604,27 @@ required internally by the function.
 
 If the function returns {\tt NULL}, then {\tt IoErr()}\key{IoErr()}
 provides additional information on the failure. If the error code is
-{\tt ERROR\_NO\_MORE\_ENTRIES}, then the last directory of a
+{\tt ERROR\_NO\_MORE\_ENTRIES}\key{ERROR\_NO\_MORE\_ENTRIES}, then the last directory of a
 \emph{multi-assign} has been reached. If the error code is {\tt
-  ERROR\_DEVICE\_NOT\_MOUNTED}, then no matching device could be
+  ERROR\_DEVICE\_NOT\_MOUNTED}\key{ERROR\_NO\_MORE\_ENTRIES}, then no matching device could be
 found. Other errors may be returned, e.g. if the function could not
 allocate sufficient memory for its operation.
 \smallskip{}
 
 Unfortunately, the function does not set {\tt IoErr()} consistently if
 {\tt GetDeviceProc()} is called again on an existing {\tt DevProc}
-structure as second argument with {\tt DVPB\_ASSIGN} cleared. {\tt
+structure as second argument with {\tt DVPB\_ASSIGN}\mkey{DVPB\_ASSIGN} cleared. {\tt
   IoErr()} remains then unaltered and it is therefore advisable to
 clear it upfront.
 \smallskip{}
 
 The function also returns {\tt NULL} if {\tt name} corresponds to the
 {\tt NIL:} pseudo-device and then sets {\tt IoErr()} to {\tt
-  ERROR\_DEVICE\_NOT\_MOUNTED}. This is not fully correct, and callers
+  ERROR\_DEVICE\_NOT\_MOUNTED}\key{ERROR\_DEVICE\_NOT\_MOUNTED}. This is not fully correct, and callers
 need to be aware of this defect.
 \smallskip{}
 
-Also, {\tt GetDeviceProc} does not handle the path ``{\tt *}'' at all,
+Also, {\tt GetDeviceProc()} does not handle the path ``{\tt *}'' at all,
 even though it indicates the current console and the
 \emph{Console-Handler} is responsible for it.  This case also needs to
 be detected by the caller, and in such a case,
@@ -5654,17 +5653,17 @@ FreeDeviceProc(devproc)
 void FreeDeviceProc(struct DevProc *)
 \end{verbatim}
 
-This function releases the {\tt DevProc} structure and all its
+This function releases the {\tt DevProc}\key{DevProc} structure and all its
 resources from an iteration through one or multiple {\tt
-  GetDeviceProc()} calls. If calling {\tt GetDeviceProc()} had
+  GetDeviceProc()}\key{GetDeviceProc()} calls. If calling {\tt GetDeviceProc()} had
 returned {\tt NULL} itself it had already released such resources
 itself and no further activity is necessary.
 \smallskip{}
 
-The {\tt dvp\_Port} or {\tt dvp\_Lock} within the {\tt DevProc}
+The {\tt dvp\_Port}\key{dvp\_Port} or {\tt dvp\_Lock}\key{dvp\_Lock} within the {\tt DevProc}
 structure shall not be used after releasing it with {\tt
-  FreeDeviceProc()}. If the lock is required after releasing a
-{\tt DevProc} structure, a copy of {\tt dvp\_Lock} shall be made with
+  FreeDeviceProc()}\key{FreeDeviceProc()}. If the lock is required after releasing a
+{\tt DevProc}\key{DevProc} structure, a copy of {\tt dvp\_Lock} shall be made with
 {\tt DupLock()}\key{DupLock()}. If the port of the handler or
 file system is needed afterwards, a resource of this handler
 shall be obtained, e.g. by opening a file or obtaining a lock on
@@ -5677,7 +5676,7 @@ It is safe to call {\tt FreeDeviceProc()} with a {\tt NULL} argument;
 this performs no activity.
 \smallskip{}
 
-This function does not set {\tt IoErr()} consistently and no
+This function does not set {\tt IoErr()}\key{IoErr()} consistently and no
 particular value may be assumed. It may or may not alter its value.
 
 \subsection{Legacy Handler Port Access}
@@ -5699,15 +5698,15 @@ file systemable to handle the path {\tt name}. It returns
 {\tt NULL} on error in which case it sets {\tt IoErr()}\key{IoErr()}.
 \smallskip{}
 
-If the passed in {\tt name} is part of an \emph{assign}, the handler
+If the passed in {\tt name} is part of an assign, the handler
 port of the directory the assign binds to is returned, and {\tt
-  IoErr()} is set to the lock of the assign. Unfortunately, one
+  IoErr()}\key{IoErr()} is set to the lock of the assign. Unfortunately, one
 cannot safely make use of this lock as the device list
 may be altered any time, including the time between the return from
 this function and its first use by the caller. Thus, {\tt
-  GetDeviceProc()} shall be used instead which locks resources such as
+  GetDeviceProc()}\key{GetDeviceProc()} shall be used instead which locks resources such as
 the device list; they are released through {\tt
-  FreeDeviceProc()}.
+  FreeDeviceProc()}\key{FreeDeviceProc()}.
 
 \punchline{Obsolete and not fully functional}{{\tt DeviceProc()} function
   does not operate properly on \emph{multi-assigns} where it only provides
@@ -5734,7 +5733,7 @@ struct MsgPort *GetConsoleTask(void)
 This function returns a port to the handler of the console of the
 calling process, or {\tt NULL} in case there is no console associated
 to the caller. The latter holds for example for programs started from
-the workbench. It does not alter {\tt IoErr()}.
+the workbench. It does not alter {\tt IoErr()}\key{IoErr()}.
 
 \subsection{Obtaining the Default File System} \label{sec:getfilesystask}
 
@@ -5759,18 +5758,18 @@ struct MsgPort *GetFileSysTask(void)
 
 This function returns the port of the default file system of this
 task. It does not alter {\tt IoErr()}. Note that {\tt SYS:} itself is
-an \emph{assign} and paths starting with {\tt SYS:} do therefore not
+an assign and paths starting with {\tt SYS:} do therefore not
 require resolution through this function, though the default
 file system and the file system handling {\tt SYS:} are
 typically identical. However, as the former is returned by {\tt
-  GetFileSysTask()} and the latter is part of the device list
+  GetFileSysTask()}\key{GetFileSysTask()} and the latter is part of the device list
 \emph{assign}, they can be different.
 
 \section{Iterating and Accessing the Device List} \label{sec:devlistaccess}
 
-While {\tt GetDeviceProc()}\key{GetDeviceProc()} uses the \emph{device
-  list} to locate a particular \emph{MsgPort} and lock, all
-other members of the {\tt DosList} structure remain unavailable. For
+While {\tt GetDeviceProc()}\key{GetDeviceProc()} uses the device
+  list to locate a particular \emph{MsgPort} and lock, all
+other members of the {\tt DosList}\key{DosList} structure remain unavailable. For
 them, the device list containing these structures need to be
 scanned manually. The \emph{dos.library} provides functions to grant
 access, search and release access to this list.
@@ -5779,7 +5778,7 @@ access, search and release access to this list.
 
 The {\tt LockDosList()}\mkey{LockDosList()} function requests shared
 or exclusive access to a subset of entries of the device list
-containing all handlers, \emph{volumes} and \emph{assigns} and
+containing all handlers, volumes and assigns and
 blocks until access is granted. It requires as input multiple sets
 that specify which parts of the list to access:
 
@@ -5790,8 +5789,8 @@ dlist = LockDosList(flags)
 struct DosList *LockDosList(ULONG)
 \end{verbatim}
 
-This function grants access to a subset of entries of the \emph{device
-  list} indicated by {\tt flags}, and returns an opaque handle through
+This function grants access to a subset of entries of the device
+  list indicated by {\tt flags}, and returns an opaque handle through
 which elements of the list can be accessed. For this, see
 {\tt FindDosEntry()}\key{FindDosEntry()}.
 \smallskip{}
@@ -5801,21 +5800,21 @@ defined in {\tt dos/dosextens.h}:
 
 \begin{rkrmtable}{LockDosList Flags} \label{table:lockdoslistflags}
 {\tt Flags} & {\bf Description}\\ \hline \hline
-{\tt LDF\_DEVICES} & Access handlers and file system entries, see~\ref{sec:deviceoverview} \\ \hline
-{\tt LDF\_VOLUMES} & Access \emph{volumnes}, see~\ref{sec:volumelist} \\ \hline
-{\tt LDF\_ASSIGNS} & Access \emph{assigns}, see~\ref{sec:assignlist} \\ \hline \hline
-{\tt LDF\_ENTRY}  & Lock access to a {\tt DosList} entries \\ \hline
-{\tt LDF\_DELETE} & Lock device list for deletion \\ \hline \hline
-{\tt LDF\_READ} & Shared access to the device list \\ \hline
-{\tt LDF\_WRITE} & Exclusive access to the device list \\ \hline
+{\tt LDF\_DEVICES}\mkey{LDF\_DEVICES} & Access handlers and file system entries, see~\ref{sec:deviceoverview} \\ \hline
+{\tt LDF\_VOLUMES}\mkey{LDF\_VOLUMES} & Access \emph{volumnes}, see~\ref{sec:volumelist} \\ \hline
+{\tt LDF\_ASSIGNS}\mkey{LDF\_ASSIGNS} & Access \emph{assigns}, see~\ref{sec:assignlist} \\ \hline \hline
+{\tt LDF\_ENTRY}\mkey{LDF\_ENTRY}  & Lock access to a {\tt DosList}\key{DosList} entries \\ \hline
+{\tt LDF\_DELETE}\mkey{LDF\_DELETE} & Lock device list for deletion \\ \hline \hline
+{\tt LDF\_READ}\mkey{LDF\_READ} & Shared access to the device list \\ \hline
+{\tt LDF\_WRITE}\mkey{LDF\_WRITE} & Exclusive access to the device list \\ \hline
 \end{rkrmtable}
 
-At least {\tt LDF\_READ} or {\tt LDF\_WRITE} shall be included in the
+At least {\tt LDF\_READ}\key{LDF\_READ} or {\tt LDF\_WRITE}\key{LDF\_WRITE} shall be included in the
 flags, they shall not be set both. The three first flags may also be
 combined to access multiple types.
 \smallskip{}
 
-{\tt LDF\_ENTRY} and {\tt LDF\_DELETE} are additional flags that
+{\tt LDF\_ENTRY}\key{LDF\_ENTRY} and {\tt LDF\_DELETE}\key{LDF\_DELETE} are additional flags that
 moderate access to entries of the device list. If {\tt
   LDF\_ENTRY} is set, then exclusive access to the selected entries is
 requested and entries shall not be altered or removed. The {\tt
@@ -5824,7 +5823,7 @@ requested and entries shall not be altered or removed. The {\tt
 from the list.
 \medskip{}
 
-The result code {\tt dlist} is \emph{not} a pointer to a {\tt DosList}
+The result code {\tt dlist} is \emph{not} a pointer to a {\tt DosList}\key{DosList}
 structure, but only a handle that may be passed into {\tt
   FindDosEntry()}\key{FindDosEntry()} or {\tt
   NextDosEntry()}\key{NextDosEntry}. If {\tt dlist} is {\tt NULL},
@@ -5832,7 +5831,7 @@ then locking failed because the combination of {\tt flags} passed in
 was invalid.
 \smallskip{}
 
-This function does not alter {\tt IoErr()}.
+This function does not alter {\tt IoErr()}\key{IoErr()}.
 
 \subsection{Requesting Access to the Device List}
 
@@ -5866,7 +5865,7 @@ cannot be granted without blocking, or flags are invalid. These two
 cases of failure cannot be distinguished unfortunately.
 \smallskip{}
 
-This function does not alter {\tt IoErr()}.
+This function does not alter {\tt IoErr()}\key{IoErr()}.
 
 \subsection{Release Access to the Device List}
 
@@ -5931,12 +5930,12 @@ struct DosList *FindDosEntry(struct DosList *,STRPTR,ULONG)
 
 This function scans through the device list starting at the
 entry {\tt dlist}, or the handle returned by {\tt LockDosList()}, and
-returns the next {\tt DosList} structure that is of the type indicated
+returns the next {\tt DosList}\key{DosList} structure that is of the type indicated
 by {\tt flags} and has the name {\tt name}.
 \smallskip{}
 
 The {\tt flags} shall be a subset of the {\tt flags} argument passed
-into {\tt LockDosList()}. Only the first 3 elements of
+into {\tt LockDosList()}\key{LockDosList()}. Only the first 3 elements of
 Table~\ref{table:lockdoslistflags} are relevant here, all other flags
 are ignored but may be included.
 \smallskip{}
@@ -5948,12 +5947,12 @@ the remaining components of a path, see section~\ref{sec:paths}. It may be
 {\tt NULL} in which case every entry of the requested type matches.
 \smallskip{}
 
-The returned {\tt newdlist} is a pointer to a {\tt DosList} structure
+The returned {\tt newdlist} is a pointer to a {\tt DosList}\key{DosList} structure
 that matches the name (if provided) and flags passed in, or {\tt NULL}
 in case no match could be found and the entire list has been
 scanned. Note that the returned {\tt DosList} may be identical to the
 {\tt dlist} passed in if it already fits the requirements. Thus
-potentially, {\tt NextDosList()} may be called upfront to scan from
+potentially, {\tt NextDosList()}\key{NextDosList()} may be called upfront to scan from
 the subsequent entry.
 \smallskip{}
 
@@ -5961,7 +5960,7 @@ Passing {\tt NULL} as {\tt dlist} is safe and returns {\tt NULL},
 i.e. the end of the list. Note that the (pseudo-) devices from
 tables~\ref{table:specialdevices} and \ref{table:specialassigns} are
 not part of the device list, i.e. {\tt NIL}, {\tt CONSOLE},
-{\tt *} and {\tt PROGDIR} cannot be found and are special cases of
+{\tt *} and {\tt PROGDIR}\key{PROGDIR} cannot be found and are special cases of
 {\tt GetDeviceProc()}\key{GetDeviceProc()}.
 \smallskip{}
 
@@ -5969,25 +5968,25 @@ This function does not alter {\tt IoErr()}.
 
 \subsection{Accessing Mount Parameters}
 
-Once a {\tt DosList} structure has been identified, e.g. by {\tt
-  FindDosEntry()}, it is tempting to understand whether the entry belongs to
+Once a {\tt DosList}\key{DosList} structure has been identified, e.g. by {\tt
+  FindDosEntry()}\key{FindDosEntry()}, it is tempting to understand whether the entry belongs to
 an assign or a volume, or a handler or file system, and in the latter two
 cases, to find the mount parameters of the handler or file system.
 \smallskip{}
 
 The first level of identification is easy and works through the {\tt
-  dol\_Type} element of the {\tt DosList} structure; table
+  dol\_Type} element of the {\tt DosList}\key{DosList} structure; table
 \ref{table:doslisttypes} in section~\ref{sec:devicelist} lists the possible
 entry types. As seen there, however, handlers and file systems
-share the same type, namely {\tt DLT\_DEVICE}.
+share the same type, namely {\tt DLT\_DEVICE}\key{DLT\_DEVICE}.
 \smallskip{}
 
 Information on how a file system or a handler should be
-configured is found in the {\tt dol\_Startup} field; it is, however, up to
+configured is found in the {\tt dol\_Startup}\key{dol\_Startup} field; it is, however, up to
 the handler to interpret it, and AmigaDOS does not define what exactly it
 can contain. The {\tt Mount} command can place three different types of
-objects here: An integer value, a \emph{BPTR} to a \emph{BSTR}, or a
-\emph{BPTR} to a {\tt FileSysStartupMsg}.
+objects here: An integer value, a BPTR to a BSTR, or a BPTR to a
+{\tt FileSysStartupMsg}\key{FileSysStartupMsg}.
 \smallskip{}
 
 Unfortunately, there is no totally safe way how to distinguish these types,
@@ -5996,7 +5995,7 @@ which type a handler expects here --- thus a heuristics is needed to tell
 them apart.
 \smallskip{}
 
-In the first step, one should check whether the {\tt dol\_Startup} field is
+In the first step, one should check whether the {\tt dol\_Startup}\key{dol\_Startup} field is
 actually a \emph{BPTR} pointing to valid memory. This is even the case for
 file systems mounted by the ROM, e.g. the {\tt df0:} device:
 
@@ -6021,15 +6020,14 @@ LONG *startup;
 
 The above algorithm uses {\tt TypeOfMem()} to test whether a pointer goes
 into valid memory, and also checks the topmost two bits of the
-\emph{BPTR}. As \emph{BPTR}s are created by right-shifting a pointer by 2
-bits, the two MSBs should thus be zero.
+BPTR. As BPTRs are created by right-shifting a pointer by 2 bits, the two MSBs should thus be zero.
 \smallskip{}
 
 In the second step, the heuristics attempts to understand whether the
-\emph{BPTR} in {\tt dol\_Startup} actually points to a {\tt
-  FileSysStartupMsg} or to a \emph{BSTR}. For that, it attempts to learn
-whether the {\tt fssm\_Device} element is a valid \emph{BSTR} and whether
-the {\tt fssm\_Envion} element is also a valid \emph{BPTR}.
+BPTR in {\tt dol\_Startup}\key{dol\_Startup} actually points to a {\tt
+  FileSysStartupMsg}\key{FileSysStartupMsg} or to a BSTR. For that, it attempts to learn
+whether the {\tt fssm\_Device}\key{fssm\_Device} element is a valid BSTR and whether
+the {\tt fssm\_Environ}\key{fssm\_Environ} element is also a valid BPTR.
 
 \begin{verbatim}
 void AnalyzeStartup(LONG *startupmsg)
@@ -6098,10 +6096,10 @@ UBYTE *text;
 }
 \end{verbatim}
 
-Even if this function is able to identify an {\tt DosEnvec} structure
+Even if this function is able to identify an {\tt DosEnvec}\key{DosEnvec} structure
 with high probability, the environment vector found in this way does
 not need to be complete and contain all the elements listed in
-section~\ref{sec:envec}, instead, only the first {\tt de\_TableSize}
+section~\ref{sec:envec}, instead, only the first {\tt de\_TableSize}\key{de\_TableSize}
 elements are present, and everything beyond this point shall not be
 interpreted or modified.
 \smallskip{}
@@ -6112,29 +6110,30 @@ extract environment information from all handlers or file systems that came
 into his hand.
 \smallskip{}
 
-Nevertheless, getting hands on the {\tt FileSysStartupMsg} from an unknown
+Nevertheless, getting hands on the {\tt FileSysStartupMsg}\key{FileSysStartupMsg} from an unknown
 handler is not completely waterproof at this moment, and to this end the
-author of~\cite{guru} proposed to introduce a {\tt DosPacket} (see
+author of~\cite{guru} proposed to introduce a {\tt DosPacket}\key{DosPacket} (see
 section~\ref{sec:dospacket}) by which a handler can be requested to reveal
 its startup message. Unfortunately, to date this packet has not found wide
 adoption, and the above heuristics may be used as an interim solution.
 \smallskip{}
 
-Authors of handlers and file systems have less to worry
-about. When they document their requirements properly, e.g. by including an
-example {\tt Mountlist} with their product, ``only'' user errors can
-generate startup messages the handler cannot interpret properly. Thus, in
-general, handlers should be written in an ``optimistic'' way (unlike the
-above heuristic) assuming that {\tt dol\_Startup} is what they do
-expect. All AmigaDOS handlers are written in such a way, e.g. the FFS
-expects without verification that the value in {\tt dol\_Startup} is,
-indeed, a {\tt FileSysStartupMsg}, even though it can be fooled by an
-incorrect {\tt Mountlist} and by that crash the system.
+Authors of handlers and file systems have less to worry about. When
+they document their requirements properly, e.g. by including an
+example mountlist with their product, ``only'' user errors can
+generate startup messages the handler cannot interpret properly. Thus,
+in general, handlers should be written in an ``optimistic'' way
+(unlike the above heuristic) assuming that {\tt
+  dol\_Startup}\key{dol\_Startup} is what they do expect. All AmigaDOS
+handlers are written in such a way, e.g. the FFS expects without
+verification that the value in {\tt dol\_Startup} is, indeed, a
+{\tt FileSysStartupMsg}\key{FileSysStartupMsg}, even though it can be
+fooled by an incorrect mountlist and by that crash the system.
 
 \section{Adding or Removing Entries to the Device List}
 
 The \emph{dos.library} provides two service functions to add or remove
-{\tt DosList} structures from the device list. They secure the
+{\tt DosList}\key{DosList} structures from the device list. They secure the
 \emph{dos.library} internal state from inconsistencies as other
 processes may attempt to access the device list simultaneously,
 and they also ensure proper linkage of the structures.
@@ -6169,18 +6168,19 @@ D0                     D1
 LONG AddDosEntry(struct DosList *)
 \end{verbatim}
 
-This function takes an initialized {\tt DosList} entry pointed to by
+This function takes an initialized {\tt DosList}\key{DosList} entry pointed to by
 {\tt dlist} and attempts to add it to the device list. For
 this, it requests write access to the list, i.e. locking of the
 device list through the caller is not necessary.
-The {\tt DosList} may be either created manually, by
+The {\tt DosList}\key{DosList} may be either created manually, by
 {\tt MakeDosEntry()}\key{MakeDosEntry()} of the \emph{dos.library}
 or by {\tt MakeDosNode()}\key{MakeDosNode()} of the \emph{expansion.library}.
-While there the structure is called a {\tt DeviceNode}, it is still a
+While there the structure is called a {\tt DeviceNode}\mkey{DeviceNode}, it is still a
 particular incarnation of a {\tt DosList} and may be safely used here.
 \medskip{}
 
-\emph{Assigns} \emph{shall not} be added to the device list
+% add Assign to index?
+Assigns \emph{shall not} be added to the device list
 through this function, but rather through the functions in
 section~\ref{sec:assigns}. This avoids memory management problems when
 releasing or changing assigns.
@@ -6188,7 +6188,7 @@ releasing or changing assigns.
 
 Particular care needs to be taken if this function is called from
 within a handler or file system, e.g. to add a
-\emph{volume} representing an inserted medium. As the list may be
+volume representing an inserted medium. As the list may be
 locked by the \emph{dos.library} to secure the list from modifications
 within a {\tt GetDeviceProc()}\key{GetDeviceProc()} function, a
 deadlock may result where file system and \emph{dos.library}
@@ -6202,27 +6202,28 @@ if (AttemptLockDosList(LDF_VOLUMES|LDF_WRITE)) {
   UnLockDosList(LDF_VOLUMES|LDF_WRITE);
 }
 \end{verbatim}
-when adding a {\tt DosList} entry of type {\tt DLT\_VOLUME}. If
+when adding a {\tt DosList}\key{DosList} entry of type {\tt DLT\_VOLUME}\key{DLT\_VOLUME}. If
 attempting to get write access failed, the handler should check for
 incoming requests, handle them, and attempt adding the entry later.
 \smallskip{}
 
 The function fails if an entry is to be added and an entry of the same
 name, regardless its type, is already present on the list. The only
-exception is that the list may contain two \emph{volumes} of the same
+exception is that the list may contain two volumes of the same
 name, provided provided their creation date {\tt dol\_VolumeDate}
 differs, see section~\ref{sec:devicelist}.
 \smallskip{}
 
 If successful, the function returns non-zero, but then does not alter
-{\tt IoErr()}. The {\tt DosList} is then enqueued in the
+{\tt IoErr()}\key{IoErr()}. The {\tt DosList}\key{DosList} is then enqueued in the
 \emph{dos.library} database and it and its members shall then no
 longer be altered or released by the caller. On failure, the function
-returns $0$ and {\tt IoErr()} is set to {\tt ERROR\_OBJECT\_EXISTS}.
+returns $0$ and {\tt IoErr()}\key{IoErr()} is set
+to {\tt ERROR\_OBJECT\_EXISTS}\key{ERROR\_OBJECT\_EXISTS}.
 
 \subsection{Removing an Entry from the Device List}
 
-The {\tt RemDosEntry()}\mkey{RemDosEntry()} removes a {\tt DosList}
+The {\tt RemDosEntry()}\mkey{RemDosEntry()} removes a {\tt DosList}\key{DosList}
 entry from the device list, making it unacessible for AmigaDOS.
 
 \begin{verbatim}
@@ -6232,7 +6233,7 @@ D0                     D1
 BOOL RemDosEntry(struct DosList *)
 \end{verbatim}
 
-This function attempts to find the {\tt DosList} structure pointed to
+This function attempts to find the {\tt DosList}\key{DosList} structure pointed to
 by {\tt dlist} in the device list and, if present, removes
 it. Unlike what some other documentation says, this function locks the
 device list properly before attempting to remove an entry,
@@ -6240,13 +6241,13 @@ locking it upfront is not necessary.
 \smallskip{}
 
 The function does \emph{not} attempt to release the memory allocated
-for the {\tt DosList} passed in, or any of its members, it just
+for the {\tt DosList}\key{DosList} passed in, or any of its members, it just
 removes the {\tt DosList} from the device list. While
-file systems may know how they allocated the {\tt DosList}
-structures represening their \emph{volumes} and hence should be aware
+file systems may know how they allocated the {\tt DosList}\key{DosList}
+structures represening their volumes and hence should be aware
 how to release the memory taken by them, there is no good solution on
-how to recycle memory for {\tt DosList} structures representing
-handlers, file systems or \emph{assigns}. Some manual
+how to recycle memory for {\tt DosList}\key{DosList} structures representing
+handlers, file systems or assigns. Some manual
 footwork is currently required, see also {\tt
   FreeDosNode()}\key{FreeDosNode()}. In particular, as entries
 representing handlers and file systems may have been
@@ -6255,7 +6256,7 @@ created in multiple ways, their memory cannot be safely recycled.
 
 Particular care needs to be taken if this function is called from
 within a handler or file system, e.g. to remove a
-\emph{volume} representing a removed medium. As the list may be
+volume representing a removed medium. As the list may be
 locked by the \emph{dos.library} to secure the list from modifications
 within a {\tt GetDeviceProc()}\key{GetDeviceProc()} function, a
 deadlock may result where file system and \emph{dos.library}
@@ -6269,7 +6270,7 @@ if (AttemptLockDosList(LDF_DELETE|LDF_ENTRY|LDF_WRITE)) {
   UnLockDosList(LDF_DELETE|LDF_ENTRY|LDF_WRITE);
 }
 \end{verbatim}
-when removing a {\tt DosList} entry. If attempting to get write access
+when removing a {\tt DosList}\key{DosList} entry. If attempting to get write access
 failed, the handler should check for incoming requests, handle them,
 and attempt adding the entry later.
 \smallskip{}
@@ -6277,34 +6278,34 @@ and attempt adding the entry later.
 This function returns a success indicator; it returns non-zero if the
 function succeeds, and $0$ in case it fails. The only reason for
 failure is that {\tt dlist} is not a member of the
-device list. This function does not touch {\tt IoErr()}.
+device list. This function does not touch {\tt IoErr()}\key{IoErr()}.
 
 \section{Creating and Deleting Device List Entries}
 
-AmigaOs offers multiple functions to create {\tt DosList}
+AmigaOs offers multiple functions to create {\tt DosList}\key{DosList}
 structures. The {\tt MakeDosEntry()}\key{MakeDosEntry()} function is a
 low-level function that allocates a {\tt DosList} but only performs
-minimal initialization of the structure. For \emph{assigns}, the
-functions in section~\ref{sec:assigns} shall be used as they include
-complete initialization of the {\tt DosList}, and for handlers
-and file systems, the \emph{expansion.library} function
-{\tt MakeDosNode()}\key{MakeDosNode()} is a proper alternative.
+minimal initialization of the structure. For assigns, the functions in
+section~\ref{sec:assigns} shall be used as they include complete
+initialization of the {\tt DosList}\key{DosList}, and for handlers and
+file systems, the \emph{expansion.library} function {\tt
+  MakeDosNode()}\key{MakeDosNode()} is a proper alternative.
 Releasing {\tt DosList}s along with all its resources is unfortunately
-much harder. For \emph{assigns}, the algorithm in
+much harder. For assigns, the algorithm in
 section~\ref{sec:releaseentry} provides a workable function based on
 {\tt FreeDosEntry()}\key{FreeDosEntry()}.
 \smallskip{}
 
-{\tt DosLists} representing \emph{Volumes} are build and released by
+{\tt DosList}s representing volumes are build and released by
 file systems; it depends on them which resources need to be
-released along with the {\tt DosList} structure itself. While it is
+released along with the {\tt DosList}\key{DosList} structure itself. While it is
 recommended that file systems should go through
 {\tt MakeDosEntry()}\key{MakeDosEntry()} and {\tt FreeDosEntry()}\key{FreeDosEntry()}, it
 is not a requirement.
 \smallskip{}
 
-Releasing a {\tt DosList} representing a handler or \emph{file
-  system} is currently not possible in a completely robust way. It is
+Releasing a {\tt DosList}\key{DosList} representing a handler or file
+system is currently not possible in a completely robust way. It is
 suggested just to unlink such nodes if absolutely necessary, but
 tolerate the memory leak.
 
@@ -6316,7 +6317,7 @@ initializations. It does not acquire any additional resources, and neither
 inserts it into the device list.
 \smallskip{}
 
-If an \emph{assign} is to be created, the functions in
+If an assign is to be created, the functions in
 section~\ref{sec:assigns} are better alternatives and should be
 preferred as they perform a more sophisticated initialization.
 
@@ -6327,11 +6328,12 @@ D0                       D1    D2
 struct DosList *MakeDosEntry(STRPTR, LONG)
 \end{verbatim}
 
-This function allocates a {\tt DosList} structure and initializes its
-{\tt dol\_Type} to {\tt type}. The {\tt type} argument shall be one of
-the values from table~\ref{table:doslisttypes}. The function also
-makes a copy of {\tt name} and initializes the {\tt dol\_Name} to a
-\emph{BSTR} copy of {\tt name}, which is a {\tt NUL} terminated C string.
+This function allocates a {\tt DosList}\key{DosList} structure and
+initializes its {\tt dol\_Type} to {\tt type}. The {\tt type} argument
+shall be one of the values from table~\ref{table:doslisttypes} in
+section~\ref{sec:devicelist}. The function also makes a copy of {\tt
+  name} and initializes the {\tt dol\_Name} to a \emph{BSTR} copy of
+{\tt name}, which is a {\tt NUL} terminated C string.
 \smallskip{}
 
 Note that this function performs only minimal initialization of the
@@ -6353,8 +6355,8 @@ The {\tt DosList} shall be already removed from the device list by
 name of the entry, and also the {\tt DosList} structure itself, it
 does not release any other resources. They shall be released by the
 caller of this function. Furthermore, this function shall not be
-called if the {\tt DosList} structure was allocated by any other means
-than {\tt MakeDosEntry()}.
+called if the {\tt DosList}\key{DosList} structure was allocated by any other means
+than {\tt MakeDosEntry()}\key{MakeDosEntry()}.
 
 \begin{verbatim}
 FreeDosEntry(dlist)
@@ -6363,25 +6365,29 @@ FreeDosEntry(dlist)
 void FreeDosEntry(struct DosList *)
 \end{verbatim}
 
-This function releases the {\tt DosList} structure pointed to by
+This function releases the {\tt DosList}\key{DosList} structure pointed to by
 {\tt dlist} and its name, but only these two resources, and no other
 resources.
 \smallskip{}
 
-If {\tt dol\_Type} is {\tt DLT\_DEVICE}, corresponding to
+If {\tt dol\_Type}\key{dol\_Type} is {\tt DLT\_DEVICE}\key{DLT\_DEVICE}, corresponding to
 handlers or file systems, this function should better
-not be called at all as the means of how the {\tt DosList} was
+not be called at all as the means of how the {\tt DosList}\key{DosList} was
 allocated is unclear. In such a case, a memory leak is the least
 dangerous side effect.
 \smallskip{}
 
-If {\tt dol\_Type} is {\tt DLT\_DIRECTORY} or {\tt DLT\_LATE}, then
-{\tt dol\_Lock} should be unlocked. If {\tt dol\_List} is non-{\tt
-  NULL}, then each entry of the {\tt AssignList} structure shall be
-released, along with the lock kept within. For {\tt DLT\_LATE} and
-{\tt DLT\_NONBINDING}, the {\tt dol\_AssignName} function shall also
-be released. The following code segment releases all resources for
-\emph{assigns}:
+If {\tt dol\_Type}\key{dol\_Type} is {\tt
+  DLT\_DIRECTORY}\key{DLT\_DIRECTORY} or {\tt
+  DLT\_LATE}\key{DLT\_LATE}, then {\tt dol\_Lock}\key{dol\_Lock}
+should be unlocked by the caller. If {\tt dol\_List}\key{dol\_List} is
+non-{\tt NULL}, then each entry of the {\tt AssignList} structure
+shall be released by the caller, along with the lock kept within. For
+{\tt DLT\_LATE}\key{DLT\_LATE} and {\tt
+  DLT\_NONBINDING}\key{DLT\_NONBINDING}, the {\tt
+  dol\_AssignName}\key{dol\_AssignName} function shall also be
+released by the caller. The following code segment releases all
+resources for assigns:
 
 \begin{verbatim}
     struct AssignList *al,*next;
@@ -6401,21 +6407,21 @@ The above code reflects the way how resources were originally
 allocated by the \emph{dos.library}.
 \smallskip{}
 
-If the type is {\tt DLT\_VOLUME}, it is up to the file system
-to release any resources it allocated along with the {\tt DosList}. It is file
+If the type is {\tt DLT\_VOLUME}\key{DLT\_VOLUME}, it is up to the file system
+to release any resources it allocated along with the {\tt DosList}\key{DosList}. It is file
 system dependent which resources can or should be released. {\tt
   DosList} entries of this type should only be touched by the
 file system that created them.
 \smallskip{}
 
-This function cannot fail, and it does not touch {\tt IoErr()}.
+This function cannot fail, and it does not touch {\tt IoErr()}\key{IoErr()}.
 
 \section{Creating and Updating Assigns} \label{sec:assigns}
-While {\tt MakeDosEntry()}\key{MakeDosEntry()} creates a {\tt DosList}
+While {\tt MakeDosEntry()}\key{MakeDosEntry()} creates a {\tt DosList}\key{DosList}
 entry for the device list, it only performs minimal
-initialization of the structure. For \emph{assigns}, specifically, the
+initialization of the structure. For assigns, specifically, the
 \emph{dos.library} provides specialized functions that allocate,
-initialize and enqueue {\tt DosList} structures representing assigns
+initialize and enqueue {\tt DosList}\key{DosList} structures representing assigns
 in a single call and are thus easier to use.
 
 \subsection{Create and Add a Regular Assign}
@@ -6430,31 +6436,31 @@ D0                    D1   D2
 
 BOOL AssignLock(STRPTR,BPTR)
 \end{verbatim}
-This function creates a (regular) \emph{assign} onto the directory
-identified by {\tt lock}. The \emph{assign} created under the name as
+This function creates a (regular) assign onto the directory
+identified by {\tt lock}. The assign created under the name as
 given by {\tt name}. The name shall not include a trailing colon
-(``{\tt :}'') that separates the \emph{assign} name from the rest of
-the path. The lock shall be a \emph{shared lock}.
+(``{\tt :}'') that separates the assign name from the rest of
+the path. The lock shall be a shared lock.
 
 If the function is successful, it returns a non-zero result code. The
-{\tt lock} is then absorbed into the \emph{assign} and shall no longer
+{\tt lock} is then absorbed into the assign and should no longer
 be used by the calling program. On success, {\tt IoErr()} is not altered.
 
 On error, the function returns $0$ and the {\tt lock} remains
 available to the caller. {\tt IoErr()}\key{IoErr()} is set to an error code
 identifying the cause of the failure.
 {\tt ERROR\_NO\_FREE\_STORE}\key{ERROR\_NO\_FREE\_STORE} is
-returned if the function run out of memory. If a {\tt DosList} of the
+returned if the function run out of memory. If a {\tt DosList}\key{DosList} of the
 same name (regardless of which type) already exists, the error code is
 {\tt ERROR\_OBJECT\_EXISTS}\key{ERROR\_OBJECT\_EXISTS}.
 
 \subsection{Create a Non-Binding Assign}
 
 The {\tt AssignPath()}\mkey{AssignPath()} function creates a
-\emph{non-binding assign} and adds it to the device list. This
+non-binding assign and adds it to the device list. This
 type of assign binds to a path independent of the volume the path is
-located on; that is, the \emph{assign} resolves to whatever
-\emph{volume}, handler or even other \emph{assign} matches the
+located on; that is, the assign resolves to whatever
+volume, handler or even other assign matches the
 path.
 
 \begin{verbatim}
@@ -6463,18 +6469,18 @@ D0                    D1   D2
 
 BOOL AssignLate(STRPTR,STRPTR)
 \end{verbatim}
-This function creates a \emph{non-binding} assign whose name is given
+This function creates a non-binding assign whose name is given
 by the first argument, and which resolves to the path given as second
-argument, and then adds the \emph{assign} to the \emph{device
-  list}. The {\tt name} shall not contain a trailing colon (``{\tt
+argument, and then adds the assign to the device
+  list. The {\tt name} shall not contain a trailing colon (``{\tt
   :}''). While not a formal requirement of the function or
-\emph{non-binding assigns}, the {\tt path} should better be an
-absolute path as otherwise resolution of the created \emph{assign} can
+non-binding assigns, the {\tt path} should better be an
+absolute path as otherwise resolution of the created assign can
 be very confusing --- it is then resolved relative to the current
 directory of the calling process.
 
 If the function is successful, it returns a non-zero result code. On
-success, {\tt IoErr()} is not altered.
+success, {\tt IoErr()}\key{IoErr()} is not altered.
 
 On error, the function returns $0$ and {\tt IoErr()}\key{IoErr()} is set to an
 error code identifying the cause of the failure. {\tt
@@ -6485,9 +6491,9 @@ already exists, the error code is {\tt ERROR\_OBJECT\_EXISTS}\key{ERROR\_OBJECT\
 \subsection{Create a Late Assign}
 
 The {\tt AssignLate()}\mkey{AssignLate()} function creates a
-\emph{late assign} whose target is initially given by a path; but
-after its first resolution, the \emph{assign} reverts to a
-\emph{regular assigns} such that the target of the \emph{assign} will
+late assign whose target is initially given by a path; but
+after its first resolution, the assign reverts to a
+regular assigns such that the target of the assign will
 point to the same directory of the volume from that point on. This has
 the advantage that the target of the assign does not need to be
 available at creation time of the assign, yet remains unchanged after
@@ -6499,31 +6505,31 @@ D0                    D1   D2
 
 BOOL AssignLate(STRPTR,STRPTR)
 \end{verbatim}
-This function creates a \emph{late binding assign} of the name {\tt
+This function creates a late binding assign of the name {\tt
   name} pointing to {\tt path} as its destination and adds it to the
 device list. The {\tt name} shall not contain a trailing colon
 (``{\tt :}''). While not explicitly required by this function, the
 {\tt path} should better be an absolute path as otherwise
-resolving the \emph{assign} can be very confusing. The {\tt path}
+resolving the assign can be very confusing. The {\tt path}
 is then relative to the current directory of the process using
 the \emph{assign} the first time.
 
 If the function is successful, it returns a non-zero result code. On
-success, {\tt IoErr()} is not altered.
+success, {\tt IoErr()}\key{IoErr()} is not altered.
 
 On error, the function returns $0$ and {\tt IoErr()}\key{IoErr()} is
 set to an error code identifying the cause of the failure. {\tt
   ERROR\_NO\_FREE\_STORE}\key{ERROR\_NO\_FREE\_STORE} is returned if
-the function run out of memory.  If a {\tt DosList} of the same name
+the function run out of memory.  If a {\tt DosList}\key{DosList} of the same name
 (regardless of which type) already exists, the error code is {\tt
   ERROR\_OBJECT\_EXISTS}\key{ERROR\_OBJECT\_EXISTS}.
 
 \subsection{Add a Directory to a Multi-Assign}
 
 The {\tt AssignAdd()}\mkey{AssignAdd()} function adds a directory,
-identified by a lock, to an already existing \emph{regular} or
-\emph{multi-assign}. On success, a \emph{regular assign} is then
-converted into a \emph{multi-assign}.
+identified by a lock, to an already existing regular or
+multi-assign. On success, a regular assign is then
+converted into a multi-assign.
 
 \begin{verbatim}
 success = AssignAdd(name,lock)
@@ -6532,21 +6538,20 @@ D0                   D1   D2
 BOOL AssignAdd(STRPTR,BPTR)
 \end{verbatim}
 This function adds the {\tt lock} at the end of the target directory
-list of the \emph{assign} identified by {\tt name}. The {\tt name}
+list of the assign identified by {\tt name}. The {\tt name}
 does not contain a trailing colon (``{\tt :}'').
 
-A {\tt DosList} of the given {\tt name} shall already when entering
-this function, and this {\tt DosList} shall be a \emph{regular
-  assign}. Attempting to add a directory to a handler,
-file system, \emph{volume} or any other type of \emph{assign}
-fails.
+A {\tt DosList}\key{DosList} of the given {\tt name} shall already
+when entering this function, and this {\tt DosList} shall be a regular
+assign. Attempting to add a directory to a handler, file system,
+volume or any other type of assign fails.
 
 On success, the function returns a non-zero result code. In such a
-case, the {\tt lock} is absorbed into the \emph{assign} and shall no
-longer be used by the caller. The \emph{assign} is converted into a
-\emph{multi-assign} on access if it is not already one. The {\tt lock}
+case, the {\tt lock} is absorbed into the assign and should no
+longer be used by the caller. The assign is converted into a
+multi-assign on access if it is not already one. The {\tt lock}
 is added at the end of the directory list, i.e. the new directory is
-scanned last when resolving the \emph{assign}.
+scanned last when resolving the assign.
 
 On error, the function returns $0$ and the {\tt lock} remains
 available to the caller. Unfortunately, this function does not set
@@ -6558,11 +6563,11 @@ entry found was not a \emph{regular assign}.
 \subsection{Remove a Directory From a Multi-Assign}
 
 The {\tt RemAssignList()}\mkey{RemAssignList()} function removes a
-directory, represented by a {\tt lock}, from a {\tt multi-assign}. If
-only a single directory remains in the \emph{multi-assign}, it is
-converted into a \emph{regular assign}. If the \emph{assign} was a
+directory, represented by a {\tt lock}, from a multi-assign. If
+only a single directory remains in the multi-assign, it is
+converted into a regular assign. If the assign was a
 regular assign, and the only directory is removed from it, the
-\emph{assign} itself is removed from the device list and
+assign itself is removed from the device list and
 released, destroying it and releasing all resources.
 
 \begin{verbatim}
@@ -6572,23 +6577,23 @@ D0                       D1   D2
 BOOL RemAssignList(STRPTR,BPTR)
 \end{verbatim}
 This function removes the directory identified by {\tt lock} from a
-\emph{regular} or \emph{multi-assign} identified by {\tt name}. The
+regular or multi-assign identified by {\tt name}. The
 name shall not contain a trailing colon (``{\tt :}''). If only a
-single directory remains in the \emph{assign}, it is converted to a
-\emph{regular assign}. If no directory remains at all, the
-\emph{assign} is deleted and removed from the device list. The
+single directory remains in the assign, it is converted to a
+regular assign. If no directory remains at all, the
+assign is deleted and removed from the device list. The
 {\tt lock} remains available to the caller, regardless of the
 result code. Note that the {\tt lock} passed in does not need to be
-identical to the lock contained in the \emph{assign}, but it
+identical to the lock contained in the assign, but it
 needs to be a lock on the same directory. This function uses
 {\tt SameLock()}\key{SameLock()} function to compare the two locks.
 
 On success, the function returns a non-zero result code in {\tt
   success}.  On error, the function returns $0$. Unfortunately, it
-does not set {\tt IoErr()} consistently in all cases, and thus, the
+does not set {\tt IoErr()}\key{IoErr()} consistently in all cases, and thus, the
 cause of an error cannot be determined upon return. Possible causes
 of error are that {\tt name} does not exist, or that it is not a
-\emph{assign} or a \emph{multi-assign}.
+assign or a multi-assign.
 
 \section{File System Support Functions} \label{sec:filesysmisc}
 
@@ -6632,14 +6637,14 @@ underlying hardware exec device.
 \medskip{}
 
 This function returns a non-zero result on success and~0 on
-failure. In first case, it sets {\tt IoErr()} to~0, otherwise it is
+failure. In first case, it sets {\tt IoErr()}\key{IoErr()} to~0, otherwise it is
 set to an error code. Some file systems return the current number of
 buffers allocated; callers should thus be prepared that the return
 code is not equal to {\tt DOSTRUE} to indicate success.
 
 \subsection{Change the Name of a Volume}
 
-The {\tt Relabel()} function changes the name of a volume a file
+The {\tt Relabel()}\mkey{Relabel()} function changes the name of a volume a file
 system operates on.
 
 \begin{verbatim}
@@ -6649,11 +6654,11 @@ D0                    D1      D2
 BOOL Relabel(STRPTR,STRPTR)
 \end{verbatim}
 
-This function relables the volume that resides on the \emph{file
-  system} corresponding to the {\tt volumename} path. This path is
+This function relables the volume that resides on the file
+system corresponding to the {\tt volumename} path. This path is
 resolved through {\tt GetDeviceProc()}\key{GetDeviceProc()} and thus
 may be a relative or absolute path, the device or the volume name. As
-{\tt filesystem} is interpreted as a path, a device or volume name
+{\tt volumename} is interpreted as a path, a device or volume name
 passed in shall include a colon (``{\tt :}'') as it would be otherwise
 interpreted as a path relative to the current directory.
 \smallskip{}
@@ -6669,7 +6674,7 @@ the latter case to an error code.
 
 \subsection{Initializing a File System}
 
-The {\tt Format()} function initializes a complete file system,
+The {\tt Format()}\mkey{Format()} function initializes a complete file system,
 writing administration information on the file system that corresponds
 to an empty medium. Thus, this function erases all information stored
 in it.
@@ -6698,12 +6703,12 @@ the only operation file systems are able to perform while being
 inhibited.
 \smallskip{}
 
-The {\tt Format()} function \emph{does not} attempt a low-level
+The {\tt Format()}\key{Format()} function \emph{does not} attempt a low-level
 initialization of the corresponding medium; that is, it does not
 attempt to low-level format it on the physical layer as required when
 a floppy disk shall be prepared for initial use. This step needs to be
 performed manually by first blocking access of the file system to the
-floppy through {\tt Inhibit()}, then initializing the physical
+floppy through {\tt Inhibit()}\key{Inhibit()}, then initializing the physical
 layer through the exec device driver upfront, e.g. by the command {\tt
   TD\_FORMAT}, and then finally by calling this function.
 \medskip{}
@@ -6721,26 +6726,28 @@ table~\ref{table:ffsflavours}. This corresponds to the {\tt DOSTYPE}
 in the mount list. File systems may also ignore this argument if they
 only support a single flavour.
 
-Unfortunately, AmigaDOS does not provide an easy way to access the flavours
-supported by a file system. The {\tt Format} command of the workbench offers
-the types listed in the first half of table~\ref{table:ffsflavours} if the
-mount entry of the file system indicates that it is the FFS, and otherwise
-does not offer any choices and just copies the {\tt dostype} from the {\tt
-  de\_DosType} of the {\tt DosEnvec} structure, see also section~\ref{sec:mountlist}.
+Unfortunately, AmigaDOS does not provide an easy way to access the
+flavours supported by a file system. The {\tt Format} command of the
+workbench offers the types listed in the first half of
+table~\ref{table:ffsflavours} if the mount entry of the file system
+indicates that it is the FFS, and otherwise does not offer any choices
+and just copies the {\tt dostype} from the {\tt
+  de\_DosType}\key{de\_DosType} of the {\tt DosEnvec}\key{DosEnvec}
+structure, see also section~\ref{sec:mountlist}.
 \smallskip{}
 
 After initializing the file system, use {\tt
-  Inhibit(filesystem,DOSFALSE)} or the corresponding packet {\tt
-  ACTION\_INHIBIT} to grant the file system access to the partition or
+  Inhibit(filesystem,DOSFALSE)}\key{Inhibit()} or the corresponding packet {\tt
+  ACTION\_INHIBIT}\key{ACTION\_INHIBIT} to grant the file system access to the partition or
 medium again. As the volume name can be different and locks or
-\emph{file handles} on the original file system clearly became
-invalid, it is advisable to pass the \emph{device name} of the
-file system to {\tt Inhibit()} if this call is used, see also
+file handles on the original file system clearly became
+invalid, it is advisable to pass the device name of the
+file system to {\tt Inhibit()}\key{Inhibit()} if this call is used, see also
 sections~\ref{sec:deviceoverview} and~\ref{sec:inhibit}.
 \medskip{}
 
 This function returns a boolean success indicator that is non-zero on
-success or~0 on error. In either case, {\tt IoErr()} is set to~0 on
+success or~0 on error. In either case, {\tt IoErr()}\key{IoErr()} is set to~0 on
 success or an error code on failure.
 
 \subsection{Inhibiting a File System} \label{sec:inhibit}
@@ -6772,7 +6779,7 @@ interpreted as a path relative to the current directory.
 The {\tt flag} argument controls whether access to the medium is
 allowed or disallowed. If {\tt flag} is set to {\tt DOSTRUE}, access
 is inhibited and the file system stops accessing the partition
-or volume. It also sets {\tt id\_DiskType} to the four-character code
+or volume. It also sets {\tt id\_DiskType}\key{id\_DiskType} to the four-character code
 {\tt 'BUSY'}, which will be interpreted by the workbench to ghost the
 corresponding drive icon. Application programs are then allowed to
 access the exec device driver directly to access or modify blocks
@@ -6812,7 +6819,7 @@ is about to ask for. without a trailing colon (``{\tt :}''). If this
 function returns {\tt DOSTRUE}, then the \emph{dos.library} progresses
 to show a requester to ask the user to insert {\tt volume}. If this
 function returns {\tt DOSFALSE}, the requester is suppressed as if the
-user pressed {\tt Cancel} on it, thus refusing to insert the volume.
+user pressed ``Cancel'' on it, thus refusing to insert the volume.
 
 \chapter{Pattern Matching} \label{sec:patternmatch}
 Unlike other operating systems, it is neither the file system nor the shell
@@ -6887,7 +6894,7 @@ defined:
 operating systems, the asterisk (``{\tt *}'') has a (two) other meanings
 under AmigaDOS. It rather refers to the current console as file name, or
 is the escape character for quotation and control sequences; those are
-properties AmigaDOS inherits from the BCPL syntax and TRIPOS. While there
+properties AmigaDOS inherits from the BCPL syntax and Tripos. While there
 is a flag in the \emph{dos.library} that makes the asterisk \emph{also}
 available as a wildcard, such usage is discouraged because it can lead to
 situations where the asterisk is interpreted differently than intended ---
@@ -6924,11 +6931,11 @@ so. This service is used by many shell commands stored in the {\tt C:}
 \emph{assign}. The directory scanner requires the following steps:
 \smallskip{}
 
-First, the user shall provide an {\tt AnchorPath} structure. This structure
+First, the user shall provide an {\tt AnchorPath}\key{AnchorPath} structure. This structure
 contains the state of the directory matcher, including the {\tt
   FileInfoBlock}\key{FileInfoBlock} structure of the matched object. This
 structure is defined in section~\ref{sec:fib}. Optionally, the {\tt
-  AnchorPath} structure may also contain the complete (relative) path of the
+  AnchorPath}\key{AnchorPath} structure may also contain the complete (relative) path of the
 matched object. This structure shall then be initialized, setting all flags
 required, see below for their definition.
 
@@ -6938,28 +6945,31 @@ required, see below for their definition.
   well. The simplest way to ensure this is to allocate it with either {\tt
     AllocMem()} or {\tt AllocVec()}, see also section~\ref{sec:bptrs}.}
 
-Then, with the initialized {\tt AnchorPath} structure, {\tt MatchFirst()}
+Then, with the initialized {\tt AnchorPath}\key{AnchorPath} structure, {\tt MatchFirst()}
 shall be called, returning the first match of the pattern if there is
 any. The {\tt AnchorPath} structure then contains all information on the
 found match.
 \smallskip{}
 
-If there is any match, and the match is a directory the caller wants to
-enter recursively, the {\tt APF\_DODIR} flag of the {\tt AnchorPath}
-structure may be set. Then, {\tt MatchNext()} may be called to continue the
-scan, potentially entering this directory. Once the end of a recursively
-entered directory has been reached, {\tt MatchNext()} sets the {\tt
-  APF\_DIDDIR} flag, then reverts back to the parent directory continuing
-the scan there. As {\tt APF\_DIDDIR} is never cleared by the pattern
-matcher, the caller should clear it once the end of a sub-directory had been
-noticed.
+If there is any match, and the match is a directory the caller wants
+to enter recursively, the {\tt APF\_DODIR}\key{APF\_DODIR} flag of the
+{\tt AnchorPath}\key{AnchorPath} structure may be set. Then, {\tt
+  MatchNext()}\key{MatchNext()} may be called to continue the scan,
+potentially entering this directory. Once the end of a recursively
+entered directory has been reached, {\tt MatchNext()}\key{MatchNext()}
+sets the {\tt APF\_DIDDIR}\key{APF\_DIDDIR} flag, then reverts back to
+the parent directory continuing the scan there. As {\tt
+  APF\_DIDDIR}\key{APF\_DIDDIR} is never cleared by the pattern
+matcher, the caller should clear it once the end of a sub-directory
+had been noticed.
 \smallskip{}
 
-The above iterative procedure of {\tt MatchNext()} may continue, either
-until the user or the running program requests termination, or until {\tt
-  MatchNext()} returns an error. Then, finally, the scan is aborted and all
-resources but the {\tt AnchorPath} structure shall be released by calling
-{\tt MatchNext()}.
+The above iterative procedure of {\tt MatchNext()}\key{MatchNext()}
+may continue, either until the user or the running program requests
+termination, or until {\tt MatchNext()}\key{MatchNext()} returns an
+error. Then, finally, the scan is aborted and all resources but the
+{\tt AnchorPath}\key{AnchorPath} structure shall be released by calling {\tt
+  MatchNext()}\key{MatchNext)}.
 \medskip{}
 
 The {\tt AnchorPath} structure is defined in {\tt dos/dosasl.h} and looks as
@@ -6985,13 +6995,15 @@ struct AnchorPath {
 The members of this structure are as follows:
 \smallskip{}
 
-{\tt ap\_Base} and {\tt ap\_Last} are pointers to an {\tt AChain} structure
-that is also defined in {\tt dos/dosasl.h}. This structure is allocated and
-released by the \emph{dos.library}, transparently to the caller. The {\tt
-  AChain} structure describes a directory in the potentially recursive scan
-through a directory tree. {\tt ap\_Base} describes the topmost directory at
-which the scan started, whereas {\tt ap\_Last} describes the directory which
-is currently being scanned.
+{\tt ap\_Base}\mkey{ap\_Base} and {\tt ap\_Last}\mkey{ap\_Last} are
+pointers to an {\tt AChain}\key{AChain} structure that is also defined
+in {\tt dos/dosasl.h}. This structure is allocated and released by the
+\emph{dos.library}, transparently to the caller. The {\tt
+  AChain}\key{AChain} structure describes a directory in the
+potentially recursive scan through a directory tree. {\tt
+  ap\_Base}\key{ap\_Base} describes the topmost directory at which the
+scan started, whereas {\tt ap\_Last}\key{ap\_Last} describes the
+directory which is currently being scanned.
 \smallskip{}
 
 The {\tt AChain} structure is also defined in {\tt dos/dosasl.h}:
@@ -7008,12 +7020,12 @@ struct AChain {
 };
 \end{verbatim}
 
-{\tt an\_Child} and {\tt an\_Parent} are only used internally and shall not
+{\tt an\_Child}\mkey{an\_Child} and {\tt an\_Parent}\mkey{an\_Parent} are only used internally and shall not
 be interpreted by the caller.
 \smallskip{}
 
-{\tt an\_Lock} is a lock to the directory corresponding to the {\tt
-  AChain} structure, i.e. {\tt ap\_Last->an\_Lock} is a lock to
+{\tt an\_Lock}\mkey{an\_Lock} is a lock to the directory corresponding to the {\tt
+  AChain}\key{AChain} structure, i.e. {\tt ap\_Last->an\_Lock} is a lock to
 the directory that is currently being scanned, and {\tt
   ap\_Base->an\_Lock} a lock to the topmost directory at which the
 scan started. These two locks have been obtained and will be unlocked
@@ -7021,104 +7033,112 @@ by the \emph{dos.library}; they may be used by the caller provided
 they are not unlocked manually.
 \smallskip{}
 
-{\tt an\_Info} is only used internally and is the {\tt
+{\tt an\_Info}\mkey{an\_Info} is only used internally and is the {\tt
   FileInfoBlock}\key{FileInfoBlock} of the directory being describes by the
-{\tt AChain} structure, see section~\ref{sec:fib}.
+{\tt AChain}\key{AChain} structure, see section~\ref{sec:fib}.
 \smallskip{}
 
-{\tt an\_Flags} is only used internally, and {\tt an\_String} can contain
-potentially the path to the directory; both shall not be modified or
-interreted by the caller.
+{\tt an\_Flags}\mkey{an\_Flags} is only used internally, and {\tt
+  an\_String}\mkey{an\_String} can contain potentially the path to the
+directory; both shall not be modified or interreted by the caller.
 \medskip{}
 
-{\tt ap\_BreakBits} of the {\tt AnchorPath} structure shall be
+{\tt ap\_BreakBits}\mkey{ap\_BreakBits} of the {\tt AnchorPath}\key{AnchorPath} structure shall be
 initialized to a signal mask upon their detection the {\tt
   MatchNext()}\key{MatchNext()} function aborts a directory scan. This
 is typically a combination of signal masks defined in the {\tt
-  dos/dos.h} include file, e.g. {\tt SIGBREAKF\_CTRL\_C} to abort on a
+  dos/dos.h} include file, e.g. {\tt SIGBREAKF\_CTRL\_C}\key{SIGBREAKF\_CTRL\_C} to abort on a
 {\tt Ctrl-C} in the console.
 \smallskip{}
 
-{\tt ap\_FoundBreak} contains, if {\tt MatchNext()} aborts with
-{\tt ERROR\_BREAK}, the signal mask that caused the abortion.
+{\tt ap\_FoundBreak}\mkey{ap\_FoundBreak} contains, if {\tt MatchNext()}\key{MatchNext()} aborts with
+{\tt ERROR\_BREAK}\key{ERROR\_BREAK}, the signal mask that caused the abortion.
 \smallskip{}
 
-{\tt ap\_Flags} contains multiple flags that can be set or inspected by the
-caller while scanning a directory. In particular:
+{\tt ap\_Flags}\mkey{ap\_Flags} contains multiple flags that can be
+set or inspected by the caller while scanning a directory. In
+particular:
 \smallskip{}
 
-{\tt APF\_DOWILD} while documented, is not used nor set at all by the
-pattern matcher.
+{\tt APF\_DOWILD}\mkey{APF\_DOWILD} while documented, is not used nor
+set at all by the pattern matcher.
 \smallskip{}
 
-{\tt APF\_ITSWILD} is set by {\tt MatchFirst()} if the pattern includes a
-wildcard and more than a single file system object may
-match. Otherwise, no directory scan is performed. The user may also set this
-flag to enforce a scan. This may resolve situations in which matching an
+{\tt APF\_ITSWILD}\mkey{APF\_ITSWILD} is set by {\tt
+  MatchFirst()}\key{MatchFirst()} if the pattern includes a wildcard
+and more than a single file system object may match. Otherwise, no
+directory scan is performed. The user may also set this flag to
+enforce a scan. This may resolve situations in which matching an
 explicit path without a wildcard is not possible because the object is
 locked exclusively.
 \smallskip{}
 
-{\tt APF\_DODIR} may be set or reset by the caller of {\tt MatchNext()} to
-enforce entering a directory recursively, or avoid entering a
-directory. This flag is cleared by {\tt MatchNext()} when entering a
-directory, and it shall only be set by the caller if a match describes a
-directory.
+{\tt APF\_DODIR}\mkey{APF\_DODIR} may be set or reset by the caller of
+{\tt MatchNext()} to enforce entering a directory recursively, or
+avoid entering a directory. This flag is cleared by {\tt MatchNext()}\key{MatchNext()}
+when entering a directory, and it shall only be set by the caller if a
+match describes a directory.
 \smallskip{}
 
-{\tt APF\_DIDDIR} is set by {\tt MatchNext()} if the end of a recursively
-entered directory has been reached, and thus the parent directory is
-re-entered. As this flag is never cleared by the pattern matcher, it should
-be cleared by the caller.
+{\tt APF\_DIDDIR}\mkey{APF\_DIDDIR} is set by {\tt
+  MatchNext()}\key{MatchNext()} if the end of a recursively entered
+directory has been reached, and thus the parent directory is
+re-entered. As this flag is never cleared by the pattern matcher, it
+should be cleared by the caller.
 \smallskip{}
 
-{\tt APF\_NOMEMERR} is an internal flag that should not be interpreted; it
-is set if an error is encountered while scanning a directory. It is not
-necessarily restricted to memory allocation errors.
+{\tt APF\_NOMEMERR}\mkey{APF\_NOMEMERR} is an internal flag that
+should not be interpreted; it is set if an error is encountered while
+scanning a directory. It is not necessarily restricted to memory
+allocation errors.
 \smallskip{}
 
-{\tt APF\_DODOT} is, even though documented, not actually used.
+{\tt APF\_DODOT}\mkey{APF\_DODOT} is, even though documented, not actually used.
 \smallskip{}
 
-{\tt APF\_DirChanged} is a flag that is set by {\tt MatchNext()} if the
-scanned directory changes, either by entering a directory recursively, or by
-leaving a directory. It is also cleared if the directory is the same as in
-the previous call.
+{\tt APF\_DirChanged}\mkey{APF\_DirChanged} is a flag that is set by
+{\tt MatchNext()}\key{MatchNext()} if the scanned directory changes,
+either by entering a directory recursively, or by leaving a
+directory. It is also cleared if the directory is the same as in the
+previous call.
 \smallskip{}
 
-{\tt APF\_FollowHLinks} may be set by the caller to indicate that hard links
-to directories shall be followed, and such directories shall be recursively
-entered if {\tt APF\_DODIR} is set as well. Otherwise, hard links to
-directories are not entered. Softlinks are neither entered, this this cannot
-be changed by any flag. A potential danger of links is that they may cause
-endless recursion if a link within a directory points to a parent
+{\tt APF\_FollowHLinks}\mkey{APF\_FollowHLinks} may be set by the
+caller to indicate that hard links to directories shall be followed,
+and such directories shall be recursively entered if {\tt APF\_DODIR}\key{APF\_DODIR}
+is set as well. Otherwise, hard links to directories are not
+entered. Softlinks are never entered, this this cannot be changed by
+any flag. A potential danger of links is that they may cause endless
+recursion if a link within a directory points to a parent
 directory. Thus, callers should be aware of such situations and store
-directories that have already been analyzed. Otherwise, it is safer to keep
-this flag cleared.
+directories that have already been analyzed. Otherwise, it is safer to
+keep this flag cleared.
 \medskip{}
 
-{\tt ap\_Strlen} is the size of the buffer {\tt ap\_Buf} that contains the
-full path of the matched entry. This buffer shall be allocated by the user
-at the end of the {\tt AnchorPath} structure. Unlike what the name suggests,
-this is not a string length, but the byte size of the buffer, including the
-terminating {\tt NUL} byte of a string. If the full path of the match does
-not fit into this buffer, it is truncated \emph{without} proper string
-termination and the error code {\tt ERROR\_BUFFER\_OVERFLOW} is returned. If
-the full path is not required, this member shall be set to~$0$.
+{\tt ap\_Strlen}\mkey{ap\_Strlen} is the size of the buffer {\tt
+  ap\_Buf}\key{ap\_Buf} that contains the full path of the matched
+entry. This buffer shall be allocated by the user at the end of the
+{\tt AnchorPath} structure. Unlike what the name suggests, this is not
+a string length, but the byte size of the buffer, including the
+terminating {\tt NUL} byte of a string. If the full path of the match
+does not fit into this buffer, it is truncated \emph{without} proper
+string termination and the error code {\tt ERROR\_BUFFER\_OVERFLOW}\key{ERROR\_BUFFER\_OVERFLOW} is
+returned. If the full path is not required, this member shall be set
+to~$0$.
 \smallskip{}
 
-{\tt ap\_Info} contains the {\tt FileInfoBlock}\key{FileInfoBlock} of the
+{\tt ap\_Info}\mkey{ap\_Info} contains the {\tt FileInfoBlock}\key{FileInfoBlock} of the
 matched entry, including all metadata the file system has available for
-it. Note that {\tt fib\_FileFile} only contains the name of the object, not
+it. Note that {\tt fib\_FileName}\key{fib\_FileName} only contains the name of the object, not
 its full path.
 \smallskip{}
 
-{\tt ap\_Buf} is filled with the full path to the matched object if {\tt
-  ap\_Strlen} is non-zero. This buffer shall be allocated by the caller at
-the end of the {\tt AnchorPath} structure, i.e. for a buffer of $l$ bytes,
+{\tt ap\_Buf}\mkey{ap\_Buf} is filled with the full path to the matched object if {\tt
+  ap\_Strlen}\key{ap\_Strlen} is non-zero. This buffer shall be allocated by the caller at
+the end of the {\tt AnchorPath}\key{AnchorPath} structure, i.e. for a buffer of $l$ bytes,
 in total {\tt sizeof(AnchorPath)+l-1} bytes are required to store the
 structure and the buffer. The byte size of this additional buffer shall be
-placed in {\tt ap\_Strlen}. If this buffer is not required, {\tt ap\_Strlen}
+placed in {\tt ap\_Strlen}. If this buffer is not required, {\tt ap\_Strlen}\key{ap\_Strlen}
 shall be set to~$0$.
 
 \subsection{Starting a Directory Scan}
@@ -7136,24 +7156,24 @@ LONG MatchFirst(STRPTR, struct AnchorPath *)
 
 This function starts a directory scan, locating all objects matching the
 pattern {\tt pat}. This pattern does \emph{not} require pre-parsing
-(e.g. the functions in section~\ref{sec:stringpat}), {\tt MatchFirst()}
+(e.g. the functions in section~\ref{sec:stringpat}), {\tt MatchFirst()}\key{MatchFirst()}
 performs the parsing.
 \smallskip{}
 
-{\tt AnchorPath} shall be a pointer to an {\tt AnchorPath} structure
+{\tt AnchorPath}\key{AnchorPath} shall be a pointer to an {\tt AnchorPath} structure
 allocated and initialized by the caller. In particular, {\tt
   ap\_BreakBits} shall be initialized to a signal mask on which the
-scan terminates. Furthermore, {\tt ap\_FoundBreak} shall be set
-to~$0$, and {\tt ap\_Strlen} to the size of the buffer {\tt ap\_Buf}
+scan terminates. Furthermore, {\tt ap\_FoundBreak}\key{ap\_FoundBreak} shall be set
+to~$0$, and {\tt ap\_Strlen}\key{ap\_Strlen} to the size of the buffer {\tt ap\_Buf}\key{ap\_Buf}
 which is filled by the path name of the matching objects. If this path
-name is not required, {\tt ap\_Strlen} shall be set to~$0$. {\tt
-  ap\_Flags} shall be set to the flags you need, see the parent
+name is not required, {\tt ap\_Strlen}\key{ap\_Strlen} shall be set to~$0$. {\tt
+  ap\_Flags}\key{ap\_Flags} shall be set to the flags you need, see the parent
 section.
 \smallskip{}
 
-Unlike many other functions, {\tt MatchFirst()} returns an error code
+Unlike many other functions, {\tt MatchFirst()}\key{MatchFirst()} returns an error code
 directly, and not a success/failure indicator. That is,~$0$ indicates
-success. In particular, if {\tt ERROR\_BREAK} is returned in case any of the
+success. In particular, if {\tt ERROR\_BREAK}\key{ERROR\_BREAK} is returned in case any of the
 signal bits in {\tt ap->ap\_BreakBits} have been received during the scan.
 \smallskip{}
 
@@ -7166,15 +7186,15 @@ pattern matcher itself as needed.
 \smallskip{}
 
 If the full path of the matching object is needed, an additional buffer
-shall be allocated at the end of the {\tt AnchorPath}, and the size of the
-buffer shall be placed into {\tt ap\_Strlen}. The function then fills in the
-path into {\tt ap\_Buf}.
+shall be allocated at the end of the {\tt AnchorPath}\key{AnchorPath}, and the size of the
+buffer shall be placed into {\tt ap\_Strlen}\key{ap\_Strlen}. The function then fills in the
+path into {\tt ap\_Buf}\key{ap\_Buf}.
 \smallskip{}
 
 If the matching object is a directory, i.e.  {\tt
 ap->ap\_Info.fib\_DirEntryType} is positive and not equal to {\tt
-ST\_SOFTLINK}, the caller may request to enter it by setting {\tt
-APF\_DODIR} in {\tt ap->ap\_Flags}.
+ST\_SOFTLINK}\key{ST\_SOFTLINK}, the caller may request to enter it by setting {\tt
+APF\_DODIR}\key{APF\_DODIR} in {\tt ap\_Flags}\key{ap\_Flags}.
 
 \subsection{Continuing a Directory Scan}
 
@@ -7189,27 +7209,27 @@ D0                    D1
 LONG MatchNext(struct AnchorPath *)
 \end{verbatim}
 
-This function takes an existing {\tt AnchorPath} structure, as prepared by a
-previous {\tt MatchFirst()} or {\tt MatchNext()} function, and finds the
+This function takes an existing {\tt AnchorPath}\key{AnchorPath} structure, as prepared by a
+previous {\tt MatchFirst()}\key{MatchFirst()} or {\tt MatchNext()}\key{MatchNext()} function, and finds the
 next matching object. Unlike most other functions of the \emph{dos.library},
 this function returns an error code on failure and~$0$ for success. It does
 \emph{not} return a boolean success indicator. In particular, if
-{\tt ERROR\_BREAK} is returned in case any of the signal bits in
-{\tt ap->ap\_BreakBits} have been received.
+{\tt ERROR\_BREAK}\key{ERROR\_BREAK} is returned in case any of the signal bits in
+{\tt ap\_BreakBits}\key{ap\_BreakBits} have been received.
 \smallskip{}
 
-As for {\tt MatchFirst()}, this call fills {\tt ap->ap\_Info} with meta
+As for {\tt MatchFirst()}\key{MatchFirst()}, this call fills {\tt ap\_Info}\key{ap\_Info} with meta
 information on the found object, in particular its file name, and
 {\tt ap->ap\_Current->an\_Lock} the lock of the directory containing the
-object. As for {\tt MatchFirst()}, {\tt APF\_DODIR} can be set to enter
-directories recursively, and {\tt ap->ap\_Buf} will be filled with the
-full path of the found object if {\tt ap->ap\_Strlen} is non-zero.
+object. As for {\tt MatchFirst()}, {\tt APF\_DODIR}\key{APF\_DODIR} may be set to enter
+directories recursively, and {\tt ap\_Buf}\key{ap\_Buf} will be filled with the
+full path of the found object if {\tt ap\_Strlen}\key{ap\_Strlen} is non-zero.
 
 \subsection{Terminating a Directory Scan}
 
 The {\tt MatchEnd()}\mkey{MatchEnd()} function terminates a running scan,
 and releases all resources associated with the scan. It does not release the
-{\tt AnchorPath} structure.
+{\tt AnchorPath}\key{AnchorPath} structure.
 
 \begin{verbatim}
 MatchEnd(AnchorPath)
@@ -7221,9 +7241,9 @@ VOID MatchEnd(struct AnchorPath *)
 This function ends a directory scan started by
 {\tt MatchFirst()}\key{MatchFirst()} and releases all resources associated
 to the scan. This function shall be called regardless whether the scan is
-aborted due to exhaustion (i.e. {\tt ERROR\_NO\_MORE\_ENTRIES}, by error, or
-by choice of the scanning program (i.e. the desired object has been detected
-and no further matches are required).
+aborted due to exhaustion (i.e. {\tt ERROR\_NO\_MORE\_ENTRIES}\key{ERROR\_NO\_MORE\_ENTRIES},
+by error, or by choice of the scanning program (i.e. the desired object has
+been detected and no further matches are required).
 
 \section{Matching Strings against Patterns} \label{sec:stringpat}
 
@@ -7279,7 +7299,7 @@ though a simple string comparison would also work.
 
 {\tt -1} is returned in case of an error, either because the input pattern
 is ill-formed, or because {\tt DestLength} is too short. In such a case,
-{\tt IoErr()} should be used to obtain the reason of the failure.
+{\tt IoErr()}\key{IoErr()} should be used to obtain the reason of the failure.
 
 \subsection{Tokenizing a Case-Insensitive Pattern} \label{sec:parsepatternnocase}
 
@@ -7315,7 +7335,7 @@ though a simple case-insensitive string comparison would also work.
 
 {\tt -1} is returned in case of an error, either because the input pattern
 is ill-formed, or because {\tt DestLength} is too short. In such a case,
-{\tt IoErr()} should be used to obtain the reason of the failure.
+{\tt IoErr()}\key{IoErr()} should be used to obtain the reason of the failure.
 
 \subsection{Match a String against a Pattern}
 
@@ -7332,7 +7352,7 @@ BOOL MatchPattern(STRPTR, STRPTR)
 This function matches the string {\tt str} against the tokenized pattern
 {\tt pat}, returning an indicator whether the string matches the
 pattern. This function is case-sensitive. The pattern {\tt pat} shall have
-been tokenized by {\tt ParsePattern()}.
+been tokenized by {\tt ParsePattern()}\key{ParsePattern()}.
 \smallskip{}
 
 The result code {\tt match} is non-zero in case the string matches, or~$0$
@@ -7340,7 +7360,7 @@ in case either the string did not match, or the function run out of
 stack. The latter two cases can be distinguished by {\tt
   IoErr()}\key{IoErr()}. In case the string did not match, {\tt IoErr()}
 returns~$0$, or a non-zero error code otherwise. A possible error code is
-{\tt ERROR\_TOO\_MANY\_LEVELS} indicating that the pattern matcher run out
+{\tt ERROR\_TOO\_MANY\_LEVELS}\key{ERROR\_TOO\_MANY\_LEVELS} indicating that the pattern matcher run out
 of stack due to too many levels of recursion.
 \smallskip{}
 
@@ -7363,7 +7383,7 @@ BOOL MatchPatternCase(STRPTR, STRPTR)
 This function matches the string {\tt str} against the tokenized pattern
 {\tt pat}, returning an indicator whether the string matches the
 pattern. This function is case-insensitive. The pattern {\tt pat} shall have
-been tokenized by {\tt ParsePatternNoCase()}.
+been tokenized by {\tt ParsePatternNoCase()}\key{ParsePatternNoCase()}.
 \smallskip{}
 
 The result code {\tt match} is non-zero in case the string matches, or~$0$
@@ -7371,7 +7391,7 @@ in case either the string did not match, or the function run out of
 stack. The latter two cases can be distinguished by
 {\tt IoErr()}\key{IoErr()}. In case the string did not match, {\tt IoErr()}
 returns~$0$, or a non-zero error code otherwise. A possible error
-code is {\tt ERROR\_TOO\_MANY\_LEVELS} indicating that the pattern matcher
+code is {\tt ERROR\_TOO\_MANY\_LEVELS}\key{ERROR\_TOO\_MANY\_LEVELS} indicating that the pattern matcher
 run out of stack due to too many levels of recursion.
 \smallskip{}
 
@@ -7381,7 +7401,7 @@ conditions.
 
 \chapter{Processes} \label{sec:process}
 
-\emph{Processes}\mkey{Process} are extensions of exec \emph{tasks}, and as
+\emph{Processes} are extensions of exec \emph{tasks}, and as
 such scheduled by exec. The most important extensions are that processes
 include a message port in the form of a \emph{MsgPort} structure for
 inter-process communication to handlers, a current directory to
@@ -7391,6 +7411,7 @@ resolve relative paths, and the last input/output error as returned by the
 
 \emph{Processes} are represented by the {\tt Process} structure documented
 in {\tt dos/dosextens.h}. It reads as follows:
+\mkey{Process}
 \begin{verbatim}
 struct Process {
     struct  Task    pr_Task;
@@ -7427,63 +7448,64 @@ struct Process {
 The members of this structure are as follows:
 \smallskip{}
 
-{\tt pr\_Task} is the exec task structure defined in {\tt exec/tasks.h}. It
-is required by the exec scheduler. The only difference between an exec {\tt
-  Task} and a {\tt Process} is that {\tt pr\_Task.tc\_Node.ln\_Type} is set
-to {\tt NT\_PROCESS} instead to {\tt NT\_TASK}. Prior starting the process,
-the \emph{dos.library} also pushes the stack size onto the stack, i.e. {\tt
-  (ULONG *)(pr\_Task.tc\_Upper)[-1]} contains the size of the stack in
-bytes. Some binaries, in particular those compiled with the Aztec (Manx)
-compiler depend on this value.
+{\tt pr\_Task}\mkey{pr\_Task} is the exec task structure defined in
+{\tt exec/tasks.h}. It is required by the exec scheduler. The only
+difference between an exec \emph{Task} and a \emph{Process} is that
+{\tt pr\_Task.tc\_Node.ln\_Type} is set to {\tt NT\_PROCESS} instead
+to {\tt NT\_TASK}. Prior starting the process, the \emph{dos.library}
+also pushes the stack size onto the stack, i.e. {\tt (ULONG
+  *)(pr\_Task.tc\_Upper)[-1]} contains the size of the stack in
+bytes. Some binaries, in particular those compiled with the Aztec
+(Manx) compiler depend on this value.
 \smallskip{}
 
-{\tt pr\_MsgPort} is a message port structure as defined in {\tt
+{\tt pr\_MsgPort}\mkey{pr\_MsgPort} is a message port structure as defined in {\tt
   exec/ports.h}. This port is used by many functions of the
 \emph{dos.library} to communicate with handlers and \emph{file
 systems}. Details of the communication protocol are given in
 section~\ref{sec:handlers}.
 \smallskip{}
 
-{\tt pr\_Pad} is unused and only included in the structure to ensure that
+{\tt pr\_Pad}\mkey{pr\_Pad} is unused and only included in the structure to ensure that
 all following members are aligned to 32-bit boundaries.
 \smallskip{}
 
-{\tt pr\_SegList} contains an array of \emph{segments} containing
-AmigaDOS functions. The first entry in this array is a 32-bit integer
-indicating the number of valid elements, the remaining entries are
-\emph{BPTRs} to segments of AmigaDOS and the loaded binary. Some
-entries may be {\tt ZERO} indicating that the corresponding entry is
-currently not used. Segments are explained in more detail in
-section~\ref{sec:binary}. Typically, entries $1$ and $2$ are system
-segments containing AmigaDOS functions, entry $3$ is used for the
-loaded binary, and entry $4$ the segment of the shell. This, however,
-only reflects the current usage of segments, and later versions of
-AmigaDOS may populate this vector differently. The segments contained
-in this vector are used by the AmigaDOS runtime binder to build the
-\emph{Global Vector}\key{Global Vector} of processes using BCPL
-linkage. As BPCL is phased out, this vector is of no particular
-importance today anymore, and can be ignored for almost all
-purposes. The only exception is the \emph{Shell} which shall prepare
-this vector to ensure that commands written in BCPL function
+{\tt pr\_SegList}\mkey{pr\_SegList} contains an array of
+segments\key{Segment} containing AmigaDOS functions. The first
+entry in this array is a 32-bit integer indicating the number of valid
+elements, the remaining entries are BPTRs to segments of AmigaDOS and
+the loaded binary. Some entries may be {\tt ZERO} indicating that the
+corresponding entry is currently not used. Segments are explained in
+more detail in section~\ref{sec:binary}. Typically, entries $1$ and
+$2$ are system segments containing AmigaDOS functions, entry $3$ is
+used for the loaded binary, and entry $4$ the segment of the
+shell. This, however, only reflects the current usage of segments, and
+later versions of AmigaDOS may populate this vector differently. The
+segments contained in this vector are used by the AmigaDOS runtime
+binder to build the \emph{Global Vector}\key{Global Vector} of
+processes using BCPL linkage. As BPCL is phased out, this vector is of
+no particular importance today anymore, and can be ignored for almost
+all purposes. The only exception is the \emph{Shell} which shall
+prepare this vector to ensure that commands written in BCPL function
 properly. More on this in section~\ref{sec:shell}.
 
-{\tt pr\_StackSize} is the size of the process stack in bytes. It is always
+{\tt pr\_StackSize}\mkey{pr\_StackSize} is the size of the process stack in bytes. It is always
 a multiple of 4 bytes long.
 \smallskip{}
 
-{\tt pr\_GlobVec} is another BCPL legacy. It contains the \emph{Global
-  Vector} of the process. For binaries using the BCPL linkages, this
-is a custom-build array of global data and function entry points from
-{\tt pr\_SegList}. For C and assembler binaries, the \emph{Global
-  Vector}\key{Global Vector} is the system shared vector; it contains
-\emph{dos.library} global data required by some of its functions, such
-as base pointers to system libraries. As no particular advantage can
-be taken from this vector (anymore) as all functions available in it
-are also available as \emph{dos.library} entry points, it should be
-left alone.
+{\tt pr\_GlobVec}\mkey{pr\_GlobVec} is another BCPL legacy. It
+contains the \emph{Global Vector} of the process. For binaries using
+the BCPL linkages, this is a custom-build array of global data and
+function entry points from {\tt pr\_SegList}\key{pr\_SegList}. For C
+and assembler binaries, the \emph{Global Vector}\key{Global Vector} is
+the system shared vector; it contains \emph{dos.library} global data
+required by some of its functions, such as base pointers to system
+libraries. As no particular advantage can be taken from this vector
+(anymore) as all functions available in it are also available as
+\emph{dos.library} entry points, it should be left alone.
 \smallskip{}
 
-{\tt pr\_TaskNum} is an integer allocated by the system for processes that
+{\tt pr\_TaskNum}\mkey{pr\_TaskNum} is an integer allocated by the system for processes that
 execute a shell, or are binaries that have been launched by the shell. The
 number here corresponds to the integer printed by the {\tt Status}
 command. Note that AmigaDOS does not use task numbers consistently,
@@ -7492,17 +7514,19 @@ some other means are not identified by a task number. In such a case, this
 member remains~$0$.
 \smallskip{}
 
-{\tt pr\_StackBase} is a \emph{BPTR} to the address of the lower end of the
-stack, i.e. the end of the C or assembler stack. As the BCPL stack grows in
-opposide direction, it is the start of the BCPL stack. While it is
-initialized, it is not used by the \emph{dos.library} at all.
+{\tt pr\_StackBase}\mkey{pr\_StackBase} is a BPTR to the address of
+the lower end of the stack, i.e. the end of the C or assembler
+stack. As the BCPL stack grows in opposide direction, it is the start
+of the BCPL stack. While it is initialized, it is not used by the
+\emph{dos.library} at all.
 \smallskip{}
 
-{\tt pr\_Result2} is the secondary result code set by many functions of the
-\emph{dos.library}. The value stored here is delivered by {\tt IoErr()}\key{IoErr()}.
+{\tt pr\_Result2}\mkey{pr\_Result2} is the secondary result code set
+by many functions of the \emph{dos.library}. The value stored here is
+delivered by {\tt IoErr()}\key{IoErr()}.
 \smallskip{}
 
-{\tt pr\_CurrentDir} is the lock representing the current directory
+{\tt pr\_CurrentDir}\mkey{pr\_CurrentDir} is the lock representing the current directory
 of the process. All relative paths are resolved from this lock,
 i.e. they are relative to {\tt pr\_CurrentDir}. If this member is {\tt ZERO},
 the current directory is the root directory of the file system stored in
@@ -7511,7 +7535,7 @@ of the boot volume, this is usually identical to the directory identified by
 the {\tt SYS} assign.
 \smallskip{}
 
-{\tt pr\_CIS} is file handle of the standard input stream of the
+{\tt pr\_CIS}\mkey{pr\_CIS} is file handle of the standard input stream of the
 process. It is also returned by {\tt Input()}\key{Input()}. It can be {\tt
   ZERO} in case the process does not have a standard input stream. This is
 \emph{not} equivalenqt to a {\tt NIL:} input handle --- in fact, any attempt
@@ -7520,7 +7544,7 @@ the workbench do not have an input stream, unless one is installed here with
 {\tt SelectInput()}\key{SelectInput()}.
 \smallskip{}
 
-{\tt pr\_COS} is the file handle of the standard output stream of the
+{\tt pr\_COS}\mkey{pr\_COS} is the file handle of the standard output stream of the
 process. It is also returned by the {\tt Output()}\key{Output()} function of
 the \emph{dos.library}. It can be {\tt ZERO} in case the process does not
 have a standard output stream, which is not equivalent to a {\tt NIL:} file
@@ -7529,29 +7553,31 @@ started from the workbench do not have an output stream, unless one is
 installed with {\tt SelectOutput()}\key{SelectOutput()}.
 \smallskip{}
 
-{\tt pr\_ConsoleTask} is the \emph{MsgPort} of the console within which this
-process is run, if such a console exists. This handler is contacted
-when opening ``{\tt *}'' or a path relative to {\tt CONSOLE:}. Processes
-started from the workbench do not have a console, unless one is installed
-with {\tt SetConsoleTask()}\key{SetConsoleTask()}.
+{\tt pr\_ConsoleTask}\mkey{pr\_ConsoleTask} is the {\tt MsgPort} of
+the console within which this process is run, if such a console
+exists. This handler is contacted when opening ``{\tt *}'' or a path
+relative to {\tt CONSOLE:}. Processes started from the workbench do
+not have a console, unless one is installed with {\tt
+  SetConsoleTask()}\key{SetConsoleTask()}.
 \smallskip{}
 
-{\tt pr\_FilesSystemTask} is the \emph{MsgPort} of the file system that is
-contacted in case a relative path is to be resolved relative to the {\tt
-  ZERO} lock. This member is initialized to the \emph{MsgPort} of the file
-system the system was booted from, but can be changed by {\tt
-  SetFileSysTask()}\key{SetFileSysTask()}. This member is also returned by
-{\tt GetFileSysTask()}\key{SetFileSysTask()}.
+{\tt pr\_FileSystemTask}\mkey{pr\_FileSystemTask} is the {\tt MsgPort}
+of the file system that is contacted in case a relative path is to be
+resolved relative to the {\tt ZERO} lock. This member is initialized
+to the {\tt MsgPort} of the file system the system was booted from,
+but can be changed by {\tt
+  SetFileSysTask()}\key{SetFileSysTask()}. This member is also
+returned by {\tt GetFileSysTask()}\key{SetFileSysTask()}.
 \smallskip{}
 
-{\tt pr\_CLI} is a \emph{BPTR} to the {\tt CommandLineInterface}
+{\tt pr\_CLI}\mkey{pr\_CLI} is a \emph{BPTR} to the {\tt CommandLineInterface}
 \key{CommandLineInterface} structure containing information on the Shell
 this process is running in. If this process is not part of a Shell, this
 member is {\tt ZERO}. This is for example the case for programs started from
 the workbench, or handler or file system.
 \smallskip{}
 
-{\tt pr\_ReturnAddr} is another \emph{BCPL} legacy and should not be used by
+{\tt pr\_ReturnAddr}\mkey{pr\_ReturnAddr} is another BCPL legacy and should not be used by
 new implementations. It points to the BCPL stack frame of the process or the
 command overloading the process, and used there to restore the previous
 stack frame for the {\tt Exit()}\key{Exit()} function. This is typically the
@@ -7572,12 +7598,12 @@ struct BCPLStackFrame {
        APTR  bpsf_PreviousStack;
 };
 \end{verbatim}
-where {\tt bpsf\_StackSize} is the stack size of the current (active) stack,
-and {\tt bpsf\_PreviousStack} the stack of the caller; to restore the
+where {\tt bpsf\_StackSize}\mkey{bpsf\_StackSize} is the stack size of the current (active) stack,
+and {\tt bpsf\_PreviousStack}\mkey{bpsf\_PreviousStack} the stack of the caller; to restore the
 previous stack, this value is placed in the CPU register {\tt A7}.
 \medskip{}
 
-{\tt pr\_PktWait} is a function that is called when waiting for
+{\tt pr\_PktWait}\mkey{pr\_PktWait} is a function that is called when waiting for
 inter-process communication, in particular when waiting for a returning
 packet set out to a handler. If this is {\tt NULL}, the system default
 function is used.  The signature of this function is
@@ -7595,7 +7621,7 @@ this function shall block until a message has been received. For details,
 see the {\tt DoPkt()}\key{DoPkt()} function and section~\ref{sec:handlers}.
 \smallskip{}
 
-{\tt pr\_WindowPtr} is, unlike what the name suggests, a pointer to an
+{\tt pr\_WindowPtr}\mkey{pr\_WindowPtr} is, unlike what the name suggests, a pointer to an
 \emph{intuition} {\tt Screen} structure, see {\tt intuition/screens.h}, on
 which error requesters will appear. If this is {\tt NULL}, error requesters
 appear on the workbench screen, and if this is set to {\tt (APTR)(-1L)},
@@ -7604,26 +7630,26 @@ is to cancel the operation. This error requester is specified in more detail
 with the {\tt ErrorReport()}\key{ErrorReport()} function.
 \smallskip{}
 
-{\tt pr\_HomeDir} is the lock to the directory containing the binary
+{\tt pr\_HomeDir}\mkey{pr\_HomeDir} is the lock to the directory containing the binary
 that is currently executed as this process, if such a directory exists. It
 is {\tt ZERO} if the binary is resident. This lock is filled in by
 the Shell or the Workbench when loading and starting a process. It is used
-to resolve paths relative to the {\tt PROGDIR} pseudo-assign, see
+to resolve paths relative to the {\tt PROGDIR}\key{PROGDIR} pseudo-assign, see
 section~\ref{table:specialassigns}. If this lock is {\tt ZERO}, any attempt
 to resolve a path within {\tt PROGDIR:} will create a request to inserted a
 volume {\tt PROGDIR:}, which is probably not a very useful reaction of
 AmigaDOS.
 \smallskip{}
 
-{\tt pr\_Flags} are system-use only flags that shall not be used or
+{\tt pr\_Flags}\mkey{pr\_Flags} are system-use only flags that shall not be used or
 interpreted. They are used by the system process shutdown code to identify
 which resources need to be released, but future systems may find additional
 uses for this member.
 \smallskip{}
 
-{\tt pr\_ExitCode()} is a pointer to a function that is called by AmigaDOS
+{\tt pr\_ExitCode()}\mkey{pr\_ExitCode()} is a pointer to a function that is called by AmigaDOS
 as part of the process shutdown code, and as such quite more useful that
-{\tt pr\_ReturnAddr}. The function prototype is as follows:
+{\tt pr\_ReturnAddr}\key{pr\_ReturnAddr}. The function prototype is as follows:
 
 \begin{verbatim}
 returncode = ExitFunc(rc,exitdata)
@@ -7634,39 +7660,39 @@ LONG ExitFunc(LONG,LONG)
 
 The value of {\tt rc} is the return code process, i.e. the value left in
 register {\tt D0} when the code drops off the final {\tt RTS}, and {\tt
-  exitdata} is taken from {\tt pr\_ExitData}. The {\tt returncode} is a
+  exitdata} is taken from {\tt pr\_ExitData}\key{pr\_ExitData}. The {\tt returncode} is a
 modified version of the process return code that is, however, ignored.
 \smallskip{}
 
-{\tt pr\_ExitData} is used as argument for the {\tt pr\_ExitCode()}
+{\tt pr\_ExitData}\mkey{pr\_ExitData} is used as argument for the {\tt pr\_ExitCode()}\key{pr\_ExitCode()}
 function, see above.
 \smallskip{}
 
-{\tt pr\_Arguments} is a pointer to the command line arguments of the
+{\tt pr\_Arguments}\mkey{pr\_Arguments} is a pointer to the command line arguments of the
 process if it corresponds to a command started from the Shell. This is a
 {\tt NUL} terminated string. This argument string can also be found in
 register {\tt A0} for programs started from the Shell, or in the buffer of
 {\tt pr\_CIS}. The {\tt ReadArgs()}\key{ReadArgs()} function takes it from
-the latter source, and not from {\tt pr\_Arguments}. Otherwise, this member
+the latter source, and not from {\tt pr\_Arguments}\key{pr\_Arguments}. Otherwise, this member
 remains {\tt NULL}.
 \smallskip{}
 
-{\tt pr\_LocalVars} is a {\tt MinList} structure, as defined in {\tt
+{\tt pr\_LocalVars}\mkey{pr\_LocalVars} is a {\tt MinList} structure, as defined in {\tt
   exec/lists.h}, that contains local variables specific to the shell within
 which the process is executed, if any. The structure of such variables is
 defined in {\tt dos/var.h}. This structure is specified in
 section~\ref{sec:shell}.
 \smallskip{}
 
-{\tt pr\_ShellPrivate} is reserved for the Shell and its value shall not be
-used, modified or interpreted. It is currently unused, but can be used by
-future releases.
+{\tt pr\_ShellPrivate}\mkey{pr\_ShellPrivate} is reserved for the
+Shell and its value shall not be used, modified or interpreted. It is
+currently unused, but can be used by future releases.
 \smallskip{}
 
-{\tt pr\_CES} is the file handle to be used for error output. This
+{\tt pr\_CES}\mkey{pr\_CES} is the file handle to be used for error output. This
 stream gues usually to the console the process runs in, if such a console
 exists. This handle can be changed by {\tt SelectError()}\key{SelectError()}.
-If {\tt pr\_CES} is {\tt NULL}, processes should fall back to {\tt pr\_COS}
+If {\tt pr\_CES}\key{pr\_CES} is {\tt NULL}, processes should fall back to {\tt pr\_COS}\key{pr\_COS}
 for printing errors. Preferably, processes should use the
 {ErrorOutput()}\key{ErrorOutput()} function to obtain an error stream,
 though.
@@ -7680,7 +7706,7 @@ tag list. The legacy function{\tt CreateProc()}\key{CreateProc()} supports
 less options, but available under all Os versions. Shells as created by the
 {\tt System()}\key{System()} function implicitly also create processes, but
 are not discussed here, but in section~\ref{sec:shell}. Therefore, {\tt
-  System()} shares a couple of options with {\tt CreateNewProc()}.
+  System()} shares a couple of options with {\tt CreateNewProc()}\key{CreateNewProc()}.
 \smallskip{}
 
 There is surprisingly not a single function to delete processes. Processes
@@ -7721,60 +7747,62 @@ compiler on the stack and a pointer is then implicitly passed into the
 function. The following tags are recognized by the function:
 \smallskip{}
 
-{\tt NP\_Seglist} takes a \emph{BPTR} to a segment list as returned by {\tt
-  LoadSeg()} and launches the process at the first byte of the first segment
+{\tt NP\_Seglist}\mkey{NP\_Seglist} takes a BPTR to a segment list as returned by {\tt
+  LoadSeg()} and launches the process at the first byte of the first segment\key{Segment}
 of the list.
 \smallskip{}
 
-{\tt NP\_FreeSeglist} is a boolean indicator that defines whether the
-segment provided to {\tt NP\_Seglist} is released when the process
+{\tt NP\_FreeSeglist}\mkey{NP\_FreeSegList} is a boolean indicator that defines whether the
+segment provided to {\tt NP\_Seglist}\key{NP\_Seglist} is released when the process
 terminates. Unlike what the official documentation claims, the default value
 of this tag is {\tt DOSFALSE}, i.e. the segment is \emph{not} released.
 \smallskip{}
 
-{\tt NP\_Entry} is mutually exclusive to {\tt NP\_Seglist} and defines an
+{\tt NP\_Entry}\mkey{NP\_Entry} is mutually exclusive to {\tt NP\_Seglist}\key{NP\_Seglist} and defines an
 absolute address (and not a segment) as entry point of the process to be
 created. If this tag is provided, then {\tt NP\_FreeSeglist} shall
 \emph{not} be set a non-zero value. Either {\tt NP\_Entry} or {\tt
-  NP\_Seglist} shall be included.
+  NP\_Seglist} shall be included in the tag list.
 \smallskip{}
      
-{\tt NP\_Input} sets the input file handle, i.e. {\tt pr\_CIS} of the
-process to be created. This tag takes a \emph{BPTR} to a \emph{file
-handle}. The default is \emph{not} to set the input file handle, e.g. to
-leave it {\tt ZERO}.
+{\tt NP\_Input}\mkey{NP\_Input} sets the input file handle, i.e. {\tt
+  pr\_CIS}\key{pr\_CIS} of the process to be created. This tag takes a
+BPTR to a {\tt FileHandle} structure. The default is \emph{not} to set
+the input file handle, e.g. to leave it {\tt ZERO}.
 \smallskip{}
 
-{\tt NP\_CloseInput} selects whether the input file handle, if provided,
+{\tt NP\_CloseInput}\mkey{NP\_CloseInput} selects whether the input file handle, if provided,
 will be closed when the process terminates. If non-zero, the input file handle
 will be closed, otherwise it remains opened. The default is to close the
 input file handle.
 \smallskip{}
 
-{\tt NP\_Output} sets the output file handle, i.e. {\tt pr\_COS} of the
-process to be created. This tag takes a \emph{BPTR} to a \emph{file
-handle}. The default is to leave the output at {\tt ZERO}.
+{\tt NP\_Output}\mkey{NP\_Output} sets the output file handle,
+i.e. {\tt pr\_COS}\key{pr\_COS} of the process to be created. This tag
+takes a BPTR to a {\tt FileHandle} structure. The default is to
+leave the output at {\tt ZERO}.
 \smallskip{}
 
-{\tt NP\_CloseOutput} selects whether the output file handle, if
+{\tt NP\_CloseOutput}\mkey{NP\_CloseOutput} selects whether the output file handle, if
 provided, will be closed when the process terminates. If non-zero, the
 output file handle will be closed, otherwise it remains open. The default is
 to close the output file handle.
 \smallskip{}
 
-{\tt NP\_Error} sets the error file handle, i.e. {\tt pr\_CES} of the
-process to be created. This tag also takes a \emph{BPTR} to a \emph{file
-handle}. The default is to leave the error output handle at {\tt ZERO}.
+{\tt NP\_Error}\mkey{NP\_Error} sets the error file handle, i.e. {\tt
+  pr\_CES}\key{pr\_CES} of the process to be created. This tag also
+takes a BPTR to a {\tt FileHandle} structure. The default is to leave
+the error output handle at {\tt ZERO}.
 \smallskip{}
 
-{\tt NP\_CloseError} selects whether the rror file handle, if provided, will
+{\tt NP\_CloseError}\mkey{NP\_CloseError} selects whether the error file handle, if provided, will
 be closed when the process terminates. If non-zero, the error file handle
 will be closed, otherwise it remains open. The default is \emph{not} to
 close the error file handle. This (different) default is to ensure backwards
 compatibility.
 \smallskip{}
 
-{\tt NP\_CurrentDir} sets the current directory of the process to be
+{\tt NP\_CurrentDir}\mkey{NP\_CurrentDir} sets the current directory of the process to be
 created. The argument is a lock. The default is to duplicate the
 current directory of the caller with {\tt DupLock()}\key{DupLock()} if the
 caller is a process, or leave the current directory at {\tt ZERO}.
@@ -7782,22 +7810,22 @@ The current directory of the process, i.e. {\tt pr\_CurrentDir}, is released
 when the process terminates, unless {\tt NP\_CurrentDir} is set to {\tt ZERO}. 
 \smallskip{}
 
-{\tt NP\_StackSize} sets the stack size of the process to be created in
+{\tt NP\_StackSize}\mkey{NP\_StackSize} sets the stack size of the process to be created in
 bytes. The default is a stack size of $4000$ bytes.
 \smallskip{}
 
-{\tt NP\_Name} is a pointer to a {\tt NUL} terminated string to which the
+{\tt NP\_Name}\mkey{NP\_Name} is a pointer to a {\tt NUL} terminated string to which the
 task name of the process to be created is set. This string is copied before
 the process is launched, and the copy is released automatically when the
 process terminates. The default process name is ``{\tt New Process}''.
 \smallskip{}
 
-{\tt NP\_Priority} sets the priority of the process to be created. The tag
+{\tt NP\_Priority}\mkey{NP\_Priority} sets the priority of the process to be created. The tag
 value shall be an integer in the range~$-128$ to~$127$, though useful values
 are in the range of~$0$ to~$20$. The default is~$0$.
 \smallskip{}
 
-{\tt NP\_ConsoleTask} specifies a pointer to a \emph{MsgPort} to the handler
+{\tt NP\_ConsoleTask}\mkey{NP\_ConsoleTask} specifies a pointer to a {\tt MsgPort} to the handler
 that is responsible for the console of the process to be created. That is,
 if the created process opens ``{\tt *}'' or a path relative to {\tt
   CONSOLE:}, it will use the specified handler. The default is to use the
@@ -7805,20 +7833,20 @@ console handler if the caller is a process, or {\tt NULL} if the caller is
 only a task.
 \smallskip{}
 
-While not explicitly available as a tag, {\tt pr\_FileSystemTask} of
+While not explicitly available as a tag, {\tt pr\_FileSystemTask}\key{pr\_FileSystemTask} of
 the created process is set to the default file system of the calling
 process if the caller is a process, or to the default file system from
 the \emph{dos.library}. This file system is contacted to resolve paths
 relative to the {\tt ZERO} lock.
 \smallskip{}
 
-{\tt NP\_WindowPtr} specifies a pointer to a {\tt Screen} on which
+{\tt NP\_WindowPtr}\mkey{NP\_WindowPtr} specifies a pointer to a {\tt Screen} on which
 error requesters will be displayed. If this pointer is $0$, requesters
 will be shown on the workbench, and if it is $-1$, error requesters
-are suppressed. This value will be installed in the {\tt pr\_WindowPtr} of
+are suppressed. This value will be installed in the {\tt pr\_WindowPtr}\key{pr\_WindowPtr} of
 the process to be created. The default is to copy the pointer from the
 calling process if the window pointer of the parent is $0$ or
-$-1$. The tag does not copy any other value of {\tt pr\_WindowPtr}
+$-1$. The tag does not copy any other value of {\tt pr\_WindowPtr}\key{pr\_WindowPtr}
 from the parent. To set the {\tt pr\_WindowPtr} of the created process
 to the value of the calling process, the tag must be explicitly
 provided. If called from a task and not a process, the default is {\tt
@@ -7827,16 +7855,17 @@ is that the caller shall ensure that the screen is not closed while
 any pointers are still pointing to its structure.
 \smallskip{}
 
-{\tt NP\_HomeDir} sets the {\tt pr\_HomeDir} lock which is used to
-resolve paths relative to the {\tt PROGDIR:} pseudo-assign. The default is
-to copy {\tt pr\_HomeDir} of the calling process, or {\tt ZERO} in case the
-caller is a task. This lock is released when the process terminates,
-i.e. the lock provided as argument here remains available to the
-caller, and shall be released by the caller in one way or another.
+{\tt NP\_HomeDir}\mkey{NP\_HomeDir} sets the {\tt pr\_HomeDir}\key{pr\_HomeDir}
+lock which is used to resolve paths relative to the {\tt PROGDIR}\key{PROGDIR} pseudo-assign.
+The default is to copy {\tt pr\_HomeDir} of the calling process, or {\tt ZERO} in
+case the caller is a task. This lock is released when the process
+terminates, i.e. the lock provided as argument here remains available
+to the caller, and shall be released by the caller in one way or
+another.
 \smallskip{}
 
-{\tt NP\_CopyVars} determines if the local shell variables in
-{\tt pr\_LocalVars} of the calling process are copied into the variables of the
+{\tt NP\_CopyVars}\mkey{NP\_CopyVars} determines if the local shell variables in
+{\tt pr\_LocalVars}\key{pr\_LocalVars} of the calling process are copied into the variables of the
 process to be created. If set to non-zero, a copy of the variables of the
 calling process are made, otherwise the new process does not receive any
 shell variables by itself. The latter also happens if the caller is a task
@@ -7844,10 +7873,10 @@ and not a process. The variables are automatically released when the new
 process terminates.
 \smallskip{}
 
-{\tt NP\_Cli} determines whether the new process will receive a new shell
-environment in the form of a {\tt CommandLineInterface} structure. If
-non-zero, a new CLI structure will be created and a \emph{BPTR} to this
-structure will be filled into the {\tt pr\_CLI} member of the process to be
+{\tt NP\_Cli}\mkey{NP\_Cli} determines whether the new process will receive a new shell
+environment in the form of a {\tt CommandLineInterface}\key{CommandLineInterface} structure. If
+non-zero, a new CLI structure will be created and a BPTR to this
+structure will be filled into the {\tt pr\_CLI}\key{pr\_CLI} member of the process to be
 created. The new shell environment will be a copy of the shell environment
 of the caller if one is present, or a shell environment initialized with all
 defaults. This means that the prompt, the path, and the command name will be
@@ -7855,21 +7884,21 @@ copied over. If~$0$, no such environment will be created. The latter is also the
 default.
 \smallskip{}
 
-{\tt NP\_Path} provides a chained list of locks within which commands
-are searched. This is the same list the {\tt PATH} command adjusts, see
-section~\ref{sec:shell} for details on this structure. This tag only applies
-if {\tt NP\_Cli} is non-zero to create a shell environment. This chained
+{\tt NP\_Path}\mkey{NP\_Path} provides a chained list of locks within which commands
+are searched. This is the same list the {\tt Path} command adjusts, see
+section~\ref{sec:getcli} for details on this structure. This tag only applies
+if {\tt NP\_Cli}\key{NP\_Cli} is non-zero to create a shell environment. This chained
 list is \emph{not} copied, and will be released when the created process
 terminates; hence, the locks provided here are \emph{no longer} available to
-the caller if {\tt CreateNewProc()} succeeds. If {\tt CreateNewProc()}
+the caller if {\tt CreateNewProc()}\key{CreateNewProc()} succeeds. If {\tt CreateNewProc()}
 fails, the entire lock list remains a property of the caller and thus needs
 to be potentially released there. The default, if this tag is not provided, is
 to copy the paths of the caller if the calling process has a non-zero
-{\tt pr\_CLI} structure.
+{\tt pr\_CLI}\key{pr\_CLI} structure.
 \smallskip{}
 
-{\tt NP\_CommandName} provides the name of the command being executed within
-the shell environment if {\tt NP\_Cli} indicates that one is to be
+{\tt NP\_CommandName}\mkey{NP\_CommandName} provides the name of the command being executed within
+the shell environment if {\tt NP\_Cli}\key{NP\_Cli} indicates that one is to be
 created. The default is to copy the command name of the shell environment of
 the calling process if one exists, or to leave the command name empty if
 none is provided. The command name is copied into the shell environment of
@@ -7877,39 +7906,42 @@ the process being created and thus remains available to the caller. More on
 the shell environment is found in section~\ref{sec:shell}.
 \smallskip{}
 
-{\tt NP\_Arguments} provides command line arguments for the process to be
+{\tt NP\_Arguments}\mkey{NP\_Arguments} provides command line arguments for the process to be
 created. This is a {\tt NUL} terminated string that is copied into the
 process to be created, and will also be released there. If provided, the
-arguments are copied in {\tt pr\_Arguments} of the process to be created,
+arguments are copied in {\tt pr\_Arguments}\key{pr\_Arguments} of the process to be created,
 and will also be loaded into registers {\tt A0} and its length into
 {\tt D0}. If {\tt NP\_Arguments} are non-zero, a non-{\tt ZERO} {\tt
   NP\_Input} file handle shall also provided. This is because the arguments
 are also copied into the buffer associated to the input file handle
 to make them available to {\tt ReadArgs()}\key{ReadArgs()}, or any other
-function that performs buffered read from {\tt pr\_CIS}, see
+function that performs buffered read from {\tt pr\_CIS}\key{pr\_CIS}, see
 section~\ref{sec:bufferedio} for details.
 \smallskip{}
 
-{\tt NP\_ExitCode} determines a pointer to function that is called
+{\tt NP\_ExitCode}\mkey{NP\_ExitCode} determines a pointer to function that is called
 when the created process terminates. It is installed into {\tt
   pr\_ExitCode}. See section~\ref{sec:process} for the description and
 the signature of this function.
 \smallskip{}
 
-{\tt NP\_ExitData} provides an argument that will be passed into the {\tt
-  NP\_ExitCode} function in register {\tt D1} when the process terminates.
+{\tt NP\_ExitData}\mkey{NP\_ExitData} provides an argument that will
+be passed into the {\tt NP\_ExitCode}\key{NP\_ExitCode} function in
+register {\tt D1} when the process terminates.
 \smallskip{}
 
 While {\tt dos/dostags.h} also defines the tags {\tt
-  NP\_NotifyOnDeath} and {\tt NP\_Synchronous}, these tags are
-currently ignored and do not perform any function.
+  NP\_NotifyOnDeath}\key{NP\_NotifyOnDeath} and {\tt
+  NP\_Synchronous}\key{NP\_Synchronous}, these tags are currently
+ignored and do not perform any function.
 \medskip{}
 
-The {\tt CreateNewProc()} function returns on success a pointer to the
-{\tt Process} structure just created. At this stage, the process has already
-been launched and, depending on its priority, may already be running. On
-failure, the function returns {\tt NULL}. Unfortunately, it does not set
-{\tt IoErr()} consistently on failure.
+The {\tt CreateNewProc()}\key{CreateNewProc()} function returns on
+success a pointer to the {\tt Process} structure just created. At this
+stage, the process has already been launched and, depending on its
+priority, may already be running. On failure, the function returns
+{\tt NULL}. Unfortunately, it does not set {\tt IoErr()}\key{IoErr()} consistently
+on failure.
 
 \subsection{Create a Process (Legacy)}
 
@@ -7931,10 +7963,10 @@ segment list passed in as {\tt seglist}, and a stack size of {\tt stackSize}
 bytes will be allocated for the process.
 \smallskip{}
 
-The process is initialized as follows: {\tt pr\_ConsoleTask} and
-{\tt pr\_WindowPtr} are copied from the calling process, or are set
+The process is initialized as follows: {\tt pr\_ConsoleTask}\key{pr\_ConsoleTask} and
+{\tt pr\_WindowPtr}\key{pr\_WindowPtr} are copied from the calling process, or are set
 to {\tt NULL} respective~$0$ if called from the task. The member
-{\tt pr\_FileSystemTask} is also copied from the calling process, or
+{\tt pr\_FileSystemTask}\key{pr\_FileSystemTask} is also copied from the calling process, or
 is initialized from the default file system from the
 \emph{dos.library} if called from a task.
 \smallskip{}
@@ -7962,7 +7994,7 @@ the calling shell, in the former case, the process is removed from the exec
 scheduler.
 \smallskip{}
 
-However, tis function does not release any resources except those implicitly
+However, this function does not release any resources except those implicitly
 allocated when creating the process through {\tt
   CreateNewProc()}\key{CreateNewProc()}, {\tt
   CreateProc()}\key{CreateProc()} or {\tt RunCommand()}\key{RunCommand()}
@@ -7982,11 +8014,11 @@ void Exit(LONG)
 This call either terminates the calling process, in which case the argument
 is ignored, or returns to the calling shell, then delivering {\tt
   returnCode} as result code. It uses the BCPL stack frame pointed to by
-{\tt pr\_ReturnAddr}, removes this stack frame, initializes the new stack
+{\tt pr\_ReturnAddr}\key{pr\_ReturnAddr}, removes this stack frame, initializes the new stack
 from the stack frame there and then returns to whatever created the
 stack frame. This is typically either the process shutdown code of AmigaDOS, or
 the shell command shutdown code installed by {\tt RunCommand()}. In the
-former code, {\tt pr\_ExitCode()} may be used to implement additional
+former code, {\tt pr\_ExitCode()}\key{pr\_ExitCode()} may be used to implement additional
 cleanup activities.
 \smallskip{}
 
@@ -8000,8 +8032,8 @@ mechanism.
 The most important members of the process structure described in
 section~\ref{sec:process} are accessible through getter and setter
 functions. They implicitly relate to the calling process, and are the
-preferred way of getting access to the {\tt Process} structure. The
-functions listed in this section do not touch {\tt IoErr()} except
+preferred way of getting access to the {\tt Process}\key{Process} structure. The
+functions listed in this section do not touch {\tt IoErr()}\key{IoErr()} except
 explicitly stated.
 
 \subsection{Retrieve the Process Input File Handle}
@@ -8017,12 +8049,13 @@ D0
 BPTR Input(void)
 \end{verbatim}
 
-This function returns a \emph{BPTR} to the input file handle of the
-calling process, or {\tt ZERO} if none is defined. This is approximately
-identical to {\tt stdin} of ANSI-C. Depending on process creation, this file
-handle can be closed by the process shutdown code or the calling shell and
-thus should in general not be closed explicitly. It can be changed through
-{\tt SelectInput()}\key{SelectInput()}.
+This function returns a BPTR to the input file handle of the calling
+process, or {\tt ZERO} if none is defined. It returns {\tt
+  pr\_CIS}\key{pr\_CIS} of the calling process, which is approximately
+the {\tt stdin} of ANSI-C. Depending on process creation, this file
+handle can be closed by the process shutdown code or the calling shell
+and thus should in general not be closed explicitly. It can be changed
+through {\tt SelectInput()}\key{SelectInput()}.
 
 \subsection{Replace the Input File Handle}
 
@@ -8039,7 +8072,7 @@ BPTR SelectInput(BPTR)
 
 This call replaces the input file handle of the calling process with
 the file handle given by {\tt fh} and returns the previously used input
-file handle.
+file handle. It sets {\tt pr\_CIS}\key{pr\_CIS} of the calling process.
 
 \subsection{Retrieve the Output File Handle}
 
@@ -8055,11 +8088,12 @@ BPTR Output(void)
 \end{verbatim}
 
 This function returns a \emph{BPTR} to the output file handle of the
-calling process, or {\tt ZERO} if none is defined. This is approximately
-identical to {\tt stdout} of ANSI-C. Depending on process creation, this file
-handle can be closed by the process shutdown code or the calling shell and
-thus should in general not be closed explicitly. It can be changed through
-{\tt SelectOutput()}\key{SelectOutput()}.
+calling process, or {\tt ZERO} if none is defined. It returns {\tt
+  pr\_COS}\key{pr\_COS} of the calling process, which is approximately
+the {\tt stdout} of ANSI-C. Depending on process creation, this file
+handle can be closed by the process shutdown code or the calling shell
+and thus should in general not be closed explicitly. It can be changed
+through {\tt SelectOutput()}\key{SelectOutput()}.
 
 \subsection{Replace the Output File Handle}
 
@@ -8076,15 +8110,16 @@ BPTR SelectOutput(BPTR)
 
 This call replaces the output file handle of the calling process with
 the file handle given by {\tt fh} and returns the previously used output
-file handle.
+file handle. It sets {\tt pr\_COS}\key{pr\_COS} of the calling process.
 
 \subsection{Retrieve the Error File Handle}
 
-The {\tt ErrorOutput()}\mkey{ErrorOutput()} function returns the file handle
-through which diagnostic or error outputs should be printed. It uses either
-{\tt pr\_CES} if this handle is non-{\tt ZERO}, or {\tt pr\_COS} if the
-former is {\tt ZERO}. If neither an error output nor a regular output is
-provided, this function returns {\tt ZERO}.
+The {\tt ErrorOutput()}\mkey{ErrorOutput()} function returns the file
+handle through which diagnostic or error outputs should be printed. It
+uses either {\tt pr\_CES}\key{pr\_CES} if this handle is non-{\tt
+  ZERO}, or {\tt pr\_COS}\key{pr\_COS} if the former is {\tt ZERO}. If
+neither an error output nor a regular output is provided, this
+function returns {\tt ZERO}.
 
 \begin{verbatim}
 file = ErrorOutput()
@@ -8093,11 +8128,11 @@ D0
 BPTR ErrorOutput(void)
 \end{verbatim}
 
-This function returns a \emph{BPTR} to the error file handle of the
-calling process, or falls back to the \emph{BPTR} of the output \emph{file
-handle} if the former is not available. This is the file handle through
+This function returns a BPTR to the error file handle of the
+calling process, or falls back to the BPTR of the output file
+handle if the former is not available. This is the file handle through
 which diagnostic output should be printed and is therefore approximately
-identical to {\tt stderr} of ANSI-C. Depending on process creation, this file
+the {\tt stderr} of ANSI-C. Depending on process creation, this file
 handle can be closed by the process shutdown code or the calling shell and
 thus should in general not be closed explicitly. It can be changed through
 {\tt SelectError()}\key{SelectError()}.
@@ -8117,7 +8152,7 @@ BPTR SelectError(BPTR)
 
 This call replaces the error file handle of the calling process with
 the file handle given by {\tt fh} and returns the previously used error
-file handle.
+file handle. It sets {\tt pr\_CES} of the calling process.
 
 \subsection{Retrieve the Current Directory}
 
@@ -8134,7 +8169,9 @@ BPTR GetCurrentDir()
 \end{verbatim}
 
 This function returns the lock to the current directory, unlike the
-{\tt CurrentDir()}\key{CurrentDir()} function which also changes it.
+{\tt CurrentDir()}\key{CurrentDir()} function which also changes
+it. It returns {\tt pr\_CurrentDir}\key{pr\_CurrentDir} of the calling
+process.
 
 \subsection{Replace the Current Directory} \label{sec:currentdir}
 
@@ -8158,12 +8195,13 @@ directory.
 \smallskip{}
 
 If the current directory is {\tt ZERO}, paths are relative to the root
-directory of the file system set in the {\tt pr\_FileSystemTask} member
-of the calling process. It may be changed by
-{\tt SetFileSysTask()}\key{SetFileSysTask()} described in
-section~\ref{sec:setfilesystask}. AmigaDOS installs there the \emph{file
-system} of the boot volume, unless a user installs a different
-default file system.
+directory of the file system set in the {\tt pr\_FileSystemTask}
+member of the calling process. It may be changed by {\tt
+  SetFileSysTask()}\key{SetFileSysTask()} described in
+section~\ref{sec:setfilesystask}. AmigaDOS installs there the
+\emph{file system} of the boot volume, unless a user installs a
+different default file system. This function sets {\tt
+  pr\_CurrentDir}\key{pr\_CurrentDir} of the calling process.
 
 \subsection{Return the Latest Error Code} \label{sec:ioerr}
 
@@ -8206,288 +8244,319 @@ indication how the codes are used by the \emph{dos.library} itself, or what
 their suggested usage is:
 \smallskip{}
 
-{\tt ERROR\_NO\_FREE\_STORE}: This error code is set if the system run out
-of memory. Actually, this error code is not set by the \emph{dos.library},
-but rather by the \emph{exec.library} memory allocation functions.
+{\tt ERROR\_NO\_FREE\_STORE}\mkey{ERROR\_NO\_FREE\_STORE}: This error
+code is set if the system run out of memory. Actually, this error code
+is not set by the \emph{dos.library}, but rather by the
+\emph{exec.library} memory allocation functions.
 \smallskip{}
 
-{\tt ERROR\_TASK\_TABLE\_FULL}: This error code is no longer in
-use. Previous releases of AmigaDOS created it if more than~$10$ shell
-processes were about to be created. As this limitation was removed, the
-error code remains currently unused.
+{\tt ERROR\_TASK\_TABLE\_FULL}\mkey{ERROR\_TASK\_TABLE\_FULL}: This
+error code is no longer in use. Previous releases of AmigaDOS created
+it if more than~$10$ shell processes were about to be created. As this
+limitation was removed, the error code remains currently unused.
 \smallskip{}
 
-{\tt ERROR\_BAD\_TEMPLATE}: This error code indicates that the command line
-template for {\tt ReadArgs()}\key{ReadArgs()} is syntactical incorrect. It
-is also set by the pattern matcher in case the pattern is syntactically
-incorrect.
+{\tt ERROR\_BAD\_TEMPLATE}\mkey{ERROR\_BAD\_TEMPLATE}: This error code
+indicates that the command line template for {\tt
+  ReadArgs()}\key{ReadArgs()} is syntactical incorrect. It is also set
+by the pattern matcher in case the pattern is syntactically incorrect.
 \smallskip{}
 
-{\tt ERROR\_BAD\_NUMBER}: This error code indicates that a string could not
-be converted to a number.
+{\tt ERROR\_BAD\_NUMBER}\mkey{ERROR\_BAD\_NUMBER}: This error code
+indicates that a string could not be converted to a number. It is for
+example set by {\tt ReadArgs()}\key{ReadArgs()} if a command line
+argument of type {\tt /N} is requested, but the user failed to provide
+a valid number.
 \smallskip{}
 
-{\tt ERROR\_REQUIRED\_ARG\_MISSING}: This error code is set by
+{\tt ERROR\_REQUIRED\_ARG\_MISSING}\mkey{ERROR\_REQUIRED\_ARG\_MISSING}: This error code is set by
 {\tt ReadArgs()}\key{ReadArgs()} if a non-optional argument is not
 provided.
 \smallskip{}
 
-{\tt ERROR\_KEY\_NEEDS\_ARG}: This error code is also used by the argument
+{\tt ERROR\_KEY\_NEEDS\_ARG}\mkey{ERROR\_KEY\_NEEDS\_ARG}: This error code is also used by the argument
 parser {\tt ReadArgs()}\key{ReadArgs()} if an argument key is provided on
 the command line, but a corresponding argument value is missing.
 \smallskip{}
 
-{\tt ERROR\_TOO\_MANY\_ARGS}: This error code can also be set by
+{\tt ERROR\_TOO\_MANY\_ARGS}\mkey{ERROR\_TOO\_MANY\_ARGS}: This error code can also be set by
 {\tt ReadArgs()}\key{ReadArgs()}; it indicates that more arguments are
 provided than indicated in the template.
 \smallskip{}
 
-{\tt ERROR\_UNMATCHED\_QUOTES}: This error code indicates that a closing
+{\tt ERROR\_UNMATCHED\_QUOTES}\mkey{ERROR\_UNMATCHED\_QUOTES}: This error code indicates that a closing
 quote is missing for at least one opening quote. It is also set by the
 argument parser and {\tt ReadItem()}\key{ReadItem()}.
 \smallskip{}
 
-{\tt ERROR\_LINE\_TOO\_LONG}: This error code is a general indicator that a
+{\tt ERROR\_LINE\_TOO\_LONG}\mkey{ERROR\_LINE\_TOO\_LONG}: This error code is a general indicator that a
 user provided buffer is too small to buffer a string. It is for example used
 again by the argument parser and the path manipulation functions in
 section~\ref{sec:workpaths}.
 \smallskip{}
 
-{\tt ERROR\_FILE\_NOT\_OBJECT}: This error code is generated by the \emph{Shell}
+{\tt ERROR\_FILE\_NOT\_OBJECT}\mkey{ERROR\_FILE\_NOT\_OBJECT}: This error code is generated by the \emph{Shell}
 if an attempt is made to execute a file that is neither a script, nor an
 executable nor a file that can be opened by a viewer.
 \smallskip{}
 
-{\tt ERROR\_INVALID\_RESIDENT\_LIBRARY}: While this error code is not in use
-by the \emph{dos.library}, several handlers and other Os components
-use it to indicate that a required library or device is not available.
+{\tt ERROR\_INVALID\_RESIDENT\_LIBRARY}\mkey{ERROR\_INVALID\_RESIDENT\_LIBRARY}:While
+this error code is not in use by the \emph{dos.library}, several
+handlers and other Os components use it to indicate that a required
+library or device is not available.
 \smallskip{}
 
-{\tt ERROR\_NO\_DEFAULT\_DIR}: This is error code is also not in use. Its
-intended purpose is unclear.
+{\tt ERROR\_NO\_DEFAULT\_DIR}\mkey{ERROR\_NO\_DEFAULT\_DIR}: This is
+error code is also not in use. Its intended purpose is unclear.
 \smallskip{}
 
-{\tt ERROR\_OBJECT\_IN\_USE}: This error code is used by multiple Os
-components to indicate that a particular operation cannot be performed
-because the object to be modified is in use. AmigaDOS uses it, for example,
-to indicate that a lock was obtained on an object that is supposed to
-be modified or deleted, and thus cannot be modified or removed.
+{\tt ERROR\_OBJECT\_IN\_USE}\mkey{ERROR\_OBJECT\_IN\_USE}: This error
+code is used by multiple Os components to indicate that a particular
+operation cannot be performed because the object to be modified is in
+use. AmigaDOS uses it, for example, to indicate that a lock was
+obtained on an object that is supposed to be modified or deleted, and
+thus cannot be modified or removed.
 \smallskip{}
 
-{\tt ERROR\_OBJECT\_EXISTS}: This error code is a generic error indicator
-that an operation could not be performed because another object already
-exists in place, and is used as such by multiple Os components. AmigaDOS
-file systems use it, for example, when attempting to create a
-directory, but a file or a directory of the requested name is already
-present. 
+{\tt ERROR\_OBJECT\_EXISTS}\mkey{ERROR\_OBJECT\_EXISTS}: This error
+code is a generic error indicator that an operation could not be
+performed because another object already exists in place, and is used
+as such by multiple Os components. AmigaDOS file systems use it, for
+example, when attempting to create a directory, but a file or a
+directory of the requested name is already present.
 \smallskip{}
 
-{\tt ERROR\_DIR\_NOT\_FOUND}: This error code indicates that the target
-directory is not found. Of the AmigaDOS ROM components, only the shell uses
-it on an attempt to change the working directory to a non-working target
-directory.
+{\tt ERROR\_DIR\_NOT\_FOUND}\mkey{ERROR\_DIR\_NOT\_FOUND}: This error
+code indicates that the target directory is not found. Of the AmigaDOS
+ROM components, only the shell uses it on an attempt to change the
+working directory to a non-working target directory.
 \smallskip{}
 
-{\tt ERROR\_OBJECT\_NOT\_FOUND}: This is a generic error code that indicates
-that the object on which a particular operation is to be performed does not
-exist. It is for example generated on an attempt to open a non-existing file
-or to lock a file or directory that could not be found.
+{\tt ERROR\_OBJECT\_NOT\_FOUND}\mkey{ERROR\_OBJECT\_NOT\_FOUND}: This
+is a generic error code that indicates that the object on which a
+particular operation is to be performed does not exist. It is for
+example generated on an attempt to open a non-existing file or to lock
+a file or directory that could not be found.
 \smallskip{}
 
-{\tt ERROR\_BAD\_STREAM\_NAME}: This error code is currently not in use by
-AmigaDOS ROM components. Its purpose is unclear.
+{\tt ERROR\_BAD\_STREAM\_NAME}\mkey{ERROR\_BAD\_STREAM\_NAME}: This
+error code is currently not in use by AmigaDOS ROM components. Its
+purpose is unclear.
 \smallskip{}
 
-{\tt ERROR\_OBJECT\_TOO\_LARGE}: This error could be used to indicate that
-an object is beyond the size a handler or file system is able
-to handle. Note that a full disk (or full storage medium) is indicated by
-{\tt ERROR\_DISK\_FULL}, and not this error. However, currently no AmigaDOS
-component uses this error, even though the FFS should probably return it on
-an attempt to create or access files larger than~2GB.
+{\tt ERROR\_OBJECT\_TOO\_LARGE}\mkey{ERROR\_OBJECT\_TOO\_LARGE}: This
+error could be used to indicate that an object is beyond the size a
+handler or file system is able to handle. Note that a full disk (or
+full storage medium) is indicated by {\tt ERROR\_DISK\_FULL}, and not
+this error. However, currently no AmigaDOS component uses this error,
+even though the FFS should probably return it on an attempt to create
+or access files larger than~2GB.
 \smallskip{}
 
-{\tt ERROR\_ACTION\_NOT\_KNOWN}: This is a generic error code that is
-returned by many handlers or file systems when an action (in
-the form of a \emph{packet}) is requested the handler does not support or
-understand. For example, this error is created when attempting to create a
-directory on a console handler.
+{\tt ERROR\_ACTION\_NOT\_KNOWN}\mkey{ERROR\_ACTION\_NOT\_KNOWN}: This
+is a generic error code that is returned by many handlers or file
+systems when an action (in the form of a \emph{packet}) is requested
+the handler does not support or understand. For example, this error is
+created when attempting to create a directory on a console handler.
 \smallskip{}
 
-{\tt ERROR\_INVALID\_COMPONENT\_NAME}: This is an error that is raised by
-file systems when providing an invalid path, or a path that contains
-components that are syntactically incorrect. For example, the colon (``{\tt
-  :}'') shall only appear one in a path as separator between the device name
-and the path within the device. A colon within a component is therefore a
+{\tt ERROR\_INVALID\_COMPONENT\_NAME}\mkey{ERROR\_INVALID\_COMPONENT\_NAME}:
+This is an error that is raised by file systems when providing an
+invalid path, or a path that contains components that are
+syntactically incorrect. For example, the colon (``{\tt :}'') shall
+only appear one in a path as separator between the device name and the
+path within the device. A colon within a component is therefore a
 syntactical error. Also, all Amiga ROM file systems do not accept code
 points below {\tt 0x20}, i.e. ASCII control characters.
 \smallskip{}
 
-{\tt ERROR\_INVALID\_LOCK}: This error is raised if a value is passed in as
-a lock that is, in fact, not a valid lock of the target \emph{file
-system}. For example, an attempt to use a file handle as a lock will
-result in such an error condition. Note, however, that file systems
-can, but do not need to check locks for validity. Passing incorrect objects
-to file systems can raise multiple error conditions of which this
-error code is probably the most harmless.
+{\tt ERROR\_INVALID\_LOCK}\mkey{ERROR\_INVALID\_LOCK}: This error is
+raised if a value is passed in as a lock that is, in fact, not a valid
+lock of the target file system. For example, an attempt to use
+a file handle as a lock will result in such an error condition. Note,
+however, that file systems can, but do not need to check locks for
+validity. Passing incorrect objects to file systems can raise multiple
+error conditions of which this error code is probably the most
+harmless.
 \smallskip{}
 
-{\tt ERROR\_OBJECT\_WRONG\_TYPE}: This error code indicates that a
-particular operation is not applicable to a target object, even though the
-target object is valid and existing. For example, an attempt to open an
-existing directory for reading as a file will raise this error.
+{\tt ERROR\_OBJECT\_WRONG\_TYPE}\mkey{ERROR\_OBJECT\_WRONG\_TYPE}:
+This error code indicates that a particular operation is not
+applicable to a target object, even though the target object is valid
+and existing. For example, an attempt to open an existing directory
+for reading as a file will raise this error.
 \smallskip{}
 
-{\tt ERROR\_DISK\_NOT\_VALIDATED}: This error indicates that the inserted
-medium is currently not validated, i.e. not checked for consistency. Such a
-consistency check (or validation) may be currently ongoing. This error is
-for example generated  if a write operation is attempted on an FFS volume
-whose validation is still ongoing. In such a case, retrying the operation
+{\tt ERROR\_DISK\_NOT\_VALIDATED}\mkey{ERROR\_DISK\_NOT\_VALIDATED}:
+This error indicates that the inserted medium is currently not
+validated, i.e. not checked for consistency. Such a consistency check
+(or validation) may be currently ongoing. This error is for example
+generated if a write operation is attempted on an FFS volume whose
+validation is still ongoing. In such a case, retrying the operation
 later may solve the problem already.
 \smallskip{}
 
-{\tt ERROR\_DISK\_WRITE\_PROTECTED}: This indicates that an attempt was made
-to write to a medium, e.g. a disk, that is write-protected, or that cannot
-be written to, such as an attempt to write to a CD-ROM.
+{\tt ERROR\_DISK\_WRITE\_PROTECTED}\mkey{ERROR\_DISK\_WRITE\_PROTECTED}: This
+indicates that an attempt was made to write to a medium, e.g. a disk,
+that is write-protected, or that cannot be written to, such as an
+attempt to write to a CD-ROM.
 \smallskip{}
 
-{\tt ERROR\_RENAME\_ACROSS\_DEVICES}: Generated if an attempt is made to
-move an object to a target directory that is located on a different medium
-or different file system than the source directory. This cannot
-succeed, instead the object (and its subobjects) need to be copied manually.
+{\tt ERROR\_RENAME\_ACROSS\_DEVICES}\mkey{ERROR\_RENAME\_ACROSS\_DEVICES}:
+Generated if an attempt is made to move an object to a target
+directory that is located on a different medium or different file
+system than the source directory. This cannot succeed, instead the
+object (and its subobjects) need to be copied manually.
 \smallskip{}
 
-{\tt ERROR\_DIRECTORY\_NOT\_EMPTY}: Indicates that an attempt was made to
-delete a directory that is not empty. First, all the files within a
-directory must be deleted before the directory itself may be deleted.
+{\tt ERROR\_DIRECTORY\_NOT\_EMPTY}\mkey{ERROR\_DIRECTORY\_NOT\_EMPTY}:
+Indicates that an attempt was made to delete a directory that is not
+empty. First, all the files within a directory must be deleted before
+the directory itself may be deleted.
 \smallskip{}
 
-{\tt ERROR\_TOO\_MANY\_LEVELS}: This error code is generated if too many
-softlinks refer iteratively to other softlinks. In order to avoid an endless
-indirection of softlinks referring to each other, the \emph{dos.library}
-aborts following softlinks after 15 passes; application programs attempting
-to resolve softlinks themselves through {\tt ReadLink()}\key{ReadLink()}
-should implement a similar mechanism, see also section~\ref{sec:readlink}.
+{\tt ERROR\_TOO\_MANY\_LEVELS}\mkey{ERROR\_TOO\_MANY\_LEVELS}: This
+error code is generated if too many softlinks refer iteratively to
+other softlinks. In order to avoid an endless indirection of softlinks
+referring to each other, the \emph{dos.library} aborts following
+softlinks after 15 passes; application programs attempting to resolve
+softlinks themselves through {\tt ReadLink()}\key{ReadLink()} should
+implement a similar mechanism, see also section~\ref{sec:readlink}.
 \smallskip{}
 
-{\tt ERROR\_DEVICE\_NOT\_MOUNTED}: This error indicates that an access was
-attempted to either a handler, file system or \emph{assign}
-that is not known to the system, or to a volume that is currently not
-inserted in any known drive.
+{\tt ERROR\_DEVICE\_NOT\_MOUNTED}\mkey{ERROR\_DEVICE\_NOT\_MOUNTED}:
+This error indicates that an access was attempted to either a handler,
+file system or \emph{assign} that is not known to the system, or to a
+volume that is currently not inserted in any known drive.
 \smallskip{}
 
-{\tt ERROR\_SEEK\_ERROR}: This error is generated by an attempt to {\tt
-  Seek()} to a file position that is either negative, or behind the end of
-the file. It is also signalled if the mode of {\tt Seek()}\key{Seek()} or
-{\tt SetFileSize()}\key{SetFileSize()} is none of the modes indicated in
-table~\ref{table:seekmode}. The FFS also sets this mode if it cannot read
-one of its administration blocks.
+{\tt ERROR\_SEEK\_ERROR}\mkey{ERROR\_SEEK\_ERROR}: This error is
+generated by an attempt to {\tt Seek()} to a file position that is
+either negative, or behind the end of the file. It is also signalled
+if the mode of {\tt Seek()}\key{Seek()} or {\tt
+  SetFileSize()}\key{SetFileSize()} is none of the modes indicated in
+table~\ref{table:seekmode}. The FFS also sets this mode if it cannot
+read one of its administration blocks.
 \smallskip{}
 
-{\tt ERROR\_COMMENT\_TOO\_BIG}: This error is raised if the size of the
-comment is too large to be stored in in the metadata of the \emph{file
-system}. Note that while file systems shall validate the size of the
-comment, it shall silently truncate file names to the maximal size possible.
+{\tt ERROR\_COMMENT\_TOO\_BIG}\mkey{ERROR\_COMMENT\_TOO\_BIG}: This
+error is raised if the size of the comment is too large to be stored
+in in the metadata of the \emph{file system}. Note that while file
+systems shall validate the size of the comment, it shall silently
+truncate file names to the maximal size possible.
 \smallskip{}
 
-{\tt ERROR\_DISK\_FULL}: Generated by file systems when an attempt is
-made to write more data to a medium than it is possible to hold, i.e. when
-the target medium is full.
+{\tt ERROR\_DISK\_FULL}\mkey{ERROR\_DISK\_FULL}: Generated by file
+systems when an attempt is made to write more data to a medium than it
+is possible to hold, i.e. when the target medium is full.
 \smallskip{}
 
-{\tt ERROR\_DELETE\_PROTECTED}: This error is generated by \emph{file
-systems} if an attempt is made to delete a file that is delete protected,
-i.e. whose {\tt FIBB\_DELETE} protection bit is set, see
-table~\ref{table:protectionbits} in section~\ref{sec:fib}.
+{\tt ERROR\_DELETE\_PROTECTED}\mkey{ERROR\_DELETE\_PROTECTED}: This
+error is generated by \emph{file systems} if an attempt is made to
+delete a file that is delete protected, i.e. whose {\tt FIBB\_DELETE}
+protection bit is set, see table~\ref{table:protectionbits} in
+section~\ref{sec:fib}.
 \smallskip{}
 
-{\tt ERROR\_WRITE\_PROTECTED}: This error is generated by \emph{file
-systems} if a write is attempted  to a file that is write protected,
-i.e. whose {\tt FIBB\_WRITE} bit is set.
+{\tt ERROR\_WRITE\_PROTECTED}\mkey{ERROR\_WRITE\_PROTECTED}: This error
+is generated by \emph{file systems} if a write is attempted to a file
+that is write protected, i.e. whose {\tt FIBB\_WRITE} bit is set.
 \smallskip{}
 
-{\tt ERROR\_READ\_PROTECTED}: This error is generated on an attempt to
-read from a file that is protected from reading by having its {\tt
-  FIBB\_READ} bit is set.
+{\tt ERROR\_READ\_PROTECTED}\mkey{ERROR\_READ\_PROTECTED}: This error
+is generated on an attempt to read from a file that is protected from
+reading by having its {\tt FIBB\_READ} bit is set.
 \smallskip{}
 
-{\tt ERROR\_NOT\_A\_DOS\_DISK}: This error is generated by a \emph{file
-system} on an attempt to read a disk that is not strutured according to the
-requirements of the file system, i.e. that is initialized by another
-incompatbile file system different from the mounted
-one. Unfortunately, AmigaDOS does not have a control instance that selects
-file systems according to the disk layout.
+{\tt ERROR\_NOT\_A\_DOS\_DISK}\mkey{ERROR\_NOT\_A\_DOS\_DISK}: This
+error is generated by a \emph{file system} on an attempt to read a
+disk that is not strutured according to the requirements of the file
+system, i.e. that is initialized by another incompatbile file system
+different from the mounted one. Unfortunately, AmigaDOS does not have
+a control instance that selects file systems according to the disk
+layout.
 \smallskip{}
 
-{\tt ERROR\_NO\_MORE\_ENTRIES}: This secondary result code does not really
-indicate an error condition, it just reports to the caller that the end of a
-directory has been reached when scanning it by
-{\tt ExNext()}\key{ExNext()} or {\tt ExAll()}\key{ExAll()}.
+{\tt ERROR\_NO\_MORE\_ENTRIES}\key{ERROR\_NO\_MORE\_ENTRIES}: This
+secondary result code does not really indicate an error condition, it
+just reports to the caller that the end of a directory has been
+reached when scanning it by {\tt ExNext()}\key{ExNext()} or {\tt
+  ExAll()}\key{ExAll()}.
 \smallskip{}
 
-{\tt ERROR\_IS\_SOFT\_LINK}: This error code is generated by
-file systems on an attempt to access a \emph{soft link}. For many
-functions, the \emph{dos.library} recognizes this error and then resolves
-the link through {\tt ReadLink()}\key{ReadLink()} within the library, not
-requiring intervention of the caller. However, not all functions of the
+{\tt ERROR\_IS\_SOFT\_LINK}\mkey{ERROR\_IS\_SOFT\_LINK}: This error
+code is generated by file systems on an attempt to access a \emph{soft
+  link}. For many functions, the \emph{dos.library} recognizes this
+error and then resolves the link through {\tt
+  ReadLink()}\key{ReadLink()} within the library, not requiring
+intervention of the caller. However, not all functions of the
 \emph{dos.library} are aware of \emph{soft links}, see
 section~\ref{sec:links} for the list.
 \smallskip{}
 
-{\tt ERROR\_OBJECT\_LINKED}: This error code is currently not used by
-AmigaDOS and its intended use is not known.
+{\tt ERROR\_OBJECT\_LINKED}\mkey{ERROR\_OBJECT\_LINKED}: This error
+code is currently not used by AmigaDOS and its intended use is not
+known.
 \smallskip{}
 
-{\tt ERROR\_BAD\_HUNK}: Generated by {\tt LoadSeg()}\key{LoadSeg()} and {\tt
-  NewLoadSeg()}\key{NewLoadSeg()}, this error code indicates that the binary
-file includes a hunk type that is not supported or recognized by
-AmigaDOS. The hunk format for binary executables is documented in
-section~\ref{sec:loadseg}.
+{\tt ERROR\_BAD\_HUNK}\mkey{ERROR\_BAD\_HUNK}: Generated by {\tt
+  LoadSeg()}\key{LoadSeg()} and {\tt NewLoadSeg()}\key{NewLoadSeg()},
+this error code indicates that the binary file includes a hunk type
+that is not supported or recognized by AmigaDOS. The hunk format for
+binary executables is documented in section~\ref{sec:loadseg}.
 \smallskip{}
 
-{\tt ERROR\_NOT\_IMPLEMENTED}: This error code is not used by any ROM
-component, but several workbench components signal this error indicating
-that the requested function is not supported by this component. For example,
-the {\tt Format} command generates it on an attempt to format a disk with
-long file names if the target file system does not support them.
+{\tt ERROR\_NOT\_IMPLEMENTED}\mkey{ERROR\_NOT\_IMPLEMENTED}: This
+error code is not used by any ROM component, but several workbench
+components signal this error indicating that the requested function is
+not supported by this component. For example, the {\tt Format} command
+generates it on an attempt to format a disk with long file names if
+the target file system does not support them.
 \smallskip{}
 
-{\tt ERROR\_RECORD\_NOT\_LOCKED}: Issued by file systems and their
-record-locking subsystem if an attempt is made to release a record that is,
-actually, not locked.
+{\tt ERROR\_RECORD\_NOT\_LOCKED}\mkey{ERROR\_RECORD\_NOT\_LOCKED}:
+Issued by file systems and their record-locking subsystem if an
+attempt is made to release a record that is, actually, not locked.
 \smallskip{}
 
-{\tt ERROR\_LOCK\_COLLISION}: This error is also created by the
-record-locking subsystem of file systems if attempt is made to
-exclusively lock the same region within a file by two write locks.
+{\tt ERROR\_LOCK\_COLLISION}\mkey{ERROR\_LOCK\_COLLISION}: This error
+is also created by the record-locking subsystem of file systems if
+attempt is made to exclusively lock the same region within a file by
+two write locks.
 \smallskip{}
 
-{\tt ERROR\_LOCK\_TIMEOUT}: Also generated by the record-locking mechanism
-of file systems if an attempt was made to exclusively lock a region
-of a file that is exclusively locked already, and the attempt failed because
-the region did not became available before the lock timed out.
+{\tt ERROR\_LOCK\_TIMEOUT}\mkey{ERROR\_LOCK\_TIMEOUT}: Also generated
+by the record-locking mechanism of file systems if an attempt was made
+to exclusively lock a region of a file that is exclusively locked
+already, and the attempt failed because the region did not became
+available before the lock timed out.
 \smallskip{}
 
-{\tt ERROR\_UNLOCK\_ERROR}: This error is currently not generated by any
-file system, though could be used to indicate that an attempt to
-unlock a record failed for an unknown reason.
+{\tt ERROR\_UNLOCK\_ERROR}\mkey{ERROR\_UNLOCK\_ERROR}: This error is
+currently not generated by any file system, though could be used to
+indicate that an attempt to unlock a record failed for an unknown
+reason.
 \smallskip{}
 
-{\tt ERROR\_BUFFER\_OVERFLOW}: This error is raised by the pattern matcher
-and indicates that the buffer allocated in the {\tt AnchorPath} structure is
-too small to keep the fully expanded matching file name, see also
+{\tt ERROR\_BUFFER\_OVERFLOW}\mkey{ERROR\_BUFFER\_OVERFLOW}: This
+error is raised by the pattern matcher and indicates that the buffer
+allocated in the {\tt AnchorPath} structure is too small to keep the
+fully expanded matching file name, see also
 section~\ref{sec:patternmatch}.
 \smallskip{}
 
-{\tt ERROR\_BREAK}: This error is also raised by the pattern matcher if it
-received an external signal for aborting a directory scan for objects. Such
-signals are raised, for example, by the user through the console by pressing
-{\tt Ctrl + C} through {\tt Ctrl + F}.
+{\tt ERROR\_BREAK}\mkey{ERROR\_BREAK}: This error is also raised by
+the pattern matcher if it received an external signal for aborting a
+directory scan for objects. Such signals are raised, for example, by
+the user through the console by pressing {\tt Ctrl + C} through {\tt
+  Ctrl + F}.
 \smallskip{}
 
-{\tt ERROR\_NOT\_EXECUTABLE}: This error is generated by the workbench on an
-attempt to start an application icon from a file whose {FIBB\_EXECUTE} is
-set, indicating that the file is not executable. Why the workbench does not
-use the same error code as the \emph{Shell} remains unclear.
+{\tt ERROR\_NOT\_EXECUTABLE}\mkey{ERROR\_NOT\_EXECUTABLE}: This error
+is generated by the workbench on an attempt to start an application
+icon from a file whose {FIBB\_EXECUTE} is set, indicating that the
+file is not executable. Why the workbench does not use the same error
+code as the \emph{Shell} remains unclear.
 
 \subsection{Setting IoErr}
 
@@ -8502,17 +8571,17 @@ D0                 D1
 LONG SetIoErr(LONG);
 \end{verbatim}
 
-This function sets the next value returned by {\tt IoErr()}; this can be
+This function sets the next value returned by {\tt IoErr()}\key{IoErr()}; this can be
 necessary because some functions of the \emph{dos.library} do not update
 this value in all cases. A particular example are the buffered I/O functions
-introduced in section~\ref{sec:bufferedio} that do not touch {\tt IoErr()} in
-case the input or output operation can be satisfied from the buffer. A good
+introduced in section~\ref{sec:bufferedio} that do not touch {\tt IoErr()}\key{IoErr()}
+in case the input or output operation can be satisfied from the buffer. A good
 practise is to call {\tt SetIoErr(0)} upfront to ensure that these functions
-leave~a $0$ in {\tt IoErr()} on success.
+leave~a $0$ in {\tt IoErr()}\key{IoErr()} on success.
 \smallskip{}
 
 This function returns the previous value of {\tt IoErr()}, and thus the same
-value {\tt IoErr()} would return.
+value {\tt IoErr()}\key{IoErr()} would return.
 
 \subsection{Select the Console Handler}
 
@@ -8527,12 +8596,13 @@ D0                        D1
 struct MsgPort *SetConsoleTask(struct MsgPort *)
 \end{verbatim}
 
-This function selects the \emph{MsgPort} of the console handler. AmigaDOS
+This function selects the {\tt MsgPort} of the console handler. AmigaDOS
 will contact this handler for opening the ``{\tt *}'' as file name, or a
 file relative to the {\tt CONSOLE:} pseudo-device. Note that the argument is
-not a pointer to the handler process, but rather to a \emph{MsgPort}
+not a pointer to the handler process, but rather to a {\tt MsgPort}
 through which this process can be contacted. It returns the previously used
-console handler \emph{MsgPort}. 
+console handler {\tt MsgPort}. This function sets the {\tt pr\_ConsoleTask}\key{pr\_ConsoleTask}
+element of the calling process.
 \smallskip{}
 
 This function is the setter function corresponding to the
@@ -8551,8 +8621,8 @@ D0                        D1
 struct MsgPort *SetFileSysTask(struct MsgPort *)
 \end{verbatim}
 
-This function selects the \emph{MsgPort} of the default \emph{file
-system}. AmigaDOS will contact this file system if a path relative to
+This function selects the {\tt MsgPort} of the default file
+system. AmigaDOS will contact this file system if a path relative to
 the {\tt ZERO} lock is resolved, e.g. a relative path name if the current
 directory is {\tt ZERO}. This file system should be identical to the
 file system of the {\tt SYS:} assign, and should therefore not be
@@ -8561,11 +8631,11 @@ processes.
 \smallskip{}
 
 Note that the argument is not a pointer to the handler process, but
-rather to a \emph{MsgPort} through which this process can be contacted. It
-returns the previously used default file system \emph{MsgPort}. This
-function is the setter equivalent of {\tt
-  GetFileSysTask()}\key{GetFileSysTask()} introduced in
-section~\ref{sec:getfilesystask}.
+rather to a {\tt MsgPort} through which this process can be contacted. It
+returns the previously used default file system {\tt MsgPort}. This
+function is the setter equivalent of {\tt GetFileSysTask()}\key{GetFileSysTask()}
+introduced in section~\ref{sec:getfilesystask}. It sets {\tt pr\_FileSystemTask}\key{pr\_FileSystemTask}
+of the calling process.
 
 \subsection{Retrieve the Lock to the Program Directory}
 
@@ -8582,7 +8652,7 @@ D0
 BPTR GetProgramDir(void)
 \end{verbatim}
 
-The lock returned by this function corresponds to the {\tt PROGDIR:}
+The lock returned by this function corresponds to the {\tt PROGDIR}\key{PROGDIR}
 (pseudo)-assign and the {\tt pr\_HomeDir} member of the {\tt Process}
 structure, with the only exception that {\tt ZERO} does not correspond
 to the root directory of the boot volume, but rather indicates that no
@@ -8592,7 +8662,7 @@ home directory exists.
 
 The {\tt SetProgramDir}\mkey{SetProgramDir()} sets the directory
 within which the executing program is made to believe of getting
-started from, and the directory that corresponds to the {\tt PROGDIR:}
+started from, and the directory that corresponds to the {\tt PROGDIR}\key{PROGDIR}
 pseudo-assign.
 
 \begin{verbatim}
@@ -8605,7 +8675,7 @@ BPTR SetProgramDir(BPTR)
 This function installs {\tt lock} into {\tt pr\_HomeDir} of the {\tt
   Process} structure. This {\tt lock} is supposed to belong to the
 directory the currently executing program was loaded from and is used
-to resolve the {\tt PROGDIR:} pseudo-assign. If {\tt ZERO} is
+to resolve the {\tt PROGDIR}\key{PROGDIR} pseudo-assign. If {\tt ZERO} is
 installed, the current process will be unable to resolve this
 pseudo-assign.
 
@@ -8644,13 +8714,14 @@ STRPTR SetArgStr(STRPTR)
 
 This function requires a pointer to a {\tt NUL} terminated string as
 {\tt ptr} and installs it to {\tt pr\_Arguments} member of the
-{\tt Process} structure. This is unfortunately of limited use as the
+{\tt Process}\key{Process} structure. This is unfortunately of limited use as the
 {\tt ReadArgs()}\key{ReadArgs()} function takes the command line
 arguments from a different source, namely the input buffer of the
 {\tt Input()} file handle. 
 
 \chapter{Binary File Structure} \label{sec:binary}
 
+% TODO: Add keywords to index from here on.
 % TODO: add library format.
 The AmigaDOS \emph{Hunk} format represents executable and linkable
 object files. While both formats are related, they are not identical;
@@ -11792,10 +11863,10 @@ path starting with ``{\tt CONSOLE:}'', the port in {\tt pr\_ConsoleTask} is
 used to send packets to.
 \smallskip{}
 
-If the handler is contacted through a path starting with ``{\tt PROGDIR:}''
-and the {\tt pr\_HomeDir} element of the calling process is non-{\tt NULL},
-the {\tt fl\_Task} element of the lock stored there is used to contact the
-handler.
+If the handler is contacted through a path starting with ``{\tt
+  PROGDIR:}''\key{PROGDIR} and the {\tt pr\_HomeDir} element of the
+calling process is non-{\tt NULL}, the {\tt fl\_Task} element of the
+lock stored there is used to contact the handler.
 \smallskip{}
 
 If the handler is contacted through an absolute path, the \emph{dos.library}
