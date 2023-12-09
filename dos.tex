@@ -14147,10 +14147,10 @@ fill in a boolean success code in {\tt dp\_Res1}. It shall be set to {\tt
 set to an error code from {\tt dos/dos.h} or~0 for success.
 \medskip{}
 
-The purpose of this packet is to prepare a {\tt FileHandle} for
-shared access, either for reading or for writing. If the file cannot be
-located, this packet \emph{shall not} create it but rather fail with {\tt
-  ERROR\_OBJECT\_NOT\_FOUND}\key{ERROR\_OBJECT\_NOT\_FOUND}. This packet is
+The purpose of this packet is to prepare a {\tt FileHandle} structure for
+shared access, allowing both reading and writing. If the file cannot be
+located, this packet \emph{shall not} create it but rather fail with the
+error code {\tt ERROR\_OBJECT\_NOT\_FOUND}\key{ERROR\_OBJECT\_NOT\_FOUND}. This packet is
 used by the {\tt Open()}\key{Open()} function if its second argument is set
 to {\tt MODE\_OLDFILE}\key{MODE\_OLDFILE}.
 \smallskip{}
@@ -16506,9 +16506,9 @@ characters becoming available on an interactive handler.
 
 This packet implements the {\tt WaitForChar()}\key{WaitForChar()} function
 of the \emph{dos.library}. As such, it checks whether (interactive) input is
-available to satisfy a potential {\tt Read()}. Note that this packet does
+available to satisfy a potential {\tt Read()}\key{Read()}. Note that this packet does
 not receive an indicator of a file handle, thus even if input is available,
-it is not specified which {\tt ACTION\_READ} packet will receive the
+it is not specified which {\tt ACTION\_READ}\key{ACTION\_READ} packet will receive the
 available data.
 \smallskip{}
 
@@ -16546,7 +16546,7 @@ buffering.
 \tt dp\_Res2  & Error code \\ \hline
 \end{rkrmtable}
 
-This packet implements the {\tt SetMode()} function of the
+This packet implements the {\tt SetMode()}\key{SetMode()} function of the
 \emph{dos.library}. {\tt dp\_Arg1} is a copy of the second argument of this
 function.
 \smallskip{}
@@ -16609,7 +16609,7 @@ parameters.  However, when applied to consoles, it returns additional
 information and is thus discussed here again.
 \smallskip{}
 
-The {\tt id\_DiskType} element of the {\tt InfoData} structure (see
+The {\tt id\_DiskType} element of the {\tt InfoData}\key{InfoData} structure (see
 section~\ref{sec:info}) pointed to by {\tt dp\_Arg1} provides information on
 the mode the console is in:
 
@@ -16624,13 +16624,13 @@ describe whether the console buffers entire lines and which key presses are
 reported how.
 \smallskip{}
 
-The {\tt id\_VolumeNode} element of the {\tt InfoData} structure provided in
+The {\tt id\_VolumeNode} element of the {\tt InfoData}\key{InfoData} structure provided in
 {\tt dp\_Arg1} is filled with a pointer to the intuition window the console
 runs in. For a serial console, or a console running on any other device,
 this element remains {\tt NULL}.
 \smallskip{}
 
-The {\tt id\_InUse} element is filled with a pointer to the {\tt IoRequest}
+The {\tt id\_InUse}\key{id\_InUse} element is filled with a pointer to the {\tt IoRequest}
 structure (see {\tt exec/io.h}) which is used to communicate with the device
 the handler operates on. For a graphical console, this is a {\tt IORequest}
 to the {\tt console.device}; for the {\tt AUX:} console, it is an {\tt
@@ -16652,7 +16652,7 @@ Applications should inform the console by sending an {\tt
 section~\ref{sec:packetundiskinfo}.
 \smallskip{}
 
-Second, {\tt ACTION\_DISK\_INFO} will not provide a window if the
+Second, {\tt ACTION\_DISK\_INFO}\key{ACTION\_DISK\_INFO} will not provide a window if the
 console is not running in an intuition window, but remotely over a serial
 line or any other device. The {\tt IORequest} pointer then corresponds to
 the target device over which the console communicates with the user, and not
@@ -16662,14 +16662,14 @@ the {\tt console.device}.
 Often, applications (mis-)use this packet to retrieve the current cursor
 position or the dimensions of the window in character positions, assuming
 that the {\tt IORequest} pointer in {\tt id\_InUse} is, actually,
-corresponding to a {\tt console.device} and as such {\tt io\_Unit} of the
+corresponding to a \emph{console.device} and as such {\tt io\_Unit} of the
 request is a pointer to a {\tt ConUnit}. However, this assumption may not be
 true, and console dimensions and the cursor position cannot be obtained in
 general in this way.
 \smallskip{}
 
 The following algorithm provides an alternative by switching the console to
-{\tt RAW} mode, and requesting the required information through CSI
+raw mode\key{Raw Mode}, and requesting the required information through CSI
 sequences. These sequences operate independent of the device and only
 require that the local or remote console implements a VT-100 compatible
 interface.
@@ -16899,9 +16899,9 @@ start of the output buffer of the console.
 This packet is not exposed by the \emph{dos.library}, it rather needs to be
 issued through the packet interface, e.g. {\tt DoPkt()}\key{DoPkt()}. This packet injects
 a line at the end of the output buffer of the console. This buffer keeps all
-lines entered by the user, and lines injected by {\tt ACTION\_STACK} and
-{\tt ACTION\_QUEUE}. The number of lines in this output buffer can be
-obtained through {\tt ACTION\_WAIT\_CHAR} which delivers the line count in
+lines entered by the user, and lines injected by {\tt ACTION\_STACK}\key{ACTION\_STACK} and
+{\tt ACTION\_QUEUE}\key{ACTION\_QUEUE}. The number of lines in this output buffer can be
+obtained through {\tt ACTION\_WAIT\_CHAR}\key{ACTION\_WAIT\_CHAR} which delivers the line count in
 {\tt dp\_Res2}.
 \smallskip{}
 
@@ -16950,9 +16950,9 @@ of the output buffer of the console.
 This packet is not exposed by the \emph{dos.library}, it rather needs to be
 issued through the packet interface, e.g. {\tt DoPkt()}\key{DoPkt()}. This packet injects
 a line at the end of the output buffer of the console. This buffer keeps all
-lines entered by the user, and lines injected by {\tt ACTION\_STACK} and
-{\tt ACTION\_QUEUE}. The number of lines in this output buffer can be
-obtained through {\tt ACTION\_WAIT\_CHAR} which delivers the line count in
+lines entered by the user, and lines injected by {\tt ACTION\_STACK}\key{ACTION\_STACK} and
+{\tt ACTION\_QUEUE}\key{ACTION\_QUEUE}. The number of lines in this output buffer can be
+obtained through {\tt ACTION\_WAIT\_CHAR}\key{ACTION\_WAIT\_CHAR} which delivers the line count in
 {\tt dp\_Res2}.
 \smallskip{}
 
@@ -17009,7 +17009,7 @@ corresponding keystrokes.
 \smallskip{}
 
 Note that the keyboard input buffer is different from the line output
-buffer; lines entering the console through {\tt ACTION\_FORCE} qualify as
+buffer; lines entering the console through {\tt ACTION\_FORCE}\key{ACTION\_FORCE} qualify as
 keyboard input\footnote{Even though the V40 CON-Handler\key{CON-Handler} already supported
 this packet, it is there implemented incorrectly and does not impact the
 keyboard buffer. This was fixed in V47.}. The main user of this packet is
@@ -17038,7 +17038,7 @@ set to~0, or to an error code on failure.
 
 The {\tt ACTION\_DROP}\mkey{ACTION\_DROP} packet disposes all lines that
 have been injected into the output buffer and thus reverts any {\tt
-  ACTION\_STACK} and {\tt ACTION\_QUEUE} packets.
+  ACTION\_STACK}\key{ACTION\_STACK} and {\tt ACTION\_QUEUE}\key{ACTION\_QUEUE} packets.
 
 \begin{rkrmtable}{\tt ACTION\_DROP}
 {\bf DosPacket Element}   & {\bf Value}\\ \hline \hline
@@ -17051,7 +17051,7 @@ have been injected into the output buffer and thus reverts any {\tt
 
 This packet is not exposed by the \emph{dos.library}, it rather needs to be
 issued through the packet interface, e.g. {\tt DoPkt()}\key{DoPkt()}. This packet removes
-any lines injected by {\tt ACTION\_STACK} and {\tt ACTION\_QUEUE} from
+any lines injected by {\tt ACTION\_STACK}\key{ACTION\_STACK} and {\tt ACTION\_QUEUE}\key{ACTION\_QUEUE} from
 the output buffer of the console and thus reverts their results. User
 keyboard inputs remain unaffected. Thus, this packet resets the line stack
 in the console. The intended purpose this packet is ARexx which,
@@ -17086,7 +17086,7 @@ e.g. {\tt DoPkt()}\key{DoPkt()}, is required to issue it. This packet brings the
 associated console, should such a window exist, to foreground and activates
 it. If the console is a serial console or the console window is closed or
 iconified, no activity is performed and no error is reported. Unlike {\tt
-  ACTION\_DISK\_INFO}, it will not force the window open if the window is
+  ACTION\_DISK\_INFO}\key{ACTION\_DISK\_INFO}, it will not force the window open if the window is
 currently closed.
 \smallskip{}
 
@@ -17118,16 +17118,16 @@ the {\tt Ctrl-C} to {\tt Ctrl-F} key combinations.
 This packet is not exposed by the \emph{dos.library}. The packet interface,
 e.g. {\tt DoPkt()}\key{DoPkt()}, is required to issue it. It defines a port to which
 break signals as generated by the {\tt Ctrl-C} to {\tt Cltr-F} key
-combinations are send. Actually, this \emph{break port} is not used as a
+combinations are send. Actually, this \emph{break port}\mkey{Break Port} is not used as a
 target of a message, but only its {\tt mp\_Task} element to which the signal
 is send.
 \smallskip{}
 
 Despite this port, the console also sends break signals to the last process
-that issued an {\tt ACTION\_WRITE} request, provided this process is not a
+that issued an {\tt ACTION\_WRITE}\key{ACTION\_WRITE} request, provided this process is not a
 Shell process running in background. To avoid race conditions of
 applications forgetting to reset this port, the console resets this port
-whenever an {\tt ACTION\_CLOSE} is received from the \emph{break port},
+whenever an {\tt ACTION\_CLOSE}\key{ACTION\_CLOSE} is received from the \emph{break port},
 i.e. whenever the process to which this port belongs closes its connection
 to the console. Furthermore, the console also tests the validity of the
 \emph{break port} by testing whether its {\tt mp\_Task} field is known to
@@ -17137,11 +17137,11 @@ the exec scheduler.
 This packet is, for example, used when a Shell is started in a console
 window, or a {\tt NewShell} command creates another in an already open
 console window. In such a case, the {\tt System()}\key{System()} function as
-part of the \emph{dos.library} sends a {\tt ACTION\_CHANGE\_SIGNAL} to the
+part of the \emph{dos.library} sends a {\tt ACTION\_CHANGE\_SIGNAL}\key{ACTION\_CHANGE\_SIGNAL} to the
 console to ensure that break signals are received by the new Shell just
 started, and not the Shell then running in the background. This packet is
 \emph{not} send for executables placed by the {\tt Run} command in the
-background. Even though {\tt Run} also goes through {\tt System()}, it uses
+background. Even though {\tt Run} also goes through {\tt System()}\key{System()}, it uses
 different parameters.
 \medskip{}
 
@@ -17151,13 +17151,13 @@ a {\tt FileHandle} structure that is opened to the console.
 
 {\tt dp\_Arg2} is a pointer to a {\tt MsgPort} to whose task break signals
 will be send. In addition to this port, the console also sends break signals to the
-last issuer of an {\tt ACTION\_WRITE} packet, provided it is not a background
+last issuer of an {\tt ACTION\_WRITE}\key{ACTION\_WRITE} packet, provided it is not a background
 Shell process.
 \smallskip{}
 
 Before replying this packet, {\tt dp\_Res1} shall be set to {\tt DOSTRUE} on
 success, and {\tt dp\_Res2} the port that was previously installed as
-\emph{break port}, or {\tt NULL} if no such port was configured. On error,
+\emph{break port}\key{Break Port}, or {\tt NULL} if no such port was configured. On error,
 {\tt dp\_Res1} shall be set to {\tt DOSFALSE} and {\tt dp\_Res2} to an
 error code.
 
@@ -17193,7 +17193,7 @@ limits) can thus help to improve the performance of a file system by
 reducting the number of times the underlying device needs to be contacted.
 The FFS also uses these buffers to store payload data if the source or
 destination buffer of the client is not reachable by the exec device
-driver. The {\tt de\_Mask} element of the environment vector is used to
+driver. The {\tt de\_Mask}\key{de\_Mask} element of the environment vector is used to
 determine such incompatibilities, see section~\ref{sec:envec}.
 \smallskip{}
 
@@ -17227,10 +17227,10 @@ underlying device directly.
 This packet implements the {\tt Inhibit()}\key{Inhibit()} function of the
 \emph{dos.library}. An inhibited file system is blocked from accessing its
 underlying medium for read and write access, with the exception of {\tt
-  ACTION\_FORMAT} and {\tt ACTION\_SERIALIZE\_DISK} which remain
+  ACTION\_FORMAT}\key{ACTION\_FORMAT} and {\tt ACTION\_SERIALIZE\_DISK}\key{ACTION\_SERIALIZE\_DISK} which remain
 operational. An inhibited file system changes its disk type as reported by
 {\tt ACTION\_INFO}\key{ACTION\_INFO} or {\tt
-  ACTION\_DISK\_INFO}\key{ACTION\_DISK\_INFO} in the {\tt InfoData}
+  ACTION\_DISK\_INFO}\key{ACTION\_DISK\_INFO} in the {\tt InfoData}\key{InfoData}
 structure to `{\tt BUSY}', see table~\ref{table:disktype} in
 section~\ref{sec:info}.
 \smallskip{}
@@ -17252,7 +17252,7 @@ inhibiting and then unhibiting the file system.
 shall be inhibited or uninhibited. If {\tt dp\_Arg1} is {\tt DOSFALSE}, the
 file system is unhibited and a file structure check shall be performed. In
 all other cases, the file system shall be inhibited and, with the exception
-of {\tt ACTION\_FORMAT}, should refrain from accessing the medium, partition
+of {\tt ACTION\_FORMAT}\key{ACTION\_FORMAT}, should refrain from accessing the medium, partition
 or device.
 \smallskip{}
 
@@ -17290,11 +17290,11 @@ file system, it shall set {\tt dp\_Res1} to {\tt DOSFALSE} and {\tt
 \smallskip{}
 
 If the handler sets {\tt dp\_Res1} to {\tt DOSFALSE} and {\tt dp\_Res2} to
-{\tt ERROR\_ACTION\_NOT\_KNOWN}, then this is an indication that the handler
+{\tt ERROR\_ACTION\_NOT\_KNOWN}\key{ERROR\_ACTION\_NOT\_KNOWN}, then this is an indication that the handler
 cannot interpret this particular packet. If this secondary result code is
 identified by the {\tt IsFileSystem()} function, it falls back to a
 heuristic for determining whether a handler is a file system: It uses {\tt
-  Lock(":",SHARED\_ACCESS)}, i.e. {\tt ACTION\_LOCATE\_OBJECT} on the file
+  Lock(":",SHARED\_ACCESS)}\key{Lock()}, i.e. {\tt ACTION\_LOCATE\_OBJECT}\key{ACTION\_LOCATE\_OBJECT} on the file
 system root. If such a lock can be obtained, then this heuristic assumes
 that the handler is, in fact, a file system.
 
@@ -17320,7 +17320,7 @@ the file system to write out all modifications immediately.
 
 This packet shall not be replied before all changes have been written and,
 if applicable, the drive motor has been turned off. However, FFS versions of
-V40 and before replied {\tt ACTION\_FLUSH} immediately and thus only
+V40 and before replied {\tt ACTION\_FLUSH}\key{ACTION\_FLUSH} immediately and thus only
 established a write barrier. This was fixed in V43.
 \smallskip{}
 
@@ -17348,7 +17348,7 @@ handler to unmount its volumes and terminate.
 This packet is not exposed through the \emph{dos.library}; rather, the
 packet needs to be send through the packet interface, i.e. through {\tt
   DoPkt()}\key{DoPkt()}. This packet requests the file system to release all resources,
-set the {\tt dol\_Task} elements of the {\tt DosList} structures in the
+set the {\tt dol\_Task}\key{dol\_Task} elements of the {\tt DosList}\key{DosList} structures in the
 device list to {\tt NULL}, and then terminate the process.
 \smallskip{}
 
@@ -17372,7 +17372,7 @@ debugging tools.
 In case the file system can foresee that it cannot safely exit at the
 time the request is made, this packet shall fail by setting {\tt
   dp\_Res1} to {\tt DOSFALSE} and {\tt dp\_Res2} to an error code,
-e.g. {\tt ERROR\_OBJECT\_IN\_USE}. In case termination is seemingly
+e.g. {\tt ERROR\_OBJECT\_IN\_USE}\key{ERROR\_OBJECT\_IN\_USE}. In case termination is seemingly
 possible, the file system shall check for any pointers to its {\tt
   MsgPort}(s) in the device list and replace them by {\tt NULL}, thus
 requesting from the \emph{dos.library} to create a new instance of the
@@ -17383,17 +17383,17 @@ file system if needed. Then, this packet shall be replied by setting
 After unmounting the volume and replying to this packet, the {\tt
   MsgPort}(s) of this handler or file system used for packet
 communication may still contain packets that were submitted after {\tt
-  ACTION\_DIE} has been received. In order to avoid a deadlock or a
+  ACTION\_DIE}\key{ACTION\_DIE} has been received. In order to avoid a deadlock or a
 crash, the file system still needs to reply these packets, for example
 by the default result codes from table~\ref{table:unimp}, see also
 section~\ref{sec:terminatehandler}.
 \smallskip{}
 
-Some handlers do not initialize the {\tt dol\_Task} element of its
-{\tt DosList} entrie(s) with an address of their port(s); handlers
+Some handlers do not initialize the {\tt dol\_Task}\key{dol\_Task} element of its
+{\tt DosList}\key{DosList} entrie(s) with an address of their port(s); handlers
 that are not file systems such as the Console-Handler are typical
 examples. Such handlers shall terminate themselves without requiring
-an {\tt ACTION\_DIE} when the last file has been closed, and the last
+an {\tt ACTION\_DIE}\key{ACTION\_DIE} when the last file has been closed, and the last
 lock has been unlocked --- if locks are supported at all.
 
 \subsection{Do Nothing}
@@ -17410,7 +17410,7 @@ The {\tt ACTION\_NIL}\mkey{ACTION\_NIL} packet performs no activity.
 This packet is not exposed by the \emph{dos.library}. It does not perform
 any activity. A handler or file system implementation should indicate
 success when replying this packet. Another reason why a seemingly {\tt
-  ACTION\_NIL} packet can appear at a handler {\tt MsgPort} is because the
+  ACTION\_NIL}\key{ACTION\_NIL} packet can appear at a handler {\tt MsgPort} is because the
 startup package has its {\tt dp\_Type} set to~0, too, and thus identifies itself
 also as {\tt ACTION\_NIL}. While {\tt ACTION\_NIL} does not provide
 any arguments, the startup package does, see
@@ -17441,12 +17441,12 @@ structure, and its {\tt dp\_Link} elements points back to the {\tt
   IORequest}. Handlers dispatch these {\tt IORequest} to exec devices
 asynchronously with {\tt SendIO()}, and continue to process requests while
 the exec device is busy with the requested input or output command. Due to
-its linkage to a {\tt DosPacket}, a completed {\tt IORequest} is received by
+its linkage to a {\tt DosPacket}\key{DosPacket}, a completed {\tt IORequest} is received by
 the packet interface of the handler as one of the packet types listed here.
 
 \subsection{Receive a Returning Read}
 
-The {\tt ACTION\_READ\_RETURN} packet is part of a returning {\tt CMD\_READ}
+The {\tt ACTION\_READ\_RETURN}\mkey{ACTION\_READ\_RETURN} packet is part of a returning {\tt CMD\_READ}
 or similar read {\tt IORequest} sent to an exec device and indicates that
 reading data completed.
 
@@ -17463,7 +17463,7 @@ replied.
 
 \subsection{Receive a Returning Write}
 
-The {\tt ACTION\_WRITE\_RETURN} packet is part of a returning {\tt CMD\_WRITE}
+The {\tt ACTION\_WRITE\_RETURN}\mkey{ACTION\_WRITE\_RETURN} packet is part of a returning {\tt CMD\_WRITE}
 or similar write {\tt IORequest} sent to an exec device and indicates that
 writing data completed.
 
@@ -17480,7 +17480,7 @@ replied.
 
 \subsection{Receive a Returning Timer Request}
 
-The {\tt ACTION\_TIMER} packet is part of a returning {\tt TR\_ADDREQUEST},
+The {\tt ACTION\_TIMER}\mkey{ACTION\_TIMER} packet is part of a returning {\tt TR\_ADDREQUEST},
 a {\tt timer.device} request to wait for a time period. 
 
 
@@ -17531,6 +17531,7 @@ list does not claim to be complete:
 \end{longtable}
 \end{rkrmtabular}
 
+% TODO: Update the idex from this point on
 \chapter{The AmigaDOS Shell} \label{sec:shell}
 The Shell is the command line interpreter of AmigaDOS and is a simple
 language of itself. User applications can use services of the shell by
