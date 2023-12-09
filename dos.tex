@@ -1961,7 +1961,7 @@ then the function attempts to refill the buffer from the file and
 tries again.
 \smallskip{}
 
-The function returns the character read, or {\tt ENDSTREAMCH} on an
+The function returns the character read, or {\tt ENDSTREAMCH}\mkey{ENDSTREAMCH} on an
 end-of-file condition or an error. The latter constant is defined in
 {\tt dos/stdio.h} and equals to $-1$.
 \smallskip{}
@@ -1969,7 +1969,7 @@ end-of-file condition or an error. The latter constant is defined in
 To distinguish between the error and the
 end-of-file case, the caller should first reset the error condition
 with {\tt SetIoErr(0)}\key{SetIoErr()}, and then check {\tt IoErr()}
-when the function returns with {\tt ENDSTREAMCH}.
+when the function returns with {\tt ENDSTREAMCH}\key{ENDSTREAMCH}.
 
 \subsection{Read a Line from a File}
 
@@ -8749,9 +8749,10 @@ the segment, or to interrupt or terminate the loading process.
 \smallskip{}
 
 Loaded executables are represented as singly linked list of segments
-in memory, by a structure that looks as follows: \mkey{LoadedSegment}
+in memory, by a structure that looks as follows:
+\mkey{Segment List}
 \begin{verbatim} 
-struct LoadedSegment {
+struct SegmentList {
     BPTR  NextSegment; /* BPTR to next segment or ZERO */
     ULONG Data[1];     /* Payload data */
 };
@@ -17531,7 +17532,6 @@ list does not claim to be complete:
 \end{longtable}
 \end{rkrmtabular}
 
-% TODO: Update the idex from this point on
 \chapter{The AmigaDOS Shell} \label{sec:shell}
 The Shell is the command line interpreter of AmigaDOS and is a simple
 language of itself. User applications can use services of the shell by
@@ -17568,13 +17568,13 @@ and additional redirection operators.
 
 Commands receive from the shell an input and output stream, and a console
 handler to which commands can refer by the special file name
-{\tt *}. Optionally, they can be provided with an error stream through which
+``{\tt *}''. Optionally, they can be provided with an error stream through which
 diagnostic messages are printed. The shell allows redirecting or creating
 these streams by operators on the command line that shall also be separated
 by the spaces or tabulators from the arguments and the command.
 \smallskip{}
 
-The shell supports the following redirection operators:
+The shell supports the following redirection operators\mkey{Redirection (Shell)}:
 
 \begin{itemize}[leftmargin=5em]
   \item[{\tt >}{\it path}] redirects the output of a command to a
@@ -17628,7 +17628,7 @@ the command line arguments. That is, for {\tt Run}, the command run in back
 will redirect its streams rather than the streams of the {\tt Run} command,
 and for {\tt Alias}, the redirection will become part of the alias and will
 become active when the alias is expanded. The {\tt oldredirect} variable
-will do likewise for all other commands, except that they will typically not
+will do likewise for all other commands. However, they will typically not
 interpret redirection requests in a useful way and will instead take the
 angle brackets as regular arguments.
 
@@ -17639,7 +17639,7 @@ forming \emph{compound} commands. The following operators go \emph{between}
 commands such that the last argument of the first command is directly to the
 left of such an operator, and the next argument start to the right. As for
 arguments, these operators need to be separated by arguments and commands
-with blank spaces or tabulators:
+with blank spaces or tabulators:\mkey{Compound Command (Shell)}
 
 \begin{itemize}
   \item[{\tt |}] The vertical bar creates a pipe such that the standard
@@ -17707,21 +17707,20 @@ or command and is thus a functional element of the Shell if it is preceeded
 by a blank space or a tabulator, quotes \emph{within} an otherwise unquoted
 argument are literals and stand for itself. A quote, however, does terminate
 a quoted string even if it is \emph{not} followed by a blank space or
-tabulator.
+tabulator.\mkey{Escape Sequence (Shell)}
 \smallskip{}
 
-Within quotes, the Shell recognizes the asterisk ``{\tt *}'' as an escape
-character, and only there. That is, the asterisk is a literal outside of
-double quotes; for example, it is the file name that identifies the current
-console, and as isolated character outside of quotes is not interpreted as
-escape character. The escape sequences supported by the Shell can be roughly
-broken up into two classes:
+The Shell recognizes the asterisk ``{\tt *}'' as an escape character, and
+depending on the escape sequence, it is either active in any place, or only
+recognized within double quotes. The escape sequences supported by the Shell
+can be roughly broken up into two classes:
 \smallskip{}
 
-The first class, the legacy escape sequences, are recgonized and interpreted
-by the Shell, but the actual substitution of the escape sequence by the
-escaped character is left to the executing program and thus happen
-\emph{outside} of the Shell:
+The first class of escape sequences is only substituted within double
+quotes. These legacy escape sequences are recgonized by the Shell, but the
+actual substitution of the escape sequence by the escaped character is left
+to the executing program and thus happen \emph{outside} of the
+Shell:
 
 \begin{itemize}
 \item[{\tt *N}] The newline character, ASCII {\tt 0x0a}.
@@ -17737,7 +17736,11 @@ escaped character is left to the executing program and thus happen
 
 As the Shell does not perform substitutions for the above sequences, they
 can also appear within the command line of the executed program, which is
-then responsible to perform the above substitutions correctly itself.
+then responsible to perform the above substitutions correctly itself. In
+particular, the above sequences are not substituted outside of double
+quotes, and therefore, are literals there. This allows, for example, to use
+``{\tt *}'' as file name --- without quotes --- representing the current
+code.
 \smallskip{}
 
 Proper interpretation and escape sequence substitution is ensured if the
@@ -17780,7 +17783,7 @@ system-global, and expands variables as part of the regular command line
 parsing. A variable is indicated by a string starting with a dollar-sign
 (``{\tt \$}'') and followed by alpha-numerical characters, i.e. 0-9, A-Z and
 a-z. Variable names are case-insensitive. The lst character that is outside
-this range terminates the variable name. 
+this range terminates the variable name. \mkey{Variable Substitution}
 \smallskip{}
 
 An equivalent but more flexible way of referring to a variable is by
@@ -17835,7 +17838,7 @@ command itself that is executed \emph{before} interpretation of the
 containing command line continues, and the standard output of the enclosed
 commands is substituted for the command line within the backticks. As this
 output may include line feeds, these are furthermore substituted with blank
-spaces.
+spaces.\mkey{Backtick Expansion}
 \smallskip{}
 
 Note that the result of the executed commands may even contain functional
@@ -17849,7 +17852,7 @@ The backticked sequence can itself be enclosed in double quotes. While this
 avoids the above surprise, it will necessarily only generate a single
 logical argument. Only in that case, namely a backticked sequence contained
 in another pair of double quotes, the Shell performs backwards escaping of
-asterisks and double quotes --- same as for variable expansion. Each double
+asterisks and double quotes --- as for variable expansion. Each double
 quote or asterisk in the output of the quoted backticked command is escaped
 with (another) asterisk. This ensures that the resulting output string
 within double quotes retains its original value once interpreted through
@@ -17864,11 +17867,11 @@ The next step in Shell processing is alias expansion. Aliases are simple
 macros that replace the alias with another command with the option of
 rearranging its arguments. The leftmost element of each compound command can
 potentially be an alias; the remaining arguments right to it do not go
-through alias expansion.
+through alias expansion.\mkey{Alias Substitution}
 \smallskip{}
 
 Aliases are always local to the executing Shell, AmigaDOS keeps them in the
-same database as local Shell variables. If the leftmost element fits a
+same list as local Shell variables. If the leftmost element fits a
 defined alias, this element is removed, and replaced by the contents of the
 alias. If this contents contains a pair of opening and closing square
 brackets, that is the sequence ``{\tt {[}{]}}'', then the brackets are
@@ -17944,7 +17947,7 @@ directly. Instead, it performs argument substitution within an existing
 shell script through a simple interpreter, and then leaves the execution of
 the resulting script to the Shell itself by adjusting its command input
 stream. Thus, {\tt Execute} does not actually execute anything, it rather
-prepares a script for execution through the Shell.
+prepares a script for execution through the Shell.\mkey{Execute (command)}
 \smallskip{}
 
 Argument substitution through {\tt Execute} is controlled through additional
@@ -17969,13 +17972,13 @@ further processing.
 The following pseudo-commands are supported by the {\tt Execute}:
 \smallskip{}
 
-{\tt .dot} takes a single argument and changes the character by which all
+{\tt .dot}\mkey{.DOT} takes a single argument and changes the character by which all
 (following) peudo-command start. This is by default a dot (``{\tt .}''), and
 for the sake of simplicity, the following pseudo-commands are all shown with
 this default.
 \smallskip{}
 
-{\tt .key} or {\tt .k} defines which arguments a shell script takes. The
+{\tt .key}\mkey{.KET} or {\tt .k}\key{.K} defines which arguments a shell script takes. The
 argument is a {\tt ReadArgs()}\key{ReadArgs()} type template, defining the
 type of the command line arguments the shell script takes, and also the
 names of the formal parameters which will be substituted with the arguments
@@ -17983,7 +17986,7 @@ provided during invokation of the script. Clearly, only a single {\tt .key}
 pseudo-command shall be present within a script.
 \smallskip{}
 
-{\tt .default} or {\tt .def} defines defaults for arguments that are not
+{\tt .default}\mkey{.DEFAULT} or {\tt .def}\mkey{.DEF} defines defaults for arguments that are not
 present on the command line that invoked the script. It takes two arguments,
 first the key --- the formal name of the parameter for which a default is to
 be provided --- and the default value itself. Key and default value can be
@@ -17994,7 +17997,7 @@ mechanism to provide default parameters is through the ``{\tt \$}''
 character.
 \smallskip{}
 
-{\tt .bra} defines the character that marks the beginning of a formal
+{\tt .bra}\mkey{.BRA} defines the character that marks the beginning of a formal
 parameter that is to be substituted. A logical choice for such formal
 parameters would be to place them in local variables, and let the Shell
 perform the substitution\footnote{This is another historical accident,
@@ -18007,7 +18010,7 @@ very wise choice, and it should be changed by {\tt .bra}. Suggested
 alternatives are curly or square brackets.
 \smallskip{}
 
-{\tt .ket} defines the character that marks the end of a formal parameter
+{\tt .ket}\key{.KET} defines the character that marks the end of a formal parameter
 that is to be substituted. This is by default the ``{\tt >}'' sign,
 i.e. formal parameters are enclosed in pairs of angle
 brackets. Unfortunately, this default is not a very wise choice as it makes
@@ -18016,7 +18019,7 @@ output redirections in scripts impossible. To override this default, {\tt
 bracket.
 \smallskip{}
 
-{\tt .dollar} or {\tt .dol} defines the character that defines an
+{\tt .dollar}\mkey{.DOLLAR} or {\tt .dol}\mkey{.DOL} defines the character that defines an
 alternative mechanism for providing defaults for formal parameters. Without
 this pseudo-command, this character is the dollar sign (``{\tt \$}'') An
 optional ``{\tt \$}'' sign, or its replacement defined through this
@@ -18045,8 +18048,8 @@ parameter in scripts.
 \medskip{}
 
 The generated script after substitution of formal parameters is placed
-into the {\tt T:} assign, its name in {\tt cli\_CommandFile} and the
-command input of the invoking Shell, namely {\tt cli\_CurrentInput}
+into the {\tt T:} assign, its name in {\tt cli\_CommandFile}\key{cli\_CommandFile} and the
+command input of the invoking Shell, namely {\tt cli\_CurrentInput}\key{cli\_CurrentInput}
 (see section~\ref{sec:clistruct}), is redirected to a file
   handle to this temporary script. Thus, the shell continues
 execution of commands, but rather takes its input from the temporary
@@ -18065,7 +18068,7 @@ exhausted, the Shell terminates execution there, closes the file
   handle stored there, deletes the temporary file whose name is
 stored in {\tt cli\_CommandFile} and, depending on how it was
 initiated and configured, continues execution from {\tt
-  cli\_StandardInput}. The {\tt System()}\key{System()} function with
+  cli\_StandardInput}\key{cli\_StandardInput}. The {\tt System()}\key{System()}\key{System()} function with
 a non-{\tt NULL} {\tt command} argument will terminate after {\tt
   cli\_CurrentInput} runs out of data, otherwise the shell switches
 over to {\tt cli\_StandardInput}, see section~\ref{sec:cliinitrun}.
@@ -18137,7 +18140,7 @@ also used by the system startup module to create the initial boot shell.
 \smallskip{}
 
 By default, the newly created Shell receives the input and output file
-handles of the caller, i.e. {\tt pr\_CIS} and {\tt pr\_COS} are copied from
+handles of the caller, i.e. {\tt pr\_CIS}\key{pr\_CIS} and {\tt pr\_COS}\key{pr\_COS} are copied from
 the calling process, see section~\ref{sec:process} for the documentation of
 the process structure. However, with suitable tags the caller can provide
 alternative input and output streams. Whether these file handles are closed
@@ -18159,7 +18162,7 @@ file name.
 
 The newly creates Shell will receive a copy of the path, the local shell
 variables, the prompt, the current directory and the stack size of the shell
-of the caller, if such shell exists, i.e. {\tt pr\_CLI} is non-{\tt
+of the caller, if such shell exists, i.e. {\tt pr\_CLI}\key{pr\_CLI} is non-{\tt
   ZERO}. Otherwise, a default path containing only the {\tt C:} directory
 and the current directory will be created, no local variables will be
 defined, the prompt will be set to ``{\tt \%N> }'' and the current directory
@@ -18167,7 +18170,7 @@ to ``{\tt SYS:}''.
 \smallskip{}
 
 By default, the executing shell will be the system shell, whose segment is
-available as a system segment of the name ``{\tt BootShell}'' in the
+available as a system segment of the name ``{\tt BootShell}''\key{BootShell} in the
 list of resident modules, see section~\ref{sec:resident}. Other shells can
 be provided by their name, and the list of resident segments will be scanned
 for a match then. Section~\ref{sec:usershells} provides more information on
@@ -18178,28 +18181,28 @@ The tags this function tags are documented in {\tt dos/dostags.h} and
 consist of the {\tt SYS\_} tags and a subset of the {\tt NP\_} tags. 
 \smallskip{}
 
-{\tt SYS\_Input} This tag takes a BPTR to a file handle as argument which
+{\tt SYS\_Input}\mkey{SYS\_Input} This tag takes a BPTR to a file handle as argument which
 becomes the input stream of the new shell. If this tag is not provided, the
 input stream of the calling process ({\tt pr\_CIS}) will be used.
 \smallskip{}
 
-{\tt SYS\_InName} This tag takes a string as argument. This string will be
+{\tt SYS\_InName}\mkey{SYS\_InName} This tag takes a string as argument. This string will be
 used as argument to {\tt Open()}\key{Open()} to create a stream that will be
 used as input stream to the newly created shell. This stream will always be
 closed when done, regardless of other tags. This tag is mutually exclusive
 to {\tt SYS\_Input}.
 \smallskip{}
 
-{\tt SYS\_Output} This tag defines a BPTR to a file handle which will be
+{\tt SYS\_Output}\mkey{SYS\_Output} This tag defines a BPTR to a file handle which will be
 used as output stream of the new shell. This handle \emph{shall be
 different} than the handle provided by {\tt SYS\_Input}. If this tag is not
-present, the output stream of the calling process ({\tt pr\_COS}) will be
+present, the output stream of the calling process ({\tt pr\_COS})\key{pr\_COS} will be
 used for shell output. If this stream is explicitly set to {\tt ZERO}, then
 AmigaDOS will attempt to re-open a console through the ``{\tt *}'' file
 name. If an input stream is present and interactive, and {\tt command} is
-non-{\tt NULL} or {\tt SYS\_Async} is non-zero, then the handler of the
+non-{\tt NULL} or {\tt SYS\_Asynch}\key{SYS\_Asynch} is non-zero, then the handler of the
 input stream is used to open the replacement output stream. Otherwise, the
-handler provided through the {\tt NP\_ConsoleTask} or the console task of
+handler provided through the {\tt NP\_ConsoleTask}\key{NP\_ConsoleTask} or the console task of
 the caller if the former tag is not present is used to open ``{\tt *}''.  If
 opening the console fails, AmigaDOS will instead provide a handle to {\tt
   NIL:} as output stream, thus disregarding any output. Any stream
@@ -18208,54 +18211,54 @@ than explicitly through a non-{\tt ZERO} argument to {\tt SYS\_Output} will
 also be closed transparently upon termination of the shell.
 \smallskip{}
 
-{\tt SYS\_OutName} provides an output file name that will be opened by the
+{\tt SYS\_OutName}\mkey{SYS\_OutName} provides an output file name that will be opened by the
 \emph{dos.library} and used as output stream for the newly created
 shell. This file will always be closed when the shell terminates. This tag
 is mutually exclusive to {\tt SYS\_Output}.
 \smallskip{}
 
-{\tt SYS\_CmdStream} provides a BPTR to a file handle from which commands
+{\tt SYS\_CmdStream}\mkey{SYS\_CmdStream} provides a BPTR to a file handle from which commands
 are read, i.e. a shell script is supplied as stream, and not as a string.
 This tag is only used if the {\tt command} argument is {\tt NULL} and then
 provides an alternative (stream-based) source for the script to be
 executed. This stream is \emph{always} closed on exit, and closure cannot be
-prevented by any other tag. If {\tt SYS\_Asynch} is set and {\tt command} is
-{\tt NULL}, then the Shell first reads commands from {\tt SYS\_CmdStream},
+prevented by any other tag. If {\tt SYS\_Asynch}\key{SYS\_Asynch} is set and {\tt command} is
+{\tt NULL}, then the Shell first reads commands from {\tt SYS\_CmdStream}\key{SYS\_CmdStream},
 and once this stream reaches an EOF, it is closed and the shell continues
-reading from {\tt SYS\_Input} until this stream also reaches an EOF, or
+reading from {\tt SYS\_Input}\key{SYS\_Input} until this stream also reaches an EOF, or
 an {\tt EndCLI} command. Thus, the configuration of providing a
 {SYS\_CmdStream} and setting {\tt SYS\_Asynch} is equivalent to the {\tt
-  newshell} command.
+  NewShell} command.
 \smallskip{}
 
-{\tt SYS\_CmdName} provides a file name of a shell script whose contents is
-interpreted. This tag is mutually exclusive to {\tt SYS\_CmdStream} and only
+{\tt SYS\_CmdName}\mkey{SYS\_CmdName} provides a file name of a shell script whose contents is
+interpreted. This tag is mutually exclusive to {\tt SYS\_CmdStream}\key{SYS\_CmdStream} and only
 used if the {\tt command} argument is {\tt NULL}. This stream will always be
 closed on exit.
 \smallskip{}
 
-{\tt SYS\_Asynch} If the argument to this tag is non-zero, the shell is
+{\tt SYS\_Asynch}\mkey{SYS\_Asynch} If the argument to this tag is non-zero, the shell is
 detached from the calling process and executes concurrently with the calling
 process; setting this tag also implies that the streams provided by {\tt
-  SYS\_Input} and {\tt SYS\_Output} are always closed. It is thus necessary
-to explicitly provide {\tt SYS\_Input} or {\tt SYS\_InName} and {\tt
-  SYS\_Output} or {\tt SYS\_OutName}, as otherwise the input or output
+  SYS\_Input}\key{SYS\_Input} and {\tt SYS\_Output}\key{SYS\_Output} are always closed. It is thus necessary
+to explicitly provide {\tt SYS\_Input} or {\tt SYS\_InName}\key{SYS\_InName} and {\tt
+  SYS\_Output} or {\tt SYS\_OutName}\key{SYS\_OutName}, as otherwise the input or output
 streams of the calling process will be closed. For legacy reasons, setting
 the {\tt command} argument to {\tt NULL} also enforces asynchronous
 execution, independent of the value of tag.
 \smallskip{}
 
-{\tt SYS\_UserShell} If this boolean tag is set to non-zero, then the ``user
-shell'' is launched. This corresponds to the segment ``Shell'' on the
+{\tt SYS\_UserShell}\mkey{SYS\_UserShell} If this boolean tag is set to non-zero, then the ``user
+shell'' is launched. This corresponds to the segment ``Shell''\key{Shell (resident)} on the
 resident list of AmigaDOS. The default of this tag is {\tt DOSFALSE},
 indicating that the boot shell is to be used. This corresponds to the
-``BootShell' segment on the resident list. Upon system startup, and in all
+``BootShell'\key{BootShell} segment on the resident list. Upon system startup, and in all
 typical configurations of AmigaDOS, both correspond to the AmigaDOS shell.
 Users can, however, replace both shells with custom segments, see
 section~\ref{sec:usershells}.
 \smallskip{}
 
-{\tt SYS\_CustomShell} this tag provides the name of a custom shell to be
+{\tt SYS\_CustomShell}\mkey{SYS\_CustomShell} this tag provides the name of a custom shell to be
 used instead. The AmigaDOS list of resident segments is scanned for a
 fitting name, and the fitting segment is then used as shell.
 \medskip{}
@@ -18264,34 +18267,34 @@ The following tags defined for {\tt CreateNewProc()}\key{CreateNewProc()},
 see section~\ref{sec:createnewproc}, are also recognized:
 \smallskip{}
 
-{\tt NP\_StackSize} defines the stack size in bytes for the shell to be
+{\tt NP\_StackSize}\key{NP\_StackSize} defines the stack size in bytes for the shell to be
 created and the stack size the shell will allocate for its clients. The
 default is 4096 bytes for the shell itself; for the shell clients, the stack
 size is taken by default from the shell of the calling process, or 4096
 bytes if the caller is not a shell process.
 \smallskip{}
 
-{\tt NP\_Name} is the name of the shell process to be created. The default
+{\tt NP\_Name}\key{NP\_Name} is the name of the shell process to be created. The default
 is ``{\tt Background CLI}''.
 \smallskip{}
 
-{\tt NP\_Priority} is the priority of the shell process to be created. The
+{\tt NP\_Priority}\key{NP\_Priority} is the priority of the shell process to be created. The
 default priority is~0.
 \smallskip{}
 
-{\tt NP\_ConsoleTask} provides a pointer to the {\tt MsgPort} of the console
+{\tt NP\_ConsoleTask}\key{NP\_ConsoleTask} provides a pointer to the {\tt MsgPort} of the console
 handler that is used for opening the {\tt *} and {\tt CONSOLE:} files, which
-will be copied to {\tt pr\_ConsoleTask}. This tag is only used if the input
+will be copied to {\tt pr\_ConsoleTask}\key{pr\_ConsoleTask}. This tag is only used if the input
 stream of the new shell is not interactive, and otherwise overridden by the
 process {\tt MsgPort} port of the input file handle.
 \smallskip{}
 
-{\tt NP\_CopyVars} is a boolean tag that specifies whether local shell
+{\tt NP\_CopyVars}\key{NP\_CopyVars} is a boolean tag that specifies whether local shell
 variables are copied into the new shell. The default is to copy the
 variables.
 \smallskip{}
 
-{\tt NP\_Path} contains a linked list of directory locks that establish the
+{\tt NP\_Path}\key{NP\_Path} contains a linked list of directory locks that establish the
 path of the newly created shell. The structure of this path is specified in
 section~\ref{sec:clistruct}. The path provided by this tag \emph{is not}
 copied for the new shell, but directly used \emph{and released} by it when
@@ -18299,7 +18302,7 @@ it exits. Thus, callers should make a copy of the path upfront as it will be
 released by the created shell.
 \smallskip{}
 
-{\tt NP\_ExitCode} and {\tt NP\_ExitData} define a function that is called
+{\tt NP\_ExitCode}\key{NP\_ExitCode} and {\tt NP\_ExitData}\key{NP\_ExitData} define a function that is called
 when the shell process exits. This mechanism is described in more detail in
 section~\ref{sec:createnewproc}.
 \medskip{}
@@ -18319,7 +18322,7 @@ functionalities, and all Shell commands and system functions that create a
 Shell go through this function. This includes the {\tt NewShell} and {\tt
   Run} shell commands and the {\tt Shell} icon on the workbench. The initial
 CLI interpreting {\tt S:Startup-Sequence} is also created through the {\tt
-  System()} function.
+  System()}\key{System()} function.
 \smallskip{}
 
 The {\tt Run} command creates a new shell process by the following:
@@ -18332,7 +18335,7 @@ section~\ref{sec:stringstreams}) containing the commands to be executed;
 they are taken from the input arguments of the command.
 \smallskip{}
 
-Even though {\tt SYS\_Asynch} is not set, the {\tt System()}\key{System()}
+Even though {\tt SYS\_Asynch}\key{SYS\_Asynch} is not set, the {\tt System()}\key{System()}
 function detaches the created shell because its first argument is {\tt
   NULL}, see above. Surprisingly, it is the {\tt System()} call and not the
 {\tt Run} command that prints the CLI number of the created shell on the
@@ -18452,7 +18455,7 @@ commands.
 The {\tt stacksize} argument is the size of the stack in bytes to be
 provided to the command; this has to be provided by the caller as this
 function does not attempt to identify the minimum stack size necessary.
-The Shell takes the stack size from {\tt cli\_DefaultStack}, see
+The Shell takes the stack size from {\tt cli\_DefaultStack}\key{cli\_DefaultStack}, see
 section~\ref{sec:clistruct}, and multiplies it by~4. It additionally
 searches the {\tt seglist} for the stack cookie, see
 section~\ref{sec:stackcookie}, and from that potentially increases the size.
@@ -18462,7 +18465,7 @@ The {\tt argptr} and {\tt argsize} arguments provide command line arguments
 that are passed to the command. They are provided through several
 mechanisms: First, the CPU register {\tt a0} is loaded with {\tt argptr} and
 register {\tt d0} is filled with {\tt argsize}. Second, the {\tt
-  pr\_Arguments} element of the process is temporarly replaced by {\tt
+  pr\_Arguments}\key{pr\_Arguments} element of the process is temporarly replaced by {\tt
   argptr}, see also section~\ref{sec:process}, and thus the arguments are
 made available to~{\tt GetArgStr()}\key{GetArgStr()}. Third, a buffer for
 the input file handle {\tt pr\_CIS} of the caller is allocated and filled
@@ -18481,7 +18484,7 @@ arguments behind the first newline. However, some commands such as {\tt Run}
 will make use of the entire string.
 \medskip{}
 
-All changes performed by {\tt RunCommand()} on the caller and its resources,
+All changes performed by {\tt RunCommand()}\key{RunCommand()} on the caller and its resources,
 namely the stack, the modifications of the input file handle and storage of
 the arguments and the modified stack are reverted when the called command
 returns.
@@ -18494,11 +18497,11 @@ section~\ref{sec:setprogramname}. The startup code of many C compilers will
 construct {\tt argv[0]} from it.
 \smallskip{}
 
-This function returns the result code of the called command, or~$-1$ if
-it failed to allocate resources such as the input file handle buffer or the
+This function returns the result code of the called command, or~$-1$ if it
+failed to allocate resources such as the input file handle buffer or the
 stack. {\tt IoErr()}\key{IoErr()} remains its value from the called command,
-or is set to {\tt ERROR\_NO\_FREE\_STORE} if resources could not be
-allocated.
+or is set to {\tt ERROR\_NO\_FREE\_STORE}\key{ERROR\_NO\_FREE\_STORE} if
+resources could not be allocated.
 
 \subsection{Checking for Signals}
 
@@ -18515,8 +18518,8 @@ ULONG CheckSignal(ULONG)
 
 This function tests those signals that are set in the {\tt mask} and
 returns their state. Typical signals to check for are defined in {\tt
-  dos/dos.h} and include those bits that are set by {\tt Ctrl+C}
-through {\tt Ctrl+F} console key combinations. The function returns a
+  dos/dos.h} and include those bits that are set by {\tt Ctrl-C}
+through {\tt Ctrl-F} console key combinations. The function returns a
 mask of all signals set in the process, and clears those signals that
 are set in the mask. A typical example is
 
@@ -18526,7 +18529,7 @@ if (CheckSignal(SIGBREAKF_CTRL_C)) {
 }
 \end{verbatim}
 
-which checks whether the user pressed {\tt Ctrl+C}, and also clears
+which checks whether the user pressed {\tt Ctrl-C}, and also clears
 this bit. This function does not alter {\tt IoErr()}\key{IoErr()}.
 
 \subsection{Request a Function of the Shell} \label{sec:doshellmethod}
@@ -18560,13 +18563,13 @@ The AmigaDOS Shell supports the following methods defined in {\tt
   dos/shell.h}:
 \smallskip{}
 
-{\tt SHELL\_METH\_METHODS} returns a {\tt const} array of methods the
+{\tt SHELL\_METH\_METHODS}\mkey{SHELL\_METH\_METHODS} returns a {\tt const} array of methods the
 shell supports. This is an array of {\tt ULONG}s, each representing a
 method ID. The array is is terminated by a {\tt 0UL}. Every shell
 shall support this method.
 \smallskip{}
 
-{\tt SHELL\_METH\_GETHIST} is a method of the AmigaDOS Shell that provides
+{\tt SHELL\_METH\_GETHIST}\mkey{SHELL\_METH\_GETHIST} is a method of the AmigaDOS Shell that provides
 read-only access to the history. It does not take any arguments. The
 returned pointer is a {\tt MinList} structure, see {\tt exec/lists.h}. Each
 node in this list consists of a {\tt HistoryNode} structure, defined in {\tt
@@ -18584,11 +18587,11 @@ shell. This command is \emph{not} terminated by a newline, but only by a
 {\tt NUL}. The caller \emph{shall not} alter this list. 
 \smallskip{}
 
-{\tt SHELL\_METH\_CLRHIST} erases the entire history of the AmigaDOS
+{\tt SHELL\_METH\_CLRHIST}\mkey{SHELL\_METH\_CLRHIST} erases the entire history of the AmigaDOS
 Shell. This method does not take any arguments.
 \smallskip{}
 
-{\tt SHELL\_METH\_ADDHIST} adds an entry to the newest end of the AmigaDOS
+{\tt SHELL\_METH\_ADDHIST}\mkey{SHELL\_METH\_ADDHIST} adds an entry to the newest end of the AmigaDOS
 Shell history and make it accessible to the user through the cursor
 keys. This method takes a single tag, namely {\tt SHELL\_ADDH\_LINE}. The
 argument of this tag is a {\tt UBYTE *} to a {\tt NUL}-terminated string,
@@ -18598,7 +18601,7 @@ the history buffer by releasing the oldest entry or entries. This method
 returns a non-zero result on success, or {\tt NULL} on error.
 \smallskip{}
 
-{\tt SHELL\_METH\_FGETS} retrieves a single line from the console the shell
+{\tt SHELL\_METH\_FGETS}\mkey{SHELL\_METH\_FGETS} retrieves a single line from the console the shell
 runs in, while offering access to TAB expansion and access to the
 history. The difference between this method and the {\tt
   FGets()}\key{FGets()} function is that the latter provides elementary line
@@ -18619,7 +18622,7 @@ the user, and it is for example used by the AmigaDOS argument parser, {\tt
   ?}'') and more input is required from the user.
 \smallskip{}
 
-If {\tt SHELL\_FGETS\_FULL} is non-zero, then a full command line is
+If {\tt SHELL\_FGETS\_FULL}\mkey{SHELL\_FGETS\_FULL} is non-zero, then a full command line is
 requested from the shell. This implies that the first argument of the input
 requested from the console is a command, and is thus located somewhere on
 the \emph{path} of the caller. Thus, when performing TAB expansion within
@@ -18634,7 +18637,7 @@ copy of the string before calling another method of the Shell.
 
 If {\tt DoShellMethod}\key{DoShellMethod()} is called from a process that is
 not part of a shell, it returns {\tt NULL} and sets {\tt
-  IoErr()}\key{IoErr()} to {\tt ERROR\_OBJECT\_WRONG\_TYPE}.
+  IoErr()}\key{IoErr()} to {\tt ERROR\_OBJECT\_WRONG\_TYPE}\key{ERROR\_OBJECT\_WRONG\_TYPE}.
 
 \subsection{Find a Shell Process by Task Number} \label{sec:findcliproc}
 
@@ -18656,7 +18659,7 @@ as useful as it seems.
 \smallskip{}
 
 The {\tt num} is the task number that identifies the process to locate. It
-is stored in the {\tt pr\_TaskNum} element of the process structure, see
+is stored in the {\tt pr\_TaskNum}\key{pr\_TaskNum} element of the process structure, see
 section~\ref{sec:process}.
 \smallskip{}
 
@@ -18708,7 +18711,7 @@ long as the task switching remains disabled.
 
 The {\tt CommandLineInterface}\key{CommandLineInterface} structure is the
 public interface of an AmigaDOS shell. Every command started from a shell
-has access to this structure through the {\tt pr\_CLI} BPTR in its process
+has access to this structure through the {\tt pr\_CLI}\key{pr\_CLI} BPTR in its process
 structure, see section~\ref{sec:process}, which is actually the process
 structure of the shell calling the program, see
 section~\ref{sec:runcommand}.
@@ -18733,19 +18736,19 @@ BOOL GetCurrentDirName(STRPTR, LONG)
 
 This function checks whether the caller is a shell command. If so, it copies
 what the shell believes to be its current directory into the supplied
-buffer. That is, the function then copies {\tt cli\_SetName} into {\tt buf},
+buffer. That is, the function then copies {\tt cli\_SetName}\key{cli\_SetName} into {\tt buf},
 see section~\ref{sec:clistruct}. If the current directory path fits into
 {\tt len} bytes including a terminating {\tt NUL} byte, then this function
 returns {\tt DOSTRUE} and sets {\tt IoErr()}\key{IoErr()} to~0. Otherwise,
 it truncates the name, returns {\tt DOSFALSE} and sets {\tt
-  IoErr()}\key{IoErr()} to {\tt ERROR\_LINE\_TOO\_LONG}, but still returns
+  IoErr()}\key{IoErr()} to {\tt ERROR\_LINE\_TOO\_LONG}\key{ERROR\_LINE\_TOO\_LONG}, but still returns
 {\tt DOSTRUE}.
 \smallskip{}
 
-The shell itself does not update {\tt cli\_SetName}, namely the field this
+The shell itself does not update {\tt cli\_SetName}\key{cli\_SetName}, namely the field this
 function depends upon, itself. Rather, the {\tt CD}, {\tt SwapCD}, {\tt
   PushCD} and {\tt PopCD} commands attempt to keep it consistent. However,
-if a command changes {\tt pr\_CurrentDir} without updating {\tt
+if a command changes {\tt pr\_CurrentDir}\key{pr\_CurrentDir} without updating {\tt
   cli\_SetName}, or calls {\tt SetCurrentDirName()}\key{SetCurrentDirName()}
 without updating the current directory of its processes, then the string
 supplied by this function may not correspond to the current directory the
@@ -18754,11 +18757,11 @@ shell actually uses.
 
 If the caller is not a shell command, then the function uses the lock
 representing the current directory of the calling process, namely {\tt
-  pr\_CurrentDir}, and converts it to a string by {\tt
+  pr\_CurrentDir}\key{pr\_CurrentDir}, and converts it to a string by {\tt
   NameFromLock()}\key{NameFromLock()}. This function, see
 section~\ref{sec:namefromlock}, also truncates its result to {\tt len} bytes
 and, if truncation was performed, sets {\tt IoErr()}\key{IoErr()} to {\tt
-  ERROR\_LINE\_TOO\_LONG} and returns {\tt DOSFALSE} if the directory name
+  ERROR\_LINE\_TOO\_LONG}\key{ERROR\_LINE\_TOO\_LONG} and returns {\tt DOSFALSE} if the directory name
 does not fit into {\tt len} bytes. On success, the function returns a
 non-zero result code, but it does not set {\tt IoErr()} consistently then.
 
@@ -18775,11 +18778,11 @@ D0                        D1
 BOOL SetCurrentDirName(STRPTR)
 \end{verbatim}
 
-This function updates {\tt cli\_SetName} of the shell the caller is part of,
+This function updates {\tt cli\_SetName}\key{cli\_SetName} of the shell the caller is part of,
 if such a shell exists. In such a case, it copies the supplied string into
 {\tt cli\_SetName} and potentially truncates it to the size of the
 shell-internal buffer. Even if the string is truncated, the function returns
-{\tt DOSTRUE}. It does not update {\tt IoErr()} in either case. For some
+{\tt DOSTRUE}. It does not update {\tt IoErr()}\key{IoErr()} in either case. For some
 legacy reasons, the size of this buffer is rather small, and thus may not
 reflect the full directory name supplied.
 \smallskip{}
@@ -18788,10 +18791,10 @@ If the caller is not a shell command, this function returns {\tt DOSFALSE}
 without setting an error code.
 \smallskip{}
 
-This function does not attempt to synchronize {\tt pr\_CurrentDir} of the
+This function does not attempt to synchronize {\tt pr\_CurrentDir}\key{pr\_CurrentDir} of the
 calling process to the supplied directory, If the two are not consistent,
 the path the shell could print as part of the prompt would be
-incorrect. Thus, any attempt to change {\tt cli\_SetName} through this
+incorrect. Thus, any attempt to change {\tt cli\_SetName}\key{cli\_SetName} through this
 function \emph{shall also} call {\tt CurrentDir()}\key{CurrentDir()} to make
 this change consistent to the Shell.
 
@@ -18809,11 +18812,11 @@ BOOL GetProgramName(STRPTR, LONG)
 
 This function fills {\tt buf} with the what the Shell assumes to be the name
 of the currently executed command. This name is taken from {\tt
-  cli\_CommandName}, see section~\ref{sec:clistruct}, where the shell
+  cli\_CommandName}\key{cli\_CommandName}, see section~\ref{sec:clistruct}, where the shell
 deposits it before executing a program. If the program name including {\tt
   NUL} termination requires more than {\tt len} bytes, this function first
 truncates it and sets {\tt IoErr()}\key{IoErr()} to {\tt
-  ERROR\_LINE\_TOO\_LONG}. If the name including
+  ERROR\_LINE\_TOO\_LONG}\key{ERROR\_LINE\_TOO\_LONG}. If the name including
 a terminating {\tt NUL} byte fits into {\tt len} bytes, the name is copied
 and the function sets {\tt IoErr()}\key{IoErr()} to~0. In either case, even
 if the program name is truncated, the function returns {\tt DOSTRUE}.
@@ -18821,12 +18824,12 @@ if the program name is truncated, the function returns {\tt DOSTRUE}.
 
 If this function is not called from a shell command, the function installs
 an empty string in {\tt buf} if {\tt len} is at least~1 and returns {\tt
-  DOSFALSE} and sets {\tt IoErr()} to {\tt ERROR\_OBJECT\_WRONG\_TYPE}.
+  DOSFALSE} and sets {\tt IoErr()} to {\tt ERROR\_OBJECT\_WRONG\_TYPE}\key{ERROR\_OBJECT\_WRONG\_TYPE}.
 \smallskip{}
 
 The Shell buffer that keeps the current command name is unfortunately due to
 legacy reasons quite limited in size, and at present shorter than the 106
-character limit imposed by the {\tt FileInfoBlock} structure, see
+character limit imposed by the {\tt FileInfoBlock}\key{FileInfoBlock} structure, see
 section~\ref{sec:fib}. Even though the Shell uses internally a longer buffer
 and thus is not limited in the file name size of commands it executes, the
 ability of the Shell to communicate such long command names to the caller is
@@ -18846,7 +18849,7 @@ BOOL SetProgramName(STRPTR)
 \end{verbatim}
 
 If this function is called from a shell command, it installs the supplied
-string as program name into {\tt cli\_CommandName},
+string as program name into {\tt cli\_CommandName}\key{cli\_CommandName},
 section~\ref{sec:clistruct}, and returns {\tt DOSTRUE}. If the supplied
 string does not fit into the Shell internal buffer, it is truncated without
 this function indicating failure.
@@ -18871,14 +18874,14 @@ BOOL GetPrompt(STRPTR, LONG)
 If this function is called from a shell command, it copies the prompt format
 string including a terminating {\tt NUL} into {\tt buf} if it fits into {\tt
   len} bytes, potentially truncating it if it does not. If truncation was
-performed, {\tt IoErr()} is set to {\tt ERROR\_LINE\_TOO\_LONG}, otherwise
+performed, {\tt IoErr()} is set to {\tt ERROR\_LINE\_TOO\_LONG}\key{ERROR\_LINE\_TOO\_LONG}, otherwise
 to~0. In either case, even if the string was truncated, the function returns
 {\tt DOSTRUE}.
 \smallskip{}
 
 If this function is not called from a shell command, an empty string is
 copied into {\tt buf} if {\tt len} is at least~1, and {\tt
-  IoErr()}\key{IoErr()} is set to {\tt ERROR\_OBJECT\_WRONG\_TYPE} and the
+  IoErr()}\key{IoErr()} is set to {\tt ERROR\_OBJECT\_WRONG\_TYPE}\key{ERROR\_OBJECT\_WRONG\_TYPE} and the
 function returns {\tt DOSFALSE}.
 \smallskip{}
 
@@ -18958,23 +18961,23 @@ struct CommandLineInterface {
 The elements of this structure are as follows:
 \smallskip{}
 
-{\tt cli\_Result2} is the {\tt IoErr()}\key{IoErr()} the last executed
+{\tt cli\_Result2}\mkey{cli\_Result2} is the {\tt IoErr()}\key{IoErr()} the last executed
 command of the shell left, or the Shell created itself when failing to
 interpret or execute a command line. This element is for example used by the
 {\tt why} command to print a textual description of the error. The shell
 also copies this value into the {\tt \$Result2} Shell variable.
 \smallskip{}
 
-{\tt cli\_SetName} is a BPTR to a BSTR containing the path of the current
+{\tt cli\_SetName}\mkey{cli\_SetName} is a BPTR to a BSTR containing the path of the current
 directory. This string is used to generate a shell prompt; the AmigaDOS
 shell substitutes the ``{\tt \%S}'' format directive of the prompt by the
 string stored here. The {\tt CD} command and its {\tt PushCD}, {\tt
   PopCD} and {\tt SwapCD} variants update this element.
 \smallskip{}
 
-{\tt cli\_CommandDir} contains a linked list of directories that are
+{\tt cli\_CommandDir}\mkey{cli\_CommandDir} contains a linked list of directories that are
 scanned for commands. It is a BPTR to the following (undocumented, but
-trivial) structure:
+trivial) structure: \mkey{PathComponent}
 
 \begin{verbatim}
 struct PathComponent {
@@ -18982,14 +18985,14 @@ struct PathComponent {
     BPTR pc_Lock;
 };
 \end{verbatim}
-where {\tt pc\_Next} is the BPTR to the next directory in the path or {\tt
-  ZERO} for the end of the list, and {\tt pc\_Lock} is a lock of the
+where {\tt pc\_Next}\mkey{pc\_Next} is the BPTR to the next directory in the path or {\tt
+  ZERO} for the end of the list, and {\tt pc\_Lock}\mkey{pc\_Lock} is a lock of the
 directory that will be scanned for a matching command file.
 \smallskip{}
 
 The current directory is always the first component of the
 path and thus checked first for matching files, even if
-{\tt cli\_CommandDir} is {\tt ZERO}. The {\tt C:} directory
+{\tt cli\_CommandDir}\key{cli\_CommandDir} is {\tt ZERO}. The {\tt C:} directory
 is always the last component of a path and neither explicitly included in
 the linked list.
 \smallskip{}
@@ -18998,25 +19001,25 @@ The {\tt Path} command is used to print and adjust the path stored in this
 list.
 \medskip{}
 
-{\tt cli\_ReturnCode} is the return code of the last executed command,
+{\tt cli\_ReturnCode}\mkey{cli\_ReturnCode} is the return code of the last executed command,
 i.e. the value the command left in the {\tt d0} CPU register when existing
 to the Shell. The shell also copies this value to the {\tt \$RC} Shell
 variable.
 \smallskip{}
 
-{\tt cli\_CommandName} is a BPTR to a BSTR containing the name of the
+{\tt cli\_CommandName}\mkey{cli\_CommandName} is a BPTR to a BSTR containing the name of the
 currently executing command. It is placed here by the shell before calling
 in.
 \smallskip{}
 
-{\tt cli\_FailLevel} contains the threshold at which executed commands will
+{\tt cli\_FailLevel}\mkey{cli\_FailLevel} contains the threshold at which executed commands will
 cause an abortion of its containing shell script. The value is deposited
 here by the {\tt FailAt} command. If a command exits with return code larger
 or equal than the {\tt cli\_FailLevel}, this will cause termination of the
 currently executing script.
 \smallskip{}
 
-{\tt cli\_Prompt} contains a BPTR to BSTR that is used by the shell to print
+{\tt cli\_Prompt}\mkey{cli\_Prompt} contains a BPTR to BSTR that is used by the shell to print
 the command prompt on interactive shells. The AmigaDOS Shell recognizes the
 following strings:
 
@@ -19039,32 +19042,32 @@ printed prompt. Any ``{\tt \%}'' sign included in expanded variables or backtick
 is \emph{not} a formatting command but stands for itself.
 \medskip{}
 
-{\tt cli\_StandardInput} is a BPTR to a file handle that represents the primary
+{\tt cli\_StandardInput}\mkey{cli\_StandardInput} is a BPTR to a file handle that represents the primary
 source of commands. This file handle typically corresponds to a console
 window within which the shell is executed. The {\tt Run} command will deposit
 here a string stream (see section~\ref{sec:stringstreams}) containing the
 command or commands to be run in background. The file handle provided
-through the {\tt SYS\_Input} or {\tt SYS\_InName} tags of the {\tt
+through the {\tt SYS\_Input}\key{SYS\_Input} or {\tt SYS\_InName}\key{SYS\_InName} tags of the {\tt
   System()}\key{System()} function will be placed here. Once this stream is
 exhaused, the Shell terminates.
 \smallskip{}
 
-{\tt cli\_CurrentInput} is a BPTR to a file handle from which the
+{\tt cli\_CurrentInput}\mkey{cli\_CurrentInput} is a BPTR to a file handle from which the
 shell is currently executing commands. This stream is either comming
-from the {\tt SYS\_CmdStream} or {\tt SYS\_CmdIn} tags of the {\tt
+from the {\tt SYS\_CmdStream}\key{SYS\_CmdStream} or {\tt SYS\_CmdIn}\key{SYS\_CmdIn} tags of the {\tt
   System()}\key{System()} function, or a string stream constructed
-from its first argument. Also, the {\tt Execute} command, see
+from its first argument. Also, the {\tt Execute}\key{Execute (command)} command, see
 section~\ref{sec:executecmd}, places here the file handle of the
 original or processed shell script that is to be executed. Once this
 file is exhaused, the Shell will close it. This happens, for example,
 if a script reaches its end of file or is aborted by the {\tt Exit}
 command. Depending on how the shell was created and configured, see
 section~\ref{sec:cliinitrun}, the shell then sets this BPTR to {\tt
-  cli\_StandardInput} and continues execution, or in other
+  cli\_StandardInput}\key{cli\_StandardInput} and continues execution, or in other
 configurations, terminates.
 \smallskip{}
 
-{\tt cli\_CommandFile} is a BPTR to the BSTR of a temporary shell script
+{\tt cli\_CommandFile}\mkey{cli\_CommandFile} is a BPTR to the BSTR of a temporary shell script
 that is currently being executed. The only reason why its path is stored
 here is to allow the Shell to clean up such temporary scripts. Whenever the
 {\tt Execute} command requires processing a script for argument
@@ -19074,27 +19077,27 @@ that this temporary script is deleted again. For details on how {\tt
   Execute} actually works see section~\ref{sec:executecmd}.
 \smallskip{}
 
-{\tt cli\_Interactive} is a boolean flag that indicates whether the
+{\tt cli\_Interactive}\mkey{cli\_Interactive} is a boolean flag that indicates whether the
 Shell is interactive, i.e. requesting data from the console. If this
-boolean is non-zero and {\tt cli\_Background} is {\tt DOSFALSE}, a
+boolean is non-zero and {\tt cli\_Background}\key{cli\_Background} is {\tt DOSFALSE}, a
 prompt is printed before attempting to read a command from {\tt
-  cli\_CurrentInput}. If the shell is executing a script, this element
-is {\tt DOSFALSE} and the Shell then checks for a Ctrl-D signal to
+  cli\_CurrentInput}\key{cli\_CurrentInput}. If the shell is executing a script, this element
+is {\tt DOSFALSE} and the Shell then checks for a {\tt Ctrl-D} signal to
 potentially abort a running script.
 \smallskip{}
 
-{\tt cli\_Background} is a boolean that indicates whether the Shell runs in
+{\tt cli\_Background}\mkey{cli\_Background} is a boolean that indicates whether the Shell runs in
 background. This flag is set for shells that are started asynchronously or
 are equipped with a non-interactive (non-console) output stream. If this
 flag is cleared, then the shell also prints a message when its input stream
 reaches its EOF, indicating that the shell terminates.
 \smallskip{}
 
-{\tt cli\_CurrentOutput} is currently not used by the Shell. It is currently
-initialized with the same file handle as {\tt cli\_StandardOutput}.
+{\tt cli\_CurrentOutput}\mkey{cli\_CurrentOutput} is currently not used by the Shell. It is currently
+initialized with the same file handle as {\tt cli\_StandardOutput}\key{cli\_StandardOutput}.
 \smallskip{}
 
-{\tt cli\_DefaultStack} is the minimum stack in long-words the Shell
+{\tt cli\_DefaultStack}\mkey{cli\_DefaultStack} is the minimum stack in long-words the Shell
 allocates for commands before executing them. The Shell also checks the
 command for a stack cookie, see section~\ref{sec:stackcookie}, that may
 enlarge the stack further. This element is set by the {\tt
@@ -19102,13 +19105,13 @@ enlarge the stack further. This element is set by the {\tt
 shell process itself, but a lower limit of the stack size for its clients.
 \smallskip{}
 
-{\tt cli\_StandardOutput} is the file handle the shell provides as default
+{\tt cli\_StandardOutput}\mkey{cli\_StandardOutput} is the file handle the shell provides as default
 output handle to its clients, and to which it prints output. This handle is
-copied from the {\tt SYS\_Output} or {\tt SYS\_OutName} tags of the {\tt
+copied from the {\tt SYS\_Output}\key{SYS\_Output} or {\tt SYS\_OutName}\key{SYS\_OutName} tags of the {\tt
   System()}\key{System()} function if they are provided.
 \smallskip{}
 
-{\tt cli\_Module} is a BPTR to the first segment of the command currently
+{\tt cli\_Module}\key{cli\_Module} is a BPTR to the first segment of the command currently
 executed. The Shell also uses this BPTR to release loaded, non-resident
 commands. This BPTR is either filled with the segment provided by {\tt
   LoadSeg()}\key{LoadSeg()} in section~\ref{sec:loadseg}, or an element of
@@ -19130,7 +19133,7 @@ section~\ref{sec:doshellmethod}.
 
 This function does not change {\tt IoErr()}\key{IoErr()}.
 
-\section{Access Shell Variables}
+\section{Accessing Shell Variables}
 
 The functions in this section provide access to local and global shell
 variables, get and set them, or check whether a particular variable is
@@ -19176,28 +19179,28 @@ flags are defined in {\tt dos/var.h}:
 \smallskip{}
 
 The lowest 8 bits of {\tt flags} identify the nature of the variable. If set
-to {\tt LV\_VAR}, this function reads variables, if set to {\tt LV\_ALIAS},
+to {\tt LV\_VAR}\mkey{LV\_VAR}, this function reads variables, if set to {\tt LV\_ALIAS}\mkey{LV\_ALIAS},
 it reads aliases. Aliases are always local to the shell and cannot be
 global.
 
-If the {\tt GVF\_GLOBAL\_ONLY} flag is set, then this function only returns
+If the {\tt GVF\_GLOBAL\_ONLY}\mkey{GVF\_GLOBAL\_ONLY} flag is set, then this function only returns
 contents of global variables, and local variables are ignored. Aliases are
 never global.
 \smallskip{}
 
-If the {\tt GVF\_LOCAL\_ONLY} flag is set, then this function only returns
+If the {\tt GVF\_LOCAL\_ONLY}\mkey{GVF\_LOCAL\_ONLY} flag is set, then this function only returns
 contents of local variables and ignores any global variables.
 \smallskip{}
 
-If the {\tt GVF\_BINARY\_VAR} flag is set, then copying the contents of
+If the {\tt GVF\_BINARY\_VAR}\mkey{GVF\_BINARY\_VAR} flag is set, then copying the contents of
 variables into the supplied {\tt buffer} does not stop at newline ({\tt
   0x0a}) or {\tt NUL} characters, but attempts to transfer the entire
 variable into the buffer, potentially truncating it if necessary. It is,
-however, {\tt NUL} terminated, unless {\tt GVF\_DONT\_NULL\_TERM} is set.
+however, {\tt NUL} terminated, unless {\tt GVF\_DONT\_NULL\_TERM}\key{GVF\_DONT\_NULL\_TERM} is set.
 \smallskip{}
 
-If the {\tt GVF\_DONT\_NULL\_TERM} flag is set along with {\tt
-  GVF\_BINARY\_VAR}, then this function does not attempt to {\tt
+If the {\tt GVF\_DONT\_NULL\_TERM}\mkey{GVF\_DONT\_NULL\_TERM} flag is set along with {\tt
+  GVF\_BINARY\_VAR}\key{GVF\_BINARY\_VAR}, then this function does not attempt to {\tt
   NUL}-terminate the supplied buffer. Rather the entire variable, if
 possible, is copied into {\tt buffer}.
 \smallskip{}
@@ -19210,8 +19213,8 @@ database, including any bytes beyond a terminating newline or {\tt NUL}.
 \smallskip{}
 
 On error, $-1$ is returned and {\tt IoErr()}\key{IoErr()} is set to an error
-code; it is set to {\tt ERROR\_BAD\_NUMBER} if {\tt len} is~0,
-or {\tt ERROR\_OBJECT\_NOT\_FOUND} if the variable could not be found. Any
+code; it is set to {\tt ERROR\_BAD\_NUMBER}\key{ERROR\_BAD\_NUMBER} if {\tt len} is~0,
+or {\tt ERROR\_OBJECT\_NOT\_FOUND}\key{ERROR\_OBJECT\_NOT\_FOUND} if the variable could not be found. Any
 other error code resulting from reading from {\tt ENV:} is also forwarded to
 the caller through {\tt IoErr()}\key{IoErr()}.
 
@@ -19246,7 +19249,7 @@ necessary.
 The {\tt buffer} and {\tt size} arguments are the contents of the variable
 and the size of the contents. It is generally advisable to only include
 printable characters in variables, even though they may include also binary
-data which can be retrieved by setting the {\tt GVF\_BINARY\_VAR} for {\tt
+data which can be retrieved by setting the {\tt GVF\_BINARY\_VAR}\key{GVF\_BINARY\_VAR} for {\tt
   GetVar()}\key{GetVar()}. If {\tt size} is $-1$, then the {\tt buffer}
 contains a {\tt NUL}-terminated string and this function determines the
 string size internally. The terminating {\tt NUL} of such a string
@@ -19261,16 +19264,16 @@ The {\tt flags} argument determines the type of the variable to be set or
 created. The following flags are defined in {\tt dos/var.h}:
 \smallskip{}
 
-{\tt LV\_VAR} sets, creates or deletes a regular shell variable, local or global.
+{\tt LV\_VAR}\key{LV\_VAR} sets, creates or deletes a regular shell variable, local or global.
 \smallskip{}
 
-{\tt LV\_ALIAS} sets, creates or deletes an alias. Aliases can only be
+{\tt LV\_ALIAS}\key{LV\_ALIAS} sets, creates or deletes an alias. Aliases can only be
 local. This is mutually exclusive to the above.
 \smallskip{}
 
-If {\tt GVF\_GLOBAL\_ONLY} is set, then a global variable is created, deleted
+If {\tt GVF\_GLOBAL\_ONLY}\key{GVF\_GLOBAL\_ONLY} is set, then a global variable is created, deleted
 or updated. This flag \emph{shall not} be combined with {\tt
-  LV\_ALIAS}. If this flag is \emph{not} set, and {\tt buffer} is not {\tt
+  LV\_ALIAS}\key{LV\_ALIAS}. If this flag is \emph{not} set, and {\tt buffer} is not {\tt
   NULL}, this function only updates or creates local variables; it even
 creates a local variable if a global variable of the same name already
 exists. If this flag is \emph{not} set, and {\tt buffer} is {\tt NULL}, it
@@ -19278,7 +19281,7 @@ first attempts to delete a local variable, and if none is found, attempts to
 delete a global variable of the matching name.
 \smallskip{}
 
-If {\tt GVF\_LOCAL\_ONLY} is set, then only a local variable is created,
+If {\tt GVF\_LOCAL\_ONLY}\key{GVF\_LOCAL\_ONLY} is set, then only a local variable is created,
 deleted or updated. This flag only makes a difference if {\tt buffer} is
 {\tt NULL} as all other operations default to local variables anyhow.
 \medskip{}
@@ -19288,7 +19291,7 @@ This function returns a non-zero return value in case of success. {\tt
 function returns {\tt DOSFALSE} and {\tt IoErr()}\key{IoErr()} is set to an
 error code. If a variable is to be deleted by setting {\tt buffer} to {\tt
   NULL}, and this variable does not exist, this function will set {\tt
-  IoErr()} to {\tt ERROR\_OBJECT\_NOT\_FOUND}.
+  IoErr()} to {\tt ERROR\_OBJECT\_NOT\_FOUND}\key{ERROR\_OBJECT\_NOT\_FOUND}.
 
 \subsection{Finding a Shell Variable}
 
@@ -19316,20 +19319,21 @@ The {\tt type} argument defines whether a local shell variable or alias is
 to be found. The following types from {\tt dos/var.h} are available:
 \smallskip{}
 
-{\tt LV\_VAR} requests the function to locate a local shell variable.
+{\tt LV\_VAR}\key{LV\_VAR} requests the function to locate a local shell variable.
 \smallskip{}
 
-{\tt LV\_ALIAS} request the function to find an alias. This is mutually
+{\tt LV\_ALIAS}\key{LV\_ALIAS} request the function to find an alias. This is mutually
 exclusive to the above.
 \smallskip{}
 
 Only the least significant bits of {\tt type} are relevant, all other bits,
-in particular {\tt GVF\_GLOBAL\_ONLY}, are ignored.
+in particular {\tt GVF\_GLOBAL\_ONLY}\key{GVF\_GLOBAL\_ONLY}, are ignored.
 \smallskip{}
 
 If a matching variable or alias is found, a pointer to a {\tt LocalVar}
 structure, defined in {\tt dos/var.h} is returned:
 
+\mkey{LocalVar}
 \begin{verbatim}
 struct LocalVar {
   struct Node lv_Node;
@@ -19345,25 +19349,25 @@ through {\tt SetVar()}\key{SetVar()}. The elements of this structure are as
 follows: 
 \smallskip{}
 
-{\tt lv\_Node} is a node structure as defined in {\tt exec/nodes.h}. It
+{\tt lv\_Node}\mkey{lv\_Node} is a node structure as defined in {\tt exec/nodes.h}. It
 chains all local variables and aliases of a process in the {\tt
-  pr\_LocalVars} element of the process structure, see
+  pr\_LocalVars}\key{pr\_LocalVars} element of the process structure, see
 section~\ref{sec:process}. The {\tt lv\_Node.ln\_Name} element is the
 full path to the variable, including all directory elements and its name,
 separated by forward slashes (``{\tt /}''). The type of the node, namely
 {\tt lv\_Node.ln\_Type} identifies whether this structure describes a
-variable or an alias. It can be either {\tt LV\_VAR} or {\tt LV\_ALIAS}.
+variable or an alias. It can be either {\tt LV\_VAR}\key{LV\_VAR} or {\tt LV\_ALIAS}\key{LV\_ALIAS}.
 \smallskip{}
 
-{\tt lv\_Flags} contains flags. Currently, only a single flag is used here,
-and that is {\tt GVF\_BINARY\_VAR}. If this flag is set, then a
+{\tt lv\_Flags}\mkey{lv\_Flags} contains flags. Currently, only a single flag is used here,
+and that is {\tt GVF\_BINARY\_VAR}\key{GVF\_BINARY\_VAR}. If this flag is set, then a
 non-printable text was set as contents of the variable. However, this flag
 is currently only set, but never used by AmigaDOS; instead, the {\tt flags}
 argument of {\tt GetVar()}\key{GetVar()} determines whether the variable
 contents is interpreted as text or as binary value.
 \smallskip{}
 
-{\tt lv\_Value} is a pointer to the value of the variable. This value is
+{\tt lv\_Value}\mkey{lv\_Value} is a pointer to the value of the variable. This value is
 \emph{not} a {\tt NUL}-terminated string, but rather an array of bytes whose
 size is found in {\tt lv\_Len}.
 \medskip{}
@@ -19386,7 +19390,7 @@ BOOL DeleteVar(STRPTR, ULONG )
 
 This function removes a shell variable or alias from the local or global
 pool of shell variables. This function is equivalent to {\tt
-  SetVar(name,NULL,0,flags)}.
+  SetVar(name,NULL,0,flags)}\key{SetVar()}.
 \smallskip{}
 
 The {\tt name} argument is the name of the variable or alias to remove. It
@@ -19402,19 +19406,19 @@ The {\tt flags} argument provides information on which type of variables or
 alias are to be deleted. The following flags are honored:
 \smallskip{}
 
-{\tt LV\_VAR} deletes a regular shell variable.
+{\tt LV\_VAR}\key{LV\_VAR} deletes a regular shell variable.
 \smallskip{}
 
-{\tt LV\_ALIAS} deletes an alias. Aliases can only be local. This is
+{\tt LV\_ALIAS}\key{LV\_ALIAS} deletes an alias. Aliases can only be local. This is
 mutually exclusive to the above.
 \smallskip{}
 
-If {\tt GVF\_GLOBAL\_ONLY} is set, then only a global variable is to be
+If {\tt GVF\_GLOBAL\_ONLY}\key{GVF\_GLOBAL\_ONLY} is set, then only a global variable is to be
 deleted; the function then does not attempt to find a local variable of the
 given name.
 \smallskip{}
 
-If {\tt GVF\_LOCAL\_ONLY} is set, then only a local variable is to be
+If {\tt GVF\_LOCAL\_ONLY}\key{GVF\_LOCAL\_ONLY} is set, then only a local variable is to be
 deleted.
 \medskip{}
 
@@ -19422,7 +19426,7 @@ This function returns a non-zero return value in case of success. {\tt
   IoErr()}\key{IoErr()} is then not set consistently. On error, this
 function returns {\tt DOSFALSE} and {\tt IoErr()}\key{IoErr()} is set to an
 error code. This function will set {\tt IoErr()} to {\tt
-  ERROR\_OBJECT\_NOT\_FOUND} if an attempt is made to delete a non-existing
+  ERROR\_OBJECT\_NOT\_FOUND}\key{ERROR\_OBJECT\_NOT\_FOUND} if an attempt is made to delete a non-existing
 variable or alias.
 
 \section{Command Line Argument Parsing}
@@ -19595,22 +19599,22 @@ struct CSource {
 };
 \end{verbatim}
 
-In this structure, {\tt CS\_Buffer} points to the string representing the
-command line to be parsed, and {\tt CS\_Length} is the size of this string
-in characters. The {\tt CS\_CurChr} element is the index of the first
+In this structure, {\tt CS\_Buffer}\mkey{CS\_Buffer} points to the string representing the
+command line to be parsed, and {\tt CS\_Length}\mkey{CS\_Length} is the size of this string
+in characters. The {\tt CS\_CurChr}\mkey{CS\_CurChr} element is the index of the first
 element in the string to be considered for parsing. This element is
 typically set to~0 upfront, but if {\tt ReadArgs()} is used for parsing a
 longer string buffer in multiple calls, this element may be carried over
 from a previous parse.
 \smallskip{}
 
-The {\tt RDA\_DAList} element of the {\tt RDArgs} structure is private to
+The {\tt RDA\_DAList}\mkey{RDA\_DAList} element of the {\tt RDArgs} structure is private to
 {\tt ReadArgs()}\key{ReadArgs()} and shall not be read or written to. This
 element is initialzed to {\tt NULL} by {\tt
   AllocDosObject()}\key{AllocDosObject()}.
 \smallskip{}
 
-The {\tt RDA\_Buffer} element contains a buffer which will be used by {\tt
+The {\tt RDA\_Buffer}\mkey{RDA\_Buffer} element contains a buffer which will be used by {\tt
   ReadArgs()} to keep parsed-off data. This buffer space will be used to
 store parsed arguments, pointers to parsed numbers for the {\tt /N} option,
 or arrays of pointers to the parsed arguments for the {\tt /M} option. If
@@ -19623,7 +19627,7 @@ allocation should be avoided altogether and the size of the supplied command
 line is known to be limited.
 \smallskip{}
 
-The {\tt RDA\_ExtHelp} string is an optional extended help string that is
+The {\tt RDA\_ExtHelp}\mkey{RDA\_ExtHelp} string is an optional extended help string that is
 printed over the output stream of the calling process if the command line to
 be parsed consists of a single question mark. If not present, the {\tt
   template} parameter of {\tt ReadArgs()}\key{ReadArgs()} is
@@ -19633,22 +19637,22 @@ from the shell through the input stream. This feature allows users to
 request help on the called command.
 \medskip{}
 
-The {\tt RDA\_Flags} element allows callers to further refine the
+The {\tt RDA\_Flags}\mkey{RDA\_Flags} element allows callers to further refine the
 functionality of {\tt ReadArgs()}\key{ReadArgs()}. The available flags are
 also defined in {\tt dos/readargs.h} and are as follows:
 \smallskip{}
 
-{\tt RDAF\_STDIN}: This flag is defined, but not in use.
+{\tt RDAF\_STDIN}\mkey{RDAF\_STDIN}: This flag is defined, but not in use.
 \smallskip{}
 
-{\tt RDAF\_NOALLOC}: If this flag is set, it instructs {\tt
+{\tt RDAF\_NOALLOC}\mkey{RDAF\_NOALLOC}: If this flag is set, it instructs {\tt
   ReadArgs()}\key{ReadArgs()} to never allocate or extend its buffer. Only
 the buffer supplied through {\tt RDA\_Buffer} will be used. If this buffer
 overflows, parsing aborts and {\tt IoErr()} is set to {\tt
   ERROR\_NO\_FREE\_STORE}.
 \smallskip{}
 
-{\tt RDAF\_NOPROMPT}: If this flag is set, the single question mark as
+{\tt RDAF\_NOPROMPT}\mkey{RDAF\_NOPROMPT}: If this flag is set, the single question mark as
 request for help is not honored but taken as a literal argument on the
 command line, that is, command line help through the supplied {\tt template}
 parameter or {\tt RDA\_ExtHelp} is not provided.
@@ -19678,18 +19682,18 @@ Amongst errors related to input and output operations, the following
 additional error codes can be returned in {\tt IoErr()}\key{IoErr()}:
 \smallskip{}
 
-{\tt ERROR\_NO\_FREE\_STORE} indicates that either the function failed to
+{\tt ERROR\_NO\_FREE\_STORE}\key{ERROR\_NO\_FREE\_STORE} indicates that either the function failed to
 allocate storage for its buffers, or extending its buffer was explicitly
 disabled through the {\tt RDAF\_NOALLOC} flag and the supplied buffer space
 was not large enough.
 \smallskip{}
 
-{\tt ERROR\_KEY\_NEEDS\_ARG} indicates that the template required a
+{\tt ERROR\_KEY\_NEEDS\_ARG}\key{ERROR\_KEY\_NEEDS\_ARG} indicates that the template required a
 particular argument to be present, namely through the {\tt /A} option,
 though the supplied command line did not define a value for this argument.
 \smallskip{}
 
-{\tt ERROR\_LINE\_TOO\_LONG} indicates that the supplied command line was
+{\tt ERROR\_LINE\_TOO\_LONG}\key{ERROR\_LINE\_TOO\_LONG} indicates that the supplied command line was
 too long and could not be processed. This happens for example if a {\tt M}
 (multi-argument) keyword is present in the template and too many arguments
 are supplied.
@@ -19774,23 +19778,23 @@ section~\ref{sec:readargs}.
 This function returns the following result codes defined in {\tt dos/dos.h}:
 \smallskip{}
 
-{\tt ITEM\_EQUAL}: an equals-sign (``{\tt =}'') was found as terminator.
+{\tt ITEM\_EQUAL}\mkey{ITEM\_EQUAL}: an equals-sign (``{\tt =}'') was found as terminator.
 \smallskip{}
 
-{\tt ITEM\_ERROR}: the supplied user buffer is too small or the source run
+{\tt ITEM\_ERROR}\mkey{ITEM\_ERROR}: the supplied user buffer is too small or the source run
 out of data before matching a closing quote was found for an opening double
 quote.
 \smallskip{}
 
-{\tt ITEM\_NOTHING}: no argument could be retrieved because the source run
+{\tt ITEM\_NOTHING}\mkey{ITEM\_NOTHING}: no argument could be retrieved because the source run
 into the end of the command line, i.e. either a newline, semiolon or EOF.
 \smallskip{}
 
-{\tt ITEM\_UNQUOTED}: an unquoted item was found and retrieved from the
+{\tt ITEM\_UNQUOTED}\mkey{ITEM\_UNQUOTED}: an unquoted item was found and retrieved from the
 command line.
 \smallskip{}
 
-{\tt ITEM\_QUOTED}: a quoted item was found and retrieved.
+{\tt ITEM\_QUOTED}\mkey{ITEM\_QUOTED}: a quoted item was found and retrieved.
 \smallskip{}
 
 This function does not set {\tt IoErr()}\key{IoErr()}.
@@ -19869,21 +19873,23 @@ through System-Startup. These include the Console-Handler, the RAM-Handler,
 the FFS which is named ``FileHandler'' there, and --- finally -- the Shell.
 \smallskip{}
 
-The Shell is even added three times to this list. First, as {\tt shell},
-which is the the shell that is used by default by the {\tt Shell} icon and
-the {\tt System()}\key{System()} function. A user shell may replace this
-entry and thus make it available by default to the entire system. Second, as
-{\tt BootShell}, which shall remain unchanged. It always refers to the shell
-that booted the system, and is also the shell that is used by the {\tt
-  Execute()}\key{Execute()} function. Third, as {\tt CLI}, which is only
-present for legacy reasons and not used by the system at all, unless
-requested explicitly by the {\tt SYS\_CustomShell} tag of the {\tt
+The Shell is even added three times to this list. First, as {\tt
+  shell}\key{Shell (resident)}, which is the the shell that is used by
+default by the {\tt Shell} icon and the {\tt System()}\key{System()}
+function. A user shell may replace this entry and thus make it available by
+default to the entire system. Second, as {\tt BootShell}\key{BootShell},
+which shall remain unchanged. It always refers to the shell that booted the
+system, and is also the shell that is used by the {\tt
+  Execute()}\key{Execute()} function. Third, as {\tt CLI}\key{CLI}, which is
+only present for legacy reasons and not used by the system at all, unless
+requested explicitly by the {\tt SYS\_CustomShell}\key{SYS\_CustomShell} tag of the {\tt
   System()}\key{System()} function, see section~\ref{sec:system}.
 \medskip{}
 
 A resident segment is described by the {\tt Segment} structure defined in
 {\tt dos/dos.h}:
 
+\mkey{Segment (resident)}
 \begin{verbatim}
 struct Segment {
   BPTR  seg_Next;
@@ -19898,12 +19904,12 @@ This structure shall never be allocated by a user program, it is created by
 following function:
 \smallskip{}
 
-The {\tt seg\_Next} element is a BPTR to the next segment in the list of
+The {\tt seg\_Next}\mkey{seg\_Next} element is a BPTR to the next segment in the list of
 resident segments; it is {\tt ZERO} for the last resident segment. This BPTR
 shall not be modified by the user.
 \smallskip{}
 
-The {\tt seg\_UC} element is a use counter. It is incremented every time the
+The {\tt seg\_UC}\mkey{seg\_UC} element is a use counter. It is incremented every time the
 segment is used, e.g. when the shell locates a command in the resident
 segment list, and decremented once the segment is not used anymore, e.g. if
 the resident command terminates execution. It is confusingly initially~1
@@ -19918,30 +19924,30 @@ the following special values for {\tt seg\_UC} exist. They are also defined
 in {\tt dos/dosextens.h}:
 \smallskip{}
 
-The value {\tt CMD\_INTERNAL} indicates a command that is avaiable for
+The value {\tt CMD\_INTERNAL}\mkey{CMD\_INTERNAL} indicates a command that is avaiable for
 execution, but whose code is part of the ROM. The AmigaDOS Shell adds these
 commands to the resident list during its initialization.
 \smallskip{}
 
-Segments indicated by {\tt CMD\_SYSTEM} are not commands that could be
+Segments indicated by {\tt CMD\_SYSTEM}\mkey{CMD\_SYSTEM} are not commands that could be
 executed, but rather segments of system components. The RAM-Handler, the
 Console-Handler and the FFS aka FileHandler are indicated as system
 segments. These segments cannot be executed and are not found by the Shell
 when scanning the resident list for commands.
 \smallskip{}
 
-Segments with a {\tt seg\_UC} smaller or equal than {\tt CMD\_DISABLED} are
+Segments with a {\tt seg\_UC}\key{seg\_UC} smaller or equal than {\tt CMD\_DISABLED}\mkey{CMD\_DISABLED} are
 neither found by the Shell; they are rather marked as temporarily
 disabled. This type is created if a built-in command or a system segment is
 ``removed'' by the {\tt Resident} command.
 \medskip{}
 
-The {\tt seg\_Seg} element is a BPTR to the actual segment list
+The {\tt seg\_Seg}\mkey{seg\_Seg} element is a BPTR to the actual segment list
 corresponding to the loaded or resident command or system segment. It is a
 segment list as those loaded through {\tt LoadSeg()}\key{LoadSeg()}.
 \smallskip{}
 
-The {\tt seg\_Name} is, actually, not only 4 characters long as indicated,
+The {\tt seg\_Name}\mkey{seg\_Name} is, actually, not only 4 characters long as indicated,
 but a variable length field. It contains the name of the command or system
 segment as BSTR.
 
@@ -19966,7 +19972,7 @@ resident segment found, or {\tt NULL} in case no matching segment is found.
 
 The {\tt system} flag indicates whether the function scans for regular
 segments or system/internal segments. If {\tt system} is~{\tt DOSFALSE},
-only regular entres with a positive {\tt seg\_UC} counter are located. If
+only regular entres with a positive {\tt seg\_UC}\key{seg\_UC} counter are located. If
 {\tt system} is {\tt DOSTRUE}, only system or built-in segments whose {\tt
   seg\_UC} value is negative are found. In the latter case, the above
 function does not attempt to filter out disabled segments; if required, this
@@ -19977,7 +19983,7 @@ This function neither increases the use counter of a found resident segment
 and thus, it cannot guarantee that the segment will be unloaded by another
 process at the time the function returns. Thus, this function should be
 called while a {\tt Forbid()} is active, and the caller shall increment
-{\tt seg\_UC} for non-system segments it attempts to use them before calling
+{\tt seg\_UC}\key{seg\_UC} for non-system segments it attempts to use them before calling
 {\tt Permit()}.
 \smallskip{}
 
@@ -19987,7 +19993,7 @@ by the caller.
 \smallskip{}
 
 This function does not alter {\tt IoErr()} on success, but it sets it to
-{\tt ERROR\_OBJECT\_NOT\_FOUND} in case no matching segment could be found.
+{\tt ERROR\_OBJECT\_NOT\_FOUND}\key{ERROR\_OBECT\_NOT\_FOUND} in case no matching segment could be found.
 
 \subsection{Adding a Resident Segment}
 
@@ -20003,7 +20009,7 @@ BOOL AddSegment(STRPTR, BPTR, LONG)
 
 This function adds the segment {\tt seglist}, e.g. as returned by {\tt
   LoadSeg()}\key{LoadSeg()}, under the given {\tt name} to the list of
-resident segments. The {\tt seg\_UC} type and use counter is initialized to
+resident segments. The {\tt seg\_UC}\key{seg\_UC} type and use counter is initialized to
 the value {\tt type}.
 \smallskip{}
 
@@ -20019,12 +20025,12 @@ incorrect and not even valid.}.
 \smallskip{}
 
 For system segments that are not commands, {\tt type} shall be set to {\tt
-  CMD\_SYSTEM}; this value is defined in {\tt dos/dosextends.h}. Note that
+  CMD\_SYSTEM}\key{CMD\_SYSTEM}; this value is defined in {\tt dos/dosextends.h}. Note that
 such segments cannot be safely unloaded anymore and remain resident for the
 lifetime of the system.
 \smallskip{}
 
-While other values such as {\tt CMD\_INTERNAL} and {\tt CMD\_DISABLED} are
+While other values such as {\tt CMD\_INTERNAL}\key{CMD\_INTERNAL} and {\tt CMD\_DISABLED}\key{CMD\_DISABLED} are
 possible, they do not serve a practical use. The first one indicates
 commands that are provided by the AmigaDOS Shell, and this value shall only
 be used by the ROM shell. The second value indicates system segments or
@@ -20034,7 +20040,7 @@ built-in commands that are currently disabled. It is only used by the {\tt
 
 On success, this function returns a non-zero value and does not alter {\tt
   IoErr()}. On error, it returns {\tt DOSFALSE} and sets {\tt
-  IoErr()}\key{IoErr()} to {\tt ERROR\_NO\_FREE\_STORE}.
+  IoErr()}\key{IoErr()} to {\tt ERROR\_NO\_FREE\_STORE}\key{ERROR\_NO\_FREE\_STORE}.
 
 \subsection{Removing a Resident Segment} \label{sec:remresident}
 
@@ -20071,21 +20077,21 @@ finally, {\tt Permit()} should be called to re-enable multitasking.
 
 If segment passed in cannot be removed because it is in use or a system
 segment, this function returns {\tt DOSFALSE} and sets {\tt IoErr()} to {\tt
-  ERROR\_OBJECT\_IN\_USE}. On success, it returns {\tt DOSTRUE}\footnote{Due
+  ERROR\_OBJECT\_IN\_USE}\key{ERROR\_OBJECT\_IN\_USE}. On success, it returns {\tt DOSTRUE}\footnote{Due
 to a defect in the current version of the \emph{dos.library} it
 unfortunately \emph{also} sets {\tt IoErr()} to the same error code.}.
 
 \section{Writing Custom Shells} \label{sec:usershells}
 
 AmigaDOS allows adding custom shells to the system that may optionally
-also replace the AmigaDOS default shell, the ``boot shell''. A shell
+also replace the AmigaDOS default shell, the ``boot shell''\mkey{Boot Shell}. A shell
 is a resident system segment, see section~\ref{sec:resident}, similar
 to the Console-Handler or the RAM-Handler on the same list. When
 launching a shell with the {\tt System()}\key{System()} function, a
 custom shell may be requested by providing the name of its resident
 segment to the {\tt SYS\_CustomShell} tag. A custom shell may even
 replace the AmigaDOS Shell it by making it resident under the name
-``{\tt shell}''. On the AmigaDOS Shell, the following command will
+``{\tt shell}''.\mkey{Shell (resident)} On the AmigaDOS Shell, the following command will
 perform the necessary steps:
 
 \begin{verbatim}
@@ -20098,7 +20104,7 @@ to the following guidelines:
 \smallskip{}
 
 First of all, AmigaDOS supports a BCPL shell under the name ``{\tt
-  CLI}'' which will be initialized as BCPL programs using the BCPL
+  CLI}''\mkey{CLI} which will be initialized as BCPL programs using the BCPL
 runtime binding protocol explained in
 section~\ref{sec:bcplbinding}. AmigaDOS also supports C and assembler
 based shells under the names ``{\tt shell}'' and ``{\tt
@@ -20147,7 +20153,7 @@ origin.
 \smallskip{}
 
 If this first initialization succeeds, the segment array of the
-calling process in {\tt pr\_SegList} needs to be reorganized. The
+calling process in {\tt pr\_SegList}\key{pr\_SegList} needs to be reorganized. The
 regular process startup code of AmigaDOS places the segment list of
 the process in index~3 of this array, though commands executed by the
 shell will require this entry themselves, and thus the shell shall
@@ -20164,7 +20170,7 @@ section~\ref{sec:getcli}.
 
 The {\tt CliInitRun()}\key{CliInitRun()} function returns a {\tt LONG}
 that identifies whether the initialization of the CLI structure was
-successful. If bit~31 is clear, and {\tt IoErr()} is equal to the
+successful. If bit~31 is clear, and {\tt IoErr()}\key{IoErr()} is equal to the
 pointer to the shell process, i.e. to {\tt FindTask(NULL)},
 initialization failed, and the packet was already
 replied\footnote{This communication protocol is surely needlessly
@@ -20242,9 +20248,8 @@ void __asm main(register __a0 struct DosPacket *pkt)
 \end{verbatim}
 
 When the shell replies the startup packet and when it terminates
-depends on the flags returned by {\tt
-  CliInitRun()}\key{CliInitRun()}. This is described in the following
-section.
+depends on the flags returned by {\tt CliInitRun()}\key{CliInitRun()}.
+This is described in the following section.
 
 \subsection{Initializing a new Shell} \label{sec:cliinitrun}
 
@@ -20259,11 +20264,11 @@ D0                    A0
 LONG CliInitRun( struct DosPacket * )
 \end{verbatim}
 
-This function is part of the shell initialization. The {\tt packet} is
-the {\tt DosPacket} the shell received as startup information; the
-function initializes from it all elements of the {\tt
-  CommandLineInterface} structure stored in the {\tt pr\_CLI} BPTR of
-the calling process.
+This function is part of the shell initialization. The {\tt packet} is the
+{\tt DosPacket} the shell received as startup information; the function
+initializes from it all elements of the {\tt
+  CommandLineInterface}\key{CommandLineInterface} structure stored in the
+{\tt pr\_CLI}\key{pr\_CLI} BPTR of the calling process.
 \smallskip{}
 
 The arguments of the packet are intentionally not documented here, and
@@ -20278,15 +20283,15 @@ suggested here:
 \begin{rkrmtabular}{{\tt\bf CliInitRun()} flags} \label{table:cliinitrunflags}
 \begin{longtable}{|l|l|l|} \hline
 {\bf Acronym}       & {\bf Bit Number} & {\bf Notes} \\ \hline \hline
-{\tt FN\_VALID}     & 31     & indiates that remaining bits are valid \\ \hline
-{\tt FN\_ASYNC}     & 3      & asynchronous execution intended \\ \hline
-{\tt FN\_SYSTEM}    & 2      & shell terminates on EOF of {\tt cli\_CurrentInput} \\ \hline
-{\tt FN\_USERINPUT} & 1      & if~0, close {\tt cli\_StandardInput} on exit \\ \hline
-{\tt FN\_RUNOUTPUT} & 0      & if~1, close {\tt cli\_StandardOutput} on exit \\ \hline
+{\tt FN\_VALID}\key{FN\_VALID}     & 31     & indiates that remaining bits are valid \\ \hline
+{\tt FN\_ASYNC}\key{FN\_ASYNC}     & 3      & asynchronous execution intended \\ \hline
+{\tt FN\_SYSTEM}\key{FN\_SYSTEM}    & 2      & shell terminates on EOF of {\tt cli\_CurrentInput} \\ \hline
+{\tt FN\_USERINPUT}\key{FN\_USERINPUT} & 1      & if~0, close {\tt cli\_StandardInput} on exit \\ \hline
+{\tt FN\_RUNOUTPUT}\key{FN\_RUNOUTPUT} & 0      & if~1, close {\tt cli\_StandardOutput} on exit \\ \hline
 \end{longtable}
 \end{rkrmtabular}
 
-If bit {FN\_VALID} {\tt flags} is~0 and {\tt IoErr()} equals pointer to the
+If bit {FN\_VALID}\mkey{FN\_VALID} {\tt flags} is~0 and {\tt IoErr()}\key{IoErr()} equals pointer to the
 pointer of the process structure of the caller, then initialization
 failed. At this point, the passed in packet has already been replied,
 and the shell shall only release the resources it accquired so far and
@@ -20294,15 +20299,15 @@ exit. In all other cases, {\tt packet} has not yet been returned to
 the caller yet.
 \medskip{}
 
-If the bit {\tt FN\_VALID} of {\tt flags} is~0 and {\tt IoErr()} does
+If the bit {\tt FN\_VALID}\key{FN\_VALID} of {\tt flags} is~0 and {\tt IoErr()} does
 \emph{not} equal the pointer to the process structure of the caller,
 then initialization was successful. In such a case, the startup packet
 shall only be replied after the first command executed by the shell,
 leaving the {\tt dp\_Res1} and {\tt dp\_Res2} unaltered from the
 values left by {\tt CliInitRun()}\key{CliInitRun()}. When the shell
-terminates, the shell shall close the {\tt cli\_StandardOutput} and
+terminates, the shell shall close the {\tt cli\_StandardOutput}\key{cli\_StandardInput} and
 the {\tt cli\_StandardInput} file handles of the {\tt
-  CommandLineInterface} structure. This type of startup is typically
+  CommandLineInterface}\key{CommandLineInterface} structure. This type of startup is typically
 used when the shell is instructed to execute commands in the
 background, e.g. by the {\tt Run} command, and if {\tt
   System()}\key{System()} is called with {\tt NULL} as its first
@@ -20316,12 +20321,12 @@ simultaneously: the shell starting a command with {\tt Run}, and the
 command that executes in the background.
 \medskip{}
 
-If the bits {\tt FN\_VALID} and {\tt FN\_ASYNC} are set, then
+If the bits {\tt FN\_VALID}\key{FN\_VALID} and {\tt FN\_ASYNC}\mkey{FN\_ASYNC} are set, then
 asynchronous command execution is requested. The shell shall then
 reply the startup packet immediately, leaving {\tt dp\_Res1} and {\tt
   dp\_Res2} unaltered from the values left by {\tt
-  CliInitRun()}\key{CliInitRun()}. If {\tt FN\_VALID} is set and {\tt
-  FN\_ASYNC} is not set, then the startup packet shall only be replied
+  CliInitRun()}\key{CliInitRun()}. If {\tt FN\_VALID}\key{FN\_VALID} is set and {\tt
+  FN\_ASYNC}\key{FN\_ASYNC} is not set, then the startup packet shall only be replied
 when the last command of the shell returned. Then, {\tt dp\_Res1}
 shall be set to the return code of this command as found in {\tt
   cli\_ReturnCode}, and {\tt dp\_Res2} shall be set to the error code
@@ -20330,7 +20335,7 @@ reflects the value of {\tt SYS\_Asynch} of the {\tt
   System()}\key{System()} call.
 \medskip{}
 
-If bits {\tt FN\_VALID} and {\tt FN\_SYSTEM} are set then the shell
+If bits {\tt FN\_VALID}\key{FN\_VALID} and {\tt FN\_SYSTEM}\mkey{FN\_SYSTEM} are set then the shell
 shall terminate if the {\tt cli\_CurrentInput} runs into an EOF and
 there is no higher level script to continue executing from. This
 corresponds to the case where the first argument of {\tt
@@ -20340,32 +20345,32 @@ and returns. Shells created this way are never interactive, i.e. {\tt
   cli\_Interactive} shall always be {\tt DOSFALSE}.
 \smallskip{}
 
-If the {\tt FN\_VALID} flag is set and {\tt FN\_SYSTEM} is reset, then
-the shell continues to read commands from {\tt cli\_StandardInput} once
-{\tt cli\_CurrentInput} depletes and there is no higher level script
+If the {\tt FN\_VALID}\key{FN\_VALID} flag is set and {\tt FN\_SYSTEM}\key{FN\_SYSTEM} is reset, then
+the shell continues to read commands from {\tt cli\_StandardInput}\key{cli\_StandardInput} once
+{\tt cli\_CurrentInput}\key{cli\_CurrentInput} depletes and there is no higher level script
 to continue executing from. Only if the two input streams are equal
 and and EOF condition is detected, the shell terminates. This
 corresponds to the case where the the shell was initiated through {\tt
   Execute()}, or {\tt System()} with a {\tt NULL} command string.
 \medskip{}
 
-If bits {\tt FN\_VALID} and {\tt FN\_USERINPUT} are set, then the
-shell \emph{shall not} close {\tt cli\_StandardInput} when
-terminating. If {\tt FN\_VALID} is set and {\tt FN\_USERINPUT} is
-reset, then {\tt cli\_StandardInput} shall be closed on exit.
+If bits {\tt FN\_VALID}\key{FN\_VALID} and {\tt FN\_USERINPUT}\mkey{FN\_USERINPUT} are set, then the
+shell \emph{shall not} close {\tt cli\_StandardInput}\key{cli\_StandardInput} when
+terminating. If {\tt FN\_VALID}\key{FN\_VALID} is set and {\tt FN\_USERINPUT}\key{FN\_USERINPUT} is
+reset, then {\tt cli\_StandardInput}\key{cli\_StandardInput} shall be closed on exit.
 \smallskip{}
 
-If the bits {\tt FN\_VALID} and {\tt FN\_RUNOUTPUT} are set, then {\tt
-  cli\_StandardOutput} shall be closed when the shell process
-terminates. Otherwise, if {\tt FN\_VALID} is set and {\tt
-  FN\_RUNOUTPUT} is reset, then the {\tt cli\_StandardOutput} shall remain
-open. Note that the {\tt FN\_RUNOUTPUT} logic is the inverse of the
-{\tt FN\_USERINPUT} logic.
+If the bits {\tt FN\_VALID}\key{FN\_VALID} and {\tt FN\_RUNOUTPUT}\mkey{FN\_RUNOUTPUT} are set, then {\tt
+  cli\_StandardOutput}\key{cli\_StandardOutput} shall be closed when the shell process
+terminates. Otherwise, if {\tt FN\_VALID}\key{FN\_VALID} is set and {\tt
+  FN\_RUNOUTPUT}\key{FN\_RUNOUTPUT} is reset, then the {\tt cli\_StandardOutput} shall remain
+open. Note that the {\tt FN\_RUNOUTPUT}\key{FN\_RUNOUTPUT} logic is the inverse of the
+{\tt FN\_USERINPUT}\key{FN\_USERINPUT} logic.
 \smallskip{}
 
-A successful startup with {\tt FN\_VALID} reset is thus approximately
-equivalent to the bit combination of {\tt FN\_RUNOUTPUT} and {\tt
-  FN\_ASYNC}, except that the elements of the {\tt
+A successful startup with {\tt FN\_VALID}\key{FN\_USERINPUT} reset is thus approximately
+equivalent to the bit combination of {\tt FN\_RUNOUTPUT}\key{FN\_RUNOUTPUT} and {\tt
+  FN\_ASYNC}\key{FN\_ASYNC}, except that the elements of the {\tt
   CommandLineInterface} structure are initialized differently.
 \medskip{}
 
@@ -20449,52 +20454,52 @@ defined in {\tt dos/dos.h}:
 
 \begin{rkrmtable}{{\tt \bf AllocDosObject()} type IDs} \label{table:allocdosobject}
 {\bf Type} & {\bf Description}\\ \hline \hline
-DOS\_FILEHANDLE & construct a {\tt FileHandle} structure, as in~\ref{sec:filehandle} \\ \hline
-DOS\_EXALLCONTROL & construct a {\tt ExAllControl} structure, see~\ref{sec:exall} \\ \hline
-DOS\_FIB & construct a {\tt FileInfoBlock} structure, see~\ref{sec:fib} \\ \hline
-DOS\_STDPKT & construct a {\tt StandardPacket} structure, as in~\ref{sec:sendpkt} \\ \hline
-DOS\_CLI & construct a {\tt CommandLineInterface} structure, see~\ref{sec:clistruct} \\ \hline
-DOS\_RDARGS & construct a {\tt RDArgs} structure, as defined in section~\ref{sec:readargs} \\ \hline
+DOS\_FILEHANDLE\key{DOS\_FILEHANDLE} & construct a {\tt FileHandle} structure, as in~\ref{sec:filehandle} \\ \hline
+DOS\_EXALLCONTROL\key{DOS\_EXALLCONTROL} & construct a {\tt ExAllControl} structure, see~\ref{sec:exall} \\ \hline
+DOS\_FIB\key{DOS\_FIB} & construct a {\tt FileInfoBlock} structure, see~\ref{sec:fib} \\ \hline
+DOS\_STDPKT\key{DOS\_STDPKT} & construct a {\tt StandardPacket} structure, as in~\ref{sec:sendpkt} \\ \hline
+DOS\_CLI\key{DOS\_CLI} & construct a {\tt CommandLineInterface} structure, see~\ref{sec:clistruct} \\ \hline
+DOS\_RDARGS\key{DOS\_RDARGS} & construct a {\tt RDArgs} structure, as defined in section~\ref{sec:readargs} \\ \hline
 \end{rkrmtable}
 
-The {\tt DOS\_FILEHANDLE} type creates a {\tt FileHandle}
+The {\tt DOS\_FILEHANDLE}\mkey{DOS\_FILEHANDLE} type creates a {\tt FileHandle}\key{FileHandle}
 structure. This structure describes an open file and shall only be
 created through this function as it contains some hidden
-elements. This type takes one parameter, namely {\tt ADO\_FH\_Mode}
+elements. This type takes one parameter, namely {\tt ADO\_FH\_Mode}\mkey{ADO\_FH\_Mode}
 defined in {\tt dos/dostags.h}, which is the mode in which the file is
 to be opened. This tag takes an argument from
 table~\ref{table:openmodes} which corresponds to the second argument
 of the {\tt Open()}\key{Open()} function specified in
-section~\ref{sec:open}. It defaults to {\tt ACTION\_FINDINPUT}, i.e. a
+section~\ref{sec:open}. It defaults to {\tt ACTION\_FINDINPUT}\key{ACTION\_FINDINPUT}, i.e. a
 file that is opened nonexclusively for reading.
 \smallskip{}
 
-The {\tt DOS\_EXALLCONTROL} type creates an {\tt ExAllControl}
+The {\tt DOS\_EXALLCONTROL}\key{DOS\_EXALLCONTROL} type creates an {\tt ExAllControl}\key{ExAllControl}
 structure used to iterate over directory contents, see
 section~\ref{sec:exall}; no additional tags are required.
 \smallskip{}
 
-The {\tt DOS\_FIB} type creates a {\tt FileInfoBlock} structure as
+The {\tt DOS\_FIB}\mkey{DOS\_FIB} type creates a {\tt FileInfoBlock}\key{FileInfoBlock} structure as
 defined in section~\ref{sec:fib}. This structure may also be manually
 constructed as it does not contain any hidden elements. However, the
 structure shall be aligned to long word boundaries. The macro {\tt
-  D\_S()} in section~\ref{sec:bptrs} should be used if the memory for
+  D\_S()}\key{D\_S() macro} in section~\ref{sec:bptrs} should be used if the memory for
 this structure is to be taken from the stack. This macro ensures the
 required alignment. No further tags are necessary.
 \smallskip{}
 
-The {\tt DOS\_STDPKT} creates a {\tt StandardPacket} structure used
+The {\tt DOS\_STDPKT}\mkey{DOS\_STDPKT} creates a {\tt StandardPacket}\key{StandardPacket} structure used
 for communication between clients and handlers or file systems. It is
-an aggregate of a {\tt Message} and a {\tt DosPacket} structure that
+an aggregate of a {\tt Message} and a {\tt DosPacket}\key{DosPacket} structure that
 are chained correctly to each other. There is no need to use exactly
-this structure for handler communication provided the {\tt DosPacket}
+this structure for handler communication provided the {\tt DosPacket}\key{DosPacket}
 is aligned to a long-word boundary and linked to a {\tt Message}, see
 section~\ref{sec:sendpkt}. This function does actually not return a
-pointer to the {\tt StandardPacket} itself, but rather to its {\tt
+pointer to the {\tt StandardPacket}\key{StandardPacket} itself, but rather to its {\tt
   DosPacket} element. This constructor does not take any additional tags.
 \smallskip{}
 
-The {\tt DOS\_CLI} structure creates a {\tt CommandLineInterface}
+The {\tt DOS\_CLI}\mkey{DOS\_CLI} structure creates a {\tt CommandLineInterface}\key{CommandLineInterface}
 structure as defined in section~\ref{sec:clistruct}. No additional
 tags are recgonized. While it was possible to construct these
 structures manually in the past, this is no longer the case with the
@@ -20504,7 +20509,7 @@ shell which is equipped with a manually constructed {\tt
 functionality of a regular AmigaDOS shell.
 \smallskip{}
 
-The {\tt DOS\_RDARGS} structure creates a {\tt RDArgs} structure used
+The {\tt DOS\_RDARGS}\mkey{DOS\_RDARGS} structure creates a {\tt RDArgs} structure used
 by the {\tt ReadArgs()}\key{ReadArgs()} function for command line
 argument parsing, see section~\ref{sec:readargs}. This constructor is
 also called internally by the \emph{dos.library}, but if a custom
@@ -20515,11 +20520,11 @@ one. No tags are defined for this object.
 \medskip{}
 
 This function returns on succes the pointer to the constructed
-object. Note that for {\tt DOS\_STDPKT} this is a pointer to a {\tt
-  DosPacket} structure and not to the {\tt StandardPacket}
+object. Note that for {\tt DOS\_STDPKT}\key{DOS\_STDPKT} this is a pointer to a {\tt
+  DosPacket}\key{DosPacket} structure and not to the {\tt StandardPacket}\key{StandardPacket}
 structure. It does not touch {\tt IoErr()}\key{IoErr()} on success. On
 error, this function returns {\tt NULL} and sets {\tt
-  IoErr()}\key{IoErr()} to {\tt ERROR\_NO\_FREE\_STORE}.
+  IoErr()}\key{IoErr()} to {\tt ERROR\_NO\_FREE\_STORE}\key{ERROR\_NO\_FREE\_STORE}.
 
 \subsection{Releasing a DOS Object}
 
@@ -20537,9 +20542,9 @@ This function destroys an object created by {\tt
   AllocDosObject()}\key{AllocDosObject()}. The {\tt type} argument is
 one of the types from table~\ref{table:allocdosobject} in
 section~\ref{sec:allocdosobject}, and {\tt ptr} is a pointer to the
-object to be destroyed. In case type is {\tt DOS\_STDPKT}, the {\tt
-  ptr} argument is a pointer to the {\tt DosPacket} element of the
-{\tt StandardPacket} aggregate.
+object to be destroyed. In case type is {\tt DOS\_STDPKT}\key{DOS\_STDPKT}, the {\tt
+  ptr} argument is a pointer to the {\tt DosPacket}\key{DosPacket} element of the
+{\tt StandardPacket}\key{StandardPacket} aggregate.
 \smallskip{}
 
 Passing {\tt NULL} as {\tt ptr} performs nothing, the function exits
@@ -20569,7 +20574,7 @@ BOOL ErrorReport(LONG, LONG, ULONG, struct MsgPort *)
 \end{verbatim}
 
 This function creates an error requester either on the workbench
-screen, or on a screen that is given by the {\tt pr\_WindowPtr} of the
+screen, or on a screen that is given by the {\tt pr\_WindowPtr}\key{pr\_WindowPtr} of the
 calling process. If {\tt pr\_WindowPtr} is~$-1$, then no requester is
 shown and the function returns immediately with a non-zero return
 code, indicating that cancelation of the activity is desired. This
@@ -20587,14 +20592,14 @@ defined in the include files {\tt dos/dos.h} and {\tt
 
 \begin{rkrmtable}{Errors supported by {\tt \bf ErrorReport()}} \label{table:reporterrors}
 {\bf Error} & {\bf Description}\\ \hline \hline
-{\tt ERROR\_DISK\_NOT\_VALIDATED} & Reports that a disk is corrupt and not validated \\ \hline
-{\tt ERROR\_DISK\_WRITE\_PROTECTED} & Reports that a disk is write protected \\ \hline
-{\tt ERROR\_DISK\_FULL} & Reports that a volume is full \\ \hline
-{\tt ERROR\_DEVICE\_NOT\_MOUNTED} & A particular handler or file system is not mounted \\ \hline
-{\tt ERROR\_NOT\_A\_DOS\_DISK} & A volume does not carry a valid file system \\ \hline
-{\tt ERROR\_NO\_DISK} & No physical medium is inserted in a drive \\ \hline
-{\tt ABORT\_DISK\_ERROR} & Reports that a medium has a physical read/write error \\ \hline
-{\tt ABORT\_BUSY} & Requests to insert a particular medium into a drive \\ \hline
+{\tt ERROR\_DISK\_NOT\_VALIDATED}\key{ERROR\_DISK\_NOT\_VALIDATED} & Reports that a disk is corrupt and not validated \\ \hline
+{\tt ERROR\_DISK\_WRITE\_PROTECTED}\key{ERROR\_DISK\_WRITE\_PROTECTED} & Reports that a disk is write protected \\ \hline
+{\tt ERROR\_DISK\_FULL}\key{ERROR\_DISK\_FULL} & Reports that a volume is full \\ \hline
+{\tt ERROR\_DEVICE\_NOT\_MOUNTED}\key{ERROR\_DEVICE\_NOT\_MOUNTED} & A particular handler or file system is not mounted \\ \hline
+{\tt ERROR\_NOT\_A\_DOS\_DISK}\key{ERROR\_NOT\_A\_DOS\_DISK} & A volume does not carry a valid file system \\ \hline
+{\tt ERROR\_NO\_DISK}\key{ERROR\_NO\_DISK} & No physical medium is inserted in a drive \\ \hline
+{\tt ABORT\_DISK\_ERROR}\key{ABORT\_DISK\_ERROR} & Reports that a medium has a physical read/write error \\ \hline
+{\tt ABORT\_BUSY}\key{ABORT\_BUSY} & Requests to insert a particular medium into a drive \\ \hline
 \end{rkrmtable}
 
 The {\tt type} argument provides the type of the AmigaDOS object
@@ -20606,22 +20611,22 @@ supported by this function:
 
 \begin{rkrmtable}{Error sources supported by {\tt \bf ErrorReport()}} \label{table:errorsource}
 {\bf Type} & {\bf Description} \\ \hline \hline
-{\tt REPORT\_STREAM} & {\tt arg1} is a BPTR to a {\tt FileHandle} structure \\ \hline
-{\tt REPORT\_LOCK} & {\tt arg1} is a BPTR to a {\tt FileLock} structure \\ \hline
-{\tt REPORT\_VOLUME} & {\tt arg1} is a BPTR\footnote{Unlike what the official documentation says, this is a BPTR, not a regular pointer.} to a {\tt DosList} structure \\ \hline
-{\tt REPORT\_INSERT} & {\tt arg1} is a \emph{regular} pointer to a path separated at ``{\tt :}'' \\ \hline
+{\tt REPORT\_STREAM}\mkey{REPORT\_STREAM} & {\tt arg1} is a BPTR to a {\tt FileHandle} structure \\ \hline
+{\tt REPORT\_LOCK}\mkey{REPORT\_LOCK} & {\tt arg1} is a BPTR to a {\tt FileLock} structure \\ \hline
+{\tt REPORT\_VOLUME}\mkey{REPORT\_VOLUME} & {\tt arg1} is a BPTR\footnote{Unlike what the official documentation says, this is a BPTR, not a regular pointer.} to a {\tt DosList} structure \\ \hline
+{\tt REPORT\_INSERT}\mkey{REPORT\_INSERT} & {\tt arg1} is a \emph{regular} pointer to a path separated at ``{\tt :}'' \\ \hline
 \end{rkrmtable}
 
-The {\tt REPORT\_INSERT} type shall be a pointer to an absolute path
+The {\tt REPORT\_INSERT}\key{REPORT\_INSERT} type shall be a pointer to an absolute path
 name containing a colon (``{\tt :}'') from which a volume or device
 name is extracted.
 \smallskip{}
 
 The {\tt device} argument is a (regular) pointer to a {\tt MsgPort}
-structure that is only used if {\tt type} is {\tt REPORT\_LOCK} and
+structure that is only used if {\tt type} is {\tt REPORT\_LOCK}\key{REPORT\_LOCK} and
 {\tt arg1} is {\tt ZERO}. This port is assumed to be a {\tt MsgPort}
 of a file handler that is contacted to learn about the name of the
-currently inserted volume. This could be the {\tt pr\_FileSystemTask}
+currently inserted volume. This could be the {\tt pr\_FileSystemTask}\key{pr\_FileSystemTask}
 of the calling process which contains the {\tt MsgPort} of the file
 handler responsible for the {\tt ZERO} lock.
 \medskip{}
@@ -20695,9 +20700,9 @@ BOOL PrintFault(LONG, STRPTR)
 \end{verbatim}
 
 This function implements elementary error reporting by printing an
-error message over the error output {\tt pr\_CES} of the calling
+error message over the error output {\tt pr\_CES}\key{pr\_CES} of the calling
 process. If that stream does not exist, the error is reported over the
-standard output stream {\tt pr\_COS} of the caller.
+standard output stream {\tt pr\_COS}\key{pr\_COS} of the caller.
 \smallskip{}
 
 If {\tt header} is non-{\tt NULL}, this string is printed first,
@@ -20728,12 +20733,12 @@ LONG PutErrStr(STRPTR)
 \end{verbatim}
 
 This function writes the {\tt NUL} terminated string {\tt str} over
-the error output {\tt pr\_CES} of the calling process. If this stream
+the error output {\tt pr\_CES}\key{pr\_CES} of the calling process. If this stream
 does not exist, this function writes the string over the standard
-output {\tt pr\_COS} of the caller.
+output {\tt pr\_COS}\key{pr\_COS} of the caller.
 \smallskip{}
 
-This function returns $0$ on success, or {\tt ENDSTREAMCH} on an
+This function returns $0$ on success, or {\tt ENDSTREAMCH}\key{ENDSTREAMCH} on an
 error. The latter constant is defined in {\tt dos/stdio.h} and equals
 to~$-1$. The error code {\tt IoErr()}\key{IoErr()} is only adjusted
 if the buffer of the used file handle is flushed.
@@ -20750,6 +20755,7 @@ for their elements.
 The \emph{dos.library} base structure is documented in {\tt
   dos/dosextens.h} and looks as follows:
 
+\mkey{DosLibrary}
 \begin{verbatim}
 struct DosLibrary {
     struct Library dl_lib;
@@ -20768,21 +20774,21 @@ struct DosLibrary {
 The elements of this library are as follows:
 \smallskip{}
 
-The {\tt dl\_lib} element forms a regular exec library as it is defined in {\tt exec/libraries.h}.
+The {\tt dl\_lib}\mkey{dl\_lib} element forms a regular exec library as it is defined in {\tt exec/libraries.h}.
 \smallskip{}
 
-The {\tt dl\_Root} pointer points to the {\tt RootNode} structure
+The {\tt dl\_Root}\mkey{dl\_Root} pointer points to the {\tt RootNode}\key{RootNode} structure
 documented in section~\ref{sec:rootnode}. Most useful information can be reached from there.
 \smallskip{}
 
-The {\tt dl\_GV} is the pointer to the (fake) BCPL \emph{global
-  vector} which contains a table of (BCPL compiled) functions the
+The {\tt dl\_GV}\mkey{dl\_GV} is the pointer to the (fake) BCPL \emph{global
+  vector}\key{Global Vector} which contains a table of (BCPL compiled) functions the
 \emph{dos.library} provides to (legacy) BCPL components. Today,
 nothing should depend on this vector anymore as all AmigaDOS
 components have been rewritten in C or assembler.
 \smallskip{}
 
-The {\tt dl\_A2}, {\tt dl\_A5} and {\tt gl\_A6} elements are the
+The {\tt dl\_A2}\mkey{dl\_A2}, {\tt dl\_A5}\mkey{dl\_A5} and {\tt gl\_A6}\mkey{dl\_A6} elements are the
 initializers for the BCPL runtime system. They are not relevant
 nowadays anymore. {\tt dl\_A2} is a pointer to global vector and thus
 identical to {\tt dl\_GV}.  {\tt dl\_A5} is a function pointer to the
@@ -20790,26 +20796,26 @@ BCPL function caller, and {\tt dl\_A6} is a pointer to the BCPL
 ``return from subroutine'' function.
 \smallskip{}
 
-The {\tt dl\_Errors} pointer provides (localized) strings for all
-messages the \emph{dos.library} generates, including error
+The {\tt dl\_Errors}\mkey{dl\_Errors} pointer provides (localized) strings for all
+messages the \emph{dos.library} generates, including other localized
 messages. This element is private and shall not be accessed. Instead,
 localized error messages can be retrieved by the {\tt
   Fault()}\key{Fault()} function of section~\ref{sec:fault} which
 accesses this string.
 \smallskip{}
 
-The {\tt dl\_TimeReq} element is a private pointer to a {\tt
+The {\tt dl\_TimeReq}\mkey{dl\_TimeReq} element is a private pointer to a {\tt
   timerequest} structure the \emph{dos.library} uses for functions
 such as {\tt Delay()}\key{Delay()} in section~\ref{sec:delay}. It
 shall not be used by clients.
 \smallskip{}
 
-The {\tt dl\_UtilityBase} element provides a pointer to the
+The {\tt dl\_UtilityBase}\mkey{dl\_UtilityBase} element provides a pointer to the
 \emph{utility.library} the \emph{dos.library} uses for parsing tag
 lists.
 \smallskip{}
 
-The {\tt dl\_IntuitionBase} is the pointer to the
+The {\tt dl\_IntuitionBase}\mkey{dl\_IntuitionBase} is the pointer to the
 \emph{intuition.library} that is used to generate requesters.
 
 \section{The Root Node} \label{sec:rootnode}
@@ -20819,6 +20825,7 @@ pointer in the {\tt DosLibrary} structure and provides global
 information of the library. It is also defined in {\tt
   dos/dosextens.h}:
 
+\mkey{RootNode}
 \begin{verbatim}
 struct RootNode {
     BPTR    rn_TaskArray;
@@ -20834,7 +20841,7 @@ struct RootNode {
 };
 \end{verbatim}
 
-The {\tt rn\_TaskArray} element is a BPTR the (legacy) Tripos process
+The {\tt rn\_TaskArray}\key{rn\_TaskArray} element is a BPTR the (legacy) Tripos process
 table, and is part of the complete table reachable through {\tt
   rn\_CliList}. Instead of going through these elements, the {\tt
   FindCliProc()}\key{FindCliProc()} function specified in
@@ -20846,32 +20853,32 @@ CLI number, though only processes that are associated to a shell are
 listed here.
 \smallskip{}
 
-The {\tt rn\_ConsoleSegment} is the pointer to the BCPL entry point of
+The {\tt rn\_ConsoleSegment}\mkey{rn\_ConsoleSegment} is the pointer to the BCPL entry point of
 the shell. Even though this pointer is initialized, it is no longer
 used. Instead, the shell is located on the resident segments with {\tt
   FindSegment()}\key{FindSegment()} of
 section~\ref{sec:findsegment}. The corresponding resident segment has
-the name ``CLI''.
+the name ``CLI''.\key{CLI}
 \smallskip{}
 
-The {\tt rn\_Time} contains the current time of the system, it is
+The {\tt rn\_Time}\mkey{rn\_Time} contains the current time of the system, it is
 updated every time {\tt DateStamp()}\key{DateStamp()} (see
 section~\ref{sec:datestamp} is called, and this is also the
 recommended way of obtaining the time instead of copying it from here.
 \smallskip{}
 
-The {\tt rn\_RestartSeg} is obsolete and no longer in used. This used
+The {\tt rn\_RestartSeg}\mkey{rn\_RestartSeg} is obsolete and no longer in used. This used
 to be a BCPL program that performed validation of inserted disks and
 restarted the file system. Today, this function is integrated into the
 file system itself.
 \smallskip{}
 
-The {\tt rn\_Info} element is a BPTR to the {\tt DosInfo} structure
+The {\tt rn\_Info}\mkey{rn\_Info} element is a BPTR to the {\tt DosInfo}\key{DosInfo} structure
 described in section~\ref{sec:dosinfo}. It contains further
 global information.
 \smallskip{}
 
-The {\tt rn\_FileHandlerSegment} element is the BPTR to the segment of
+The {\tt rn\_FileHandlerSegment}\mkey{rn\_FileHandlerSegment} element is the BPTR to the segment of
 the ROM default AmigaDOS file system. This element is no longer in use
 today. This element is filled from the resident segment
 ``FileHandler'', and is also updated if a newer version of the FFS is
@@ -20879,16 +20886,17 @@ found in the RDB of the booting disk. Today, file systems are found
 through the ``FileSystem.resource'' and not through this BPTR.
 \smallskip{}
 
-The {\tt rn\_CliList} contains the full process table containing all
+The {\tt rn\_CliList}\mkey{rn\_CliList} contains the full process table containing all
 shell processes accessible through {\tt
   FindCliProc()}\key{FindCliProc()}. This element is a {\tt MinList}
 structure as defined in {\tt exec/lists.h}. Each node on this list
 keeps a consecutive number of shells and looks as follows:
 
+\mkey{CliProcList}
 \begin{verbatim}
 struct CliProcList {
-  struct MinNode cpl_Node;
-  LONG cpl_First;	   
+  struct MinNode   cpl_Node;
+  LONG             cpl_First;	   
   struct MsgPort **cpl_Array;
 };
 \end{verbatim}
@@ -20899,47 +20907,47 @@ process table is too small when creating a new shell through {\tt
   System()}\key{System()} or {\tt Execute()}\key{Execute()}.
 \smallskip{}
 
-The {\tt cpl\_Node} is a {\tt MinNode} structure that queues
-all {\tt CliProcList} nodes in the {\tt rn\_CliList}.
+The {\tt cpl\_Node}\mkey{cpl\_Node} is a {\tt MinNode} structure that queues
+all {\tt CliProcList} nodes in the {\tt rn\_CliList}\key{rn\_CliList}.
 \smallskip{}
 
-The {\tt cpl\_First} element is the CLI number of the first shell in
+The {\tt cpl\_First}\mkey{cpl\_First} element is the CLI number of the first shell in
 this node, and thus the process number kept in {\tt cpl\_Array[1]}.
 \smallskip{}
 
-The {\tt cpl\_Array} element contains pointers to the {\tt Process}
-structures of the shell, except that the {\tt cpl\_Array[0]} entry is
+The {\tt cpl\_Array}\mkey{cpl\_Array} element contains pointers to the
+{\tt Process}\key{Process} structures of the shell, except that the {\tt cpl\_Array[0]} entry is
 the number of shell processes adminstrated in this node. The actual
 process pointers start from the second entry onwards.
 \smallskip{}
 
-The {\tt cpl\_Array} of the first {\tt CliProcList} structure is also
+The {\tt cpl\_Array}\key{cpl\_Array} of the first {\tt CliProcList}\key{CliProcList} structure is also
 accessible through {rn\_TaskArray}, and the nodes kept here are part
-of an extension that overcomes the limitation of at most~10 shells in
+of an extension that overcomes the limitation of at most~20 shells in
 AmigaDOS 1.3 and before.
 \medskip{}
 
-The {\tt rn\_BootProc} element is a pointer to the {\tt MsgPort} of
+The {\tt rn\_BootProc}\mkey{rn\_BootProc} element is a pointer to the {\tt MsgPort} of
 the file system that booted the system. This is not necessary the file
-system whose segment is recorded in {\tt rn\_FileHandlerSegment}. It
+system whose segment is recorded in {\tt rn\_FileHandlerSegment}\key{rn\_FileHandlerSegment}. It
 is different if the booting file system is not the ROM-based FFS
 neither an updated version of it from the RDB. This pointer is used to
-initialize the {\tt pr\_FileSystemTask} of all processes AmigaDOS
+initialize the {\tt pr\_FileSystemTask}\key{pr\_FileSystemTask} of all processes AmigaDOS
 creates, and thus the file system responsible for the {\tt ZERO} lock.
 \smallskip{}
 
-The {\tt rn\_ShellSegment} is a pointer to the C entry point of the
+The {\tt rn\_ShellSegment}\mkey{rn\_ShellSegment} is a pointer to the C entry point of the
 shell. This pointer is also not used anymore, but still intialized. It
-corresponds to the resident segments ``shell'' and ``BootShell'',
+corresponds to the resident segments ``shell''\key{Shell (resident)} and ``BootShell'',\key{BootShell}
 where the former may be replaced by a custom user-provided shell and
 the latter is always the shell that booted the system. Today, the
 shell segment is located via {\tt FindSegment()}\key{FindSegment()}
 instead.
 \smallskip{}
 
-The {\tt rn\_Flags} element contains flags that configure
+The {\tt rn\_Flags}\mkey{rn\_Flags} element contains flags that configure
 AmigaDOS. There is currently only one publicly accessible flag defined
-here, namely {\tt RNF\_WILDSTAR}. If this flag is set, the pattern
+here, namely {\tt RNF\_WILDSTAR}\mkey{RNF\_WILDSTAR}. If this flag is set, the pattern
 matcher discussed in section~\ref{sec:patternmatch} supports ``{\tt
   *}'' as a synonym for ``{\tt \#?}'', i.e. the pattern that matches a
 sequence of arbitrary characters. While this seemingly brings AmigaDOS
@@ -20955,6 +20963,7 @@ The {\tt DosInfo}\mkey{DosInfo} structure is pointed to by the {\tt
   list} structure discussed in section~\ref{sec:devicelist} and the
 resident segments from section~\ref{sec:resident}.
 
+\mkey{DosInfo}
 \begin{verbatim}
 struct DosInfo {
     BPTR    di_McName;
@@ -20972,30 +20981,30 @@ Unlike what the official includes suggest, {\tt di\_McName} is
 \emph{not} the list of resident segments. It is instead unused.
 \smallskip{}
 
-The {\tt di\_DevInfo} element is a BPTR to the first entry of the
+The {\tt di\_DevInfo}\mkey{di\_DevInfo} element is a BPTR to the first entry of the
 device list introduced in section~\ref{sec:devicelist}. This is
-a BPTR to a {\tt DosList} structure which form a singly linked list
+a BPTR to a {\tt DosList}\key{DosList} structure which form a singly linked list
 whose head is here. However, client programs should not access this
 BPTR directly, but rather go through the functions provided in
 section~\ref{sec:devlistaccess}.
 \smallskip{}
 
-The {\tt di\_Devices} and {\tt di\_Handlers} elements are Tripos
+The {\tt di\_Devices}\mkey{di\_Devices} and {\tt di\_Handlers}\mkey{di\_Handles} elements are Tripos
 legacies and not in use.
 \smallskip{}
 
-The {\tt di\_NetHand} element contains the resident segments, despite
+The {\tt di\_NetHand}\mkey{di\_NetHand} element contains the resident segments, despite
 its name. This element is neither an APTR as the official includes
-suggest, but is rather a BPTR. It points to a {\tt Segment} structure
+suggest, but is rather a BPTR. It points to a {\tt Segment}\key{Segment (resident)} structure
 as introduced in section~\ref{sec:resident}, and all resident segments
 are queued here in a singly linked list. This list of resident
 segments should not be accessed through this element, but through the
 functions in section~\ref{sec:resident}.
 \smallskip{}
 
-The {\tt di\_DevLock}, {\tt di\_EntryLock} and {\tt di\_DeleteLock}
-semaphores are private to the \emph{dos.library}. They are used by the
-{\tt LockDosList()}\key{LockDosList()} function of
+The {\tt di\_DevLock}\mkey{di\_DevLock}, {\tt di\_EntryLock}\mkey{di\_EntryLock} and
+{\tt di\_DeleteLock}\mkey{di\_DeleteLock} semaphores are private to the
+\emph{dos.library}. They are used by the {\tt LockDosList()}\key{LockDosList()} function of
 section~\ref{sec:lockdoslist}.
 
 \begin{thebibliography}{99}
