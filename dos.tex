@@ -2448,9 +2448,9 @@ follows:
 
 \begin{rkrmtable}{Console Modes} \label{table:conmodes}
 {\bf Buffer Mode} & {\bf Description}\\ \hline \hline
-\tt 0 & Cooked mode \\ \hline
-\tt 1 & Raw mode \\ \hline
-\tt 2 & Medium mode \\ \hline
+\tt 0 & Cooked mode\key{Cooked Mode} \\ \hline
+\tt 1 & Raw mode\key{Raw Mode} \\ \hline
+\tt 2 & Medium mode\key{Medium Mode} \\ \hline
 All other values & Reserved for future use \\ \hline
 \end{rkrmtable}
 
@@ -5065,14 +5065,14 @@ lists the possible values and their interpretation.
 \smallskip{}
 
 If the {\tt HANDLER}\key{HANDLER} keyword is present, the {\tt
-  STARTUP}\mkey{STARTUP} entry in the mountlist sets {\tt
+  STARTUP}\mkey{STARTUP} entry in the mountlist\key{Mountlist} sets {\tt
   dol\_Startup}\key{dol\_Startup}. It can be either an integer value,
 or if the argument is enclosed in double quotes, a string. In the
 latter case, {\tt dol\_Startup} is set to a BPTR to a
 BSTR which is, to ease handler implementation, also {\tt NUL}
 terminated. The terminator is, however, not included in the size of
 the BSTR. It is up to the user to ensure that the arguments in
-the mountlist are what the handler expects.
+the mountlist\key{Mountlist} are what the handler expects.
 
 \subsection{Keywords controlling the FileSysStartupMsg} \label{sec:filesysstartup}
 
@@ -5099,7 +5099,7 @@ Port-Handler can be setup this way to operate on top of a third-party
 serial device driver.
 \smallskip{}
 
-The {\tt DEVICE}\mkey{DEVICE} keyword of the mountlist sets {\tt fssm\_Device}\mkey{fssm\_Device}
+The {\tt DEVICE}\mkey{DEVICE} keyword of the mountlist\key{Mountlist} sets {\tt fssm\_Device}\mkey{fssm\_Device}
 entry. This element is initialized to a BSTR. To avoid further string
 conversion when calling {\tt OpenDevice()}\key{OpenDevice()}, this
 BSTR is {\tt NUL}-terminated.
@@ -5163,7 +5163,7 @@ its first element --- note that all elements of the structure are
 \smallskip{}
 
 The keyword {\tt SECTORSIZE}\mkey{SECTORSIZE} and {\tt BLOCKSIZE}\mkey{BLOCKSIZE} set both {\tt
-  de\_SizeBlock}\mkey{de\_SizeBlock}. While the mountlist keywords take a byte count, this
+  de\_SizeBlock}\mkey{de\_SizeBlock}. While the mountlist\key{Mountlist} keywords take a byte count, this
 byte count is divided by 4 to form a long-word count that is inserted into
 {\tt de\_SizeBlock}. As the name suggests, it defines the size of a storage
 unit on a medium. Typical values are 128 for 512 byte blocks, or 1024 for
@@ -5187,7 +5187,7 @@ cylinders computed from {\tt de\_LowCyl} and {\tt de\_HighCyl} to determine
 the capacity of the medium.
 \smallskip{}
 
-The {\tt SECTORSPERBLOCK}\mkey{SECTORSPERBLOCK} keyword sets the {\tt de\_SectorsPerBlock}\mkey{SectorsPerBlock}, and
+The {\tt SECTORSPERBLOCK}\mkey{SECTORSPERBLOCK} keyword sets the {\tt de\_SectorsPerBlock}\mkey{de\_SectorsPerBlock}, and
 thus the number of physical sectors on a disk the file system
 combines to one longical storage block. Not all file systems support
 values different from~1 here; the FFS does, and always reads and writes data
@@ -5240,7 +5240,7 @@ The {\tt LOWCYL}\mkey{LOWCYL} keyword initializes the {\tt de\_LowCyl}\mkey{de\_
 {\tt DosEnvec} structure. It sets the lower end of the partition on the
 storage medium, i.e. {\tt de\_LowCyl} $\times$ {\tt de\_Surfaces} $\times$
 {\tt de\_BlocksPerTrack} + {\tt de\_Reserved} $\times$ {\tt
-  de\_SectorsPerBlock} is the first physical sector number on a disk that
+  de\_SectorsPerBlock}\key{de\_SectorsPerBlock} is the first physical sector number on a disk that
 can carry payload data of the file system.
 \smallskip{}
 
@@ -5305,7 +5305,7 @@ bytes are read or written in one go.
 
 The {\tt BOOTPRI}\mkey{BOOTPRI} keyword sets the {\tt de\_BootPri}\mkey{de\_BootPri} element which defines
 the order in which the system attempts to boot from a partition or
-medium. Obvously, it makes little sense to set this keyword in a mountlist
+medium. Obvously, it makes little sense to set this keyword in a mountlist\key{Mountlist}
 that is interpreted after the system had already
 booted. However, autobooting devices may set an appropriate value here, for
 example by reading it from the RDB of its disk.
@@ -5510,17 +5510,17 @@ commands are not enabled, the FFS first attempts to use regular
 the 4GB barrier. If that is not possible, it probes the {\tt TD64} command
 set as it is historically the most popular extension. As last resort, it
 tries {\tt NSD} commands. This last step can be disabled by the line {\tt
-  ENABLENSD = 0} in the mountlist if it creates problems.
+  ENABLENSD = 0} in the mountlist\key{Mountlist} if it creates problems.
 \medskip{}
 
-The {\tt ACTIVATE}\mkey{ACTIVATE} keyword in the mountlist is synonym to the {\tt
+The {\tt ACTIVATE}\mkey{ACTIVATE} keyword in the mountlist\key{Mountlist} is synonym to the {\tt
   MOUNT}\mkey{MOUNT} keyword, and it also takes a boolean 0/1 indicator. If it is set,
 then the {\tt Mount} command will already load and initiate the handler
 corresponding to the mount entry, even if it is at this point not yet
 needed.
 \smallskip{}
 
-The {\tt FORCELOAD}\mkey{FORCELOAD} keyword of the mountlist, finally,
+The {\tt FORCELOAD}\mkey{FORCELOAD} keyword of the mountlist\key{Mountlist}, finally,
 is another boolean 0/1 flag. If it is set to 1, it indicates to the
 {\tt Mount} command not to scan the {\tt FileSystem.resource} for a
 fitting {\tt dostype} but rather forcibly load the file system from
@@ -6120,7 +6120,7 @@ adoption, and the above heuristics may be used as an interim solution.
 
 Authors of handlers and file systems have less to worry about. When
 they document their requirements properly, e.g. by including an
-example mountlist with their product, ``only'' user errors can
+example mountlist\key{Mountlist} with their product, ``only'' user errors can
 generate startup messages the handler cannot interpret properly. Thus,
 in general, handlers should be written in an ``optimistic'' way
 (unlike the above heuristic) assuming that {\tt
@@ -6128,7 +6128,7 @@ in general, handlers should be written in an ``optimistic'' way
 handlers are written in such a way, e.g. the FFS expects without
 verification that the value in {\tt dol\_Startup} is, indeed, a
 {\tt FileSysStartupMsg}\key{FileSysStartupMsg}, even though it can be
-fooled by an incorrect mountlist and by that crash the system.
+fooled by an incorrect mountlist\key{Mountlist} and by that crash the system.
 
 \section{Adding or Removing Entries to the Device List}
 
@@ -7621,13 +7621,14 @@ this function shall block until a message has been received. For details,
 see the {\tt DoPkt()}\key{DoPkt()} function and section~\ref{sec:handlers}.
 \smallskip{}
 
-{\tt pr\_WindowPtr}\mkey{pr\_WindowPtr} is, unlike what the name suggests, a pointer to an
-\emph{intuition} {\tt Screen} structure, see {\tt intuition/screens.h}, on
-which error requesters will appear. If this is {\tt NULL}, error requesters
-appear on the workbench screen, and if this is set to {\tt (APTR)(-1L)},
-error requesters will be suppressed at all, and the implied response to them
-is to cancel the operation. This error requester is specified in more detail
-with the {\tt ErrorReport()}\key{ErrorReport()} function.
+{\tt pr\_WindowPtr}\mkey{pr\_WindowPtr} is, unlike what the name suggests, a
+pointer to an \emph{intuition} {\tt Screen} structure, see {\tt
+  intuition/screens.h}, on which error requesters will appear. If this is
+{\tt NULL}, error requesters appear on the default public screen, usually
+the workbench screen, and if this is set to {\tt (APTR)(-1L)}, error
+requesters will be suppressed at all, and the implied response to them is to
+cancel the operation. This error requester is specified in more detail with
+the {\tt ErrorReport()}\key{ErrorReport()} function.
 \smallskip{}
 
 {\tt pr\_HomeDir}\mkey{pr\_HomeDir} is the lock to the directory containing the binary
@@ -8808,7 +8809,7 @@ requirements. The purpose of this binder is to populate the BCPL
 this runtime binder implements a legacy protocol, certain parts of
 AmigaDOS still expect it. These are handlers or file systems that use
 the {\tt dol\_GlobVec}\key{dol\_GlobVec} value of $0$ or $-2$, or
-corresponding {\tt GLOBVEC}\key{GLOBVEC} entry in the mountlist. While
+corresponding {\tt GLOBVEC}\key{GLOBVEC} entry in the mountlist\key{Mountlist}. While
 new handlers should not use this BCPL legacy protocol, the ROM file
 system (the FFS) and the port-handler currently still depend (or
 require) it, despite not being written in BCPL.
@@ -11987,21 +11988,21 @@ fully reliable way as the {\tt MsgPort} of the file system could still
 be cached by some client programs even if no active locks or open file
 handles exist. Section~\ref{sec:packetactiondie} contains further details.
 
-%TODO: Fixup references from here on.
 \section{The CON-Handler} \label{sec:console}
 
-The CON-Handler\mkey{CON-Handler} implements the console of AmigaDOS. It not only serves the
-graphical console, but also the serial console. The AUX-Handler\mkey{AUX-Handler} is only a
-minimal wrapper that locates the CON-Handler\key{CON-Handler} in the ROM and then initates
-the CON-Handler\key{CON-Handler} with a suitable startup packet. Therefore, it serves the {\tt CON:},
-{\tt RAW:} and {\tt AUX:} device.
+The CON-Handler\mkey{CON-Handler} implements the console of AmigaDOS. It not
+only serves the graphical console, but also the serial console. The
+AUX-Handler\key{AUX-Handler} is only a minimal wrapper that locates the
+CON-Handler\key{CON-Handler} in the ROM and then initates the
+CON-Handler\key{CON-Handler} with a suitable startup packet. Therefore, it
+implements the {\tt CON:}, {\tt RAW:} and {\tt AUX:} device.
 \smallskip{}
 
 Quite similar to file systems, the CON-Handler\key{CON-Handler} does not implement all of its
 functionality itself. It rather depends on services of exec devices. For the
 graphical console, it creates an intuition window and initializes the {\tt
   console.device} to run within. For the serial console, i.e. {\tt AUX:}, it
-operates on top of the {\tt serial.device}, but can be made to use any other
+operates on top of the \emph{serial.device}, but can be made to use any other
 interface device with proper mount parameters.
 
 \subsection{CON-Handler Path for Graphical Consoles} \label{sec:conwindowpath}
@@ -12020,7 +12021,7 @@ CON:<left>/<top>/<width>/<height>/<title>[/<options>]
 The {\tt <left>} parameter determines the left edge of the window within
 which the console shall appear; it is measured in pixels. If this parameter
 is not present or negative, intuition is instructed to pick a default. This
-is usually under the cursor position.
+position is usually under the cursor position.
 \smallskip{}
 
 The {\tt <top>} parameter is the top edge of the window, also measured in
@@ -12056,109 +12057,108 @@ terminal; multiple of these parameters may be combined, separated by a
 forwards slash (``{\tt /}'') from each other:
 \smallskip{}
 
-{\tt CLOSE} adds a close gadget to the window. Pressing on it creates an
-end-of-file indication on the next attempt to read data from the console,
-similar to the key combination Ctrl+\textbackslash{}.
+{\tt CLOSE}\mkey{CLOSE} adds a close gadget to the window. Pressing on it creates an
+end-of-file indication, similar to the key combination Ctrl+\textbackslash{}.
 \smallskip{}
 
-{\tt NOCLOSE} is the negative form of the above option and removes a
+{\tt NOCLOSE}\mkey{NOCLOSE} is the negative form of the above option and removes a
 potentially added close gadget from the window.
 \smallskip{}
 
-{\tt AUTO} delays opening the window to the point where an attempt is made
-to read data from the console or write data into the console.  Up to that
+{\tt AUTO}\mkey{AUTO} delays opening the window to the point where an attempt is made
+to read data from the console or write data to the console.  Up to that
 point the console remains closed. If neither read requests nor write
 requests are pending, the close gadget will also close the window without
 queuing an end-of-file; the window will pop-open again as soon as input or
-output requests appear. Unfortunately, an {\tt ACTION\_DISK\_INFO} will
+output requests are made. Unfortunately, an {\tt ACTION\_DISK\_INFO} will
 lock the window open, see section~\ref{sec:diskinfoconsole} for alternatives
 to this packet or how to regain the {\tt AUTO} feature.
 \smallskip{}
 
-{\tt WAIT} delays closing the window after every file handle to the console
+{\tt WAIT}\mkey{WAIT} delays closing the window after every file handle to the console
 has been closed. With this flag, the window stays open until the close
 gadget has been pressed, even if no client is connected to the terminal
 anymore to receive input or perform output.
 \smallskip{}
 
-{\tt SMART} enforces smart refresh of the window. If this is enabled, more
+{\tt SMART}\mkey{SMART} enforces smart refresh of the window. If this is enabled, more
 RAM is required, but it is not necessary to re-render the contents of the
-console window if it is made visible behind another window.  In most cases,
+console window if it is made visible behind another window. In most cases,
 this makes little difference and only increases the RAM footprint.
 \smallskip{}
 
-{\tt SIMPLE} enforces simple refresh of the window. If hidden window
+{\tt SIMPLE}\mkey{SIMPLE} enforces simple refresh of the window. If hidden window
 contents are made visible again they will be reprinted. This does usually
 not cost a lot of time, saves RAM and is also the default.
 \smallskip{}
 
-{\tt INACTIVE} prevents that the window is receiving automatically the input
-focus when it is opened. The user has to click into it to type in the
-console.
+{\tt INACTIVE}\mkey{INACTIVE} prevents that the window is receiving
+automatically the input focus when it is opened. The user has to click into
+it to type in the console.
 \smallskip{}
 
-{\tt BACKDROP} instructs intuition to place the window behind all other
-windows on a screen. This works best in conjuction with {\tt NOBORDER}, an
-empty window title, the {\tt NOSIZE}, {\tt NODRAG} and {\tt NODEPTH} option
+{\tt BACKDROP}\mkey{BACKDROP} instructs intuition to place the window behind all other
+windows on a screen. This works best in conjuction with {\tt NOBORDER}\key{NOBORDER}, an
+empty window title, the {\tt NOSIZE}\key{NOSIZE}, {\tt NODRAG}\key{NODRAG} and {\tt NODEPTH}\key{NODEPTH} option
 and a console redirected to a public screen. If the window is made as large
 as the screen, the result will create a full-screen console.
 \smallskip{}
 
-{\tt NOBORDER} removes the window decorations; if a title is present, the
+{\tt NOBORDER}\mkey{NOBORDER} removes the window decorations; if a title is present, the
 drag bar will still appear. Thus, this option is ideally combined with an
 empty title string.
 \smallskip{}
 
-{\tt NOSIZE} removes the size gadget of the console on the top right edge of
-the window and thus creates a fixed-size window.
+{\tt NOSIZE}\mkey{NOSIZE} removes the size gadget of the console on the top
+right edge of the window and thus creates a fixed-size window.
 \smallskip{}
 
-{\tt NODRAG} removes the dragbar at the top of the window and makes the
-window non-movable. A potential application is to create a non-movable
-console as screen background.
+{\tt NODRAG}\mkey{NODRAG} removes the dragbar at the top of the window and
+makes the window non-movable. A potential application is to create a
+non-movable console as screen background.
 \smallskip{}
 
-{\tt WINDOW} instructs the console to hijack an already open window and
-place the console within this window. This window will also be closed if the
-console closes. The address of the {\tt Window} structure is provided in
-hexadecimal behind the parameter, optionally separated by spaces, e.g. {\tt
-  WINDOW~200AFC0}. An optional ``0x'' string may appear upfront the
-hexadecimal window address to indicate the base. This parameter replaces a
-legacy startup mechanism by which the console could also be placed into an
-already opened window.
+{\tt WINDOW}\mkey{WINDOW} instructs the console to hijack an already open
+window and place the console within this window. This window will also be
+closed if the console closes. The address of the {\tt Window} structure is
+provided in hexadecimal behind the parameter, optionally separated by
+spaces, e.g. {\tt WINDOW~200AFC0}. An optional ``0x'' string may appear
+upfront the hexadecimal window address. This parameter replaces a legacy
+startup mechanism by which the console could also be placed into an already
+opened window.
 \smallskip{}
 
-{\tt SCREEN} provides a name of a public screen on which the console shall
-appear instead of the workbench. The public screen name follows, optionally
-separated by spaces, e.g. {\tt SCREEN~myProgram.1}. If the screen name is
-{\tt *}, then the frontmost public screen will be used as host for the
-console.
+{\tt SCREEN}\mkey{SCREEN} provides a name of a public screen on which the
+console shall appear instead of the workbench. The public screen name
+follows, optionally separated by spaces, e.g. {\tt SCREEN~myProgram.1}. If
+the screen name is {\tt *}, then the frontmost public screen will be used as
+host for the console.
 \smallskip{}
 
-{\tt ALT} provides alternative window dimensions and placement to which the
-window can be toggled by the top-left zoom gadget of the window. The
-alternative window placement provides left edge, top edge, width and height,
-similar to the main window placement, though numerical arguments are
-separated by comma (``{\tt ,}'') and not by the forwards slash. This
+{\tt ALT}\mkey{ALT} provides alternative window dimensions and placement to
+which the window can be toggled by the top-left zoom gadget of the
+window. The alternative window placement provides left edge, top edge, width
+and height, similar to the main window placement, though numerical arguments
+are separated by comma (``{\tt ,}'') and not by the forwards slash. This
 alternate placement shall follow directly behind the {\tt ALT} keyword,
 e.g. {\tt ALT 0,0,320,200}.
 \smallskip{}
 
-{\tt ICONIFY} equips the window with an iconfication gadget. This requires
-the {\tt ConCip} program running in order to have an icon available for the
-console. If the iconification gadget is pressed, this icon will appear on
-the workbench, and the window will disappear. The window will be forced open
-when a incoming read or write request requires a window to read from or
-write data into. Similar to the {\tt AUTO} option, windows will loose the
-ability to become iconified if a program requests the window pointer through
-{\tt ACTION\_DISK\_INFO}, see again section~\ref{sec:diskinfoconsole} for
-details.
+{\tt ICONIFY}\mkey{ICONIFY} equips the window with an iconfication
+gadget. This requires the {\tt ConCip} program running in order to have an
+icon available for the console. If the iconification gadget is pressed, this
+icon will appear on the workbench, and the window will disappear. The window
+will be forced open when a incoming read or write request requires a window
+to read from or write data into. Similar to the {\tt AUTO}\key{AUTO} option,
+windows will loose the ability to become iconified if a program requests the
+window pointer through {\tt ACTION\_DISK\_INFO}\key{ACTION\_DISK\_INFO}, see
+again section~\ref{sec:diskinfoconsole} for details.
 
 \subsection{CON-Handler Path for Serial Consoles}
 
-If the console is a serial console, e.g. mounted as {\tt AUX:} handler,
+If the console is a serial console, e.g. mounted as AUX-Handler\mkey{AUX-Handler},
 another set of parameters becomes available that configures the serial
-connection; if the console is run on any other than the {\tt serial.device}
+connection; if the console is run on any other than the \emph{serial.device}
 through mount parameters, this device shall support the
 {\tt SDCMD\_SETPARAMS} command through which these path parameters are
 installed.
@@ -12168,7 +12168,7 @@ AUX:<baud>/<control>[/<options>]
 \end{verbatim}
 
 {\tt baud} defines the baud rate of the serial console, e.g. {\tt 9600}. If
-this parameter is not provided, it is taken from the {\tt BAUD} mount
+this parameter is not provided, it is taken from the {\tt BAUD}\key{BAUD} mount
 option, and if that is not provided, the settings come from the serial
 preferences.
 \smallskip{}
@@ -12183,33 +12183,33 @@ digit ``{\tt 0}'', ``{\tt 1}'' or ``{\tt 2}''. A rather typical setting is
 {\tt 8N1}, i.e. 8 data bits, no parity, one stop bit. This is also the
 configuration within which the performance of the {\tt serial.device} is
 optimal. If this parameter is not present, it is taken (with identical
-encoding) from the {\tt CONTROL} parameter of the mount list, and if it is
-not present there, from the serial preferences editor.
+encoding) from the {\tt CONTROL}\key{CONTROL} parameter of the mountlist\key{Mountlist},
+and if it is not present there, from the serial preferences editor.
 \medskip{}
 
 As for the graphical console, several optional parameters follow:
 \smallskip{}
 
-{\tt RAW} forces the console into the (non-cooked) raw mode within which
+{\tt RAW}\mkey{RAW} forces the console into the (non-cooked) raw mode within which
 input characters are not echoed and no line buffering takes place. The same
 can be reached with the mount parameter {\tt STARTUP=1}.
 \smallskip{}
 
-{\tt UNIT} defines the unit of the device over which the connection shall be
+{\tt UNIT}\mkey{UNIT} defines the unit of the device over which the connection shall be
 made if multiple units exist. The unit follows the keyword as decimal
 number, optionally separated by spaces, e.g. {\tt UNIT 1}. The unit can
 also be configured through the mount list {\tt UNIT} keyword.
 \smallskip{}
 
-{\tt AUTO} indicates that the serial connection shall not be opened
+{\tt AUTO}\key{AUTO} indicates that the serial connection shall not be opened
 immediately, but only after the first attempt is made to write data through
 it or to read data from it. This works similar to the {\tt AUTO} keyword for
 the graphical console.
 \smallskip{}
 
-{\tt WAIT} indicates that the serial connection stays open even after every
+{\tt WAIT}\key{WAIT} indicates that the serial connection stays open even after every
 file handle to the console was closed. To shut down the serial connection,
-an ASCII {\tt FS} character = Hex {\tt 0x1c} shall be send by the user. This
+an ASCII {\tt FS} character = Hex {\tt 0x1c} need to be send by the user. This
 character is created on the Amiga keyboard with Ctrl+\textbackslash{}. This
 also mirrors the {\tt WAIT} keyword of the graphical console.
 
@@ -12225,11 +12225,11 @@ of a {\tt RAW:} handler from an {\tt AUX:} connection.
 \smallskip{}
 
 The buffer mode~0 corresponds to a regular {\tt CON:} window and also to the
-{\tt AUX:} console. In this so called \emph{cooked mode}, the console echoes
-every keystroke on the window, and provides line editing functionalities
-such as cursor movements. Only when the user presses {\tt RETURN}, an entire
-line of data enters the output buffer, and there becomes available for an
-{\tt ACTION\_READ}.
+{\tt AUX:} console. In this so called \emph{cooked mode}\mkey{Cooked Mode},
+the console echoes every keystroke on the window, and provides line editing
+functionalities such as cursor movements. Only when the user presses {\tt
+  RETURN}, an entire line of data enters the output buffer, and there
+becomes available for an {\tt ACTION\_READ}\key{ACTION\_READ}.
 \smallskip{}
 
 One particular difference between the V47 console and previous versions its
@@ -12279,32 +12279,33 @@ Del               & Delete character under cursor \\ \hline
 \end{longtable}
 \end{rkrmtabular}
 As seen in the table, some keystrokes operate differently in the medium
-mode; in that mode, they request a particular function from the shell by
+mode\key{Medium Mode}; in that mode, they request a particular function from the shell by
 sending a ``TAB Report'' CSI sequence.
 \smallskip{}
 
-The ``yank buffer'' keeps characters that have been cut out with Ctrl+k. Its
+The \emph{yank buffer}\mkey{Yank Buffer} keeps characters that have been cut out with Ctrl+k. Its
 contents can be reinserted into the console with Ctrl+y. It operates
 independently of the clipboard and is local to each console window.
 \medskip{}
 
 The buffer mode~1 corresponds to a {\tt RAW:} window and is denoted the
-\emph{raw mode}. In this mode, every keystroke becomes available to client
+\emph{raw mode}\mkey{Raw Mode}. In this mode, every keystroke becomes available to client
 programs as it enters the output buffer immediately. Cursor movements thus
 become available as CSI sequences. In this mode, the console does not echo
-user input. The CSI sequences are those defined by the {\tt console.device},
+user input. The CSI sequences are those defined by the \emph{console.device},
 resp. the current keymap of the device.
 \medskip{}
 
 The buffer mode~2 is not available under a device name, even though one
-could in principle create a suitable mount list for it. The mode is reserved
-for the shell and forewards TAB-Expansion and history functions to the
-shell. While the console again provides line editing features and echoes
-most keys on the screen, some keyboard sequences create immediate output
-through a ``TAB Report'' CSI sequence that enters the output buffer
-immediately. These sequences are interpreted by the Shell and trigger there
-corresponding functions, such as expanding a pattern or working through the
-command history. A TAB Report sequence looks as follows:
+could in principle create a suitable mountlist\key{Mountlist} for it. It is called the
+\emph{medium mode}\mkey{Medium Mode}. The mode is reserved for the shell and
+forewards TAB-Expansion and history functions to the shell. While the
+console again provides line editing features and echoes most keys on the
+screen, some keyboard sequences create immediate output through a ``TAB
+Report'' CSI sequence that enters the output buffer immediately. These
+sequences are interpreted by the Shell and trigger there corresponding
+functions, such as expanding a pattern or working through the command
+history. A TAB Report sequence looks as follows:
 
 \begin{verbatim}
 CSI <m>;<s>;<c>U <line>
@@ -12315,7 +12316,8 @@ byte value {\tt 0x9b}. The {\tt <m>} value is a decimal number that
 identifies the keystroke and also the function the Shell is requested to
 perform. Such functions browse in the history or expand a file name
 pattern. The Shell re-inserts the result of such a function back into the
-console with an {\tt ACTION\_FORCE} packet, see section~\ref{sec:actionforce}.
+console with an {\tt ACTION\_FORCE}\key{ACTION\_FORCE} packet, see
+section~\ref{sec:actionforce}.
 \smallskip{}
 
 The parameters {\tt <s>} and {\tt <c>} provide the length of the current
@@ -12362,7 +12364,7 @@ console described in the previous section.
 \smallskip{}
 
 The mount parameters for {\tt CON:} and {\tt RAW:} are hard-coded into the
-Kickstart ROM, though the mountlist for {\tt AUX:} is available in the {\tt
+Kickstart ROM, though the mountlist\key{Mountlist} for {\tt AUX:} is available in the {\tt
   DEVS:DosDrivers} directory and can be altered there; however, users can
 create custom mount lists for additional devices with custom mount
 parameters.
@@ -12371,7 +12373,7 @@ parameters.
 The handler startup mechanism is described in
 section~\ref{sec:handlerstartup}, and in particular, {\tt dp\_Arg2} of the
 startup packet is a copy of the {\tt dol\_Startup} entry of the {\tt
-  DosList} created from the mount list; details on this mechanism are
+  DosList}\key{DosList} created from the mount list; details on this mechanism are
 described in section~\ref{sec:filesysstartup}.
 \smallskip{}
 
@@ -12408,17 +12410,20 @@ it. A better mechanism to redirect a console to a particular window is the
 section~\ref{sec:conwindowpath}.
 \smallskip{}
 
-In all other cases, {\tt dol\_Startup} is a BPTR to a {\tt FileSysStartupMsg} described
-in more detail in section~\ref{sec:filesysstartup}. The {\tt fssm\_Device}
-and {\tt fssm\_Unit} elements of this structure provide a device and
-unit the console shall run on. The {\tt AUX:} handler uses this mechanism to
-create a {\tt FileSysStartupMsg} to the CON-Handler\key{CON-Handler} which points to the {\tt
-  serial.device} unit~$0$, but also accepts custom mount parameters to mount
-it on other devices through the {\tt EHandler} mount parameter. The
-{\tt Device} parameter of the mount list is then extracted, and forwarded to
-the CON-Handler\key{CON-Handler} through a startup packet. Thus, a console can be generated on
-either type of device provided it supports {\tt CMD\_WRITE} to write data out
-and {\tt CMD\_READ} to receive keystrokes.
+In all other cases, {\tt dol\_Startup}\key{dol\_Startup} is a BPTR to a {\tt
+  FileSysStartupMsg}\key{FileSysStartupMsg} described in more detail in
+section~\ref{sec:filesysstartup}. The {\tt fssm\_Device}\key{fssm\_Device}
+and {\tt fssm\_Unit}\key{fssm\_Unit} elements of this structure provide a
+device and unit the console shall run on. The {\tt AUX:} handler uses this
+mechanism to create a {\tt FileSysStartupMsg} to the
+CON-Handler\key{CON-Handler} which points to the \emph{serial.device}
+unit~$0$, but also accepts custom mount parameters to mount it on other
+devices through the {\tt EHANDLER}\key{EHANDLER} mount parameter. The {\tt
+  DEVICE}\key{DEVICE} parameter of the mount list is then extracted, and
+forwarded to the CON-Handler\key{CON-Handler} through a startup
+packet. Thus, a console can be generated on either type of device provided
+it supports {\tt CMD\_WRITE} to write data out and {\tt CMD\_READ} to
+receive keystrokes.
 \smallskip{}
 
 As BPTRs are upshifted by two bits to gain a regular pointer, the otherwise
@@ -12427,10 +12432,10 @@ console will be a cooked console with line buffer, and if this bit is~0, the
 console is raw.
 \smallskip{}
 
-To make the {\tt Mount} command create a {\tt DosList} corresponding to the
-latter case, the CON-Handler needs to be mounted as {\tt EHANDLER}. The
-following is an example mountlist providing a serial console on a custom
-serial hardware:
+To make the {\tt Mount} command create a {\tt DosList}\key{DosList}
+corresponding to the latter case, the CON-Handler needs to be mounted as
+{\tt EHANDLER}\key{EHANDLER}. The following is an example mountlist\key{Mountlist}
+providing a serial console on a custom serial hardware:
 
 \begin{verbatim}
 EHandler = CON-Handler
@@ -12440,18 +12445,20 @@ Baud     = 9600
 Control  = "8N1"
 \end{verbatim}
 
-The very same mountlist can be used with the AUX-Handler\key{AUX-Handler}; if it is mounted
-as an extended handler, it will just take its mount parameters and forwards
-them to the CON-Handler\key{CON-Handler}. If mounted with the (regular) {\tt HANDLER} keyword
-in the mountlist, it will create a {\tt FileSysStartupMsg} corresponding to
-the {\tt serial.device} and provide this to the CON-Handler\key{CON-Handler}. The AUX-Handler\key{AUX-Handler}
-is therefore rather minimal.
+The very same mountlist\key{Mountlist} can be used with the AUX-Handler\key{AUX-Handler};
+if it is mounted as an extended handler, it will just take its mount
+parameters and forwards them to the CON-Handler\key{CON-Handler}. If mounted
+with the (regular) {\tt HANDLER}\key{HANDLER} keyword in the mountlist\key{Mountlist}, it
+will create a {\tt FileSysStartupMsg}\key{FileSysStartupMsg} corresponding
+to the \emph{serial.device} and provide this to the
+CON-Handler\key{CON-Handler}. The AUX-Handler\key{AUX-Handler} is therefore
+rather minimal.
 
 \section{The Port-Handler}
 
-The Port-Handler is responsible for the {\tt PAR:}, {\tt SER:} and {\tt
-  PRT:} devices and thus represents the Amiga hardware interfaces as
-AmigaDOS devices. Clearly, {\tt PAR:} interfaces to the {\tt
+The Port-Handler\mkey{Port-Handler} is responsible for the {\tt PAR:}, {\tt
+  SER:} and {\tt PRT:} devices and thus represents the Amiga hardware
+interfaces as AmigaDOS devices. Clearly, {\tt PAR:} interfaces to the {\tt
   parallel.device}, {\tt PRT:} to the {\tt printer.device} and {\tt SER:} to
 the {\tt serial.device}. The difference between {\tt SER:} and {\tt AUX:} is
 that the former processes raw streams of bytes transmitted over a serial
@@ -12471,7 +12478,7 @@ The following keywords in {\tt options} exist, where options are
 separated by a forwards slash (''{\tt /}'') from each other.
 \smallskip{}
 
-{\tt BAUD} sets the baud rate, which is only relevant for serial
+{\tt BAUD}\key{BAUD} sets the baud rate, which is only relevant for serial
 connections. It specifies the number of bits per second transmitted over a
 serial connection. If this parameter is not present, the default from the
 serial preferences is used. Optionally, this parameter may be introduced
@@ -12502,30 +12509,30 @@ used. Obviously, this parameter is only used by {\tt SER:} and ignored
 otherwise.
 \medskip{}
 
-{\tt TRANSPARENT} is a boolean switch that, if present, indicates that CSI
-sequences written over this device shall not be translated to the configured
-printer, but shall rather be send directly to the printer. By default, the
-{\tt PRT:} device uses the AmigaDOS defined CSI sequences that are device
-independent. This option is only used by the {\tt PRT:} device and ignored
-otherwise.
+{\tt TRANSPARENT}\mkey{TRANSPARENT} is a boolean switch that, if present,
+indicates that CSI sequences written over this device shall not be
+translated to the configured printer, but shall rather be send directly to
+the printer. By default, the {\tt PRT:} device uses the AmigaDOS defined CSI
+sequences that are device independent. This option is only used by the {\tt
+  PRT:} device and ignored otherwise.
 \smallskip{}
 
-{\tt RAW} is a boolean switch that, if present, disables translation of the
-AmigaDOS newline-character {\tt 0x0a} to {\tt 0x0a 0x0c} pairs, i.e. a line
-feed followed by carriage return. This switch only applies to the {\tt PRT:}
-device and is not used otherwise.
+{\tt RAW}\mkey{RAW} is a boolean switch that, if present, disables
+translation of the AmigaDOS newline-character {\tt 0x0a} to {\tt 0x0a 0x0c}
+pairs, i.e. a line feed followed by carriage return. This switch only
+applies to the {\tt PRT:} device and is not used otherwise.
 \smallskip{}
 
-{\tt UNIT} takes a numeric argument and provides the device unit that will
+{\tt UNIT}\key{UNIT} takes a numeric argument and provides the device unit that will
 be opened. This makes most sense if the Port-Handler is not mounted on the
 standard exec devices, but a custom device is provided through the {\tt
-  DEVICE} keyword of a custom mountlist. The unit number is represented as
+  DEVICE}\key{DEVICE} keyword of a custom mountlist\key{Mountlist}. The unit number is represented as
 decimal number separated from the keyword by spaces or an equals-sign,
 e.g. {\tt UNIT 1}. This option is operational regardless of the underlying
 device.
 \smallskip{}
 
-{\tt NOWAIT} is boolean switch that, if present, avoids blocking when
+{\tt NOWAIT}\key{NOWAIT} is boolean switch that, if present, avoids blocking when
 reading from a serial connection. If no data is available at the serial
 port, a connection configured with {\tt NOWAIT} will report an end-of-file
 condition. Otherwise, such a stream would block until data is
@@ -12539,10 +12546,10 @@ or input data is available on the port.
 
 \subsection{Port-Handler Startup}
 
-The Port-Handler is also configurable through a mountlist, though mount
-parameters for {\tt PAR:}, {\tt SER:} and {\tt PRT:} are hard-coded within
-the Kickstart ROM. However, users may create custom mountlists and mount the
-handler under a custom name.
+The Port-Handler\key{Port-Handler} is also configurable through a mountlist\key{Mountlist},
+though mount parameters for {\tt PAR:}, {\tt SER:} and {\tt PRT:} are
+hard-coded within the Kickstart ROM. However, users may create custom
+mountlist\key{Mountlist}s and mount the handler under a custom name.
 \smallskip{}
 
 As for all handlers, it is customized through {\tt dol\_Startup},
@@ -12560,20 +12567,22 @@ BPTR & serial output with parameters from the FileSysStartupMsg
 
 The values~0 to~2 represent the standard handlers {\tt SER:}, {\tt PAR:} and
 {\tt PRT:} mounted by the kickstart. They can be recreated by a {\tt
-  STARTUP=<n>} entry in a mountlist. For these options, the standard Amiga
+  STARTUP=<n>} entry in a mountlist\key{Mountlist}. For these options, the standard Amiga
 device names for the serial, parallel and printer interface is used.
 \smallskip{}
 
 The last option allows to customize the target exec device to run on. In
-this case, {\tt dol\_Startup} is a BPTR to a {\tt FileSysStartupMsg}
-described in section~\ref{sec:filesysstartup}. To make the {\tt Mount}
-command create a suitable {\tt DosList} entry, {\tt EHANDLER} keyword is
-used, and a {\tt DEVICE} and {\tt UNIT} option can be provided. If the
-mountlist includes in addition a {\tt BAUD} value, that is used as default
-value for the baud rate, which can be overridden by the Port-Handler path
-described in the previous section. The {\tt CONTROL} parameter in the
-mountlist, if present, also control sthe serial settings. An example
-mountlist would look as follows:
+this case, {\tt dol\_Startup}\key{dol\_Startup} is a BPTR to a {\tt
+  FileSysStartupMsg}\key{FilesysStartupMsg} described in
+section~\ref{sec:filesysstartup}. To make the {\tt Mount} command create a
+suitable {\tt DosList}\key{DosList} entry, {\tt EHANDLER}\key{EHANDLER}
+keyword is used, and a {\tt DEVICE}\key{DEVICE} and {\tt UNIT}\key{UNIT}
+option can be provided. If the mountlist\key{Mountlist} includes in addition a {\tt
+  BAUD}\key{BAUD} value, that is used as default value for the baud rate,
+which can be overridden by the Port-Handler path described in the previous
+section. The {\tt CONTROL}\key{CONTROL} parameter in the mountlist\key{Mountlist}, if
+present, also control sthe serial settings. An example mountlist\key{Mountlist} would look
+as follows:
 
 \begin{verbatim}
 EHandler = Port-Handler
@@ -12585,7 +12594,7 @@ Control  = "8N1"
 
 \section{The Queue-Handler}
 
-The Queue-Handler provides inter-process communication on the basis of
+The Queue-Handler\mkey{Queue-Handler} provides inter-process communication on the basis of
 AmigaDOS file handles. It is used by the Shell to implement pipes; they
 collect the output of one command and provide it as input to another,
 without requiring to store the entire output. The reading end of a pipe
@@ -12605,9 +12614,11 @@ Pipes are created and identified by a unique name; reading and writing ends
 of the same name are connected together. The name itself does not matter as
 long as it uniquely identifies the pipe; the Shell constructs a pipe name
 from the process indicator and a second unique number that is incremented
-for each pipe used. The packet {\tt ACTION\_FINDINPUT} opens the reading
-end, and {\tt ACTION\_FINDOUTPUT} the writing end. The third open mode, {\tt
-  ACTION\_FINDUPDATE} is not supported.
+for each pipe used. The packet {\tt
+  ACTION\_FINDINPUT}\key{ACTION\_FINDINPUT} opens the reading end, and {\tt
+  ACTION\_FINDOUTPUT}\key{ACTION\_FINDOUTPUT} the writing end. The third
+open mode, {\tt ACTION\_FINDUPDATE}\key{ACTION\_FINDUPDATE} is not
+supported.
 \smallskip{}
 
 The empty name establishes a special case. It identifies a pipe that is
@@ -12650,24 +12661,27 @@ default buffer count is~8, i.e. at most 8K of data can be waiting in a pipe.
 
 \subsection{Queue-Handler Startup}
 
-The Queue-Handler can also be configured through its startup packet. For
-this, {\tt dol\_Startup} in its {\tt DosList} entry shall be a BPTR to a
-{\tt FileSysStartupMsg} as specified in section~\ref{sec:filesysstartup}.
-The device and unit found there are irrelevant, though the environment
-vector in {\tt fssm\_Environ} discussed in section~\ref{sec:envec} contains
-some relevant entries.
+The Queue-Handler\key{Queue-Handler} can also be configured through its
+startup packet. For this, {\tt dol\_Startup}\key{dol\_Startup} in its {\tt
+  DosList}\key{DosList} entry shall be a BPTR to a {\tt
+  FileSysStartupMsg}\key{FileSysStartupMsg} as specified in
+section~\ref{sec:filesysstartup}. The device and unit found there are
+irrelevant, though the environment vector in
+{\tt fssm\_Environ}\key{fssm\_Environ} discussed in section~\ref{sec:envec}
+contains some relevant entries.
 \smallskip{}
 
-{\tt de\_SizeBlock} set the size of the Quantum, and thus corresponds to the
-default of the first optional argument in the path.
+{\tt de\_SizeBlock}\key{de\_SizeBlock} set the size of the Quantum, and thus
+corresponds to the default of the first optional argument in the path.
 \smallskip{}
 
-{\tt de\_NumBuffers} sets the number of such buffers for each pipe and
-corresponds to the default of the second optional argument of the path.
+{\tt de\_NumBuffers}\key{de\_NumBuffers} sets the number of such buffers for
+each pipe and corresponds to the default of the second optional argument of
+the path.
 \smallskip{}
 
 The Kickstart ROM does not provide a startup value and thus mounts the Queue
-handler with its defaults parameters. However, within a custom mountlist,
+handler with its defaults parameters. However, within a custom mountlist\key{Mountlist},
 they can be provided as follows:
 
 \begin{verbatim}
@@ -12676,19 +12690,19 @@ BlockSize       = 1024
 Buffers         = 8
 \end{verbatim}
 
-The {\tt BlockSize} keyword sets the quantum size, and the {\tt Buffers}
-keyword the number of quantum buffers.
+The {\tt BLOCKSIZE}\mkey{BLOCKSIZE} keyword sets the quantum size, and the
+{\tt BUFFERS}\key{BUFFERS} keyword the number of quantum buffers.
 
 \section{The RAM-Handler}
 
-The RAM-Handler is a ROM-based file system that places its data in available
-RAM of the system. It implements almost all of the file system packets
-listed in sections~\ref{sec:fileactions} and following, with the exception
-of record locking. The RAM-Handler provides one extended feature, namely
-external links, also explaned in section~\ref{sec:links}. Such a link points
-to a target outside of the RAM disk; while such objects are initially empty,
-their contents will be made accessible by copying the objects within the
-link target to the RAM disk.
+The RAM-Handler\mkey{RAM-Handler} is a ROM-based file system that places its
+data in available RAM of the system. It implements almost all of the file
+system packets listed in sections~\ref{sec:fileactions} and following, with
+the exception of record locking. The RAM-Handler provides one extended
+feature, namely external links, also explaned in
+section~\ref{sec:links}. Such a link points to a target outside of the RAM
+disk; while such objects are initially empty, their contents will be made
+accessible by copying the objects within the link target to the RAM disk.
 \smallskip{}
 
 This feature is used within AmigaDOS to realize the {\tt ENV:} assign which
@@ -12701,12 +12715,12 @@ cannot be configured through it.
 
 \section{The Fast File System} \label{sec:ffs}
 
-The Fast File System (FFS) is the standard Amiga file system and as such
-included in the ROM. However, the bootstrap code of Amiga hostadapters are
-typically able to load an updated version of this (and other) file systems
-from the \emph{rigid disk block} of the boot disk and make it available to
-the system. The \emph{System-Startup} module will make such updated version
-then also available for all other devices.
+The Fast File System\mkey{Fast File System (FFS)} (FFS) is the standard Amiga file
+system and as such included in the ROM. However, the bootstrap code of Amiga
+hostadapters are typically able to load an updated version of this (and
+other) file systems from the \emph{rigid disk block} of the boot disk and
+make it available to the system. The \emph{System-Startup} module will make
+such updated version then also available for all other devices.
 \smallskip{}
 
 The same code serves multiple flavours of the file system that differ in the
@@ -12715,36 +12729,37 @@ section~\ref{sec:envec} provides an overview on the available flavours.
 \smallskip{}
 
 As a full hierarchical file system, the FFS supports all file-system
-relevant packets listed from section~\ref{sec:fileactions} onwards;
-packets specific to interactive handlers listed in
-section~\ref{sec:packetsinteractive} are an exception and not
-implemented, and the {\tt ACTION\_SET\_OWNER} packet is neither
-implemented and remains exclusive to to multi-user network file
-systems. The FFS does support record locking, soft- and hard links and
-notification requests. External links remain currently exclusive to
-the RAM-Handler and are neither supported. Latest versions of the FFS
-can also be shut down by {\tt ACTION\_DIE}.
+relevant packets listed from section~\ref{sec:fileactions} onwards; packets
+specific to interactive handlers listed in
+section~\ref{sec:packetsinteractive} are an exception and not implemented,
+and the {\tt ACTION\_SET\_OWNER}\key{ACTION\_SET\_OWNER} packet is neither
+implemented and remains exclusive to to multi-user network file systems. The
+FFS does support record locking, soft- and hard links and notification
+requests. External links remain currently exclusive to the RAM-Handler and
+are neither supported. Latest versions of the FFS can also be shut down by
+{\tt ACTION\_DIE}\key{ACTION\_DIE}.
 
 \subsection{Configuring the FFS}
 
 The FFS is customized through multiple sources. First of all, the {\tt
-  DosList}, the {\tt FileSysStartupMsg} pointed to by this structure, and
-the environment vector in the latter. Section~\ref{sec:mountlist} provides a
-list of the configurable options and the corresponding entries in the
-mountlist.
+  DosList}\key{DosList}, the {\tt FileSysStartupMsg}\key{FileSysStartupMsg}
+pointed to by this structure, and the environment vector in the
+latter. Section~\ref{sec:mountlist} provides a list of the configurable
+options and the corresponding entries in the mountlist\key{Mountlist}.
 \smallskip{}
 
 In some situations, however, the FFS will override the parameters found in
-the above sources, and therefore parameters from the mountlist. In case the
-device name is either ``{\tt trackdisk.device}'' or ``{\tt
-  carddisk.device}'', the FFS will instead request the disk geometry from
-the underlying exec device by a {\tt TD\_GETGEOMETRY} when validating an
-available medium. The same logic can also be enabled for all other devices
-by the mountlist parameter {\tt SUPERFLOPPY}, which corresponds to the
-{ENVF\_SUPERFLOPPY} flag in the {\tt de\_Interleave} element of the
-environment vector. This flag, along with the environment vector is defined
-in the file {\tt dos/filehandler.h} and also introduced in
-section~\ref{sec:envec}.
+the above sources, and therefore parameters from the
+mountlist\key{Mountlist}. In case the device name is either ``{\tt
+  trackdisk.device}'' or ``{\tt carddisk.device}'', the FFS will instead
+request the disk geometry from the underlying exec device by a {\tt
+  TD\_GETGEOMETRY} when validating an available medium. The same logic can
+also be enabled for all other devices by the mountlist\key{Mountlist}
+parameter {\tt SUPERFLOPPY}, which corresponds to the
+{ENVF\_SUPERFLOPPY}\key{ENVF\_SUPERFLOPPY} flag in the {\tt
+  de\_Interleave}\key{de\_Interleave} element of the environment
+vector. This flag, along with the environment vector is defined in the file
+{\tt dos/filehandler.h} and also introduced in section~\ref{sec:envec}.
 \smallskip{}
 
 Upon detecting device parameters, data from the device provided {\tt
@@ -12766,16 +12781,18 @@ void AdjustEnv(struct DosEnvec *env,
 All other entries of the environment vector remain untouched. The
 right-shift for the sector size is necessary because the environment vector
 measures it in long-words rather than bytes as provided by the drive
-geometry, and {\tt dg\_Cylinders} is a count, whereas {\tt de\_HighCyl} is
-an inclusive upper bound. In particular, {\tt dg\_BufMemType} is not copied
-over, and therefore {\tt de\_BufMemType} shall be setup though the mountlist\key{Mountlist}
-or the rigid disk block. Ideally, of course, any memory type should be
-supported and this workaround should not be necessary.
+geometry, and {\tt dg\_Cylinders}\key{dg\_Cylinders} is a count, whereas
+{\tt de\_HighCyl}\key{de\_HighCyl} is an inclusive upper bound. In
+particular, {\tt dg\_BufMemType}\key{dg\_BufMemType} is not copied over, and
+therefore {\tt de\_BufMemType}\key{de\_BufMemType} shall be setup though the
+mountlist\key{Mountlist} or the rigid disk block. Ideally, of course, any
+memory type should be supported and this workaround should not be necessary.
 \smallskip{}
 
 The number of blocks kept in the file system cache is read from {\tt
-  de\_NumBuffers} in the environment vector, but {\tt ACTION\_MORE\_CACHE}\key{ACTION\_MORE\_CACHE}
-can be used to adjust this parameter anytime.
+  de\_NumBuffers}\key{de\_NumBuffers} in the environment vector, but {\tt
+  ACTION\_MORE\_CACHE}\key{ACTION\_MORE\_CACHE} can be used to adjust this
+parameter anytime.
 
 \subsection{The Boot Block}
 
@@ -12790,13 +12807,13 @@ During formatting, the flavour is taken from {\tt dp\_Arg2} of the {\tt
 from table~\ref{table:ffsflavours}, the currently active flavour remains in
 force and is used to initialize the disk structure. If the FFS did not adjust its
 flavour from accessing a previous volume, this remains the value from
-{\tt de\_DosType}.
+{\tt de\_DosType}\key{de\_DosType}.
 \smallskip{}
 
 During disk insertion, or if a volume becomes accessible to the FFS by other
 means such as mounting it or uninhibiting a volume through
 {\tt ACTION\_INHIBIT}\key{ACTION\_INHIBIT}, the FFS reads the flavour from
-the first long-word of the \emph{boot block}, even if this block is placed
+the first long-word of the \emph{boot block}\mkey{Boot Block}, even if this block is placed
 on a hard-disk and not actually used for booting. It is found at sector
 
 \[
@@ -12812,10 +12829,10 @@ is described in mored detail in~\cite{rkrmdev}.
 \subsection{Disk Keys and Sectors}
 
 Except for the boot block, the FFS does not address sectors through their
-physical sector number, but due to their \emph{key}, which addresses data on
-disk relative to the start of the partition in blocks, and not sectors. The
-relation between the physical sector~$S$ and the key~$K$ is given by the following
-equation:
+physical sector number, but due to their \emph{key}\mkey{Key (FFS)}, which
+addresses data on disk relative to the start of the partition in blocks, and
+not sectors. The relation between the physical sector~$S$ and the key~$K$ is
+given by the following equation:
 
 \[
 S = \mbox{\tt de\_LowCyl} \times \mbox{\tt de\_Surfaces} \times
@@ -12824,9 +12841,9 @@ S = \mbox{\tt de\_LowCyl} \times \mbox{\tt de\_Surfaces} \times
 \]
 
 In particular, the boot block has therefore the key~0. The sector number is
-used directly for the ``direct SCSI'' transfer which is enabled by the {\tt
-  ENVF\_SCSIDIRECT} flag in the {\tt de\_Interleave} element of the
-environment vector.
+used directly for the ``direct SCSI'' transfer which is enabled by the
+{\tt ENVF\_SCSIDIRECT}\key{ENVF\_SCSIDIRECT} flag in the {\tt
+  de\_Interleave}\key{de\_Interleave} element of the environment vector.
 \smallskip{}
 
 For the default trackdisk-like transfer, exec device drivers expect a byte
@@ -12835,29 +12852,31 @@ $\mbox{\tt de\_SizeBlock} \times 4$. The additional factor of~4 is because
 {\tt de\_SizeBlock} is in units of long-words and not a byte count.
 \smallskip{}
 
-Even though {\tt de\_SizeBlock} and {\tt de\_SectorPerBlock} could be any
-number, the FFS, and likely many other file systems, only accept powers of
-two here. Thus, any multiplication or division by these numbers are easily
+Even though {\tt de\_SizeBlock}\key{de\_SizeBlock} and {\tt
+  de\_SectorsPerBlock}\key{de\_SectorsPerBlock} could be any number, the
+FFS, and likely many other file systems, only accept powers of two
+here. Thus, any multiplication or division by these numbers are easily
 implementable as shifts.
 
 \subsection{The Root Block} \label{sec:rootblock}
 
-The Root Block represents the root directory of a volume and contains the
-creation date and the volume name. It is placed in the middle of the volume
-at key
+The Root Block\mkey{Root Block} represents the root directory of a volume
+and contains the creation date and the volume name. It is placed in the
+middle of the volume at key
 
 \[
 \left\lfloor \frac{\mbox{\tt de\_Reserved} + 
 \left\lfloor \frac{(\mbox{\tt \small de\_HighCyl} - \mbox{\tt \small de\_LowCyl} +
   1) \times \mbox{\tt \small de\_Surfaces} \times
-        \mbox{\tt de\_BlocksPerTrack}}{\mbox{\tt de\_SectorPerBlock}}\right\rfloor - 1}{2} \right\rfloor
+        \mbox{\tt de\_BlocksPerTrack}}{\mbox{\tt de\_SectorsPerBlock}}\right\rfloor - 1}{2} \right\rfloor
 \]
 
 Note that the element name {\tt de\_BlocksPerTrack} is actually misleading
 as this the size of a track in (physical) sectors and not in (logical)
-blocks or keys. The division by {\tt de\_SectorPerBlock} computes from the
-sector index a key. The brackets $\lfloor \cdot \rfloor$ indiciate rounding
-down to the next integer.
+blocks or keys. The division by
+{\tt de\_SectorsPerBlock}\key{de\_SectorsPerBlock} computes from the sector
+index a key. The brackets $\lfloor \cdot \rfloor$ indiciate rounding down to
+the next integer.
 \smallskip{}
 
 The structure of the root block is as follows:
@@ -12865,7 +12884,7 @@ The structure of the root block is as follows:
 \begin{rkrmtabular}{FFS Root Block} \label{table:rootblock}
 \begin{longtable}{|l|l|l|} \hline
 {\bf Long-word Offset} & {\bf Content} & {\bf Notes} \\ \hline \hline
-0          & \tt Type    & shall be 2, this is the BCPL constant T.SHORT \\ \hline
+0          & \tt Type    & shall be 2, this is the BCPL constant T.SHORT\mkey{T.SHORT} \\ \hline
 1          & \tt 0       & header key, always 0 in root \\ \hline
 2          & \tt 0       & highest sequence number, always 0 in root \\ \hline
 3          & \tt HTSize  & entries in the hash table = Block size - 56 \\ \hline
@@ -12893,7 +12912,7 @@ L-5        & \tt Ticks   & \\ \hline
 L-4        & \tt 0       & reserved for future use \\ \hline
 L-3        & \tt 0       & reserved for future use \\ \hline
 L-2        & \tt DCache  & key of directory cache block if used \\ \hline
-L-1        & \tt SecType & shall be 1, this is the BPCL constant ST.ROOT \\ \hline
+L-1        & \tt SecType & shall be 1, this is the BPCL constant ST.ROOT\mkey{ST.ROOT} \\ \hline
 \end{longtable}
 \end{rkrmtabular}
 
@@ -12903,7 +12922,7 @@ placed relative to the end of the block. Such element are indicated in the
 above table as $L-x$ where $L$ is the block size in long works, i.e.
 
 \[
-L = \mbox{\tt de\_SizeBlock} \times \mbox{\tt de\_SectorPerBlock}
+L = \mbox{\tt de\_SizeBlock} \times \mbox{\tt de\_SectorsPerBlock}
 \]
 
 Dashed table boundaries indicate that the corresponding element
@@ -12912,23 +12931,23 @@ is a variably sized number of long-words large, it always extends over
 $L-56$ longs.
 \medskip{}
 
-The block type is indicated by {\tt Type} and {\tt SecType}. For the root
+The block type is indicated by {\tt Type}\mkey{Type (FFS)} and {\tt SecType}\mkey{SecType}. For the root
 block, these elements shall be $2$ and $1$, respectively.
 \smallskip{}
 
-{\tt HTSize} is the number of hash keys stored in the root block. The FFS
+{\tt HTSize}\mkey{HTSize} is the number of hash keys stored in the root block. The FFS
 stores in the root block $L-56$ hash keys, from offset $6$ to $L-51$.
 \smallskip{}
 
-{\tt Chksum} is a checksum over the block. Its value is chosen such that the
+{\tt Chksum}\mkey{Chksum} is a checksum over the block. Its value is chosen such that the
 long-word sum over all long-words, including the checksum, is zero.
 \smallskip{}
 
-{\tt Hash} stores the hash-chain of all objects in the root directory. The
-FFS computes for each file system object a \emph{hash key} that is derived
-from its name. As multiple objects can have the same hash and thus hash
-conflicts may arise, all objects of the same hash are kept in a singly
-linked list. The head of each list is kept in the {\tt Hash} array.
+{\tt Hash}\mkey{Hash} stores the hash-chain of all objects in the root
+directory. The FFS computes for each file system object a \emph{hash key}
+that is derived from its name. As multiple objects can have the same hash
+and thus hash conflicts may arise, all objects of the same hash are kept in
+a singly linked list. The head of each list is kept in the {\tt Hash} array.
 \smallskip{}
 
 How the FFS computes the hash key from the name depends on the FFS
@@ -12958,33 +12977,35 @@ ULONG hash = size;    /* Initial hash is string length */
 }
 \end{verbatim}
 
-In the above, {\tt HTSize} is the value of the element of the same name in
-the disk root block. As seen from the code, the non-international versions
-of the FFS only convert the ASCII characters between 'a' and 'z' to upper
-case, whereas the international version performs this conversion also for
-all characters in the latin-1 character set. The FFS \emph{does not} use the
-\emph{utility.library} for the upper-case conversion and thus hashing does
-not depend on the selected locale. However, it depends on the latin-1
-encoding and will not map characters correctly for many other
-encodings. Latin-15 only replaces the international currency symbol with the
-Euro-sign which is outside the range of characters that are converted to
-upper case. It therefore also works correctly for this encoding.
+In the above, {\tt HTSize}\key{HTSize} is the value of the element of the
+same name in the disk root block. As seen from the code, the
+non-international versions of the FFS only convert the ASCII characters
+between 'a' and 'z' to upper case, whereas the international version
+performs this conversion also for all characters in the latin-1 character
+set. The FFS \emph{does not} use the \emph{utility.library} for the
+upper-case conversion and thus hashing does not depend on the selected
+locale. However, it depends on the latin-1 encoding and will not map
+characters correctly for many other encodings. Latin-15 only replaces the
+international currency symbol with the Euro-sign which is outside the range
+of characters that are converted to upper case. It therefore also works
+correctly for this encoding.
 \medskip{}
 
-{\tt BMFlag} is {\tt DOSTRUE} in case the bitmap is valid. If the quick
+{\tt BMFlag}\mkey{BMFlag} is {\tt DOSTRUE} in case the bitmap is valid. If the quick
 validation on disk insertion finds that this element is~0, then the disk
 status is set to non-validated and the bitmap is recomputed through a
 complete disk scan. The bitmap keeps information on which blocks of the
 volume are allocated and which are free.
 \smallskip{}
 
-{\tt BMKeys} is an array containing the keys of the bitmap blocks. How many
-bitmap blocks are required to represent the bitmap depends on the size of
-the volume and the size of a bitmap block. Unused keys remain~0.
+{\tt BMKeys}\mkey{BMKeys} is an array containing the keys of the bitmap
+blocks. How many bitmap blocks are required to represent the bitmap depends
+on the size of the volume and the size of a bitmap block. Unused keys
+remain~0.
 \smallskip{}
 
-{\tt BMExt} is the key of a bitmap extension block if the above bitmap array
-is not sufficient to represent all blocks of the volume.
+{\tt BMExt}\mkey{BMExt} is the key of a bitmap extension block if the above
+bitmap array is not sufficient to represent all blocks of the volume.
 \smallskip{}
 
 The elements at offsets $L-23$ to $L-21$ form a {\tt DateStamp} structure as
@@ -12992,7 +13013,7 @@ specified in section~\ref{sec:dates}. The date and time there indicate the
 last change within the root directory.
 \smallskip{}
 
-{\tt Name} is the volume name, encoded as BSTR; the first character is
+{\tt Name}\mkey{Name (FFS)} is the volume name, encoded as BSTR; the first character is
 therefore the size of the name. This element is 8 long-words large and thus
 limits the volume name to 30 characters (one extra character is reserved,
 even though there would be sufficient space for 31 characters).
@@ -13008,8 +13029,9 @@ packet {\tt ACTION\_SERIALIZE\_DISK} updates this date, too, but it remains
 otherwise unchanged.
 \smallskip{}
 
-{\tt DCache} is the key of the directory cache list of blocks. It is only
-used for the flavours of the FFS that utilize such a cache.
+{\tt DCache}\mkey{DCache} is the key of the directory cache list of
+blocks. It is only used for the flavours of the FFS that utilize such a
+cache.
 \smallskip{}
 
 Unlike user directories, the root block lacks a list of hard-links that
@@ -13029,7 +13051,7 @@ long-file variants {\tt DOS\textbackslash{}06} and {\tt
 \begin{rkrmtabular}{FFS User Header Block} \label{table:userdirlock}
 \begin{longtable}{|l|l|l|} \hline
 {\bf Long-word Offset} & {\bf Content} & {\bf Notes} \\ \hline \hline
-0          & \tt Type    & shall be 2, this is the BCPL constant T.SHORT \\ \hline
+0          & \tt Type    & shall be 2, this is the BCPL constant T.SHORT\key{T.SHORT} \\ \hline
 1          & \tt OwnKey  & key of this block (self-reference) \\ \hline
 2          & \tt 0       & reserved for future use \\ \hline
 3          & \tt 0       & reserved for future use \\ \hline
@@ -13058,51 +13080,52 @@ L-9        & \tt NameX2  & name extension for {\tt DOS\textbackslash08} \\
 L-4        & \tt NxtHash & next key of the same hash \\ \hline
 L-3        & \tt Parent  & key of the parent directory \\ \hline
 L-2        & \tt DCache  & key of directory cache block if used \\ \hline
-L-1        & \tt SecType & shall be 2, setthis is the BCPL constant ST.USERDIR \\ \hline
+L-1        & \tt SecType & shall be 2, setthis is the BCPL constant ST.USERDIR\mkey{ST.USERDIR} \\ \hline
 \end{longtable}
 \end{rkrmtabular}
 
-{\tt Type} is the primary type of this block. It is always~2, which is the
+{\tt Type}\key{Type (FFS)} is the primary type of this block. It is always~2, which is the
 BCPL constant {\tt T.SHORT}
 \smallskip{}
 
-{\tt OwnKey} is the key of this object, i.e. it is the block number of this
+{\tt OwnKey}\mkey{OwnKey} is the key of this object, i.e. it is the block number of this
 block itself.
 \smallskip{}
 
-{\tt Chksum} is the checksum over the entire block. It is chosen such that
+{\tt Chksum}\key{Chksum} is the checksum over the entire block. It is chosen such that
 the long-word sum over the entire block, including this element, is zero.
 \smallskip{}
 
-{\tt Hash} contains for user directories all the hash keys of the file
+{\tt Hash}\key{Hash} contains for user directories all the hash keys of the file
 system objects contained within.
 \smallskip{}
 
-{\tt OwnerID} is reserved for the owner ID of this directory that can be set
+{\tt OwnerID}\key{OwnerID} is reserved for the owner ID of this directory that can be set
 with {\tt ACTION\_SET\_OWNER}. As the FFS has no means to validate the
 directory owner, this element does not bear any practical meaning.
 \smallskip{}
 
-{\tt PrtBits} are the protection bits of this directory. The FFS actually
-ignores the protection bits on the directory, but stores the value here anyhow.
+{\tt PrtBits}\mkey{PrtBits} are the protection bits of this directory. The
+FFS actually ignores the protection bits on the directory, but stores the
+value here anyhow.
 \smallskip{}
 
-{\tt Comment} contains a potential comment for this directory. The comment
-is represented as a BSTR with the comment length in the first
-character. There is room for 80 bytes, i.e. the maximum comment size is
-79 characters.
+{\tt Comment}\mkey{Comment (FFS)} contains a potential comment for this
+directory. The comment is represented as a BSTR with the comment length in
+the first character. There is room for 80 bytes, i.e. the maximum comment
+size is 79 characters.
 \smallskip{}
 
 The elements at offset $L-23$ to $L-21$ form a {\tt DateStamp} structure
 that identifies the timestamp of the last change of this directory.
 \smallskip{}
 
-{\tt Name} is the name of this directory encoded as BSTR with the name
+{\tt Name}\mkey{Name (FFS)} is the name of this directory encoded as BSTR with the name
 length in the first byte; even though~32 bytes are available here, the FFS
 reserves one character, thus limiting the maximal directory name size to~30.
 \smallskip{}
 
-{\tt NameX1} and {\tt NameX2} are name extensions that are used by the {\tt
+{\tt NameX1}\mkey{NameX1} and {\tt NameX2}\mkey{NameX2} are name extensions that are used by the {\tt
   DOS\textbackslash{}08} flavour of the FFS. They add additional~24 bytes of
 storage for the directory name. Again, one character is reserved, limiting
 the maximum directory name size for this variant to~54. The directory name
@@ -13110,25 +13133,26 @@ extends from {\tt Name}, then overflows into {\tt NameX1} and from there to
 {\tt NameX2}.
 \smallskip{}
 
-{\tt BckLink} is the key of the first hard link to this directory. The link
-of this key replaces the original directory header block in case the
-directory itself is deleted, and then is converted from a link to a
-directory.
+{\tt BckLink}\mkey{BckLink} is the key of the first hard link to this
+directory. The link of this key replaces the original directory header block
+in case the directory itself is deleted, and then is converted from a link
+to a directory.
 \smallskip{}
 
-{\tt NxtHash} is the key of the next object using the same hash key as this
-directory itself.
+{\tt NxtHash}\mkey{NxtHash} is the key of the next object using the same
+hash key as this directory itself.
 \smallskip{}
 
-{\tt Parent} is the key of the parent directory, or the key of the root
+{\tt Parent}\mkey{Parent (FFS)} is the key of the parent directory, or the key of the root
 block in case this directory is directly in the volume root.
 \smallskip{}
 
-{\tt DCache} is the key of the first directory cache block. This key is only
-used for FFS flavours with directory caching enabled. Otherwise, it stays~0.
+{\tt DCache}\key{DCache} is the key of the first directory cache block. This
+key is only used for FFS flavours with directory caching enabled. Otherwise,
+it stays~0.
 \smallskip{}
 
-{\tt SecType} along with {\tt Type} identifies the type of this block. The
+{\tt SecType}\key{SecType} along with {\tt Type} identifies the type of this block. The
 value of this element shall be~2, identifying this as a user directory
 block.
 \medskip{}
@@ -13140,7 +13164,7 @@ somewhat different:
 \begin{rkrmtabular}{Long-Filename FFS Directory User Header Block} \label{table:userdirblock}
 \begin{longtable}{|l|l|l|} \hline
 {\bf Long-word Offset} & {\bf Content} & {\bf Notes} \\ \hline \hline
-0          & \tt Type    & shall be 2, this is the BCPL constant T.SHORT \\ \hline
+0          & \tt Type    & shall be 2, this is the BCPL constant T.SHORT\key{T.SHORT} \\ \hline
 1          & \tt OwnKey  & key of this block (self-reference) \\ \hline
 2          & \tt 0       & reserved for future use \\ \hline
 3          & \tt 0       & reserved for future use \\ \hline
@@ -13168,7 +13192,7 @@ L-9        & \tt 0       & reserved for future use \\
 L-4        & \tt NxtHash & next key of the same hash \\ \hline
 L-3        & \tt Parent  & key of the parent directory \\ \hline
 L-2        & \tt DCache  & key of directory cache block if used \\ \hline
-L-1        & \tt SecType & shall be 2, setthis is the BCPL constant ST.USERDIR \\ \hline
+L-1        & \tt SecType & shall be 2, setthis is the BCPL constant ST.USERDIR\key{ST.USERDIR} \\ \hline
 \end{longtable}
 \end{rkrmtabular}
 
@@ -13177,7 +13201,7 @@ modification date is relocated to offsets $L-15$ and following, and the name
 and comment field is replaced by a new field at offset $L-46$.
 \smallskip{}
 
-{\tt NaC} contains both the file name and file comment as two BSTRs,
+{\tt NaC}\mkey{NaC} contains both the file name and file comment as two BSTRs,
 directly placed next to each other. The file name comes first, followed by
 the comment. This element is capable of storing 112 bytes, but the FFS
 reserves one byte making in total 110 bytes available. In case the comment
@@ -13186,7 +13210,7 @@ block is created keeping only the comment, and this element then only keeps
 the file name.
 \smallskip{}
 
-{\tt CmtBlk} is the key of the comment block, keeping the file comment if
+{\tt CmtBlk}\mkey{CmtBlk} is the key of the comment block, keeping the file comment if
 the {\tt NaC} element is too short. If no comment block is needed, this
 element is~0.
 
@@ -13202,7 +13226,7 @@ to all FFS variants except the long-file variants {\tt
 \begin{rkrmtabular}{FFS File Header Block} \label{table:fileheaderblock}
 \begin{longtable}{|l|l|l|} \hline
 {\bf Long-word Offset} & {\bf Content} & {\bf Notes} \\ \hline \hline
-0          & \tt Type    & shall be 2, this is the BCPL constant T.SHORT \\ \hline
+0          & \tt Type    & shall be 2, this is the BCPL constant T.SHORT\key{T.SHORT} \\ \hline
 1          & \tt OwnKey  & key of this block (self-reference) \\ \hline
 2          & \tt BlkCnt  & number of data block keys included \\ \hline
 3          & \tt 0       & reserved for future use \\ \hline
@@ -13231,7 +13255,7 @@ L-9        & \tt NameX2  & name extension for {\tt DOS\textbackslash08} \\
 L-4        & \tt NxtHash & next key of the same hash \\ \hline
 L-3        & \tt Parent  & key of the parent directory \\ \hline
 L-2        & \tt FileExt & key of first file extension block \\ \hline
-L-1        & \tt SecType & shall be -3, this is the BCPL constant ST.FILE \\ \hline
+L-1        & \tt SecType & shall be -3, this is the BCPL constant ST.FILE\mkey{ST.FILE} \\ \hline
 \end{longtable}
 \end{rkrmtabular}
 
@@ -13391,7 +13415,7 @@ to all FFS variants except the long-file variants {\tt
 \begin{rkrmtabular}{FFS Link Block} \label{table:linkblock}
 \begin{longtable}{|l|l|l|} \hline
 {\bf Long-word Offset} & {\bf Content} & {\bf Notes} \\ \hline \hline
-0          & \tt Type    & shall be 2, this is the BCPL constant T.SHORT \\ \hline
+0          & \tt Type    & shall be 2, this is the BCPL constant T.SHORT\key{T.SHORT} \\ \hline
 1          & \tt OwnKey  & key of this block (self-reference) \\ \hline
 2          & \tt 0       & reserved for future use \\ \hline
 3          & \tt 0       & reserved for future use \\ \hline
@@ -13424,19 +13448,19 @@ L-1        & \tt SecType & identifies the type of the link \\ \hline
 \end{longtable}
 \end{rkrmtabular}
 
-{\tt Type} is the primary type of this block. It is always~2, which is the
+{\tt Type}\key{Type (FFS)} is the primary type of this block. It is always~2, which is the
 BCPL constant {\tt T.SHORT}
 \smallskip{}
 
-{\tt OwnKey} is the key of this object, i.e. it is the block number of this
+{\tt OwnKey}\key{OwnKey} is the key of this object, i.e. it is the block number of this
 block itself.
 \smallskip{}
 
-{\tt Chksum} is the checksum over the entire block. It is chosen such that
+{\tt Chksum}\key{Chksum} is the checksum over the entire block. It is chosen such that
 the long-word sum over the entire block, including this element, is zero.
 \smallskip{}
 
-{\tt Target} is the path of the link target for soft-links. This is stored
+{\tt Target}\key{Target} is the path of the link target for soft-links. This is stored
 as {\tt NUL}-terminated C-string, not as BSTR\footnote{The information
 in~\cite{Bantam} that this is a BSTR is incorrect}. The maximum path name
 that can be stored here is $(L-56)\times 4 - 1$ characters
@@ -13446,12 +13470,12 @@ long, though in a default floppy with 512 bytes per sector, this element
 leaves room for paths up to 287 characters.
 \smallskip{}
 
-{\tt OwnerID} is reserved for the owner ID of this link that can be set
+{\tt OwnerID}\key{OwnerID} is reserved for the owner ID of this link that can be set
 with {\tt ACTION\_SET\_OWNER}. As the FFS has no means to validate the
 link owner, this element does not bear any practical meaning.
 \smallskip{}
 
-{\tt PrtBits} are the protection bits of the link, encoded as in
+{\tt PrtBits}\key{PrtBits} are the protection bits of the link, encoded as in
 section~\ref{sec:fib}. However, the practical value of these protection bits
 is zero as locking a link provides a lock to the linked object, and thus the
 protection bits stored here are not actually checked and neither accessible,
@@ -13459,7 +13483,7 @@ except by walking a directory through {\tt ACTION\_EXAMINE\_NEXT} or
 {\tt ACTION\_EXAMINE\_ALL}.
 \smallskip{}
 
-{\tt Comment} contains a potential comment for this link. The comment is
+{\tt Comment}\key{Comment (FFS)} contains a potential comment for this link. The comment is
 represented as a BSTR with the comment length in the first character. There
 is room for 80 bytes, i.e. the maximum comment size is 79
 characters. Comments of links \emph{can} be set with
@@ -13476,12 +13500,12 @@ linked target. Thus, this date may potentially be seen when walking a
 directory, but it cannot be changed.
 \smallskip{}
 
-{\tt Name} is the name of this file encoded as BSTR with the name
+{\tt Name}\key{Name (FFS)} is the name of this file encoded as BSTR with the name
 length in the first byte; even though~32 bytes are available here, the FFS
 reserves one character, thus limiting the maximal file name size.
 \smallskip{}
 
-{\tt NameX1} and {\tt NameX2} are name extensions that are used by the {\tt
+{\tt NameX1}\key{NameX1} and {\tt NameX2}\key{NameX2} are name extensions that are used by the {\tt
   DOS\textbackslash{}08} flavour of the FFS. They add additional~24 bytes of
 storage for the directory name. Again, one character is reserved, limiting
 the maximum name for this variant to~54. The link name
@@ -13489,27 +13513,27 @@ extends from {\tt Name}, then overflows into {\tt NameX1} and from there to
 {\tt NameX2}.
 \smallskip{}
 
-{\tt Link} is the key of the file header or user directory key for
+{\tt Link}\key{Link (FFS)} is the key of the file header or user directory key for
 hard-links. For soft-links, this element is not used and set to~0.
 \smallskip{}
 
-{\tt BckLink} is the key to the next hard-link to the same link target, or~0
+{\tt BckLink}\key{BckLink} is the key to the next hard-link to the same link target, or~0
 if there is no further hard-link to the same target. Thus, all links to the
 same target are chained through {\tt BckLink}.
 \smallskip{}
 
-{\tt NxtHash} is the key of the next object using the same hash key as this
-directory itself.
+{\tt NxtHash}\key{NxtHash} is the key of the next object using the same hash key as this
+directory entry.
 \smallskip{}
 
-{\tt Parent} is the key of the directory containing this link, or the key of
+{\tt Parent}\key{Parent (FFS)} is the key of the directory containing this link, or the key of
 the root block in case this file is directly in the volume root.
 \smallskip{}
 
-{\tt SecType} along with {\tt Type} identifies the type of this block. This
-can be either~$-4$, corresponding to {\tt ST.LINKFILE} for a hard-link to a
-file, or~$4$ ({\tt ST.LINKDIR}) for a hard-link to a directory, or~3,
-corresponding to {\tt ST.SOFTLINK} for soft-links.
+{\tt SecType}\key{SecType} along with {\tt Type} identifies the type of this block. This
+can be either~$-4$, corresponding to {\tt ST.LINKFILE}\mkey{ST.LINKFILE} for a hard-link to a
+file, or~$4$ ({\tt ST.LINKDIR})\mkey{ST.LINKDIR} for a hard-link to a directory, or~3,
+corresponding to {\tt ST.SOFTLINK}\mkey{ST.SOFTLINK} for soft-links.
 \medskip{}
 
 For the long file-name enabled flavours of the FFS, namely {\tt
@@ -13519,7 +13543,7 @@ somewhat different:
 \begin{rkrmtabular}{Long-Filename FFS Link Block} \label{table:longlinkblock}
 \begin{longtable}{|l|l|l|} \hline
 {\bf Long-word Offset} & {\bf Content} & {\bf Notes} \\ \hline \hline
-0          & \tt Type    & shall be 2, this is the BCPL constant T.SHORT \\ \hline
+0          & \tt Type    & shall be 2, this is the BCPL constant T.SHORT\key{T.SHORT} \\ \hline
 1          & \tt OwnKey  & key of this block (self-reference) \\ \hline
 2          & \tt 0       & reserved for future use \\ \hline
 3          & \tt 0       & reserved for future use \\ \hline
@@ -13556,7 +13580,7 @@ date is relocated to offsets $L-15$ and following, and the name and comment
 field is replaced by a new field at offset $L-46$.
 \smallskip{}
 
-{\tt NaC} contains both the link name and file comment as two BSTRs,
+{\tt NaC}\key{NaC} contains both the link name and file comment as two BSTRs,
 directly placed next to each other. The link name comes first, followed by
 the comment. This element is capable of storing 112 bytes, but the FFS
 reserves one byte making in total 110 bytes available. In case the comment
@@ -13565,7 +13589,7 @@ block is created keeping only the comment, and this element then only keeps
 the file name.
 \smallskip{}
 
-{\tt CmtBlk} is the key of the comment block, keeping the file comment if
+{\tt CmtBlk}\key{CmtBlk} is the key of the comment block, keeping the file comment if
 the {\tt NaC} element is too short. If no comment block is needed, this
 element is~0.
 
@@ -13578,7 +13602,7 @@ keys. It looks as follows:
 \begin{rkrmtabular}{File Extension Block} \label{table:fileextblock}
 \begin{longtable}{|l|l|l|} \hline
 {\bf Long-word Offset} & {\bf Content} & {\bf Notes} \\ \hline \hline
-0          & \tt Type    & shall be 16, this is the BCPL constant T.LIST \\ \hline
+0          & \tt Type    & shall be 16, this is the BCPL constant T.LIST\key{T.LIST} \\ \hline
 1          & \tt OwnKey  & key of this block (self-reference) \\ \hline
 2          & \tt BlkCnt  & number of data block keys included \\ \hline
 3          & \tt 0       & reserved for future use \\ \hline
@@ -13590,43 +13614,43 @@ L-50       & \tt 0       & reserved for future use \\
 \multicolumn{3}{;{1.5pt/1.5pt}c;{1.5pt/1.5pt}}{} \\ \hline
 L-3        & \tt Parent  & key of the file header block \\ \hline
 L-2        & \tt NextExt & key of next file extension block \\ \hline
-L-1        & \tt SecType & shall be -3, this is the BPCL constant ST.FILE  \\ \hline
+L-1        & \tt SecType & shall be -3, this is the BPCL constant ST.FILE\key{ST.FILE} \\ \hline
 \end{longtable}
 \end{rkrmtabular}
 
-{\tt Type} is the primary type of this block. It is always~16, which is the
+{\tt Type}\key{Type (FFS)} is the primary type of this block. It is always~16, which is the
 BCPL constant {\tt T.LIST}
 \smallskip{}
 
-{\tt OwnKey} is the key of this block itself.
+{\tt OwnKey}\key{OwnKey} is the key of this block itself.
 \smallskip{}
 
-{\tt BlkCnt} is the number of occupied data block keys included in this block. Due to
+{\tt BlkCnt}\key{BlkCnt} is the number of occupied data block keys included in this block. Due to
 the limited number of slots, this number is smaller or equal than $L-56$.
 \smallskip{}
 
-{\tt Chksum} is the checksum over the entire block. It is chosen such that
+{\tt Chksum}\key{Chksum} is the checksum over the entire block. It is chosen such that
 the long-word sum over the entire block, including this element, is zero.
 \smallskip{}
 
-{\tt DataBlk} is an array containing the next $L-56$ data blocks of the
+{\tt DataBlk}\key{DataBlk} is an array containing the next $L-56$ data blocks of the
 file. The array is filled from its bottom-end, i.e. $L-49$ contains the key
 of first data block referenced in this extension block, $L-50$ the second
 key and so on. If this array overflows, additional blocks are in another
 file extension block chained at $L-2$.
 \smallskip{}
 
-{\tt Parent} is the key of the file header block of the file whose data
+{\tt Parent}\key{Parent (FFS)} is the key of the file header block of the file whose data
 block keys are extended by this block.
 \smallskip{}
 
-{\tt FileExt} is the key of the next file extension block if this block is
+{\tt FileExt}\key{FileExt} is the key of the next file extension block if this block is
 not sufficient to keep all data block keys. Otherwise, it is~0.
 \smallskip{}
 
-{\tt SecType} along with {\tt Type} identifies the type of this block. The
-value of this element shall be~-3, identifying this block as belonging to a
-file.
+{\tt SecType}\key{SecType} along with {\tt Type} identifies the type of this
+block. The value of this element shall be~-3 (ST.FILE)\key{ST.FILE},
+identifying this block as belonging to a file.
 
 \subsection{The Bitmap Extension Block}
 
@@ -13643,12 +13667,12 @@ L-1        & \tt BMNext  & key of another bitmap extension block \\ \hline
 \end{longtable}
 \end{rkrmtabular}
 
-{\tt BMKeys} is an array of $L-1$ keys, each of contains a bitmap for the
-subsequent part of the volume. The slots in this block are allocated top to
-bottom, with non-used entries set to~0.
+{\tt BMKeys}\key{BMKeys} is an array of $L-1$ keys, each of contains a
+bitmap for the subsequent part of the volume. The slots in this block are
+allocated top to bottom, with non-used entries set to~0.
 \smallskip{}
 
-{\tt BMNext} is the key of another extension block if this extension block is
+{\tt BMNext}\mkey{BMNext} is the key of another extension block if this extension block is
 not sufficient. It is~0 in case this is the last bitmap extension block.
 
 \subsection{The Comment Block}
@@ -13661,7 +13685,7 @@ keep both the file name and the file comment.
 \begin{rkrmtabular}{Comment Block} \label{table:commentblock}
 \begin{longtable}{|l|l|l|} \hline
 {\bf Long-word Offset} & {\bf Content} & {\bf Notes} \\ \hline \hline
-0          & \tt Type    & shall be 64, this is T.COMMENT \\ \hline
+0          & \tt Type    & shall be 64, this is T.COMMENT\key{T.COMMENT} \\ \hline
 1          & \tt OwnKey  & key of this block (self-reference) \\ \hline
 2          & \tt Parent  & key of the header block \\ \hline
 3          & \tt 0       & reserved for future use \\ \hline
@@ -13674,23 +13698,23 @@ keep both the file name and the file comment.
 \end{longtable}
 \end{rkrmtabular}
 
-{\tt Type} identifies the type of this block. The value placed here shall
-be~64, corresponding to the constant T.COMMENT.
+{\tt Type}\key{Type (FFS)} identifies the type of this block. The value placed here shall
+be~64, corresponding to the constant T.COMMENT\key{T.COMMENT}.
 \smallskip{}
 
-{\tt OwnKey} is the key of this block itself.
+{\tt OwnKey}\key{OwnKey} is the key of this block itself.
 \smallskip{}
 
-{\tt Parent} is the key of the file header, user directory or link block
+{\tt Parent}\key{Parent (FFS)} is the key of the file header, user directory or link block
 to which the comment in this block applies and which is extended by this
 block.
 \smallskip{}
 
-{\tt Chksum} is the checksum over the entire block. It is chosen such that
+{\tt Chksum}\key{Chksum} is the checksum over the entire block. It is chosen such that
 the long-word sum over the entire block, including this element, is zero.
 \smallskip{}
 
-{\tt Comment} is the comment, stored as a BSTR with the first character
+{\tt Comment}\key{Comment (FFS)} is the comment, stored as a BSTR with the first character
 containing its size. This element is 80 bytes large, sufficient for comments
 of 79 characters.
 \smallskip{}
@@ -13708,7 +13732,7 @@ as follows:
 \begin{rkrmtabular}{Directory Cache Block} \label{table:cacheblock}
 \begin{longtable}{|l|l|l|} \hline
 {\bf Long-word Offset} & {\bf Content} & {\bf Notes} \\ \hline \hline
-0          & \tt Type    & shall be 33, this is T.DIRLIST \\ \hline
+0          & \tt Type    & shall be 33, this is T.DIRLIST\mkey{T.DIRLIST} \\ \hline
 1          & \tt OwnKey  & key of this block (self-reference) \\ \hline
 2          & \tt Parent  & key of the user directory block \\ \hline
 3          & \tt NumNtry & number of entries in this block \\ \hline
@@ -13719,20 +13743,20 @@ as follows:
 \end{longtable}
 \end{rkrmtabular}
 
-{\tt Type} identifies the type of this block; the constant put here is
-actually {\tt DIRLIST\_KEY} = 32 or'd with the version of the directory
+{\tt Type}\key{Type (FFS)} identifies the type of this block; the constant put here is
+actually {\tt T.DIRLIST\_KEY} = 32\mkey{T.DIRLIST\_KEY} or'd with the version of the directory
 cache data, which is currently~1.
 \smallskip{}
 
-{\tt OwnKey} is the key of this block itself.
+{\tt OwnKey}\key{OwnKey} is the key of this block itself.
 \smallskip{}
 
-{\tt Parent} is the key of the directory header block of the user directory
+{\tt Parent}\key{Parent (FFS)} is the key of the directory header block of the user directory
 cached here, or the key of the root block if this is the cache of the volume
 root directory.
 \smallskip{}
 
-{\tt NumNtry} is the number of directory entries cached in this block. Each
+{\tt NumNtry}\key{NumNtry} is the number of directory entries cached in this block. Each
 entry has a structure as indicated in table~\ref{table:dircachenetry}. Such
 entries cannot extend over block boundaries; if a new entry does not fit
 entirely into a block, another directory cache block is allocated. A
@@ -13741,15 +13765,15 @@ released. Thus, directory caches can grow very large, and they are only
 rebuild when the disk requires full validation.
 \smallskip{}
 
-{\tt NextBlk} is the key of the next directory cache block for the same
+{\tt NextBlk}\key{NextBlk} is the key of the next directory cache block for the same
 directory, or~0 in case this is the last block.
 \smallskip{}
 
-{\tt Chksum} is the checksum over the entire block. It is chosen such that
+{\tt Chksum}\key{Chksum} is the checksum over the entire block. It is chosen such that
 the long-word sum over the entire block, including this element, is zero.
 \smallskip{}
 
-{\tt Entries} contains the payload data of the directory cache. It consists
+{\tt Entries}\mkey{Entries (FFS)} contains the payload data of the directory cache. It consists
 of zero or more entries of the following variably sized structure:
 
 \begin{rkrmtabular}{Directory Cache Entry} \label{table:dircachenetry}
@@ -13758,7 +13782,7 @@ of zero or more entries of the following variably sized structure:
 32         & \tt Key     & key of the referenced object \\ \hline
 32         & \tt Size    & size of the object in bytes \\ \hline
 32         & \tt PrtBits & protection bits of the object \\ \hline
-32         & \tt Owner   & owner ID of the object \\ \hline
+32         & \tt OwnerID & owner ID of the object \\ \hline
 16         & \tt Days    & \multirow{3}{*}{timestamp of last change} \\ \cline{1-2}
 16         & \tt Mins    & \\ \cline{1-2}
 16         & \tt Ticks   & \\ \hline
@@ -13772,19 +13796,19 @@ pad(16)    & \tt padding & padding to 16-bit boundary \\ \hline
 The elements of this structure are as follows:
 \smallskip{}
 
-{\tt Key} is the key of the file header block, the user directory block or
+{\tt Key}\key{Key} is the key of the file header block, the user directory block or
 the link block, depending on the file system object to which this entry
 belongs.
 \smallskip{}
 
-{\tt Size} is the byte size of the object, or~0 for links and directories.
+{\tt Size}\key{Size (FFS)} is the byte size of the object, or~0 for links and directories.
 \smallskip{}
 
-{\tt PrtBits} are the protection bits as represented in the {\tt
+{\tt PrtBits}\key{PrtBits} are the protection bits as represented in the {\tt
   FileInfoBlock} structure.
 \smallskip{}
 
-{\tt Owner} is reserved for a 32-bit group and owner ID that can be set by
+{\tt OwnerID}\key{OwnerID} is reserved for a 32-bit group and owner ID that can be set by
 the {\tt ACTION\_SET\_OWNER} packet. However, as the FFS has no means to
 verify access rights to an object, the purpose of this field remains opaque.
 \smallskip{}
@@ -13796,23 +13820,23 @@ available for each element. This is sufficient if the {\tt DateStamp()}
 structure is normalized, i.e. each element is as small as possible.
 \smallskip{}
 
-{\tt SecType} is a copy from the {\tt SecType} element of the file, user
-directory or link block indexed by {\tt Key}. All possible values can be
-represented by a signed byte and are thus abbreviated here in an 8-bit
-element.
+{\tt SecType}\key{SecType} is a copy from the {\tt SecType} element of the
+file, user directory or link block indexed by {\tt Key}. All possible values
+can be represented by a signed byte and are thus abbreviated here in an
+8-bit element.
 \smallskip{}
 
-{\tt Name} is a copy of the {\tt Name} element of the file, user directory
-or link, though only the minimal number of bytes are copied, i.e. $N+1$
-bytes for a file name of size~$N$. The first byte of {\tt Name} is its
-length, i.e. it is a BSTR without {\tt NUL}-termination.
+{\tt Name}\key{Name (FFS)} is a copy of the {\tt Name} element of the file,
+user directory or link, though only the minimal number of bytes are copied,
+i.e. $N+1$ bytes for a file name of size~$N$. The first byte of {\tt Name}
+is its length, i.e. it is a BSTR without {\tt NUL}-termination.
 \smallskip{}
 
-{\tt Comment} follows directly after the last byte of {\tt Name} and is a
-copy of the {\tt Comment} element of the file, user directory or link block;
-again, only the minimal amount of bytes are copied to the directory cache,
-i.e. the length byte and the comment itself. This forms again a BSTR, not a
-C string, and there is no {\tt NUL}-termination.
+{\tt Comment}\key{Comment (FFS)} follows directly after the last byte of
+{\tt Name} and is a copy of the {\tt Comment} element of the file, user
+directory or link block; again, only the minimal amount of bytes are copied
+to the directory cache, i.e. the length byte and the comment itself. This
+forms again a BSTR, not a C string, and there is no {\tt NUL}-termination.
 \smallskip{}
 
 {\tt padding} is an optional padding byte to make the entire structure an
@@ -13864,7 +13888,7 @@ The following table describes the structure of an OFS data block:
 \begin{rkrmtabular}{OFS Data Block} \label{table:ofsdatablock}
 \begin{longtable}{|l|l|l|} \hline
 {\bf Long-word Offset} & {\bf Content} & {\bf Notes} \\ \hline \hline
-0          & \tt Type    & shall be 8, this is T.DATA \\ \hline
+0          & \tt Type    & shall be 8, this is T.DATA\mkey{T.DATA} \\ \hline
 1          & \tt Header  & key of the file header \\ \hline
 2          & \tt SeqNum  & sequence number of this block \\ \hline
 3          & \tt Size    & data bytes in this block \\ \hline
@@ -13876,27 +13900,28 @@ The following table describes the structure of an OFS data block:
 \end{rkrmtabular}
 
 {\tt Type} is the primary type of this block. It is always~8, which is the
-BCPL constant {\tt T.DATA}
+BCPL constant {\tt T.DATA}\key{T.DATA}
 \smallskip{}
 
-{\tt Header} is the key of the file header block this file belongs to.
+{\tt Header}\key{Header} is the key of the file header block this file
+belongs to.
 \smallskip{}
 
-{\tt SeqNum} is the sequential number of this block within the file. The
+{\tt SeqNum}\key{SeqNum} is the sequential number of this block within the file. The
 first data block of the file has the sequential number~1, the next one"2 and
 so on.
 \smallskip{}
 
-{\tt Size} is the number of valid bytes within this data block. Valid data
+{\tt Size}\key{Size (FFS)} is the number of valid bytes within this data block. Valid data
 does not necessarily extend to the end of the block.
 \smallskip{}
 
-{\tt Chksum} is the checksum over the entire block. It is chosen such that
+{\tt Chksum}\key{Chksum} is the checksum over the entire block. It is chosen such that
 the long-word sum over the entire block, including this element, is zero.
 \smallskip{}
 
-{\tt Data} is the actual payload data of the block. It consists of
-{\tt Size} arbitrary bytes.
+{\tt Data}\key{Data (FFS)} is the actual payload data of the block. It
+consists of {\tt Size} arbitrary bytes.
 \medskip{}
 
 The FFS data block does not have any structure, it contains only payload
@@ -13928,13 +13953,14 @@ The structure of a bitmap block is as follows:
 \end{longtable}
 \end{rkrmtabular}
 
-{\tt Chksum} is the checksum over the entire block. It is chosen such that
-the long-word sum over the entire block, including this element, is zero.
+{\tt Chksum}\key{Chksum} is the checksum over the entire block. It is chosen
+such that the long-word sum over the entire block, including this element,
+is zero.
 \smallskip{}
 
-{\tt Bitmap} holds for every available key administrated by this bitmap a
-bit that indicates whether that key is available or not. If the bit is~1,
-the key is free, and if~0, the key is released.
+{\tt Bitmap}\mkey{Bitmap} holds for every available key administrated by
+this bitmap a bit that indicates whether that key is available or not. If
+the bit is~1, the key is free, and if~0, the key is released.
 \smallskip{}
 
 Bits are addressed in groups of long-words such that the least-significant
@@ -14030,7 +14056,7 @@ of the block type does not happen to data blocks of deleted files.
 \begin{rkrmtabular}{Deleted Block} \label{table:deletedblock}
 \begin{longtable}{|l|l|l|} \hline
 {\bf Long-word Offset} & {\bf Content} & {\bf Notes} \\ \hline \hline
-0          & \tt Type    & shall be 1, this is T.DELETED \\ \hline
+0          & \tt Type    & shall be 1, this is T.DELETED\mkey{T.DELETED} \\ \hline
 1          & \tt junk    & whatever remained here \\ 
 \multicolumn{3}{;{1.5pt/1.5pt}c;{1.5pt/1.5pt}}{} \\ \hline
 \end{longtable}
@@ -14040,7 +14066,7 @@ This makes it particularly easy for disk salvage tools to identify which
 keys are actually still in active use and which have been scratched on
 purpose.
 
-
+% TODO: Update the index from here onwards
 \chapter{Packet Documentation} \label{sec:packettypes}
 
 Packets are the mechanism by which the \emph{dos.library} communicates
