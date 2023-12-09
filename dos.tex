@@ -3560,8 +3560,8 @@ section~\ref{sec:fib} in more detail. The function returns non-zero in
 case of success, and $0$ for failure. In either case, {\tt IoErr()} is filled,
 by $0$ on success, on an error code on failure.
 
-\punchline{Keep it Aligned!}{As with most BCPL structures, the {\tt
-    FileInfoBlock} shall be aligned to a long-word boundary. For that
+\punchline{Keep it Aligned!}{As with most BCPL structures, the
+  {\tt FileInfoBlock}\key{FileInfoBlock} shall be aligned to a long-word boundary. For that
   reason, it should be allocated from the heap. Section~\ref{sec:bptrs}
   provides some additional hints on how to allocate such structures.}
 
@@ -3581,7 +3581,7 @@ BOOL ExamineFH(BPTR, struct FileInfoBlock *)
 
 This function examines the object accessed through the
 file handle {\tt fh}, and returns the information in the
-\emph{FileInfoBlock}\key{FileInfoBlock}\key{FileInfoBlock}. Note that
+{\tt FileInfoBlock}\key{FileInfoBlock}\key{FileInfoBlock}. Note that
 the file content and thus its change can be changed any time, and thus
 the information returned by this function may not be fully up-to-date,
 see also the general information in section~\ref{sec:fib}.
@@ -3592,8 +3592,8 @@ either case, {\tt IoErr()}\key{IoErr()} is set, namely to $0$ on
 success and to an error code otherwise.
 \smallskip{}
 
-As for {\tt Examine()}\key{Examine()}, the \emph{FileInfoBlock} shall
-be aligned to a 4-byte boundary.
+As for {\tt Examine()}\key{Examine()}, the
+{\tt FileInfoBlock}\key{FileInfoBlock} shall be aligned to a 4-byte boundary.
 
 \subsection{Scanning through a Directory Step by Step}
 
@@ -3606,7 +3606,7 @@ information on the directory itself.
 \smallskip{}
 
 To learn about the objects in the directory, iteratively call {\tt
-  ExNext()} on the same {\tt lock} and on the same {\tt FileInfoBlock}
+  ExNext()} on the same {\tt lock} and on the same {\tt FileInfoBlock}\key{FileInfoBlock}
 until the function returns {\tt DOSFALSE}. Each iteration provides
 then information on the subsequent element in the directory of the
 {\tt lock}.
@@ -3637,18 +3637,18 @@ At the end of the directory, {\tt ExNext()}\key{ExNext()} returns {\tt
 \punchline{Same Lock, Same FIB}{To iterate through a directory, a lock
   to the same directory as passed into {\tt Examine()}\key{Examine()}
   shall be used. Actually, the same lock should be used, and
-  the same \emph{FileInfoBlock} should be used. As important state
+  the same {\tt FileInfoBlock} should be used. As important state
   information is associated to the lock and
-  \emph{FileInfoBlock}, {\tt UnLock()}ing the original lock and
+  {\tt FileInfoBlock}, {\tt UnLock()}ing the original lock and
   obtaining a new lock on the same directory looses this
-  information; using a different \emph{FileInfoBlock} also looses this
+  information; using a different {\tt FileInfoBlock} also looses this
   state information, requiring the file system to rebuild this
   state information, which is not only complex, but also slows down
   scanning the directory. In particular, you shall \emph{not} use the
-  same \emph{FileInfoBlock} you used for scanning one directory for
+  same {\tt FileInfoBlock} you used for scanning one directory for
   scanning a second, different directory as this can confuse the
   file system. Also, as for {\tt Examine()}\key{Examine()}, the
-       {\tt FileInfoBlock} shall be aligned to a long-word boundary.}
+  {\tt FileInfoBlock}\key{FileInfoBlock} shall be aligned to a long-word boundary.}
 
 \subsection{Examine Multiple Entries at once} \label{sec:exall}
 
@@ -3767,7 +3767,7 @@ The members of this structure are as follows:
 \smallskip{}
 
 {\tt ed\_Name}\mkey{ed\_Name} points to the file name of a directory entry, and
-supplies the same name as {\tt fib\_FileName}\key{fib\_FileName} as in the {\tt FileInfoBlock}.
+supplies the same name as {\tt fib\_FileName}\key{fib\_FileName} as in the {\tt FileInfoBlock}\key{FileInfoBlock}.
 \smallskip{}
 
 {\tt ed\_Type}\mkey{ed\_Type} identifies the type of the entry. It identifies
@@ -3979,7 +3979,7 @@ This function sets the protection bits of the file system object {\tt name}
 in the current directory to the combination given by {\tt mask}. The
 protection bits are defined in {\tt dos/dos.h} and their function is listed.
 in table~\ref{table:protectionbits}. The {\tt mask} value corresponds to
-what {\tt Examine()}\key{Examine()} returns in the {\tt FileInfoBlock}
+what {\tt Examine()}\key{Examine()} returns in the {\tt FileInfoBlock}\key{FileInfoBlock}
 structure in {\tt fib\_Protection}\key{fib\_Protection}, see also section~\ref{sec:fib}.
 \smallskip{}
 
@@ -4701,7 +4701,7 @@ struct NotifyMessage {
 {\tt dos/notify.h}. This again may be used to identify notifications.
 \smallskip{}
 
-{\tt nm\_NReq}\mkey{nm\_NReq} is a pointer to the {\tt NotifyRequest}\mkey{NotifyRequest} through which
+{\tt nm\_NReq}\mkey{nm\_NReq} is a pointer to the {\tt NotifyRequest}\key{NotifyRequest} through which
 this message was triggered. This may allow clients to identify the
 source of the request and by that the object that has been changed.
 \smallskip{}
@@ -4731,7 +4731,7 @@ void EndNotify(struct NotifyRequest *)
 This function cancels the notification request identified by {\tt
   notifystructure}. This function shall only be called on notification
 requests that have been successfully issued by {\tt StartNotify()}. If
-caller did not yet reply all {\tt NotifyMessage} messages and some are
+caller did not yet reply all {\tt NotifyMessage}\key{NotifyMessage} messages and some are
 still piled up in the {\tt nr\_Port}\key{nr\_Port}, the file system will
 manually dequeue them from this port.
 \smallskip{}
@@ -6939,8 +6939,8 @@ structure is defined in section~\ref{sec:fib}. Optionally, the {\tt
 matched object. This structure shall then be initialized, setting all flags
 required, see below for their definition.
 
-\punchline{Must be Long-Word Aligned}{As the {\tt AnchorPath} structure
-  embeds a {\tt FileInfoBlock} structure that requires long-word alignment,
+\punchline{Must be Long-Word Aligned}{As the {\tt AnchorPath}\key{AnchorPath} structure
+  embeds a {\tt FileInfoBlock}\key{FileInfoBlock} structure that requires long-word alignment,
   the {\tt AnchorPath} structure shall be aligned to long-word boundaries as
   well. The simplest way to ensure this is to allocate it with either {\tt
     AllocMem()} or {\tt AllocVec()}, see also section~\ref{sec:bptrs}.}
@@ -13298,7 +13298,7 @@ file owner, this element does not bear any practical meaning.
 section~\ref{sec:fib}. The four least-significant bits corresponding to the
 readable, writable, executable and deletable features are stored inverted,
 i.e. a bit being~0 indicates that the corresponding feature is
-available. This is the same encoding as in the {\tt FileInfoBlock}
+available. This is the same encoding as in the {\tt FileInfoBlock}\key{FileInfoBlock}
 structure.
 \smallskip{}
 
@@ -13804,8 +13804,8 @@ belongs.
 {\tt Size}\key{Size (FFS)} is the byte size of the object, or~0 for links and directories.
 \smallskip{}
 
-{\tt PrtBits}\key{PrtBits} are the protection bits as represented in the {\tt
-  FileInfoBlock} structure.
+{\tt PrtBits}\key{PrtBits} are the protection bits as represented in the
+{\tt FileInfoBlock}\key{FileInfoBlock} structure.
 \smallskip{}
 
 {\tt OwnerID}\key{OwnerID} is reserved for a 32-bit group and owner ID that can be set by
@@ -14066,7 +14066,6 @@ This makes it particularly easy for disk salvage tools to identify which
 keys are actually still in active use and which have been scratched on
 purpose.
 
-% TODO: Update the index from here onwards
 \chapter{Packet Documentation} \label{sec:packettypes}
 
 Packets are the mechanism by which the \emph{dos.library} communicates
@@ -14099,8 +14098,8 @@ The packet {\tt ACTION\_FINDINPUT}\mkey{ACTION\_FINDINPUT} initializes a
 \begin{rkrmtable}{\tt ACTION\_FINDINPUT} \label{table:actionfindinput}
 {\bf DosPacket Element}   & {\bf Value}\\ \hline \hline
 \tt dp\_Type  & \tt ACTION\_FINDINPUT (1005) \\ \hline
-\tt dp\_Arg1  & BPTR to \emph{FileHandle} \\ \hline
-\tt dp\_Arg2  & BPTR to \emph{FileLock} \\ \hline
+\tt dp\_Arg1  & BPTR to {\tt FileHandle} \\ \hline
+\tt dp\_Arg2  & BPTR to {\tt FileLock} \\ \hline
 \tt dp\_Arg3  & BPTR to BSTR of the file name \\ \hline \hline
 \tt dp\_Res1  & Boolean result code \\ \hline
 \tt dp\_Res2  & Error code \\ \hline
@@ -14109,8 +14108,8 @@ The packet {\tt ACTION\_FINDINPUT}\mkey{ACTION\_FINDINPUT} initializes a
 This packet is used by the {\tt Open()}\key{Open()} function of the
 \emph{dos.library} where the packet type is taken copied from the second
 argument, i.e. the packet type is identical to the {\tt accessMode} argument
-of {\tt Open()}, and thus {\tt ACTION\_FINDINPUT} is identical to
-{\tt MODE\_OLDFILE}.
+of {\tt Open()}, and thus {\tt ACTION\_FINDINPUT}\key{ACTION\_FINDINPUT} is
+identical to {\tt MODE\_OLDFILE}\key{MODE\_OLDFILE}.
 \smallskip{}
 
 {\tt dp\_Arg1} is initialized to {\tt BPTR} to a {\tt
@@ -14122,9 +14121,9 @@ typical implementation, this opaque value may be the (internal) lock to the
 opened file.
 \smallskip{}
 
-A handler or file system may also replace the {\tt fh\_Type} element of the
-{\tt FileHandle} structure request that packets concerning this
-particular file shall be delivered to an alternative port. This element
+A handler or file system may also replace the {\tt fh\_Type}\key{fh\_Type}
+element of the {\tt FileHandle} structure request that packets concerning
+this particular file shall be delivered to an alternative port. This element
 otherwise defaults to the process port of the handler.
 \medskip{}
 
@@ -14148,21 +14147,21 @@ fill in a boolean success code in {\tt dp\_Res1}. It shall be set to {\tt
 set to an error code from {\tt dos/dos.h} or~0 for success.
 \medskip{}
 
-The purpose of this packet is to prepare a \emph{FileHandle} for shared
-access, either for reading or for writing. If the file cannot be located,
-this packet \emph{shall not} create it but rather fail with {\tt
+The purpose of this packet is to prepare a {\tt FileHandle} for
+shared access, either for reading or for writing. If the file cannot be
+located, this packet \emph{shall not} create it but rather fail with {\tt
   ERROR\_OBJECT\_NOT\_FOUND}\key{ERROR\_OBJECT\_NOT\_FOUND}. This packet is
 used by the {\tt Open()}\key{Open()} function if its second argument is set
 to {\tt MODE\_OLDFILE}\key{MODE\_OLDFILE}.
 \smallskip{}
 
-Handlers such that the {\tt Port-Handler} or the {\tt Console-Handler} may
-already open its resources as part of the startup-packet handling and thus
-may not perform a lot of activities here. Note that both handlers do not
-initialize {\tt dol\_Task} of the {\tt DosList}\key{DosList} structure and
-thus each opened file will launch a new process. The FFS, however, runs on a
-single process and thus distinguishes its files through {fh\_Arg1} in the
-{\tt FileHandle} structure.
+Handlers such that the Port-Handler or the Console-Handler may already open
+its resources as part of the startup-packet handling and thus may not
+perform a lot of activities here. Note that both handlers do not initialize
+{\tt dol\_Task}\key{dol\_Task} of the {\tt DosList}\key{DosList} structure
+and thus each opened file will launch a new process. The FFS, however, runs
+on a single process and thus distinguishes its files through {fh\_Arg1} in
+the {\tt FileHandle} structure.
 \smallskip{}
 
 Note that both the Lock provided by {\tt dp\_Arg2} and the path {\tt
@@ -14179,10 +14178,6 @@ by the above algorithm to locate a file that ends walking the directory tree
 whenever {\tt dp\_Arg3} ends.
 \smallskip{}
 
-The type of this packet, {\tt ACTION\_FINDINPUT}, is intentionally identical
-to {\tt MODE\_OLDFILE} as the {\tt Open()} function currently initializes the
-packet type from its second argument.
-
 \subsection{Opening a File for Exclusive Access}
 
 The packet {\tt ACTION\_FINDOUTPUT}\mkey{ACTION\_FINDOUTPUT} initializes a
@@ -14192,8 +14187,8 @@ and potentially creates the file if it does not yet exist.
 \begin{rkrmtable}{\tt ACTION\_FINDOUTPUT} \label{table:actionfindoutput}
 {\bf DosPacket Element}   & {\bf Value}\\ \hline \hline
 \tt dp\_Type  & \tt ACTION\_FINDOUTPUT (1006) \\ \hline
-\tt dp\_Arg1  & BPTR to \emph{FileHandle} \\ \hline
-\tt dp\_Arg2  & BPTR to \emph{FileLock} \\ \hline
+\tt dp\_Arg1  & BPTR to {\tt FileHandle} \\ \hline
+\tt dp\_Arg2  & BPTR to {\tt FileLock} \\ \hline
 \tt dp\_Arg3  & BPTR to BSTR of file name \\ \hline \hline
 \tt dp\_Res1  & Boolean result code \\ \hline
 \tt dp\_Res2  & Error code \\ \hline
@@ -14202,8 +14197,8 @@ and potentially creates the file if it does not yet exist.
 This packet is used by the {\tt Open()}\key{Open()} function of the
 \emph{dos.library} where the packet type is taken copied from the second
 argument, i.e. the packet type is identical to the {\tt accessMode} argument
-of {\tt Open()}, and thus {\tt ACTION\_FINDOUTPUT} is identical to
-{\tt MODE\_NEWFILE}.
+of {\tt Open()}, and thus {\tt ACTION\_FINDOUTPUT}\key{ACTION\_FINDOUTPUT}
+is identical to {\tt MODE\_NEWFILE}\key{MODE\_NEWFILE}.
 \smallskip{}
 
 The arguments of the packet are initialized as for {\tt
@@ -14219,8 +14214,8 @@ potentially creating the file if it does not yet exist.
 \begin{rkrmtable}{\tt ACTION\_FINDUPDATE} \label{table:actionfindupdate}
 {\bf DosPacket Element}   & {\bf Value}\\ \hline \hline
 \tt dp\_Type  & \tt ACTION\_FINDUPDATE (1004) \\ \hline
-\tt dp\_Arg1  & BPTR to \emph{FileHandle} \\ \hline
-\tt dp\_Arg2  & BPTR to \emph{FileLock} \\ \hline
+\tt dp\_Arg1  & BPTR to {\tt FileHandle} \\ \hline
+\tt dp\_Arg2  & BPTR to {\tt FileLock} \\ \hline
 \tt dp\_Arg3  & BPTR to BSTR of file name \\ \hline \hline
 \tt dp\_Res1  & Boolean result code \\ \hline
 \tt dp\_Res2  & Error code \\ \hline
@@ -14229,8 +14224,8 @@ potentially creating the file if it does not yet exist.
 This packet is used by the {\tt Open()}\key{Open()} function of the
 \emph{dos.library} where the packet type is taken copied from the second
 argument, i.e. the packet type is identical to the {\tt accessMode} argument
-of {\tt Open()}, and thus {\tt ACTION\_FINDUPDATE} is identical to
-{\tt MODE\_READWRITE}.
+of {\tt Open()}, and thus {\tt ACTION\_FINDUPDATE}\key{ACTION\_FINDUPDATE}
+is identical to {\tt MODE\_READWRITE}\key{MODE\_READWRITE}.
 \smallskip{}
 
 The arguments of the packet are initialized as for
@@ -14242,13 +14237,13 @@ section~\ref{sec:actionfindinput}.
 The packet {\tt ACTION\_FH\_FROM\_LOCK}\mkey{ACTION\_FH\_FROM\_LOCK} initializes a {\tt
   FileHandle}\key{FileHandle} structure from a lock on an existing
 file. Whether this access is shared or exclusive depends on the type of the
-lock. Upon success, the lock is absorbed into the \emph{FileHandle}.
+lock. Upon success, the lock is absorbed into the {\tt FileHandle}.
 
 \begin{rkrmtable}{\tt ACTION\_FH\_FROM\_LOCK} \label{table:actionfhfromlock}
 {\bf DosPacket Element}   & {\bf Value}\\ \hline \hline
 \tt dp\_Type  & \tt ACTION\_FH\_FROM\_LOCK (1026) \\ \hline
-\tt dp\_Arg1  & BPTR to \emph{FileHandle} \\ \hline
-\tt dp\_Arg2  & BPTR to \emph{FileLock} \\ \hline \hline
+\tt dp\_Arg1  & BPTR to {\tt FileHandle} \\ \hline
+\tt dp\_Arg2  & BPTR to {\tt FileLock} \\ \hline \hline
 \tt dp\_Res1  & Boolean result code \\ \hline
 \tt dp\_Res2  & Error code \\ \hline
 \end{rkrmtable}
@@ -14256,13 +14251,13 @@ lock. Upon success, the lock is absorbed into the \emph{FileHandle}.
 This packet type implements the {\tt OpenFromLock()}\key{OpenFromLock()}
 function of the \emph{dos.library}, see section~\ref{sec:openfromlock}. It
 opens a file from a lock. On a hierarchical file system, this is equivalent
-to an {\tt ACTION\_FINDINPUT} packet with {\tt dp\_Arg3} set to an empty
-string.
+to an {\tt ACTION\_FINDINPUT}\key{ACTION\_FINDINPUT} packet with {\tt
+  dp\_Arg3} set to an empty string.
 \smallskip{}
 
 To uniquely identify the file handle and resources associated to it later
 on, the handler may place an identifier or a handle or pointer to internal
-resources in the {\tt fh\_Arg1} element of the \emph{FileHandle} provided by
+resources in the {\tt fh\_Arg1} element of the {\tt FileHandle} provided by
 {\tt dp\_Arg1}. Before replying the packet, {\tt dp\_Res1} shall be set by
 the handler to {\tt DOSTRUE} on success, or {\tt DOSFALSE} on error. On
 success, {\tt dp\_Res2} shall be set to~$0$, and to an error code from {\tt
@@ -14276,14 +14271,14 @@ system} internal resources of a file handle.
 \begin{rkrmtable}{\tt ACTION\_END} \label{table:actionend}
 {\bf DosPacket Element}   & {\bf Value}\\ \hline \hline
 \tt dp\_Type  & \tt ACTION\_END (1007) \\ \hline
-\tt dp\_Arg1  & {\tt fh\_Arg1} of the \emph{FileHandle} \\ \hline \hline
+\tt dp\_Arg1  & {\tt fh\_Arg1} of the {\tt FileHandle} \\ \hline \hline
 \tt dp\_Res1  & Boolean result code \\ \hline
 \tt dp\_Res2  & Error code \\ \hline
 \end{rkrmtable}
 
 {\tt dp\_Arg1} is initialized to the {\tt fh\_Arg1} element of the
-{\tt FileHandle} structure corresponding to the file that is supposed to be
-closed. This value may be used by the \emph{File System} or \emph{Handler}
+{\tt FileHandle}\key{FileHandle} structure corresponding to the file that is supposed to be
+closed. This value may be used by the File System or Handler
 to uniquely identify the resources associated to the file, for example any
 implicit lock on the file system object.
 \smallskip{}
@@ -14295,9 +14290,9 @@ set to~0, or to an error code otherwise.
 
 The \emph{dos.library} uses this packet to implement the {\tt
   Close()}\key{Close()} function. If it receives an error code, the library
-will not release the memory of the {\tt FileHandle} structure, and as such,
-it remains available to the caller of {\tt Close()} to perform other
-activities on the file.
+will not release the memory of the {\tt FileHandle}\key{FileHandle}
+structure, and as such, it remains available to the caller of {\tt
+  Close()}\key{Close()} to perform other activities on the file.
 
 \subsection{Reading from a File}
 
@@ -14307,7 +14302,7 @@ system} or handler and advances the file pointer accordingly.
 \begin{rkrmtable}{\tt ACTION\_READ} \label{table:actionread}
 {\bf DosPacket Element}   & {\bf Value}\\ \hline \hline
 \tt dp\_Type  & \tt ACTION\_READ (82) \\ \hline
-\tt dp\_Arg1  & {\tt fh\_Arg1} of the \emph{FileHandle} \\ \hline
+\tt dp\_Arg1  & {\tt fh\_Arg1} of the {\tt FileHandle} \\ \hline
 \tt dp\_Arg2  & Pointer to the buffer \\ \hline
 \tt dp\_Arg3  & Number of bytes to read \\ \hline \hline
 \tt dp\_Res1  & Bytes read or $-1$ \\ \hline
@@ -14318,11 +14313,11 @@ This packet implements the {\tt Read()}\key{Read()} function of the
 \emph{dos.library}. The elements of the packet are initialized as follows:
 \smallskip{}
 
-{\tt dp\_Arg1} is a copy from {\tt fh\_Arg1} of the \emph{FileHandle}
-structure and may be used by the file system or handler to
-identify the file. Note that it is \emph{not} the \emph{FileHandle} itself;
-instead, the handler may create and insert such an identifier into
-the \emph{FileHandle} when opening a file.
+{\tt dp\_Arg1} is a copy from {\tt fh\_Arg1} of the
+{\tt FileHandle}\key{FileHandle} structure and may be used by the file
+system or handler to identify the file. Note that it is \emph{not} the {\tt
+  FileHandle} itself; instead, the handler may create and insert such an
+identifier into the {\tt FileHandle} when opening a file.
 \smallskip{}
 
 {\tt dp\_Arg2} is a pointer (not a BPTR) to the buffer to be filled.
@@ -14344,8 +14339,8 @@ shall be set to~$0$.
 Note that there are no separate packet types corresponding to the buffered
 IO functions from section~\ref{sec:bufferedio}. Instead, the
 \emph{dos.library} functions at the caller side manage the buffer, monitor
-its fill state and potentially call into {\tt Read()} which then generates
-this packet.
+its fill state and potentially call into {\tt Read()}\key{Read()} which then
+generates this packet.
 
 \subsection{Writing to a File}
 
@@ -14356,7 +14351,7 @@ accordingly.
 \begin{rkrmtable}{\tt ACTION\_WRITE} \label{table:actionwrite}
 {\bf DosPacket Element}   & {\bf Value}\\ \hline \hline
 \tt dp\_Type  & \tt ACTION\_WRITE (87) \\ \hline
-\tt dp\_Arg1  & {\tt fh\_Arg1} of the \emph{FileHandle} \\ \hline
+\tt dp\_Arg1  & {\tt fh\_Arg1} of the {\tt FileHandle} \\ \hline
 \tt dp\_Arg2  & Pointer to the buffer \\ \hline
 \tt dp\_Arg3  & Number of bytes to write \\ \hline \hline
 \tt dp\_Res1  & Bytes written or $-1$ \\ \hline
@@ -14367,7 +14362,7 @@ This packet implements the {\tt Write()}\key{Write()} function of the
 \emph{dos.library}. The elements of the packet are initialized as follows:
 \smallskip{}
 
-{\tt dp\_Arg1} is a copy from {\tt fh\_Arg1} of the \emph{FileHandle}
+{\tt dp\_Arg1} is a copy from {\tt fh\_Arg1} of the {\tt FileHandle}\key{FileHandle}
 structure and may be used by the file system or handler to
 identify the file.
 \smallskip{}
@@ -14389,7 +14384,7 @@ shall be set to~$0$.
 Note that there are no separate packet types corresponding to the buffered
 IO functions from section~\ref{sec:bufferedio}. Instead, the
 \emph{dos.library} functions at the caller side manage the buffer, monitor
-its fill state and potentially call into {\tt Write()} which then generates
+its fill state and potentially call into {\tt Write()}\key{Write()} which then generates
 this packet.
 
 \subsection{Adjusting the File Pointer}
@@ -14400,7 +14395,7 @@ relative to a base location.
 \begin{rkrmtable}{\tt ACTION\_SEEK} \label{table:actionseek}
 {\bf DosPacket Element}   & {\bf Value}\\ \hline \hline
 \tt dp\_Type  & \tt ACTION\_SEEK (1008) \\ \hline
-\tt dp\_Arg1  & {\tt fh\_Arg1} of the \emph{FileHandle} \\ \hline
+\tt dp\_Arg1  & {\tt fh\_Arg1} of the {\tt FileHandle} \\ \hline
 \tt dp\_Arg2  & File pointer offset \\ \hline
 \tt dp\_Arg3  & Seek mode from Table~\ref{table:seekmode} \\ \hline \hline
 \tt dp\_Res1  & Previous file position \\ \hline
@@ -14412,7 +14407,7 @@ function of the \emph{dos.library}. The elements of the packet are
 initialized as follows:
 \smallskip{}
 
-{\tt dp\_Arg1} is a copy from {\tt fh\_Arg1} of the \emph{FileHandle}
+{\tt dp\_Arg1} is a copy from {\tt fh\_Arg1} of the {\tt FileHandle}
 structure and may be used by the file system or handler to
 identify the file.
 \smallskip{}
@@ -14433,8 +14428,8 @@ case, {\tt dp\_Res2} shall be filled with an error code, otherwise it shall
 be set to~$0$.
 \smallskip{}
 
-While this packet type mostly implement the {\tt Seek()} function, the
-latter is also aware of the (caller-side) buffer of the \emph{FileHandle}
+While this packet type mostly implement the {\tt Seek()}\key{Seek()} function, the
+latter is also aware of the (caller-side) buffer of the {\tt FileHandle}
 and performs a flush of this buffer. The packet cannot, of course, perform a
 flush.
 
@@ -14447,7 +14442,7 @@ current end of file.
 \begin{rkrmtable}{\tt ACTION\_SET\_FILE\_SIZE} \label{table:actionsetfilesize}
 {\bf DosPacket Element}   & {\bf Value}\\ \hline \hline
 \tt dp\_Type  & \tt ACTION\_SET\_FILE\_SIZE (1022) \\ \hline
-\tt dp\_Arg1  & {\tt fh\_Arg1} of the \emph{FileHandle} \\ \hline
+\tt dp\_Arg1  & {\tt fh\_Arg1} of the {\tt FileHandle} \\ \hline
 \tt dp\_Arg2  & File size adjustment \\ \hline
 \tt dp\_Arg3  & Mode from Table~\ref{table:seekmode} \\ \hline \hline
 \tt dp\_Res1  & Boolean result code \\ \hline
@@ -14459,7 +14454,7 @@ function of the \emph{dos.library}. The elements of the packet are
 initialized as follows:
 \smallskip{}
 
-{\tt dp\_Arg1} is a copy from {\tt fh\_Arg1} of the \emph{FileHandle}
+{\tt dp\_Arg1} is a copy from {\tt fh\_Arg1} of the {\tt FileHandle}
 structure and may be used by the file system or handler to
 identify the file.
 \smallskip{}
@@ -14499,7 +14494,7 @@ protocol is supposed to use.
 \begin{rkrmtable}{\tt ACTION\_LOCK\_RECORD} \label{table:actionlockrecord}
 {\bf DosPacket Element}   & {\bf Value}\\ \hline \hline
 \tt dp\_Type  & \tt ACTION\_LOCK\_RECORD (2008) \\ \hline
-\tt dp\_Arg1  & {\tt fh\_Arg1} of the \emph{FileHandle} \\ \hline
+\tt dp\_Arg1  & {\tt fh\_Arg1} of the {\tt FileHandle} \\ \hline
 \tt dp\_Arg2  & Start offset of record \\ \hline
 \tt dp\_Arg3  & Length of record \\ \hline
 \tt dp\_Arg4  & Type of lock from table~\ref{table:reclockmode} \\ \hline
@@ -14549,7 +14544,7 @@ record lock on a portion of a file.
 \begin{rkrmtable}{\tt ACTION\_FREE\_RECORD} \label{table:actionfreerecord}
 {\bf DosPacket Element}   & {\bf Value}\\ \hline \hline
 \tt dp\_Type  & \tt ACTION\_FREE\_RECORD (2009) \\ \hline
-\tt dp\_Arg1  & {\tt fh\_Arg1} of the \emph{FileHandle} \\ \hline
+\tt dp\_Arg1  & {\tt fh\_Arg1} of the {\tt FileHandle} \\ \hline
 \tt dp\_Arg2  & Start offset of record \\ \hline
 \tt dp\_Arg3  & Length of record \\ \hline \hline
 \tt dp\_Res1  & Boolean result code \\ \hline
@@ -14591,10 +14586,10 @@ such as comments or protection bits associated to the identified object.
 \begin{rkrmtable}{\tt ACTION\_LOCATE\_OBJECT} \label{table:actionlocateobject}
 {\bf DosPacket Element}   & {\bf Value}\\ \hline \hline
 \tt dp\_Type  & \tt ACTION\_LOCATE\_OBJECT (8) \\ \hline
-\tt dp\_Arg1  & BPTR to \emph{FileLock} \\ \hline
+\tt dp\_Arg1  & BPTR to {\tt FileLock} \\ \hline
 \tt dp\_Arg2  & Mode of the lock \\ \hline
 \tt dp\_Arg3  & BPTR to BSTR of the object name \\ \hline \hline
-\tt dp\_Res1  & BPTR to \emph{FileLock} \\ \hline
+\tt dp\_Res1  & BPTR to {\tt FileLock} \\ \hline
 \tt dp\_Res2  & Error code \\ \hline
 \end{rkrmtable}
 
@@ -14603,7 +14598,7 @@ relative, also represented as a lock. As such, it implements the
 {\tt Lock()}\key{Lock} function of the \emph{dos.library}.
 \smallskip{}
 
-{\tt dp\_Arg1} is a BPTR to a \emph{FileLock} structure that represents the
+{\tt dp\_Arg1} is a BPTR to a {\tt FileLock} structure that represents the
 object to which the path given in {\tt dp\_Arg3} is relative. This is
 usually a directory, and the {\tt Lock()} function fills it from the current
 directory of the calling process. This argument can be {\tt ZERO} in which
@@ -14612,9 +14607,9 @@ the root of the currently inserted volume handled by the file system.
 \smallskip{}
 
 {\tt dp\_Arg2} is the type of the lock to be created as defined in
-table~\ref{table:lockmodes}. The value {\tt SHARED\_LOCK} requests a
+table~\ref{table:lockmodes}. The value {\tt SHARED\_LOCK}\key{SHARED\_LOCK} requests a
 non-exclusive lock on an object; multiple of such locks can be held on the
-same object. The value {\tt EXCLUSIVE\_LOCK} requests an exclusive an
+same object. The value {\tt EXCLUSIVE\_LOCK}\key{EXCLUSIVE\_LOCK} requests an exclusive an
 object; only a single exclusive lock can be held on an object at once, and
 no other locks, including shared locks, are permissible. Attempting to
 exclusively lock an object that is already locked shall fail, and attempting
@@ -14622,7 +14617,7 @@ to lock an object that is already exclusively locked shall as
 well. Unfortunately, some programs call {\tt Lock()}\key{Lock()} with an
 invalid argument for the mode, and thus file systems should be
 prepared to handle invalid values for {\tt dp\_Arg2}. Such values should be
-considered equivalent to {\tt SHARED\_LOCK}.
+considered equivalent to {\tt SHARED\_LOCK}\key{SHARED\_LOCK}.
 \smallskip{}
 
 {\tt dp\_Arg3} is a BPTR to a BSTR of an absolute or relative path of the
@@ -14634,44 +14629,44 @@ identical to the one identified by {\tt dp\_Arg1}.
 \smallskip{}
 
 On success, {\tt dp\_Res1} shall be a BPTR to a {\tt FileLock}
-structure. These objects are created and maintained by the \emph{file
-system}. This structure shall be initialized as indicated in
+structure. These objects are created and maintained by the file
+system. This structure shall be initialized as indicated in
 section~\ref{sec:filelock}:
 \smallskip{}
 
-{\tt fl\_Task} shall point to a {\tt MsgPort} through which the maintaining
+{\tt fl\_Task}\key{fl\_Task} shall point to a {\tt MsgPort} through which the maintaining
 file system can be contacted, which is typically, but not necessarily
 the process message port {\tt pr\_Port} of the file system itself.
 \smallskip{}
 
-{\tt fl\_Volume} shall be a BPTR to the {\tt DosList} structure representing
-the volume on which the locked object is located, see
+{\tt fl\_Volume}\key{fl\_Volume} shall be a BPTR to the {\tt DosList}\key{DosList} structure
+representing the volume on which the locked object is located, see
 section~\ref{sec:devicelist}.
 \smallskip{}
 
-{\tt fl\_Access} shall be filled by {\tt dp\_Arg2}, identifying the type of
-the lock.
+{\tt fl\_Access}\key{fl\_Access} shall be filled by {\tt dp\_Arg2},
+identifying the type of the lock.
 \smallskip{}
 
-{\tt fl\_Link} may be used to queue up locks on a volume that is currently
+{\tt fl\_Link}\key{fl\_Link} may be used to queue up locks on a volume that is currently
 not inserted. When a volume with locked objects is removed from the drive,
 the file system may store all these locks in a singly linked list
-starting at {\tt dol\_LockList} and chained by {\tt fl\_Link}. If the same
+starting at {\tt dol\_LockList}\key{dol\_LockList} and chained by {\tt fl\_Link}. If the same
 volume is then re-inserted into another drive, another instance of the same
 file system is able to pick up these locks and manage them instead. Thus,
 for example, a lock on an object in drive {\tt df0:} will remain valid even
 if the volume is removed and re-inserted into {\tt df1:}.
 \smallskip{}
 
-{\tt fl\_Key}, finally, may be used for the purpose of the \emph{file
-system} for uniquely identifying the locked object. It is an opaque value as
-far as the \emph{dos.library} is concerned.
+{\tt fl\_Key}\key{fl\_Key}, finally, may be used for the purpose of the
+file system for uniquely identifying the locked object. It is an
+opaque value as far as the \emph{dos.library} is concerned.
 \medskip{}
 
-On success, the BPTR to the created {\tt FileLock} shall be stored in {\tt
-  dp\_Res1} and {\tt dp\_Res2} shall be set to~0. On error, {\tt dp\_Res1}
-shall be set to {\tt ZERO} and {\tt dp\_Res2} to an error code from {\tt
-  dos/dos.h} identifying the source of the problem, see also
+On success, the BPTR to the created {\tt FileLock}\key{FileLock} shall be
+stored in {\tt dp\_Res1} and {\tt dp\_Res2} shall be set to~0. On error,
+{\tt dp\_Res1} shall be set to {\tt ZERO} and {\tt dp\_Res2} to an error
+code from {\tt dos/dos.h} identifying the source of the problem, see also
 section~\ref{sec:ioerr}.
 
 \subsection{Duplicating a Lock}
@@ -14683,8 +14678,8 @@ lock.
 \begin{rkrmtable}{\tt ACTION\_COPY\_DIR} \label{table:actioncopydir}
 {\bf DosPacket Element}   & {\bf Value}\\ \hline \hline
 \tt dp\_Type  & \tt ACTION\_COPY\_DIR (19) \\ \hline
-\tt dp\_Arg1  & BPTR to \emph{FileLock} \\ \hline \hline
-\tt dp\_Res1  & BPTR to \emph{FileLock} \\ \hline
+\tt dp\_Arg1  & BPTR to {\tt FileLock} \\ \hline \hline
+\tt dp\_Res1  & BPTR to {\tt FileLock} \\ \hline
 \tt dp\_Res2  & Error code \\ \hline
 \end{rkrmtable}
 
@@ -14702,8 +14697,10 @@ attempt to replicate the {\tt ZERO} lock, this is not advisable as most
 users of this packet may misinterpret this result as failure case.
 \smallskip{}
 
-This packet is identical to {\tt ACTION\_LOCATE\_OBJECT} with {\tt dp\_Arg2}
-set to {\tt SHARED\_LOCK} and {\tt dp\_Arg3} set to an empty string.
+This packet is identical to {\tt
+  ACTION\_LOCATE\_OBJECT}\key{ACTION\_LOCATE\_OBJECT} with {\tt dp\_Arg2}
+set to {\tt SHARED\_LOCK}\key{SHARED\_LOCK} and {\tt dp\_Arg3} set to an
+empty string.
 
 \subsection{Finding the Parent of a Lock}
 
@@ -14713,8 +14710,8 @@ the directory containing a locked object.
 \begin{rkrmtable}{\tt ACTION\_PARENT} \label{table:actionparent}
 {\bf DosPacket Element}   & {\bf Value}\\ \hline \hline
 \tt dp\_Type  & \tt ACTION\_PARENT (29) \\ \hline
-\tt dp\_Arg1  & BPTR to \emph{FileLock} \\ \hline \hline
-\tt dp\_Res1  & BPTR to \emph{FileLock} \\ \hline
+\tt dp\_Arg1  & BPTR to {\tt FileLock} \\ \hline \hline
+\tt dp\_Res1  & BPTR to {\tt FileLock} \\ \hline
 \tt dp\_Res2  & Error code \\ \hline
 \end{rkrmtable}
 
@@ -14726,7 +14723,7 @@ file system shall set {\tt dp\_Res1} to {\tt ZERO} and {\tt dp\_Res2}
 to~0, indicating that this is not a failure case.
 \smallskip{}
 
-Otherwise, this function returns on success a BPTR to the {\tt FileLock}
+Otherwise, this function returns on success a BPTR to the {\tt FileLock}\key{FileLock}
 representing the parent directory in {\tt dp\_Arg1} and sets {\tt dp\_Arg2}
 to~0. On error, {\tt dp\_Res1} is set to {\tt ZERO} and {\tt dp\_Arg2} to an
 error code.
@@ -14740,23 +14737,23 @@ copies the implicit lock of the handle.
 \begin{rkrmtable}{\tt ACTION\_COPY\_DIR\_FH} \label{table:actioncopydirfh}
 {\bf DosPacket Element}   & {\bf Value}\\ \hline \hline
 \tt dp\_Type  & \tt ACTION\_COPY\_DIR\_FH (1030) \\ \hline
-\tt dp\_Arg1  & {\tt fh\_Arg1} of the \emph{FileHandle} \\ \hline \hline
-\tt dp\_Res1  & BPTR to \emph{FileLock} \\ \hline
+\tt dp\_Arg1  & {\tt fh\_Arg1} of the {\tt FileHandle} \\ \hline \hline
+\tt dp\_Res1  & BPTR to {\tt FileLock} \\ \hline
 \tt dp\_Res2  & Error code \\ \hline
 \end{rkrmtable}
 
 This packet implements the {\tt DupLockFromFH()}\key{DupLockFromFH()}
 function of the \emph{dos.library}, and thus creates a copy of the lock that
 is implicit to an open file handle. This works only if the file is open in a
-non-exclusive mode, i.e. either {\tt MODE\_READWRITE} or
-{\tt MODE\_OLDFILE}.
+non-exclusive mode, i.e. either {\tt MODE\_READWRITE}\key{MODE\_REAWRITE} or
+{\tt MODE\_OLDFILE}\key{MODE\_OLDFILE}.
 \smallskip{}
 
 {\tt dp\_Arg1} is a copy of the {\tt fh\_Arg1} element of the {\tt
   FileHandle} structure and thus serves to identify the opened file.
 \smallskip{}
 
-On success, {\tt dp\_Res1} is filled by the BPTR to the {\tt FileLock}
+On success, {\tt dp\_Res1} is filled by the BPTR to the {\tt FileLock}\key{FileLock}
 created, namely a lock to the object opened by the file handle. In such a
 case, {\tt dp\_Res2} is set to~0. On error, {\tt dp\_Res1} is set to
 {\tt ZERO} and {\tt dp\_Res2} to an error code.
@@ -14769,15 +14766,15 @@ on the directory containing a file identified by a file handle.
 \begin{rkrmtable}{\tt ACTION\_PARENT\_FH} \label{table:actionparentfh}
 {\bf DosPacket Element}   & {\bf Value}\\ \hline \hline
 \tt dp\_Type  & \tt ACTION\_PARENT\_FH (1031) \\ \hline
-\tt dp\_Arg1  & {\tt fh\_Arg1} of the \emph{FileHandle} \\ \hline \hline
-\tt dp\_Res1  & BPTR to \emph{FileLock} \\ \hline
+\tt dp\_Arg1  & {\tt fh\_Arg1} of the {\tt FileHandle} \\ \hline \hline
+\tt dp\_Res1  & BPTR to {\tt FileLock} \\ \hline
 \tt dp\_Res2  & Error code \\ \hline
 \end{rkrmtable}
 
 This packet implements the {\tt ParentOfFH()}\key{ParentOfFH()} function of
 the \emph{dos.library} and as such creates a lock on the directory that
 contains a given file handle. {\tt dp\_Arg1} is a copy of the {\tt
-  fh\_Arg1} element of the {\tt FileHandle} structure and thus identifies
+  fh\_Arg1} element of the {\tt FileHandle}\key{FileHandle} structure and thus identifies
 the handle.
 \smallskip{}
 
@@ -14793,9 +14790,9 @@ directory and represents it by an exclusive lock on the directory created.
 \begin{rkrmtable}{\tt ACTION\_CREATE\_DIR} \label{table:actioncreatedir}
 {\bf DosPacket Element}   & {\bf Value}\\ \hline \hline
 \tt dp\_Type  & \tt ACTION\_CREATE\_DIR (22) \\ \hline
-\tt dp\_Arg1  & BPTR to \emph{FileLock} \\ \hline
+\tt dp\_Arg1  & BPTR to {\tt FileLock} \\ \hline
 \tt dp\_Arg2  & BPTR to BSTR of the directory name \\ \hline \hline
-\tt dp\_Res1  & BPTR to \emph{FileLock} \\ \hline
+\tt dp\_Res1  & BPTR to {\tt FileLock} \\ \hline
 \tt dp\_Res2  & Error code \\ \hline
 \end{rkrmtable}
 
@@ -14817,18 +14814,18 @@ same object.
 \begin{rkrmtable}{\tt ACTION\_SAME\_LOCK} \label{table:actionsamelock}
 {\bf DosPacket Element}   & {\bf Value}\\ \hline \hline
 \tt dp\_Type  & \tt ACTION\_SAME\_LOCK (40) \\ \hline
-\tt dp\_Arg1  & BPTR to \emph{FileLock} \\ \hline
-\tt dp\_Arg2  & BPTR to \emph{FileLock} \\ \hline
+\tt dp\_Arg1  & BPTR to {\tt FileLock} \\ \hline
+\tt dp\_Arg2  & BPTR to {\tt FileLock} \\ \hline
 \tt dp\_Res1  & Boolean result code \\ \hline
 \tt dp\_Res2  & Error code \\ \hline
 \end{rkrmtable}
 
-This packet is the core of the {\tt SameLock()} function of the
+This packet is the core of the {\tt SameLock()}\key{SameLock()} function of the
 \emph{dos.library}, which, however, first checks whether the two locks to
 compare are on the same file system. Only if so, the file system
 corresponding the two locks is contacted with the above packet to compare
 the two locks. For this, {\tt dp\_Arg1} and {\tt dp\_Arg2} are BPTRs to the
-two {\tt FileLocks} to compare.
+two {\tt FileLocks}\key{FileLock} to compare.
 \smallskip{}
 
 Upon reply, {\tt dp\_Res1} shall be set to {\tt DOSTRUE} if the two locks
@@ -14849,7 +14846,7 @@ access --- if possible --- or lowering the rights to shared access.
 {\bf DosPacket Element}   & {\bf Value}\\ \hline \hline
 \tt dp\_Type  & \tt ACTION\_CHANGE\_MODE (1028) \\ \hline
 \tt dp\_Arg1  & Object type from table~\ref{table:changemode} \\ \hline
-\tt dp\_Arg2  & BPTR to \emph{FileLock} or \emph{FileHandle} \\ \hline
+\tt dp\_Arg2  & BPTR to {\tt FileLock} or {\tt FileHandle} \\ \hline
 \tt dp\_Arg3  & Target mode \\ \hline \hline
 \tt dp\_Res1  & Boolean result code \\ \hline
 \tt dp\_Res2  & Error code \\ \hline
@@ -14869,7 +14866,7 @@ of a file handle.
 {\tt dp\_Arg2} is the BPTR to the object whose mode is to be changed. If
 {\tt dp\_Arg1} is {\tt CHANGE\_LOCK}, this is a BPTR to a {\tt FileLock}
 structure, if {\tt dp\_Arg1} is {\tt CHANGE\_FH}, it is a BPTR to a {\tt
-  FileHandle} structure. Note that this is unusual as files are typically
+  FileHandle}\key{FileHandle} structure. Note that this is unusual as files are typically
 identified by their {\tt fh\_Arg1} element and not by the handle itself. This
 packet is an exception.
 \smallskip{}
@@ -14879,10 +14876,10 @@ shared access to the file or the lock, or {\tt EXCLUSIVE\_LOCK} for
 exclusive access to the file or the lock\footnote{The information
 in~\cite{Bantam} is incorrect on this subject matter.}. However, as
 information on this packet is sparse and application programs can call the
-corresponding {\tt ChangeMode()} function with incorrect target modes,
-\emph{file handlers} should also accept {\tt ACTION\_FINDINPUT} and {\tt
-  ACTION\_FINDUPDATE} for shared access and {\tt ACTION\_FINDOUTPUT} for
-exclusive access.
+corresponding {\tt ChangeMode()}\key{ChangeMode()} function with incorrect target modes,
+file handlers should also accept {\tt ACTION\_FINDINPUT}\key{ACTION\_FINDINPUT} and
+{\tt ACTION\_FINDUPDATE}\key{ACTION\_FINDUPDATE} for shared access and
+{\tt ACTION\_FINDOUTPUT}\key{ACTION\_FINDOUTPUT} for exclusive access.
 \smallskip{}
 
 Note that it is not always possible to change the mode of a lock or a file
@@ -14890,8 +14887,8 @@ to exclusive access, namely if it is accessed by a second file handle or
 locked a second time. This packet shall then fail.
 \smallskip{}
 
-Upon reply, {\tt dp\_Res1} shall include a boolean success indicator, {\tt
-  DOSTRUE} for success or {\tt DOSFALSE} for failure. In the former case,
+Upon reply, {\tt dp\_Res1} shall include a boolean success indicator,
+{\tt DOSTRUE} for success or {\tt DOSFALSE} for failure. In the former case,
 {\tt dp\_Res2} shall be~0, in the latter case, it shall contain an error
 code.
 
@@ -14903,13 +14900,13 @@ lock on a file system.
 \begin{rkrmtable}{\tt ACTION\_FREE\_LOCK} \label{table:actionfreelock}
 {\bf DosPacket Element}   & {\bf Value}\\ \hline \hline
 \tt dp\_Type  & \tt ACTION\_FREE\_LOCK (15) \\ \hline
-\tt dp\_Arg1  & BPTR to \emph{FileLock} \\ \hline \hline
+\tt dp\_Arg1  & BPTR to {\tt FileLock} \\ \hline \hline
 \tt dp\_Res1  & Boolean result code \\ \hline
 \tt dp\_Res2  & Error code \\ \hline
 \end{rkrmtable}
 
 This packet implements the \emph{dos.library} function {\tt
-  UnLock()}\key{UnLock()} and releases a {\tt FileLock}. A BPTR to the lock
+  UnLock()}\key{UnLock()} and releases a {\tt FileLock}\key{FileLock}. A BPTR to the lock
 to release is provided in {\tt dp\_Arg1}. If this argument is {\tt ZERO},
 the file system shall ignore the request and return success.
 \smallskip{}
@@ -14918,8 +14915,8 @@ When replying this packet, {\tt dp\_Res1} shall be set to {\tt DOSTRUE} on
 success and {\tt DOSFALSE} on error. On success, {\tt dp\_Res2} shall be set
 to~0, otherwise it shall be set to an error code. There are actually few
 reasons why this packet could fail, probably because the passed in BPTR is
-invalid and does not point to a valid {\tt FileLock}. The {\tt UnLock()}
-function does not return this result code, but adjusts {\tt IoErr()}
+invalid and does not point to a valid {\tt FileLock}\key{FileLock}. The {\tt UnLock()}
+function does not return this result code, but adjusts {\tt IoErr()}\key{IoErr()}
 according to {\tt dp\_Res2}.
 
 \section{Packets for Examining Objects} \label{sec:actionfib}
@@ -14936,7 +14933,7 @@ deleted.
 
 The {\tt ACTION\_EXAMINE\_OBJECT}\mkey{ACTION\_EXAMINE\_OBJECT} packet
 retrieves metadata such as file name, comment and protection bits from a
-lock on an object on a file system and fills a {\tt FileInfoBlock} with this
+lock on an object on a file system and fills a {\tt FileInfoBlock}\key{FileInfoBlock} with this
 data.
 
 \begin{rkrmtable}{\tt ACTION\_EXAMINE\_OBJECT} \label{table:actionexamineobject}
@@ -14957,13 +14954,13 @@ by the lock in {\tt dp\_Arg1}. This information is provided in a {\tt
 However, as the AmigaDOS handler design is due to historic reasons based on
 BCPL, small differences exist between how this packet operates and how the
 {\tt Examine()} function provides its results to the caller. In specific,
-the {\tt fib\_FileName} and {\tt fib\_Comment} elements shall be filled with
+the {\tt fib\_FileName} and {\tt fib\_Comment}\key{fib\_Comment} elements shall be filled with
 a BSTRs, i.e. the first character is the length of the file name or the
 comment. The conversion to a {\tt NUL}-terminated C string is performed by
 the \emph{dos.library}.
 \smallskip{}
 
-The elements {\tt fib\_DirEntryType} and {\tt fib\_EntryType} shall be
+The elements {\tt fib\_DirEntryType}\key{fib\_DirEntryType} and {\tt fib\_EntryType}\key{fib\_EntryType} shall be
 filled with the same value as some programs check one and others the other
 element. In particular, the value filled in shall be taken from
 table~\ref{table:direntrytypes}. The value~0 shall be avoided as some
@@ -14971,15 +14968,15 @@ programs check for directories by testing against a positive value whereas
 some others check for a non-negative value, i.e. accept~0 as a directory.
 \smallskip{}
 
-The fields {\tt fib\_OwnerUID} and {\tt fib\_OwnerGID} shall be set to~0,
-unless the file system has an idea on user and group IDs --- unfortunately
-AmigaDOS cannot make use of these values anyhow, and it is not documented
-how these fields shall be interpreted; they are probably an opaque value.
-{\tt fib\_Reserved} shall be left alone, in particular file systems
-\emph{shall not} use it to store internal state information. Such
-information may \emph{only} go into {\tt fib\_DiskKey}, which is an element
-application programs, i.e. callers of the \emph{dos.library}, shall not
-interpret.
+The fields {\tt fib\_OwnerUID}\key{fib\_OwnerUID} and {\tt
+  fib\_OwnerGID}\key{fib\_OwnerGID} shall be set to~0, unless the file
+system has an idea on user and group IDs --- unfortunately AmigaDOS cannot
+make use of these values anyhow, and it is not documented how these fields
+shall be interpreted; they are probably an opaque value.  {\tt
+  fib\_Reserved} shall be left alone, in particular file systems \emph{shall
+not} use it to store internal state information. Such information may
+\emph{only} go into {\tt fib\_DiskKey}\key{fib\_DiskKey}, which is an element application
+programs, i.e. callers of the \emph{dos.library}, shall not interpret.
 \smallskip{}
 
 This packet is also used to start a scan over the contents of a
@@ -14991,7 +14988,7 @@ internal state machine.
 
 This function returns a boolean success code in {\tt dp\_Res1}, it
 shall be either set to {\tt DOSTRUE} in case information on the locked
-object could be retrieved and inserted into the {\tt FileInfoBlock}
+object could be retrieved and inserted into the {\tt FileInfoBlock}\key{FileInfoBlock}
 given by {\tt dp\_Arg2}. In that case, {\tt dp\_Res2} shall be set
 to~0. In case of an error, {\tt dp\_Res1} shall be set to {\tt
   DOSFALSE} and {\tt dp\_Res2} to an error code.
@@ -15018,7 +15015,7 @@ corresponding next entry.
 This function continues a directory scan by providing information on the
 next subsequent object in the directory identified by the lock in {\tt
   dp\_Arg1}. Meta-information on the object itself is copied into the {\tt
-  FileInfoBlock} structure in the BPTR in {\tt dp\_Arg2}. Similar
+  FileInfoBlock}\key{FileInfoBlock} structure in the BPTR in {\tt dp\_Arg2}. Similar
 to {\tt ACTION\_EXAMINE\_OBJECT}\key{ACTION\_EXAMINE\_OBJECT} discussed
 in~\ref{sec:actionexamineobject}, the file name and comment shall be
 provided as BSTRs and not as {\tt NUL}-terminated C strings. Conversion to
@@ -15035,33 +15032,34 @@ empty string, and the parent directory by the isolated slash (``{\tt /}'').
 Unfortunately, this packet is one of the hardest to implement in a file
 system as the directory may change while the scan is active. In particular,
 file systems shall handle the situation gracefully in which the object from
-the previous iteration identified by {\tt fib\_DiskKey} has been deleted,
+the previous iteration identified by {\tt fib\_DiskKey}\key{fib\_DiskKey} has been deleted,
 moved or replaced by another object, or in which {\tt dp\_Arg1} is a
 different lock than the lock that was used to start the scan by {\tt
   ACTION\_EXAMINE\_OJBECT}\key{ACTION\_EXAMINE\_OJBECT}. The file system may
 only assume that the lock in {\tt dp\_Arg1} is a lock on the same directory
 on which the scan has been started. Similarly, {\tt dp\_Arg2} may have
 changed from the last iteration, and the file system shall only depend on
-{\tt fib\_DiskKey} and {\tt fib\_DirEntryType} being identical compared to
-the last iteration, all other entries can be potentially trashed or
-inconsistent. Thus, the file system shall only use these two elements to
-store state information. Also, file systems shall not depend on application
-programs scanning directories up to the last entry; application programs can
-abort a directory scan at an arbitrary point, yet file system shall release
-all resources required for storing state information of the scan after at
-least the lock on the scanned directory is released.
+{\tt fib\_DiskKey}\key{fib\_DiskKey} and {\tt fib\_DirEntryType}\key{fib\_DirEntryType}
+being identical compared to the last iteration, all other entries can be
+potentially trashed or inconsistent. Thus, the file system shall only use
+these two elements to store state information. Also, file systems shall not
+depend on application programs scanning directories up to the last entry;
+application programs can abort a directory scan at an arbitrary point, yet
+file system shall release all resources required for storing state
+information of the scan after at least the lock on the scanned directory is
+released.
 \smallskip{}
 
 A possible implementation strategy is to store full state information in the
 lock given by {\tt dp\_Arg1}, though keep sufficient information in {\tt
-  fib\_DiskKey} to rebuild the full information in case the lock is released and
-replaced during the scan. In the simplest possible case, {\tt fib\_DiskKey}
+  fib\_DiskKey}\key{fib\_DiskKey} to rebuild the full information in case the lock is released and
+replaced during the scan. In the simplest possible case, {\tt fib\_DiskKey}\key{fib\_DiskKey}
 could be a counter that enumerates the elements in the directory, whereas
 the lock contains the full state information to access the element
 directly. In case the lock is replaced, {\tt ACTION\_EXAMINE\_NEXT}
 \key{ACTION\_EXAMINE\_NEXT} would find the state information in the lock
 missing, and would then scan forward to the element enumerated by {\tt
-  fib\_DiskKey}. While this is less efficient than using the (now missing)
+  fib\_DiskKey}\key{fib\_DiskKey}. While this is less efficient than using the (now missing)
 state information in the lock, it will at least provide information on a valid
 object in the directory. Also, if an object is removed or moved out of the
 scanned directory, the file system would update the state information kept
@@ -15077,12 +15075,12 @@ file systems of AmigaDOS in the past.
 
 This packet shall provide a boolean success code in {\tt dp\_Res1}. In case
 the next object in a directory could be successfully examined and
-information on it could be stored in {\tt FileInformationBlock},
+information on it could be stored in {\tt FileInfoBlock}\key{FileInfoBlock},
 {\tt dp\_Res1} shall be set to {\tt DOSTRUE} and {\tt dp\_Res2} to~0. In
 case of an error, {\tt dp\_Res1} shall be set to {\tt DOSFALSE} and {\tt
   dp\_Res2} to an error code. In case the end of the directory has been
 reached and no further entries remain to be examined, this error code shall
-be {\tt ERROR\_NO\_MORE\_ENTRIES}.
+be {\tt ERROR\_NO\_MORE\_ENTRIES}\key{ERROR\_NO\_MORE\_ENTRIES}.
 
 \subsection{Examining Multiple Entries at once}
 
@@ -15108,7 +15106,7 @@ function. Note that unlike many other packets, {\tt dp\_Arg2} and {\tt
   dp\_Arg5} are regular pointers and not BPTRs\footnote{The information on
 {\tt dp\_Arg5} in~\cite{Bantam} is incorrect, it is really a pointer and not
 a BPTR}. If the file system does not implement this packet,
-i.e. returns {\tt ERROR\_ACTION\_NOT\_KNOWN}, then the \emph{dos.library}
+i.e. returns {\tt ERROR\_ACTION\_NOT\_KNOWN}\key{ERROR\_ACTION\_NOT\_KNOWN}, then the \emph{dos.library}
 emulates it using {\tt ACTION\_EXAMINE\_OBJECT}\key{ACTION\_EXAMINE\_OBJECT}
 and {\tt ACTION\_EXAMINE\_NEXT}\key{ACTION\_EXAMINE\_NEXT}.
 \smallskip{}
@@ -15118,7 +15116,7 @@ and {\tt ACTION\_EXAMINE\_NEXT}\key{ACTION\_EXAMINE\_NEXT}.
 
 {\tt dp\_Arg2} is a pointer to the buffer to be filled with information on
 the objects found in the directory, it is \emph{not} a BPTR. This buffer is
-filled with a singly linked list of {\tt ExAllData} structures, see
+filled with a singly linked list of {\tt ExAllData}\key{ExAllData} structures, see
 section~\ref{sec:exall} for the definition of this structure. Only the
 elements requested by {\tt dp\_Arg4} are filled, remaining entries are
 undefined.
@@ -15128,7 +15126,7 @@ undefined.
 bytes.
 \smallskip{}
 
-{\tt dp\_Arg4} defines which elements of the {\tt ExAllData} are filled. The
+{\tt dp\_Arg4} defines which elements of the {\tt ExAllData}\key{ExAllData} are filled. The
 encoding of this argument is given by table~\ref{table:exalltypes} in
 section~\ref{sec:exall}.
 \smallskip{}
@@ -15140,29 +15138,29 @@ pointer, not a BPTR.
 \smallskip{}
 
 The file system shall provide in the {\tt eac\_Entries} element of
-this structure the number of {\tt ExAllData} structures it could fit into
+this structure the number of {\tt ExAllData}\key{ExAllData} structures it could fit into
 the target buffer provided by {\tt dp\_Arg2}.
 \smallskip{}
 
 It may store internal state information of the directory scanner in {\tt
   eac\_LastKey}. This state information could, for example, correspond to
-the {\tt fib\_DiskKey} in the {\tt FileInfoBlock} identifying an element in
-a directory. It is zero-initialized before the first packet, and thus the
-file system may assume that a value of~0 for the key identifies the
-start of the scan.
+the {\tt fib\_DiskKey}\key{fib\_DiskKey} in the {\tt FileInfoBlock}\key{FileInfoBlock}
+identifying an element in a directory. It is zero-initialized before the
+first packet, and thus the file system may assume that a value of~0 for the
+key identifies the start of the scan.
 \smallskip{}
 
-If non-{\tt NULL}, {\tt eac\_MatchString} is a parsed pattern as
+If non-{\tt NULL}, {\tt eac\_MatchString}\key{eac\_MatchString} is a parsed pattern as
 generated by the {\tt ParsePatternNoCase()}\key{ParsePatternNoCase()}
 function, see section~\ref{sec:parsepatternnocase}. If this pattern is
 present, only directory entries whose name matches the pattern shall be
 filled into the target buffer.
 \smallskip{}
 
-{\tt eac\_MatchFunc} provides even finer control of which elements are
-filled into the target buffer; it supplies a {\tt Hook} structure whose {\tt
-  h\_Entry} function is called for each candidate directory entry. If the
-hook returns non-zero, the {\tt ExAllData} copied to the buffer shall be
+{\tt eac\_MatchFunc}\key{eac\_MatchFunc} provides even finer control of which elements are
+filled into the target buffer; it supplies a {\tt Hook} structure whose
+{\tt h\_Entry} function is called for each candidate directory entry. If the
+hook returns non-zero, the {\tt ExAllData}\key{ExAllData} copied to the buffer shall be
 considered accepted and shall remain in the buffer; if it returns zero, this
 candidate entry is rejected and will be removed from the final
 output. Calling conventions of this hook are also described in
@@ -15175,18 +15173,18 @@ too. In particular, the file system shall be prepared for the
 directory to get modified between scans, by either adding, removing,
 renaming or moving objects out or into the directory. Using a disk block or
 a pointer to a structure representing a specific object as {\tt
-  eac\_LastKey} is therefore discouraged. Similarly, {\tt dp\_Arg1} will be
+  eac\_LastKey}\key{eac\_LastKey} is therefore discouraged. Similarly, {\tt dp\_Arg1} will be
 a lock to the same directory, though may not necessarily be the identical
 lock as used in the previous iteration over the same directory, only the
 directory that is locked may assumed to be the same. In other words, {\tt
-  eac\_DiskKey} shall hold sufficient state information to reconstruct the
+  eac\_DiskKey}\key{eac\_DiskKey} shall hold sufficient state information to reconstruct the
 point from which the scan is to be continued. What is, however, is ensured
-is that the pointer to the {\tt ExAllControl} structure stored in {\tt
-  dp\_Arg5} did not change and the file system may depend on the
-pointer having the same value as on a the previous iteration over a
-directory. Also, file systems may depend on the client sending a
-packet of type {\tt ACTION\_EXAMINE\_ALL\_END}\key{ACTION\_EXAMINE\_ALL\_END}
-to abort a scan before reaching the end of the directory.
+is that the pointer to the {\tt ExAllControl}\key{ExAllControl} structure
+stored in {\tt dp\_Arg5} did not change and the file system may depend on the pointer
+having the same value as on a the previous iteration over a directory. Also,
+file systems may depend on the client sending a packet of type {\tt
+  ACTION\_EXAMINE\_ALL\_END}\key{ACTION\_EXAMINE\_ALL\_END} to abort a scan
+before reaching the end of the directory.
 \smallskip{}
 
 This packet shall be replied with {\tt dp\_Res1} set to {\tt DOSTRUE} if not
@@ -15234,7 +15232,7 @@ allocated for the purpose of the scan.
 
 {\tt dp\_Arg1} is the lock on the directory on which a partial directory
 scan has been started. It is not necessarily the original lock passed into
-{\tt ACTION\_EXAMINE\_ALL}, but a lock on the same directory.
+{\tt ACTION\_EXAMINE\_ALL}\key{ACTION\_EXAMINE\_ALL}, but a lock on the same directory.
 \smallskip{}
 
 {\tt dp\_Arg2} and {\tt dp\_Arg3} are a pointer to a buffer and its
@@ -15251,10 +15249,10 @@ helpful and file systems should probably ignore it as no useful
 decisions can be derived from what the requested information actually was.
 \smallskip{}
 
-{\tt dp\_Arg5} is a pointer to a {\tt ExAllControl} structure, and the
+{\tt dp\_Arg5} is a pointer to a {\tt ExAllControl}\key{ExAllControl} structure, and the
 pointer provided here is identical to the pointer provided to {\tt
   ACTION\_EXAMINE\_ALL}\key{ACTION\_EXAMINE\_ALL}. Thus, file systems
-may use this pointer value and specifically the {\tt eac\_DiskKey} element
+may use this pointer value and specifically the {\tt eac\_DiskKey}\key{eac\_DiskKey} element
 therein to release any resources related to this scan.
 \smallskip{}
 
@@ -15264,18 +15262,21 @@ is set to {\tt DOSTRUE} indicating that the scan was aborted successfully,
 then {\tt dp\_Res2} shall also be set to~0.
 \smallskip{}
 
-If the file system does not implement this packet, it shall set {\tt
-dp\_Res1} to {\tt DOSFALSE} and {\tt dp\_Res2} to {\tt ERROR\_ACTION\_NOT\_KNOWN}.
+If the file system does not implement this packet, it shall set
+{\tt dp\_Res1} to {\tt DOSFALSE} and {\tt dp\_Res2} to
+{\tt ERROR\_ACTION\_NOT\_KNOWN}\key{ERROR\_ACTION\_NOT\_KNOWN}.
 The \emph{dos.library} then (attempts to) emulates this packet by setting
-the match pattern in the {\tt ExAllControl} structure to a pattern that
-matches no entry, and then continues the scan with a {\tt ACTION\_EXAMINE\_ALL}
+the match pattern in the {\tt ExAllControl}{\tt ExAllControl} structure to a pattern that
+matches no entry, and then continues the scan with a
+{\tt ACTION\_EXAMINE\_ALL}\key{\tt ACTION\_EXAMINE\_ALL}
 packet. This would then clearly reach the end of the directory without
 overruning the buffer. However, due to a defect in the \emph{dos.library} up
 to the latest release, the (non-matching) pattern is a literal pattern and
 not a pre-parsed pattern and thus, actually, could match an entry in the
-directory. Thus, it is advised to always implement {\tt ACTION\_EXAMINE\_ALL\_END}
-if {ACTION\_EXAMINE\_ALL} is implemented, even if it is just replied with
-success and no additional resources need to be released.
+directory. Thus, it is advised to always implement
+{\tt ACTION\_EXAMINE\_ALL\_END}\key{ACTION\_EXAMINE\_ALL\_END}
+if {\tt ACTION\_EXAMINE\_ALL}\key{ACTION\_EXAMINE\_ALL} is implemented, even
+if it is just replied with success and no additional resources need to be released.
 \smallskip{}
 
 On any other error, {\tt dp\_Res1} shall be set to {\tt DOSFALSE} and {\tt
@@ -15308,16 +15309,16 @@ object to be examined\footnote{Note, again, that the information in~\cite{Bantam
   dp\_Arg1} is incorrect.}.
 \smallskip{}
 
-{\tt dp\_Arg2} is a BPTR to a {\tt FileInfoBlock} structure as documented in
+{\tt dp\_Arg2} is a BPTR to a {\tt FileInfoBlock}\key{FileInfoBlock} structure as documented in
 section~\ref{sec:fib}, and which shall be filled by the file system
 with the information on the object identified by {\tt dp\_Arg1}. As for the
 packet type {\tt ACTION\_EXAMINE\_OBJECT}\key{ACTION\_EXAMINE\_OBJECT}
 specified in section~\ref{sec:actionexamineobject}, the {\tt FileInfoBlock}
 passed out to the caller of the \emph{dos.library} and what the packet shall
-deliver differ. In specific, {\tt fib\_FileName} and {\tt fib\_Comment} shall be
-BSTRs with the length of the string in the zeroth element, and not {\tt
-  NUL}-terminated C strings. The conversion to C strings happens within the
-\emph{dos.library}.
+deliver differ. In specific, {\tt fib\_FileName}\key{fib\_FileName} and
+{\tt fib\_Comment}\key{fib\_Comment} shall be BSTRs with the length of the
+string in the zeroth element, and not {\tt NUL}-terminated C strings. The
+conversion to C strings happens within the \emph{dos.library}.
 \smallskip{}
 
 Before replying this packet, the file system shall set {\tt dp\_Res1}
@@ -15353,7 +15354,7 @@ This packet implements the {\tt MakeLink()}\key{MakeLink()} function of the
 file system.
 \smallskip{}
 
-{\tt dp\_Arg1} is a BPTR to a {\tt FileLock} structure that identifies the
+{\tt dp\_Arg1} is a BPTR to a {\tt FileLock}\key{FileLock} structure that identifies the
 directory within which the object is to be created.
 \smallskip{}
 
@@ -15362,9 +15363,9 @@ created.
 \medskip{}
 
 {\tt dp\_Arg3} identifies the target of the link, i.e. the object the link
-points to. If {\tt dp\_Arg4} is {\tt LINK\_HARD}, then this argument is a
-{\tt BPTR} to a {\tt FileLock} structure identifying the target.  If this
-{\tt FileLock} identifies an object on the same file system as {\tt
+points to. If {\tt dp\_Arg4} is {\tt LINK\_HARD}\key{LINK\_HARD}, then this argument is a
+BPTR to a {\tt FileLock}\key{FileLock} structure identifying the target. If this
+{\tt FileLock}\key{FileLock} identifies an object on the same file system as {\tt
   dp\_Arg1}, then a hard link is created. If the object locked by {\tt
   dp\_Arg3} is a file, then the created link will represent a file,
 otherwise a directory.
@@ -15389,7 +15390,7 @@ link. The FFS follows (mostly for backwards compatibility) this latter
 approach.
 \medskip{}
 
-If {\tt dp\_Arg4} is {\tt LINK\_HARD} and the {\tt FileLock} pointed to by
+If {\tt dp\_Arg4} is {\tt LINK\_HARD}\key{LINK\_HARD} and the {\tt FileLock}\key{FileLock} pointed to by
 {\tt dp\_Arg3} is on a different file system, then an external link shall be
 created. That is, the file system addressed by the packet shall
 create a file or directory within its own file system in the directory
@@ -15403,17 +15404,17 @@ object if this object is a directory.
 If the target of such a link is deleted or an object within the linked
 target, the copy within the file system containing the link remains
 accessible as a regular file or directory. If no copy has been created so
-far, an attempt to access the linked object fails with {\tt
-  ERROR\_OBJECT\_NOT\_FOUND}.
+far, an attempt to access the linked object fails with
+{\tt ERROR\_OBJECT\_NOT\_FOUND}\key{ERROR\_OBJECT\_NOT\_FOUND}.
 \smallskip{}
 
-Currently, only the \emph{RAM-Handler} implements this type of link, and it
+Currently, only the RAM-Handler implements this type of link, and it
 is there used to realize the {\tt ENV:} assign containing all preferences
 settings. The external link pulls only those preferences settings into the
 RAM disk that are actually required, at the time they are required.
 \medskip{}
 
-If {\tt dp\_Arg4} is {\tt LINK\_SOFT}, then {\tt dp\_Arg3} is a pointer to a
+If {\tt dp\_Arg4} is {\tt LINK\_SOFT}\key{LINK\_SOFT}, then {\tt dp\_Arg3} is a pointer to a
 {\tt NUL}-terminated C string providing the target of the link. This string
 is interpreted as a path name relative to the location of the link source at
 the time the link is resolved\footnote{This is quite unusual as AmigaDOS
@@ -15426,8 +15427,8 @@ soft link resolution. For a list of functions that \emph{do} implement it,
 see table~\ref{table:softenabled}.
 \smallskip{}
 
-Upon accessing a soft link, or a path containing a soft link, the \emph{file
-system} shall create an error code {\tt ERROR\_IS\_SOFT\_LINK}. If this
+Upon accessing a soft link, or a path containing a soft link, the file
+system shall create an error code {\tt ERROR\_IS\_SOFT\_LINK}\key{ERROR\_IS\_SOFT\_LINK}. If this
 error is returned, the sender of a packet accessing the link --- thus
 typically the \emph{dos.library} itself --- shall read the target of the
 link with the {\tt ReadLink()}\key{ReadLink()} function specified in
@@ -15442,8 +15443,7 @@ of a soft link actually exists as it can only provide the path to the
 object, but not necessarily the object itself; in particular, soft links may
 cross file system boundaries. If the target of a soft link is deleted, the
 soft link itself remains and becomes a ``dangling'' link. When accessing
-such a link, its resolution fails with an error {\tt
-  ERROR\_OBJECT\_NOT\_FOUND}.
+such a link, its resolution fails with an error {\tt ERROR\_OBJECT\_NOT\_FOUND}\key{ERROR\_OBJECT\_NOT\_FOUND}.
 \medskip{}
 
 Upon replying the packet, {\tt dp\_Res1} shall be set to {\tt DOSTRUE} and
@@ -15533,7 +15533,7 @@ relative to the path from which the client application detected it, even if
 the soft link is the middle of the supplied path and not contained in the
 directory provided by {\tt dp\_Arg1}. Note that the above algorithm only
 resolves a single soft link in a path; this is intentional, the
-\emph{dos.library} will send another {\tt ACTION\_READ\_LINK} packet to the
+\emph{dos.library} will send another {\tt ACTION\_READ\_LINK}\key{ACTION\_READ\_LINK} packet to the
 same or another file system if the remaining path contains additional soft
 links, or even in case the soft link points to another soft link. It is
 therefore important at the level of client application --- or the
@@ -15556,15 +15556,16 @@ any negative value will do. Unfortunately, even the latest version of the
 FFS will \emph{not} return a negative value but~$0$ in case of an error;
 this is a defect.} and {\tt dp\_Res2} to an error code. In particular, if
 the target buffer size {\tt dp\_Arg4} is too small to hold the resolved
-path, {\tt dp\_Res2} shall be set to {\tt ERROR\_LINE\_TOO\_LONG}.
+path, {\tt dp\_Res2} shall be set to {\tt ERROR\_LINE\_TOO\_LONG}\key{ERROR\_LINE\_TOO\_LONG}.
 \smallskip{}
 
 If the source path in {\tt dp\_Arg2} does actually not contain a soft link
 and the scanning algorithm aborted without finding one, this also
 consistutes an error that shall be reported by setting {\tt dp\_Res1}
 to~$-1$. This error is not handled consistently in AmigaDOS. The RAM-Handler
-reports {\tt ERROR\_OBJECT\_WRONG\_TYPE}, the FFS the error code
-{\tt ERROR\_OBJECT\_NOT\_FOUND}. The former error is probably more sensible.
+reports {\tt ERROR\_OBJECT\_WRONG\_TYPE}\key{ERROR\_OBJECT\_WRONG\_TYPE}, the FFS the error code
+{\tt ERROR\_OBJECT\_NOT\_FOUND}\key{ERROR\_OBJECT\_NOT\_FOUND}. The former
+error is probably more sensible.
 \smallskip{}
 
 On success, {\tt dp\_Res1} shall be set to the length of the constructed
@@ -16043,12 +16044,12 @@ get informed on changes within the file system.
 
 {\tt dp\_Arg1} is a C pointer\footnote{In~\cite{Bantam} this argument is
   documented to be a BPTR, though this information incorrect.} to a {\tt
-  NotifyRequest} structure that defines the object to be monitored, and the
+  NotifyRequest}\key{NotifyRequest} structure that defines the object to be monitored, and the
 task, signal or message port to be triggered on such changes. This structure
 is specified in section~\ref{sec:startnotify}.
 \smallskip{}
 
-The {\tt nr\_FullName} element of the {\tt NotifyRequest} structure is
+The {\tt nr\_FullName} element of the {\tt NotifyRequest}\key{NotifyRequest} structure is
 already filled by an absolute path to the object to be monitored which may
 or may not yet exist. This path is filled in by the \emph{dos.library}
 within the {\tt StartNotify()} function from the {\tt nr\_Name} element and
@@ -16076,10 +16077,10 @@ file with {\tt ACTION\_END} \\ \hline
 \tt ACTION\_SET\_OWNER\key{ACTION\_SET\_OWNER} & Optionally \\ \hline
 \end{rkrmtable}
 
-If the {\tt NRF\_NOTIFY\_INITIAL} flag is set in {\tt nr\_Flags}, the
+If the {\tt NRF\_NOTIFY\_INITIAL}\key{NRF\_NOTIFY\_INITIAL} flag is set in {\tt nr\_Flags}, the
 file system shall send a notification immediately after receiving
 this packet, regardless of whether or not the object has been modified
-already. If {\tt NRF\_WAIT\_REPLY} is set, and a {\tt NotifyMessage} has
+already. If {\tt NRF\_WAIT\_REPLY}\key{NRF\_WAIT\_REPLY} is set, and a {\tt NotifyMessage}\key{NotifyMessage} has
 already been send out, it shall rather note the modification, though defer
 any further notification on the same object until the former {\tt
   NotifyMessage} has been replied. This avoids queuing up too many
@@ -16090,18 +16091,19 @@ A notification event is either signalled through {\tt Signal()} or by
 sending a message to a {\tt MsgPort}:
 \smallskip{}
 
-If {\tt NRF\_SEND\_MESSAGE} is set in {\tt nr\_Flags}, then a {\tt
-  NotifyMessage} is send to the port indicated in {\tt
-  nr\_Msg.nr\_Port}. This structure is also specified in
-section~\ref{sec:startnotify}. Its {\tt nm\_Class} element shall be set to
-{\tt NOTIFY\_CLASS}, and its {\tt nm\_Code} element to {\tt NOTIFY\_CODE},
-both are defined in {\tt dos/notify.h}. In addition, {\tt nm\_NReq} shall
-point to the {\tt NotifyRequest} structure through which the object is
-monitored. The elements {\tt nm\_DoNotTouch} and {\tt nm\_DoNotTouch2} may
-be used for internal administration of the file system.
+If {\tt NRF\_SEND\_MESSAGE}\key{NRF\_SEND\_MESSAGE} is set in {\tt
+  nr\_Flags}, then a {\tt NotifyMessage}\key{NotifyMessage} is send to the
+port indicated in {\tt nr\_Msg.nr\_Port}. This structure is also specified
+in section~\ref{sec:startnotify}. Its {\tt nm\_Class} element shall be set
+to {\tt NOTIFY\_CLASS}\key{NOTIFY\_CLASS}, and its {\tt nm\_Code} element to
+{\tt NOTIFY\_CODE}\key{NOTIFY\_CODE}, both are defined in {\tt
+  dos/notify.h}. In addition, {\tt nm\_NReq} shall point to the {\tt
+  NotifyRequest}\key{NotifyRequest} structure through which the object is monitored. The
+elements {\tt nm\_DoNotTouch} and {\tt nm\_DoNotTouch2} may be used for
+internal administration of the file system.
 \smallskip{}
 
-If {\tt NRF\_SEND\_SIGNAL} is set, then the file system should
+If {\tt NRF\_SEND\_SIGNAL}\key{NRF\_SEND\_SIGNAL} is set, then the file system should
 trigger a signal bit on the target task if the monitored object changes by
 \begin{verbatim}
     Signal(nr->nr_Signal.nr_Task,1UL<<nr->nr_Signal.nr_SignalNum);
@@ -16117,8 +16119,8 @@ be set to~0. On failure, {\tt dp\_Res1} shall be set to {\tt DOSFALSE} and
 \subsection{Canceling a Notification Request}
 
 The {\tt ACTION\_REMOVE\_NOTIFY}\mkey{ACTION\_REMOVE\_NOTIFY} packet cancels
-a notification request and aborts monitoring the object in the {\tt
-  NotifyRequest} structure.
+a notification request and aborts monitoring the object in the
+{\tt NotifyRequest}\key{NotifyRequest} structure.
 
 \begin{rkrmtable}{\tt ACTION\_REMOVE\_NOTIFY} \label{table:actionremovenotify}
 {\bf DosPacket Element}   & {\bf Value}\\ \hline \hline
@@ -16130,11 +16132,11 @@ a notification request and aborts monitoring the object in the {\tt
 
 This packet implements the {\tt EndNotify()}\key{EndNotify()} function of
 the \emph{dos.library} and terminates monitoring the object in {\tt
-  nr\_FullName} element of the {\tt NotifyRequest} structure.
+  nr\_FullName} element of the {\tt NotifyRequest}\key{NotifyRequest} structure.
 \smallskip{}
 
 {\tt nr\_Arg1} is a C-pointer to the structure that indicates which
-notification request shall be canceled. The {\tt NotifyRequest} structure is
+notification request shall be canceled. The {\tt NotifyRequest}\key{NotifyRequest} structure is
 specified in section~\ref{sec:startnotify}.
 \smallskip{}
 
@@ -16144,8 +16146,9 @@ not yet been closed, such pending notifications shall be canceled as
 well. The file system shall be aware that even after this packet has
 been replied, some {\tt NotifyMessage}s send out to clients may come back
 because the client is still working on them. In particular, the memory
-associated to such messages shall not be released upon receiving the {\tt
-  ACTION\_REMOVE\_NOTIFY} packet, but only after the {\tt NotifyMessage} has
+associated to such messages shall not be released upon receiving the
+{\tt ACTION\_REMOVE\_NOTIFY}\key{ACTION\_REMOVE\_NOTIFY} packet, but
+only after the {\tt NotifyMessage} has
 been replied and was received again by the file system. The
 \emph{dos.library} replies all {\tt NotifyMessage}s it finds
 still pending in the port of the client application, but clearly cannot
@@ -16159,14 +16162,14 @@ be set to~0. On failure, {\tt dp\_Res1} shall be set to {\tt DOSFALSE} and
 
 \section{Packets Operating on Entire Volumes}
 
-The packets in this section impact the volume mounted on a \emph{file
-system} in total and do not interact with individual objects, such as files,
+The packets in this section impact the volume mounted on a file
+system in total and do not interact with individual objects, such as files,
 directories or links on it.
 
 \subsection{Determining the Currently Inserted Volume}
 
 The packet {\tt ACTION\_CURRENT\_VOLUME}\mkey{ACTION\_CURRENT\_VOLUME}
-determines from a \emph{FileHandle} a BPTR to the {\tt DosList}
+determines from a {\tt FileHandle}\key{FileHandle} a BPTR to the {\tt DosList}\key{DosList}
 structure representing the volume on which the file is located.
 
 \begin{rkrmtable}{\tt ACTION\_CURRENT\_VOLUME} \label{table:actioncurrentvolume}
@@ -16180,8 +16183,9 @@ structure representing the volume on which the file is located.
 This packet is not exposed by the \emph{dos.library}, but it used by it when
 constructing an error requester through its {\tt ErrorReport()}
 \key{ErrorReport()} function.  If an error is generated by a function taking
-a \emph{FileHandle} as argument, this function is used to determine the {\tt
-  DosList} entry representing the volume. From there, the name is copied
+a {\tt FileHandle}\key{FileHandle} as argument, this function is used to
+determine the
+{\tt DosList}\key{DosList} entry representing the volume. From there, the name is copied
 into the requester, for example to ask the user to insert it.
 \smallskip{}
 
@@ -16196,10 +16200,10 @@ is probably an exception as it only maintains a single volume that cannot go
 away during its lifetime.}.
 \smallskip{}
 
-If {\tt dp\_Arg1} is {\tt ZERO}, a BPTR to the {\tt DosList} of the
+If {\tt dp\_Arg1} is {\tt ZERO}, a BPTR to the {\tt DosList}\key{DosList} of the
 currently inserted volume, or {\tt ZERO} if no volume is inserted, shall be
 returned. Unfortunately, as the volume may be ejected any time, it is
-unclear whether the {\tt DosList} entry provided in {\tt dp\_Res1} is still
+unclear whether the {\tt DosList}\key{DosList} entry provided in {\tt dp\_Res1} is still
 valid at the time it is interpreted by the issuer of of this packet. In such
 a case, the issuer of the packet should lock the device list upfront,
 and should copy the name before the list is unlocked again, i.e.
@@ -16220,7 +16224,7 @@ struct DosList *dl;
 
 The file system shall set {\tt dp\_Res1} to a BPTR to the {\tt
   DosList} entry representing a volume, i.e. an entry on the device
-list\key{Device List} whose {\tt dol\_Type} is {\tt DLT\_VOLUME} and whose
+list\key{Device List} whose {\tt dol\_Type} is {\tt DLT\_VOLUME}\key{DLT\_VOLUME} and whose
 {\tt dol\_Task} points to a {\tt MsgPort} of this handler. In case no
 volume is inserted, {\tt dp\_Res1} shall be set to {\tt ZERO}. This packet
 shall not fail, and {\tt dp\_Res2} is ignored by the \emph{dos.library}. For
@@ -16252,7 +16256,7 @@ information is to be requested. If the volume is not inserted, not validated
 or the lock is invalid, this packet will fail.
 \smallskip{}
 
-{\tt dp\_Arg2} is a BPTR to an {\tt InfoData} structure as defined in
+{\tt dp\_Arg2} is a BPTR to an {\tt InfoData}\key{InfoData} structure as defined in
 section~\ref{sec:info} into which information is provided such as the state
 of the volume, the number of errors detected on it, its capacity and the
 number of free blocks. Details on this structure are found in
@@ -16285,12 +16289,12 @@ issued through the packet interface. It is almost identical to {\tt
   ACTION\_INFO}\key{ACTION\_INFO}, except that it does not take a lock as
 argument. Therefore, it always refers to the currently inserted volume, and
 not to the volume the locked object is located on. Otherwise, the
-information provided by this packet and {\tt ACTION\_INFO} is identical.
+information provided by this packet and {\tt ACTION\_INFO}\key{ACTION\_INFO} is identical.
 \smallskip{}
 
 This packet is also used to retrieve console specific information from the
 CON-Handler\key{CON-Handler}, and is documented as such again in
-section~\ref{sec:console}. The elements of the {\tt InfoData} are then
+section~\ref{sec:console}. The elements of the {\tt InfoData}\key{InfoData} are then
 interpreted in an alternative way.
 \smallskip{}
 
@@ -16322,8 +16326,8 @@ volume name of a medium.
 This packet implements the {\tt Relabel()}\key{Relabel()} function of the
 \emph{dos.library} and changes the volume name of a medium. As such, it
 shall also change the name of the {\tt DosList} representing the volume in
-the device list, i.e. adjust the {\tt dol\_Name} element of the {\tt
-  DosList} structure. Unfortunately, there is no guarantee that the volume
+the device list, i.e. adjust the {\tt dol\_Name}\key{dol\_Name} element of the {\tt
+  DosList}\key{DosList} structure. Unfortunately, there is no guarantee that the volume
 that is inserted in the drive or partition managed by the file system when
 this packet is issued by the client is identical to the volume in the drive
 when the file system receives it.
@@ -16371,11 +16375,11 @@ section~\ref{sec:packetinhibit}.
 or drive shall be given\footnote{The information in~\cite{Bantam} that the
 new volume name is in {\tt dp\_Arg2} and the {\tt DosType} is in {\tt
   dp\_Arg3} is incorrect.}. Typically, this packet will be
-issued while the drive is inhibited, and thus the {\tt DosList} structure
-representing the volume will be created or updated at the time the \emph{file
-system} is unhibited. Otherwise, if the handler also allows an {\tt
-  ACTION\_FORMAT} while not being inhibited, it should update the {\tt
-  DosList} immediately, in particular its {\tt dol\_Name}, to the name given
+issued while the drive is inhibited, and thus the {\tt DosList}\key{DosList} structure
+representing the volume will be created or updated at the time the file
+system is unhibited. Otherwise, if the handler also allows an {\tt
+  ACTION\_FORMAT}\key{ACTION\_FORMAT} while not being inhibited, it should update the {\tt
+  DosList} immediately, in particular its {\tt dol\_Name}\key{dol\_Name}, to the name given
 by this argument.
 \smallskip{}
 
@@ -16384,7 +16388,7 @@ to define its flavour. For example, for the FFS {\tt dp\_Arg2} carries the
 {\tt DosType}, which shall be one of the values documented in
 table~\ref{table:ffsflavours} in section~\ref{sec:envec}. If such a change
 of the {\tt DosType} also happens, and the handler allows formatting while
-not being inhibited, the {de\_DosType} in the environment vector linked
+not being inhibited, the {de\_DosType}\key{de\_DosType} in the environment vector linked
 through {\tt dol\_Dostype} shall be updated as well. Otherwise, this update
 will happen when the file system is uninhibited. The {\tt Format()}
 function will take {\tt dp\_Arg2} from its third argument.
@@ -16460,7 +16464,7 @@ equality.
 {\tt dp\_Arg1} is a boolean indicator that, if non-zero, enables write
 protection, and if {\tt DOSFALSE} releases it. Any attempt to write data to
 the protected medium, device or partition shall fail with the error code
-{\tt ERROR\_DISK\_WRITE\_PROTECTED}, including an attempt to set a write
+{\tt ERROR\_DISK\_WRITE\_PROTECTED}\key{ERROR\_DISK\_WRITE\_PROTECTED}, including an attempt to set a write
 protection on an already write protected file system, regardless of the
 password key used for re-protection.
 \smallskip{}
@@ -16469,7 +16473,7 @@ password key used for re-protection.
 the file system when the write protection is set, and compared against if it
 is to be released again. If the stored password hash is not equal to the
 original hash, attempting to release the protection shall fail with
-{\tt ERROR\_INVALID\_COMPONENT\_NAME}.
+{\tt ERROR\_INVALID\_COMPONENT\_NAME}\key{ERROR\_INVALID\_COMPONENT\_NAME}.
 \smallskip{}
 
 Before replying this packet, {\tt dp\_Res1} shall be set to a boolean success
@@ -16477,6 +16481,7 @@ indicator. On success, it shall be set to {\tt DOSTRUE} and {\tt dp\_Res2} shall
 be set to~0. On failure, {\tt dp\_Res1} shall be set to {\tt DOSFALSE} and
 {\tt dp\_Res2} to an error code.
 
+%TODO: FIXUP the index from here on.
 \section{Packets for Interactive Handlers} \label{sec:packetsinteractive}
 
 The packet types documented in this section are specific for handlers that
@@ -18041,8 +18046,8 @@ parameter in scripts.
 The generated script after substitution of formal parameters is placed
 into the {\tt T:} assign, its name in {\tt cli\_CommandFile} and the
 command input of the invoking Shell, namely {\tt cli\_CurrentInput}
-(see section~\ref{sec:clistruct}), is redirected to a \emph{file
-  handle} to this temporary script. Thus, the shell continues
+(see section~\ref{sec:clistruct}), is redirected to a file
+  handle to this temporary script. Thus, the shell continues
 execution of commands, but rather takes its input from the temporary
 file rather than its current input. As this construction would forbid
 the recursive execution of another Shell script within a Shell script,
@@ -18055,8 +18060,8 @@ environment\footnote{This is a major difference compared to previous
   construction had a series of bad side effects, one being that a
   script could not skip backwards over an {\tt Execute} command.} that
 allows redirection of its input. Once {\tt cli\_CurrentInput}
-exhausted, the Shell terminates execution there, closes the \emph{file
-  handle} stored there, deletes the temporary file whose name is
+exhausted, the Shell terminates execution there, closes the file
+  handle stored there, deletes the temporary file whose name is
 stored in {\tt cli\_CommandFile} and, depending on how it was
 initiated and configured, continues execution from {\tt
   cli\_StandardInput}. The {\tt System()}\key{System()} function with
