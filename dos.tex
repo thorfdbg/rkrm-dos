@@ -227,6 +227,13 @@ This work attempts to fill this gap by providing a comprehensive and
 complete documentation of the AmigaDOS library and its subsystems in
 the style of the ROM Kernel Reference Manuals.
 
+\subsection{Acknowledgements}
+
+A book of this size would be impossible without additional help from others. I
+want to thank in particular Olaf Barthel for many fruitful discussions and
+answering many questions while compiling many chapters of this
+volume.
+
 \section{Language and Type Setting Conventions}
 The words \emph{shall} and \emph{shall not} indicate normative
 requirements software shall or shall not follow or in order to satisfy the
@@ -929,6 +936,16 @@ the first part.
 \subsection{Devices, Volumes and Assigns}
 The first part of a path, up to the colon, identifies the device, the
 volume or the assign a file is located in.
+
+\punchline{30 Characters Max!}{For legacy reasons, device, volume and assign
+  names can be at most 30 characters long. The AmigaDOS functions that
+  locate handlers given the device, volume or assign name, most notably {\tt
+    GetDeviceProc()}\key{GetDeviceProc()}, are not able to handle longer
+  names, and the {\tt Assign} command suffers from a similar
+  restriction. This limit does not hold for file names or paths in general
+  as the corresponding AmigaDOS components have been augmented to also
+  support longer file names. Additional limits arise, unfortunately, for
+  path names.}
 
 \subsubsection{Devices} \label{sec:deviceoverview}
 A \emph{\mkey{Device name}device name} identifies the handler or file
@@ -4308,7 +4325,8 @@ The \emph{dos.library} supports soft links through the
 functions listed in Table~\ref{table:softenabled}:
 
 % This table is not complete. Also check functions that call these functions
-\begin{rkrmtable}{Softlink aware functions} \label{table:softenabled}
+\begin{rkrmtabular}{Softlink aware functions} \label{table:softenabled}
+\begin{longtable}{|ll|} \hline
 {\bf Function} & {\bf Purpose}\\ \hline \hline
 {\tt Open()} & Open a file\\ \hline
 {\tt Lock()} & Obtain access rights to an object\\ \hline
@@ -4318,8 +4336,19 @@ functions listed in Table~\ref{table:softenabled}:
 {\tt DeleteFile()} & Delete an object on a file system\\ \hline
 {\tt SetComment()} & Modify object comment\\ \hline
 {\tt MakeLink()} & Create a link to an object\\ \hline
-{\tt SetOwner()} & Set User and Group ID\\ \hline
-\end{rkrmtable}
+{\tt SetOwner()} & Set User and Group ID\\ \hline \hline
+{\tt MatchFirst()} & Resolve a lock to a path\footnote{This function 
+works only partially with soft links - it fails if the pattern is not a wild card
+and the soft link cannot be resolved.}\\ \hline
+{\tt LoadSeg()} & Load an executable \\ \hline
+{\tt NewLoadSeg()} & Load an executable with parameters \\ \hline
+{\tt GetVar()} & Read an environment variable \\ \hline
+{\tt SetVar()} & Set an environment variable \\ \hline
+{\tt DeleteVar()} & Delete an environment variable \\ \hline
+{\tt System()} & Execute a shell script \\ \hline
+{\tt Execute()} & Execute a shell script (legacy) \\ \hline
+\end{longtable}
+\end{rkrmtabular}
 
 All of the above functions take a path of its first argument. If the path
 consists of multiple components, i.e. identifies an object in a nested
@@ -4510,6 +4539,11 @@ returns $0$ and the {\tt IoErr()}\key{IoErr()} function returns
 The function returns non-zero in case of success, or $0$ in case of
 error. In either case, {\tt IoErr()}\key{IoErr()} is set to ether $0$
 on success, or an error code otherwise.
+\medskip{}
+
+Section~\ref{sec:actionreadlink} provides further details on the file system
+side of the implementation of this function, in particular how it combines
+the {\tt path} with the target of the soft link.
 
 \section{Notification Requests} \label{sec:notification}
 
@@ -5637,7 +5671,10 @@ be detected by the caller, and in such a case,
   indicating the current console, and {\tt NIL:} for the {\tt NIL}
   pseudo-device are not handled here.}
 
-% Also note: device names currently restricted to 30 characters!
+Another defect of this function is that it cannot handle device, volume or
+assign names longer than 30 characters, even though no limit on the path
+name in total is imposed. This is because this function extracts the device
+name into a temporary buffer of this size, and truncates it if it is longer.
  
 \subsection{Releasing DevProc Information}
 
@@ -5691,7 +5728,7 @@ and will not work through all directories of a \emph{multi-assign}.
 process = DeviceProc( name )
  D0                    D1
 
-struct MsgPort *DeviceProc (STRPTR)
+struct MsgPort *DeviceProc(STRPTR)
 \end{verbatim}
 
 This function returns a pointer to a port of a handler or
@@ -5717,6 +5754,11 @@ the device list; they are released through {\tt
   \emph{assign}. Same as {\tt GetDeviceProc()}, it does not properly handle
   {\tt NIL:} and ``{\tt *}''.}
 
+As this function is based on {\tt GetDeviceProc()}\key{GetDeviceProc()}, it
+suffers from the same limitations. It does not handle ``{\tt *}'' correctly,
+and it cannot handle device, volume or assign names longer than 30
+characters.
+
 \subsection{Obtaining the Current Console Handler} \label{sec:getconsoletask}
 
 The {\tt GetConsoleTask()}\mkey{GetConsoleTask()} function returns the
@@ -5726,7 +5768,7 @@ calling process, that is, the process that takes care of the file name
 
 \begin{verbatim}
 port = GetConsoleTask()
- D0
+D0
 
 struct MsgPort *GetConsoleTask(void)
 \end{verbatim}
@@ -6346,6 +6388,11 @@ This function either returns the allocated structure, or {\tt NULL}
 for failure. In the latter case, {\tt IoErr()} is set to {\tt
   ERROR\_NO\_FREE\_STORE}. On success, {\tt IoErr()} remains
 unaltered.
+
+\punchline{Limit to 30 Characters}{While this function does not impose a
+  limit on the size on the {\tt name}, multiple other components of AmigaDOS
+  are not able to handle device, volume or assign names longer than 30
+  characters. Thus, the length of {\tt name} shall be limited to this size.}
 
 \subsection{Releasing a Device List Entry} \label{sec:releaseentry}
 
@@ -15469,14 +15516,15 @@ link.
 \tt dp\_Res2  & Error code \\ \hline
 \end{rkrmtable}
 
-This packet implements the {\tt ReadLink()}\key{ReadLink()} function of the
-\emph{dos.library} and is used there to resolve soft links and obtain the
-link target. Implementing this packet correctly requires, however, some care
-as the soft link may be in the middle of the path provided by {\tt dp\_Arg2}
-and not just its last component, and the soft link itself may be an absolute
-or relative path. This packet needs to provide from the original path an
-updated path that points to the intended location relative to the location
-of the soft link, and not relative to {\tt dp\_Arg1}.
+This packet implements the {\tt ReadLink()}\key{ReadLink()} function, see
+section~\ref{sec:readlink}, of the \emph{dos.library} and is used there to
+resolve soft links and obtain the link target. Implementing this packet
+correctly requires, however, some care as the soft link may be in the middle
+of the path provided by {\tt dp\_Arg2} and not just its last component, and
+the soft link itself may be an absolute or relative path. This packet needs
+to provide from the original path an updated path that points to the
+intended location relative to the location of the soft link, and that is not
+necessarily the same as a path relative to {\tt dp\_Arg1}.
 \smallskip{}
 
 {\tt dp\_Arg1} is a lock to a directory in the file system to which
@@ -15552,13 +15600,16 @@ newly constructed path, with the soft link resolved, shall be provided as a
 {\tt dp\_Arg4} is the size of this target buffer in bytes.
 \smallskip{}
 
-On an error, {\tt dp\_Res1} shall be set to~$-1$\footnote{~\cite{Bantam}
-recommends to set it to~$-2$ on a target buffer overflow, though currently
-any negative value will do. Unfortunately, even the latest version of the
-FFS will \emph{not} return a negative value but~$0$ in case of an error;
-this is a defect.} and {\tt dp\_Res2} to an error code. In particular, if
-the target buffer size {\tt dp\_Arg4} is too small to hold the resolved
-path, {\tt dp\_Res2} shall be set to {\tt ERROR\_LINE\_TOO\_LONG}\key{ERROR\_LINE\_TOO\_LONG}.
+On an error, {\tt dp\_Res1} shall be set to~$-1$ or to $-2$ in case the
+target buffer overflows and cannot take the full target
+path\footnote{Currently any negative value will do to indicate an error, and
+the \emph{dos.library} does not distinguish between $-1$ and $-2$ as result
+code. Unfortunately, even the latest version of the FFS will \emph{not}
+return a negative value but~$0$ in case of an error; this is a defect.}. In
+case of error, {\tt dp\_Res2} shall also be set to an error code. In
+particular, if the target buffer size {\tt dp\_Arg4} is too small to hold
+the resolved path, {\tt dp\_Res2} shall be set to {\tt
+  ERROR\_LINE\_TOO\_LONG}\key{ERROR\_LINE\_TOO\_LONG} and {\tt dp\_Res1} to~$-2$.
 \smallskip{}
 
 If the source path in {\tt dp\_Arg2} does actually not contain a soft link
@@ -17357,18 +17408,37 @@ device list to {\tt NULL}, and then terminate the process.
 A file system may not exit as long as client programs cache copies of
 its {\tt MsgPort}; this port is typically the {\tt pr\_MsgPort} of the
 handler process which is released by AmigaDOS as soon as the process
-exits, and thus will become unusable. A necessary, but unfortunately
-not sufficient condition for this is that all locks have been
-unlocked, all file handles have been closed and all notificication
-requests have been canceled as these AmigaDOS objects include pointers
-to a {\tt MsgPort} of the file system. It is not sufficient because a
-client program can request a handler message port via {\tt
-  GetDeviceProc()}\key{GetDeviceProc()} or {\tt
-  DeviceProc()}\key{DeviceProc()} any time for direct communication
-and buffer the returned port outside of the classical AmigaDOS
-objects. Thus, a handler has no direct control of whether it can
-safely terminate, which limits the utility of this packet to system
-debugging tools.
+exits, and it will thus become unusable. At least all file handles
+and locks need to indicate that the file system is no longer usable. Either,
+the file system may refuse to exit if some file handles using it are still
+open, or some locks are not yet unlocked. Alternatively, the file system
+may zero out the {\tt fh\_Type} element of all files open to it, thus
+essentially turning them into {\tt NIL:} file handles, also zero out the
+{\tt fl\_Task} elements of all active locks, and link them in {\tt dol\_LockList}
+of the {\tt DosList} of their corresponding volume as if the volume had been
+ejected, see also section~\ref{sec:devicelist}.
+\smallskip{}
+
+As next step, references to the file system port(s) shall be removed from the
+device list. To gain access to the device list, use {\tt
+  AttemptLockDosList()}\key{AttemptLockDosList()} as a blocking semaphore
+may cause a deadlock. If the list is not accessible at this time, the file
+system cannot safely shut down and {\tt ACTION\_DIE} shall fail. If the
+device list is accessible, the file system shall set the {\tt dol\_Task}
+elements of the volumes it administrates and the device node it is
+represented by to {\tt NULL}. This will request from AmigaDOS to launch a
+new file system from the {\tt dol\_SegList} segment as soon as a client
+requests again access it through its device name.
+\smallskip{}
+
+Unfortunately, even these precautions are not fully sufficient for safely
+unmounting a device because a client program can request a handler message
+port via {\tt GetDeviceProc()}\key{GetDeviceProc()} or {\tt
+  DeviceProc()}\key{DeviceProc()} any time for direct communication and
+buffer the returned port outside of the classical AmigaDOS objects. Thus, a
+handler has no direct control of where cached copies of its port(s) are
+held, and thus whether it can safely terminate. This limits the utility of
+this packet to system debugging tools.
 \smallskip{}
 
 In case the file system can foresee that it cannot safely exit at the
@@ -17395,8 +17465,10 @@ Some handlers do not initialize the {\tt dol\_Task}\key{dol\_Task} element of it
 {\tt DosList}\key{DosList} entrie(s) with an address of their port(s); handlers
 that are not file systems such as the Console-Handler are typical
 examples. Such handlers shall terminate themselves without requiring
-an {\tt ACTION\_DIE}\key{ACTION\_DIE} when the last file has been closed, and the last
-lock has been unlocked --- if locks are supported at all.
+an {\tt ACTION\_DIE}\key{ACTION\_DIE} when the last resource opened on them
+had been shut down, i.e. all file handles have been closed, all locks (if
+they are supported at all) have been unlocked and all notification requests
+(if supported) had been canceled.
 
 \subsection{Do Nothing}
 
