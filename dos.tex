@@ -201,31 +201,40 @@ the Open Group.}
 %
 %
 \chapter{Introduction}
-\section{Purpose}
-The purpose of this manual is to provide a comprehensive documentation
-of the AmigaDOS subsystem of the Amiga Operation System. This
-subsystem is represented by the \emph{dos.library}, and it provides
-services around files, file systems and stream-based input and
-output. While the Amiga ROM Kernel Reference Manuals~\cite{rkrmlib}
-document major parts of the AmigaOs, they do not include a volume on
-AmigaDOS itself. This is due to the history of AmigaDOS which is
-nothing but a port of the TRIPOS to the Amiga, and thus its
-documentation became available as the AmigaDOS manual\cite{Bantam}
-separately. This book itself is, similar to AmigaDOS, based on the
-TRIPOS manual which has been augmented and updated to reflect the
-changes that were necessary to fit TRIPOS into AmigaOs. Unfortunately,
-the book is hard to obtain, and also leaves a lot to deserve.
+\section{Foreword}
+The purpose of this manual is to provide a comprehensive documentation of
+the AmigaDOS subsystem of the Amiga Operation System. AmigaDOS provides
+elementary services similar to other contemporary operating systems, such as
+file systems and handlers implementing stream-based input and output,
+process management, volume and device management, command line execution and
+command line parsing. Its interface to applications is the
+\emph{dos.library}, a ROM based shared library that provides an interface
+between such applications and AmigaDOS subsystems such as file systems or
+the Shell.
+\smallskip{}
+
+While the Amiga ROM Kernel Reference Manuals~\cite{rkrmlib} document major
+parts of the AmigaOs, they do not include a volume on AmigaDOS and its
+subsystems. This is due to the history of AmigaDOS which is nothing but a
+port of the Tripos to the Amiga, an experimental operating system developed
+at the University of Cambridge. Instead, its documentation became available
+as the AmigaDOS manual~\cite{Bantam} separately. This book is, similar to
+AmigaDOS, based on the Tripos manual which has been augmented and updated to
+reflect the changes that were necessary to fit Tripos into
+AmigaOs. Unfortunately, the book is now out of print, does not reflect the
+current state of AmigaDOS anymore, and leaves multiple parts of AmigaDOS
+undocumented.
 \smallskip{}
 
 Good third party documentation is available in the form of the Guru
-Book\cite{guru}, though this source is out of print and even harder to
-obtain. It covers also other aspects of AmigaOs that go beyond
-AmigaDOS such that its focus is a bit different than this work.
+Book~\cite{guru}, though this source is also out of print and even harder to
+obtain. It also covers aspects of AmigaOs that go beyond AmigaDOS and its
+focus is a bit different than that of this work.
 \smallskip{}
 
-This work attempts to fill this gap by providing a comprehensive and
-complete documentation of the AmigaDOS library and its subsystems in
-the style of the ROM Kernel Reference Manuals.
+This book attempts to fill this gap and attempts to provide a comprehensive
+and complete documentation of AmigaDOS library and its subsystems, closely
+following the style of the ROM Kernel Reference Manuals.
 
 \subsection{Acknowledgements}
 
@@ -237,7 +246,7 @@ volume.
 \section{Language and Type Setting Conventions}
 The words \emph{shall} and \emph{shall not} indicate normative
 requirements software shall or shall not follow or in order to satisfy the
-interface requirements of AmigaOs. The words \emph{should} and
+interface requirements of AmigaDOS. The words \emph{should} and
 \emph{should not} indicate best practise and recommendations that are
 advisable, but not strictly necessary to satisfy a particular
 interface. The word \emph{may} provides a hint to a possible
@@ -253,9 +262,10 @@ introducing a new restriction, such as in ``if $a$ is 2, $a+a$
   indicated with a bold vertical bar like this.}
 
 Terms are indicated in \emph{italics}, e.g. the \emph{dos.library}
-implements interface of \emph{AmigaDOS}. Data structures and
-components of source code are printed {\tt in courier} in fixed-width
-font, reassembling the output of a terminal, e.g.
+implements interface of \emph{AmigaDOS} and are also used when new terms are
+introduced for the first time. Data structures and source code are printed
+{\tt in courier} in fixed-width font, reassembling the output of a terminal,
+e.g.
 
 \begin{verbatim}
 typedef unsigned char UBYTE; /* an 8-bit unsigned integer */
@@ -263,45 +273,103 @@ typedef long LONG;           /* a 32-bit integer          */
 \end{verbatim}
 
 \chapter{Elementary Data Types}
-\section{The dos.library}
-\emph{AmigaDOS} as part of the \emph{Amiga Operating System} or short
-\emph{AmigaOs} is represented by the ROM-based
-\emph{dos.library}. This library is typically opened by the startup
-code of most compilers anyhow, and its base pointer is placed into
-{\tt DOSBase} by this startup code:
+\section{Purpose of the dos.library}
+\emph{AmigaDOS} is part of the \emph{Amiga Operating System} or short
+\emph{AmigaOs}. The \emph{dos.library} provides the application interface to
+AmigaDOS, even though it consists of components beyond this library,
+e.g. the \emph{AmigaDOS Shell} and the \emph{Fast File System}, which is the
+default (ROM-based) file system organizing the data on data carriers such as
+floppy disks or hard disks.
+\smallskip{}
+
+Unlike many other operating system, the \emph{dos.library} does not manage
+disks or files itself, neither does it provide access to hardware interface
+components. It rather implements a \emph{virtual file system} which forwards
+requests to its subsystems, called \emph{handlers}\key{Handler} or
+\emph{file systems}\key{File System}. The FFS is only one of the multiple
+file systems AmigaDOS is able to handle; instead, it provides an abstract
+interface to handlers that allows its extension by third-party file systems
+and handlers. Handlers and file systems are introduced in
+section~\ref{sec:handlerovv}, and the interface between the
+\emph{dos.library} and such handlers is specified in
+chapter~\ref{sec:handlers}.
+
+\section{The DosLibrary Object}
+
+The \emph{dos.library} is typically opened by the startup code of most
+compilers anyhow, and its base pointer is placed into the {\tt DOSBase}
+object by such startup code:
 \begin{verbatim}
 struct DosLibrary *DOSBase;
 \end{verbatim}
 Hence, in general, there is no need to open this library manually.
 \smallskip{}
 
-The structure \emph{\mkey{DosLibrary}struct DosLibrary} is defined in
-{\tt dos/dosextens.h}, but its layout and its members are usually not
-required and should rather not be accessed directly. Instead, the
-library provides accessor functions to read many objects contained
-within it.
-\smallskip{}
+The \emph{\mkey{DosLibrary}DosLibrary} structure is defined in {\tt
+  dos/dosextens.h}, but its elements are usually not required and should not
+be accessed directly. However, chapter~\ref{sec:dosbase} provides further
+details and provides informations on all its elements. The most important
+function of the library is to provide functions to applications due to its
+library vector offsets --- or short {\tt \_LVO}s --- which are made
+available to a C compiler by including {\tt proto/dos.h}:
+
+\begin{verbatim}
+#include <proto/dos.h>
+\end{verbatim}
+
+This book is organized around groups of functions defined through the above
+file, roughly by functionality and by increasing complexity.
+\medskip{}
 
 If you do not link with compiler startup code, the base pointer of the
-\emph{dos.library} can be obtained similar to that of any other library:
+\emph{dos.library} is obtained similar to any other AmigaOs library:
 \begin{verbatim}
 #include <proto/exec.h>
 #include <proto/dos.h>
 #include <exec/libraries.h>
 #include <dos/dos.h>
 
-...
-if ((DOSBase = (struct DosLibrary *)(OpenLibrary(DOSNAME,47))) {
+struct DosLibrary *DOSBase;
+struct ExecBase *SysBase;
+
+int __saveds startup(void)
+{
+  SysBase = *((struct ExecBase **)(4L);
   ...
-  CloseLibrary((struct Library *)DOSBase);
+  if ((DOSBase = (struct DosLibrary *)(OpenLibrary(DOSNAME,47)))) {
+    ...
+    CloseLibrary((struct Library *)DOSBase);
+  }
+  ...
 }
 \end{verbatim}
+The most up to date version of the \emph{dos.library} also discussed in this
+book is $47$, as indicated by the second argument of {\tt
+  OpenLibrary()}. Not all programs will require its most recent version,
+though; the version in which a particular function of the \emph{dos.library}
+appeared is indicated in brackets behind the function definition. Rather
+than requesting the maximum version, program authors should identify which
+functions of the library they require, identify for each of them the minimum
+version number in which they became available, and then take the maximum of
+all the version numbers and supply this maximum as second argument of {\tt
+  OpenLibrary()}. Table~\ref{table:dosversions} provides the relation
+between the (published) AmigaDOS versions and the corresponding library
+version:
 
-Unlike many other operating system, the \emph{dos.library} does not
-manage disks or files itself, neither does it provide access to
-hardware interface components. It rather implements a \emph{virtual
-  file system} which forwards requests to its subsystems, called
-\emph{handlers}\key{Handler} or \emph{file systems}\key{File System}, see~\ref{sec:handlerovv}.
+\begin{rkrmtable}{AmigaDOS Version Numbers} \label{table:dosversions}
+{\bf AmigaDOS version} & {\bf dos.library version}\\ \hline \hline
+1.2 & 33 \\ \hline
+1.3 & 34 \\ \hline
+2.0 & 37 \\ \hline
+3.0 & 39 \\ \hline
+3.1 & 40 \\ \hline
+3.9 & 43 \\ \hline
+3.1.4 & 45 \\ \hline
+3.2 & 47 \\ \hline
+\end{rkrmtable}
+
+Most important changes were made in version 37 in which the library was
+largely extended.
 
 \section{Booleans}
 
@@ -318,45 +386,48 @@ DOSTRUE  & -1 \\ \hline
 Note that the C language instead uses the value $1$ for
 {\tt TRUE}. Code that checks for zero or non-zero return codes will
 function normally, however code shall not compare to {\tt TRUE} in
-boolean tests.
+boolean tests. Instead, tests shall be made whether particular values are~0
+or different from~0, avoiding this discrepancy between the conventions of
+AmigaDOS and the C language.
 
 \section{Pointers and BPTRs} \label{sec:bptrs}
-AmigaDOS is a descendent of the \emph{TRIPOS system} and as such
-originally implemented in the BCPL language. As of Kickstart 2.0,
-AmigaDOS was re-implemented in C and assembler, but this
-implementation had to preserve the existing interface based on BCPL
-conventions.
+AmigaDOS is a descendent of the \emph{Tripos} operating system and as such
+was originally implemented in the BCPL language. As of Kickstart 2.0,
+i.e. version 37 of the \emph{dos.library}, AmigaDOS was re-implemented in C
+and assembler, but this implementation had to preserve the existing
+interface based on BCPL conventions.
 \smallskip{}
 
-BCPL is a typeless language that structures the memory of its host
-system as an array of 32-bit elements enumerated contiguously from
-zero up. Rather than pointers, BCPL communicates the position of its
-data structures in the form of indices of the first 32-bit element of
-such structures. As each 32-bit group is assigned its own index, one
-can obtain this index by dividing the byte-address of an element by 4,
-or equivalently, by right-shifting the address by two bits. This has
-the consequence that (most) data structures passed into and out of the
-dos.library shall be aligned to 32-bit boundaries. Similarly, in order
-to obtain the byte-address of a BPCL structure, the index is
+BCPL is a typeless language that structures the memory of its host system as
+an array of 32-bit elements enumerated contiguously from zero up. Rather
+than pointers, BCPL communicates the position of its data structures in the
+form of the index of the first 32-bit element of a structure in memory. As
+each 32-bit group is assigned its own index, one can obtain this index by
+dividing the byte-address of an element by 4, or equivalently, by
+right-shifting the address as given by a pointer of the C language by two
+bits. This also has the consequence that (most) data structures passed into
+and out of the dos.library shall be aligned to 32-bit boundaries. Similarly,
+in order to obtain the byte-address of a BPCL structure, the index is
 multiplied by 4, or left-shifted by 2 bits.
 
-\punchline{Not on the Stack!}{Since BPCL structures must have an
-  address that is divisible by 4, you should not keep such structures
-  on the stack as the average compiler will not ensure long word
-  alignment for automatic objects. In the absence of a dedicated
-  constructor function such as
-  \emph{\key{AllocDosObject()}AllocDosObject()}, a safe strategy is
-  use the exec.library memory allocation functions such as
-  \emph{\key{AllocMem()}AllocMem()} or
-  \emph{\key{AllocVec()}AllocVec()} to obtain memory for holding
-  them.}
+\punchline{Not on the Stack!}{Since BPCL structures must have an address
+  that is divisible by 4, using automatic storage duration for AmigaDOS
+  objects is inappropriate. Compilers will typically keep such objects on
+  the hardware stack of the 68K processor~\cite{mcfam}, but usually do not
+  ensure that their addresses are aligned to long word boundaries. In case a
+  particular AmigaDOS object cannot be constructed by
+  \emph{\key{AllocDosObject()}AllocDosObject()} (see
+  section~\ref{sec:allocdosobject}), a safe strategy is use exec.library
+  memory allocation functions such as \emph{\key{AllocMem()}AllocMem()} or
+  \emph{\key{AllocVec()}AllocVec()} to obtain memory for holding them. All
+  three functions ensure proper alignment.}
 
-These indices are called \emph{BCPL pointers} or short \emph{\key{BPTR}BPTR}s,
-even though they are not pointers in the sense of the C language, but
-rather integer numbers as indices to an array of {\tt LONG}
-(i.e. 32-bit) integers. In order to communicate this fact more
-clearly, the {\tt dos/dos.h} include file defines the following data
-type:
+Indicies to 32-bit memory cells in the BCPL abstraction of computer memory
+are called \emph{BCPL pointers} or short \emph{\key{BPTR}BPTR}s, even though
+they are not pointers in the sense of the C language; they are rather
+integer numbers as indices to an array of {\tt LONG} (i.e. 32-bit)
+integers. In order to communicate this fact more clearly, the {\tt
+  dos/dos.h} include file defines the following data type:
 
 \mkey{BPTR}
 \begin{verbatim}
@@ -374,20 +445,23 @@ formed by the following macros, also defined in {\tt dos/dos.h}:
 #define MKBADDR(x)      (((LONG)(x)) >> 2)
 \end{verbatim}
 
-Luckely, in most cases callers of the \emph{dos.library} do not need
-to convert from and to BPTRs but can rather use such ``pointers'' as
+Luckely, in most cases callers of the \emph{dos.library} do not need to
+convert from and to BPTRs but can rather use such ``pointers'' as
 \emph{opaque values} or \emph{handles} representing some AmigaDOS
-objects.
+object. Examples for those objects are \emph{file handles} specified in
+chapter~\ref{sec:file}, and \emph{locks}, see section~\ref{sec:locks}. Both
+are represented as BPTRs to some structure the caller usually does not need
+to care about.
 \smallskip{}
 
-It is certainly a burden to always allocate temporary BCPL objects
-from the heap, and doing so may also fragment the AmigaOs memory
-unnecessarily. However, allocation of automatic objects from the stack
-does not ensure long-word alignment in general. To work around this
-burden, one can use a trick and instead request from the compiler a
-somewhat longer object of automatic lifetime and align the requested
-object manually within the memory obtained this way. The following
-macro performs this trick:
+It is certainly a burden to always allocate temporary BCPL objects from the
+heap through the \emph{exec.library} or the \emph{dos.library}, and doing so
+can also fragment the AmigaOs memory unnecessarily. However, allocation of
+automatic objects from the stack does not ensure long-word alignment in
+general. To work around this burden, one can use a trick and instead request
+from the compiler a somewhat longer object with automatic storage duration
+and align the requested object manually within the memory obtained this
+way. The following macro performs this trick:
 
 \mkey{D\_S() macro}
 \begin{verbatim}
@@ -413,7 +487,7 @@ passed into the \emph{dos.library}.
 Similar to the C language, a pointer to a non-existing element is
 expressed by the special pointer value $0$. While this is called the
 {\tt NULL} pointer in C, it is better to reserve another name for it
-in BPCL as its pointers are rather indices. The following convention
+in BPCL as BPTRs are rather indices. The following convention
 is suggested to express an invalid BPTR:
 
 \begin{verbatim}
@@ -430,11 +504,11 @@ first address.
 While the C language defines \emph{\mkey{String}strings} as
 0-terminated arrays of {\tt char}, and AmigaOs in particular to
 0-terminated arrays of {\tt UBYTE}s, that is, unsigned characters, the
-BPCL language uses a different convention, namely that of a {\tt
+BPCL language uses a different convention. Instead, a BCPL string is a {\tt
   UBYTE} array whose first element contains the size of the string to
 follow. They are not necessarily 0-terminated either. If BCPL strings
 are passed into BCPL functions, or are part of BCPL data structures,
-then typically in the form of a \emph{\key{BPTR}BPTR} to the 32-bit
+then typically in the form of a BPTR\key{BPTR} to the 32-bit
 element containing the size of the string its 8 most significant
 bits. The include file {\tt dos/dos.h} provides its own data type for
 such strings:
@@ -451,10 +525,10 @@ in contact with this type of strings. They appear as part of some
 AmigaDOS structures to be discussed, and as part of the interface
 between the \emph{dos.library} and its handlers, e.g. file systems.
 However, even though users of the \emph{dos.library} rarely come in
-contact with BSTRs themselves, the \emph{BCPL} convention has
+contact with BSTRs themselves, the BCPL convention has
 an important consequence, namely that (most) strings handled by the
 \emph{dos.library} cannot be longer than 255 characters as this is the
-limit imposed by the BCPL convention.
+maximum value an 8-bit byte can take.
 
 \punchline{Length-Limited Strings}{Remember that most strings that are
   passed into the \emph{dos.library} are internally converted to
@@ -470,39 +544,85 @@ see also section~\ref{sec:paths}.
 
 \section{Files}
 Files\key{File} are streams of bytes together with a file pointer that
-identifies the next position to be read, or the next byte position to
-be filled. Files are explained in more detail in section~\ref{sec:file}.
+identifies the next position to be read, or the next byte position to be
+filled. Files are explained in more detail in
+chapter~\ref{sec:file}. AmigaDOS represents files through \emph{file
+handles} in the form of a \emph{FileHandle}\mkey{FileHandle} structure,
+though most of the time, only BPTRs to such handles are passed around.
 
 \section{Locks}
-Locks\key{Lock} are access rights to a particular object on a file
-system. A locked object cannot be altered by any other
-process. Section~\ref{sec:locks} provides more details on locks.
+Locks\key{Lock} are access rights to a particular object on a file system,
+such as a file or a directory. A locked file cannot be altered or removed by
+any other process, a locked directory can be altered, but not be
+deleted. Chapter~\ref{sec:locks} provides more details on locks. AmigaDOS
+represents locks through the \emph{FileLock}\key{FileLock} structure also
+introduced in the above chapter, though in most cases, locks are passed
+around as BPTRs to this structure.
 
 \section{Processes}
 AmigaDOS is a multi-tasking system operating on top of the \emph{exec}
-kernel~\cite{rkrmlib}. As such, it can operate multiple tasks at once,
-where the tasks are assigned to the CPU in a round-robin fashion. A
+kernel~\cite{rkrmlib}. As such, it can operate multiple tasks at once, where
+the tasks are assigned to the CPU in a round-robin fashion. A
 \emph{Process}\key{Process} is an extension of an AmigaOs
-\emph{Task}\mkey{Task} that includes additional state information
-relevant to AmigaDOS, such as a \emph{current directory} \emph{Current
-  Directory} it operates in, a default file system, a
-\emph{console}\key{console} it is connected to, and default input,
-output and error streams. Processes are explained in more detail in
-section~\ref{sec:process}.
+\emph{Task}\mkey{Task} that includes additional state information relevant
+to AmigaDOS, such as a \emph{current directory} operates in, a default file
+system, a \emph{console}\key{console} it is connected to, a default input,
+output and error stream. Most importantly, processes include a {\tt
+  MsgPort}, see~\cite{rkrmlib}, through which it communicates with other
+AmigaDOS components such as handlers or file systems. Processes are
+explained in more detail in chapter~\ref{sec:process}.
 
 \section{Handlers and File Systems} \label{sec:handlerovv}
-\emph{Handlers} are special processes that manage files on a volume, or that
-input or output data to a physical device. AmigaDOS itself delegates
-all operations on files to such handlers. Handlers are introduced in
-section~\ref{sec:handlers}.
+\emph{Handlers} are special processes that perform input or output
+operations to a logical or physical device, such as the serial port, a
+printer, the floppy or even the RAM. AmigaDOS itself delegates most
+operations, such as reading from a stream or file to such handlers. Handlers
+are explained in more detail in chapter~\ref{sec:handlers}.
 \smallskip{}
 
-\emph{File systems} are special handlers that organize the contents of
-data carriers such as hard disks, floppies or CD-Roms in the form of
-files and directories, and provides access to such objects through the
-\emph{dos.library}. File systems interpret paths (see~\ref{sec:paths})
+\emph{File systems} are special handlers that organize the contents of data
+carriers such as hard disks, floppies or CD-Roms in the form of files and
+(optionally) directories. File systems interpret paths (see~\ref{sec:paths})
 in order to locate objects such as files and directories on such data
-carriers.
+carriers. Thus, every file system is a handler --- i.e. the Fast File System
+(FFS) is a handler, discussed in section~\ref{sec:ffs} --- but not every
+handler implements a file system. The console window, for example, is
+provided by the \emph{CON-Handler}\key{CON-Handler} in the form of the {\tt
+  CON:} device, even though it surely does not organize
+files. Section~\ref{sec:console} provides more details on this
+particular handler.
+
+\section{The AmigaDOS Shell}
+
+The AmigaDOS Shell is a command line interpreter and implements a (basic)
+programming language through which the user can communicate with the
+system. Historically, the Shell was also called the \emph{CLI} for
+\emph{Command Line Interface}, and it is the primary user interface of
+AmigaDOS. Unlike the graphical user interface, the workbench, it is purely
+text based and available even without a boot medium.
+\smallskip{}
+
+The Shell reads lines from the console, which is a handler of its own,
+splits those lines into words, and uses the first word as command to which
+all following words are supplied as arguments. Commands are binary
+executable files (see chapter~\ref{sec:binary} for their structure) that are
+contained in a special directory of an AmigaDOS installation, though some
+elementary commands are built into the Shell and do not require access to a
+medium.
+\smallskip{}
+
+The Shell can also read commands from any other handler, for example from a
+file on a partition operated by the Fast File System, and then interprets
+the commands from such a \emph{Shell Script} or \emph{Batch File}. The most
+important Shell script is the \emph{Startup-Sequence} which is interpreted
+by the Shell when booting AmigaOs. Chapter~\ref{sec:shell} provides the details
+on the AmigaDOS Shell.
+\smallskip{}
+
+AmigaDOS is not limited to its own Shell, which is also called the Boot
+Shell; even though this feature is rarely used, users may install additional
+alternative shells. The AmigaDOS interface to shells is specified in
+section~\ref{sec:usershells}.
 
 \chapter{Date and Time} \label{sec:dates}
 
@@ -12503,7 +12623,7 @@ to the \emph{serial.device} and provide this to the
 CON-Handler\key{CON-Handler}. The AUX-Handler\key{AUX-Handler} is therefore
 rather minimal.
 
-\section{The Port-Handler}
+\section{The Port-Handler} \label{sec:porthandler}
 
 The Port-Handler\mkey{Port-Handler} is responsible for the {\tt PAR:}, {\tt
   SER:} and {\tt PRT:} devices and thus represents the Amiga hardware
@@ -20816,7 +20936,7 @@ error. The latter constant is defined in {\tt dos/stdio.h} and equals
 to~$-1$. The error code {\tt IoErr()}\key{IoErr()} is only adjusted
 if the buffer of the used file handle is flushed.
 
-\chapter{The DOS Library}
+\chapter{The DOS Library} \label{sec:dosbase}
 
 This chapter documents the \emph{dos.library} base structure and
 structures linked from it. These structures should not be accessed
