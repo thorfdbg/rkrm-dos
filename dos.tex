@@ -5,6 +5,7 @@
 \usepackage{multirow}
 \usepackage{forest}
 \usepackage{arydshln}
+%\usepackage{parskip}
 %
 \setlength{\oddsidemargin}{0cm}
 \setlength{\evensidemargin}{0cm}
@@ -238,10 +239,11 @@ following the style of the ROM Kernel Reference Manuals.
 
 \subsection{Acknowledgements}
 
-A book of this size would be impossible without additional help from others. I
-want to thank in particular Olaf Barthel for many fruitful discussions and
-answering many questions while compiling many chapters of this
-volume.
+A book of this size would be impossible without additional help from
+others. I want to thank in particular Frank Wille for helping me to compile
+the description of the Amiga binary format and Olaf Barthel for many
+fruitful discussions and answering many questions while compiling many
+chapters of this volume.
 
 \section{Language and Type Setting Conventions}
 The words \emph{shall} and \emph{shall not} indicate normative
@@ -629,7 +631,7 @@ section~\ref{sec:usershells}.
 Due to its history, AmigaOs uses two incompatible representations of date
 and time. The {\tt timer.device} represents a date as the number of seconds
 and microseconds since January $1^{\mbox{\tiny st}}$ 1978. As AmigaDOS is
-based on TRIPOS as an independently developed operating system, the
+based on Tripos as an independently developed operating system, the
 \emph{dos.library} uses a different representation as {\tt DateStamp}
 structure defined in {\tt dos/dos.h}: \mkey{DateStamp}
 \begin{verbatim}
@@ -643,14 +645,19 @@ struct DateStamp {
 The elements of this structure are as follows:
 \smallskip{}
 
-{\tt ds\_Days}\mkey{ds\_Days} counts the number of days since January $1^{\mbox{{\tiny st}}}$ 1978.
+{\tt ds\_Days}\mkey{ds\_Days} counts the number of days since January
+$1^{\mbox{{\tiny st}}}$ 1978. It includes intercalary days added
+approximately all four years at the end of February.
 \smallskip{}
 
 {\tt ds\_Minute}\mkey{ds\_Minute} counts the number of minutes past midnight, i.e. the start of the day.
 \smallskip{}
 
 {\tt ds\_Tick}\mkey{ds\_Tick} counts the ticks since the start of the minute. The number of
-ticks per second is defined as {\tt TICKS\_PER\_SECOND} in {\tt dos/dos.h}.
+ticks per second is defined as {\tt TICKS\_PER\_SECOND} in {\tt
+  dos/dos.h}. The ticks, and the seconds that can be derived from it, do not
+include leap seconds that are added from time to time. In case leap seconds
+are added, the Amiga clock needs to be adjusted manually.
 \smallskip{}
 
 \punchline{Ticking 50 Times a Second}{A system ``tick'' is always
@@ -658,6 +665,22 @@ $1/50^{\mbox{\tiny th}}$ of a second, regardless whether the system is an
 NTSC or PAL system. AmigaDOS detects the clock basis during setup and will
 scale times appropriately such that the definition of the ``tick'' is
 independent of the clocking of the system or the monitor refresh frequency.}
+
+The system date, or rather the functions to convert between the Amiga
+\emph{timer.device} representation and the AmigaDOS {\tt DateStamp}
+representation is currently limited to $31^{\mbox{\tiny th}}$ December
+2045. There is no function in AmigaDOS to set the date, this needs to be
+done through the \emph{timer.device} with the {\tt TR\_SETSYSTIME}
+command. The kickstart, during bootstrap, takes the current time from the
+real time clock, if it is present. If no real time clock is present, then
+all elements of the {\tt rn\_Time} structure in the {\tt RootNode} structure
+(see section~\ref{sec:rootnode}) of the \emph{dos.library} remain~0,
+corresponding to a system date of January $1^{\mbox{\tiny st}}$ 1978. The
+boot file system shall check this condition and provide a better
+approximation in such a case. The FFS will use in this case the creation
+time of the boot volume recorded in the root block, see
+section~\ref{sec:rootblock} and adjusts the system time then through the
+\emph{timer.device}.
 
 \section{Elementary Time and Date Functions}
 
@@ -693,7 +716,7 @@ given by {\tt DateStamp}\key{DateStamp} function and returns an indicator
 which of the dates are earlier.
 
 \begin{verbatim}
-result = CompareDates(date1,date2)
+result = CompareDates(date1,date2) /* since V36 */
 D0                     D1     D2
 
 LONG CompareDates(struct DateStamp *,struct DateStamp *)
@@ -702,7 +725,14 @@ LONG CompareDates(struct DateStamp *,struct DateStamp *)
 This function takes two pointers to {\tt DateStamp} structures as
 {\tt date1} and {\tt date2} and returns a negative number if {\tt date1} is later
 than {\tt date2}, a positive number if {\tt date2} is later than {\tt date1},
-or 0 if the two dates are identical.
+or~0 if the two dates are identical.
+\smallskip{}
+
+This function does not check the dates for validity, and it also assumes
+that difference between the days does not exceed $2^{31}$ days. Note that
+the logic of this function is different from {\tt strcmp()} and related
+functions of ANSI-C, which return a positive number if its first argument is
+larger than its second.
 
 \subsection{Delaying Program Execution} \label{sec:delay}
 
@@ -724,8 +754,8 @@ preferred way of delaying program execution. A tick is $1/50^{\mbox{\tiny
     th}}$ of a second.
 \smallskip{}
 
-AmigaDOS variants below version 36 could not handle delays of~0
-appropriately.
+AmigaDOS variants below version 36 could not handle delays of~0 ticks
+appropriately, thus passing a~0 argument should be avoided.
 
 \section{Conversion Into and From Strings} \label{sec:dateconv}
 
@@ -760,6 +790,7 @@ following formats are available, all defined in {\tt dos/datetime.h}:
 {\tt FORMAT\_INT} & International (ISO) format \\ \hline
 {\tt FORMAT\_USA} & USA date format \\ \hline
 {\tt FORMAT\_CDN} & Canadian and European format \\ \hline
+{\tt FORMAT\_DEF} & The format defined by the locale \\ \hline
 \end{rkrmtable}
 
 {\tt FORMAT\_DOS}\mkey{FORMAT\_DOS} represents the date as day of the month in two digits,
@@ -782,6 +813,20 @@ the year. An example of this formatting is {\tt 09-30-23}.
 {\tt FORMAT\_CDN}\mkey{FORMAT\_CDN} follows the European convention and places the day of the
 month first, followed by the month represented as two numerical digits,
 followed by the year as two digits.
+
+{\tt FORMAT\_DEF}\mkey{FORMAT\_DEF} uses the format defined by the locale
+settings of the system if the \emph{locale.library} is installed. Otherwise,
+it falls back to {\tt FORMAT\_DOS}.
+\smallskip{}
+
+Unfortunately, it seems that the current NDK does not seem to define this
+format, yet it is properly handled. Its definition should therefore be
+performed manually as such:
+\begin{verbatim}
+#ifndef FORMAT_DEF
+# define FORMAT_DEF 4
+#endif
+\end{verbatim}
 \medskip{}
 
 {\tt dat\_Flags}\mkey{dat\_Flags} defines additional flags that control the conversion
@@ -798,26 +843,31 @@ for the above flags that start with {\tt DTB} instead of {\tt DTF}. The
 meaning of these flags are as follows:
 \smallskip{}
 
-{\tt DTF\_SUBST}\mkey{DTF\_SUBST} allows, if set, the conversion to substitute dates nearby
-today's date by descriptions relative to today. This flag is only honored when
-converting a time and date in AmigaDOS representation to human-readable
-strings. In particular, the following substitutions are made:
+{\tt DTF\_SUBST}\mkey{DTF\_SUBST} allows, if set, the conversion to
+substitute dates nearby today's date by descriptions relative to today. This
+flag is only honored when converting a time and date in AmigaDOS
+representation to human-readable strings, and is for example used by the
+{\tt List} command. In particular, the following substitutions are made:
 \smallskip{}
 
 If the date provided is identical to the system date, the output date is set
-to ``Today''.
+to ``Today'', or a corresponding localized string if the
+\emph{locale.library} is loaded.
 \smallskip{}
 
 If the date is one day later than the current system date, the output date
-is set to ``Tomorrow''.
+is set to ``Tomorrow'', or to an appropriate localized version of this string.
 \smallskip{}
 
 If the date is one day before te current system date, the output date is set
-to ``Yesterday''.
+to ``Yesterday'', or a localized version of this string.
 \smallskip{}
 
 If the date in the past week, the function substitutes it by the name of the
-day of the week, e.g. ``Saturday''.
+day of the week, e.g. ``Saturday'', or its localized version.
+\smallskip{}
+
+A date in the future is substituted by ``Future'', or its localized version.
 \medskip{}
 
 {\tt DTF\_FUTURE}\mkey{DTF\_FUTURE} is only only honored when converting a string to the
@@ -826,7 +876,7 @@ indicates whether weekdays such as ``Monday'' are interpreted as dates in
 the past, i.e. ``last Monday'', or as dates in the future, i.e. ``next
 Monday''. If the flag is cleared, weekdays are interpreted as being in the
 past, same as the {\tt DateToStr()}\key{DateToStr()} function would generate
-them. If the flag is set, weekdays are assumed as references into the
+them. If the flag is set, weekdays are assumed as references to the
 future.
 \medskip{}
 
@@ -843,14 +893,15 @@ according to {\tt dat\_Format} and {\tt dat\_Flags}.
 
 {\tt dat\_StrTime}\mkey{dat\_StrTime}: This element points to a buffer that is either filled
 with a human-readable time, or is the input time to be converted. AmigaDOS
-expects here a 24h clock, hours, minutes and seconds in this order,
-separated by colon, e.g. {\tt 21:47:16}.
+expects and provides here a 24h clock, hours, minutes and seconds in this order,
+separated by colon, e.g. {\tt 21:47:16}. If this field is {\tt NULL}, then
+the time is not converted.
 \medskip{}
 
 The functions in this section are patched by the \emph{locale.library} once
-it is loaded, and then replaced the English strings by the corresponding
-localized output. The localized versions may also accept (or provide)
-different formats, such as four-digit years.
+it is loaded. The \emph{dos.library} then also offers and recognizes
+localized strings of the corresponding locale, including four-digit
+representation of the year.
 
 \subsection{Converting a Time and Date to a String} \label{sec:datetostr}
 
@@ -859,7 +910,7 @@ readable string. The date and time, as well as formatting instructions are
 given by a {\tt DateTime}\key{DateTime} structure.
 
 \begin{verbatim}
-success = DateToStr( datetime )
+success = DateToStr( datetime ) /* since V36 */
 D0                      D1
 
 BOOL DateToStr(struct DateTime *)
@@ -892,19 +943,20 @@ string buffer at least {\tt LEN\_DATSTRING} bytes large into which the day
 of the week is filled, e.g. ``Saturday''.
 \smallskip{}
 
-{\tt dat\_StrDate}\key{dat\_StrDate}: If this pointer is non-{\tt NULL}, it shall point
-to a string buffer at least {\tt LEN\_DATSTRING} bytes large. This buffer
-will then be filled by a description for the date according to the format
-selected by {\tt dat\_Format} and {\tt dat\_Flags}.
+{\tt dat\_StrDate}\key{dat\_StrDate}: If this pointer is non-{\tt NULL}, it
+shall point to a string buffer at least {\tt LEN\_DATSTRING} bytes large;
+this constant is defined in {\tt dos/datetime.h}. This buffer will then be
+filled by a description for the date according to the format selected by
+{\tt dat\_Format} and {\tt dat\_Flags}.
 \smallskip{}
 
-{\tt dat\_StrTime}\key{dat\_StrTime}: This buffer, if the pointer is non-{\tt NULL}, is filled
-by the time of the day, using a 24h clock. The format is always hours,
-minutes, seconds, separated by colon.
+{\tt dat\_StrTime}\key{dat\_StrTime}: This buffer, if the pointer is
+non-{\tt NULL}, is filled by the time of the day, using a 24h clock. The
+format is always hours, minutes, seconds, separated by colons.
 \medskip{}
 
 This function is patched by the \emph{locale.library} once it is loaded, and
-then replaced the English output by the corresponding localized output.
+then replaces the English output by the corresponding localized output.
 \smallskip{}
 
 The function returns~0 on error; the only source of error here is if {\tt
@@ -912,29 +964,35 @@ The function returns~0 on error; the only source of error here is if {\tt
 \times 24$ or the number of ticks is larger than $50 \times 60$. This makes
 this function probably unsuitable to handle leap seconds correctly. This
 function does not touch~{\tt IoErr()}, even in case of failure.
+\smallskip{}
+
+The {\tt FormatDate()} function of the \emph{locale.library} is more
+powerful than this function and should probably be preferred if this library
+is available.
 
 \subsection{Convert a String to a Date and Time}
 
-The {\tt StrToDate()}\mkey{StrToDate()} function converts a date from a
-human-readable string to its binary AmigaDOS representation.
+The {\tt StrToDate()}\mkey{StrToDate()} function converts a date and time
+from a human-readable string to its binary AmigaDOS representation.
 
 \begin{verbatim}
-success = StrToDate( datetime )
+success = StrToDate( datetime ) /* since V36 */
 D0                      D1
 
 BOOL StrToDate( struct DateTime * )
 \end{verbatim}
 
 This function takes a {\tt DateTime}\key{DateTime} structure as defined in
-section~\ref{sec:dateconv} and converts the date and time strings
-in this structure to a {\tt DateStamp} structure in {\tt dat\_Stamp}. In
-particular, the elements of the {\tt DateTime}\key{DateTime} shall be initialized as
+section~\ref{sec:dateconv} and converts the date and/or time strings in this
+structure to a {\tt DateStamp} structure in {\tt dat\_Stamp}. In particular,
+the elements of the {\tt DateTime}\key{DateTime} shall be initialized as
 follows:
 \smallskip{}
 
-{\tt dat\_DateTime}\key{dat\_DateTime} may remain uninitialized and is rather filled by this
-function with the converted date. In other words, this element is used to
-provide the result of this function.
+{\tt dat\_DateTime}\key{dat\_DateTime} provides a default time and date that
+are partially or fully overwritten by output of the conversion process from
+{\tt dat\_StrDate} and {\tt dat\_StrTime}. In other words, this element
+provides the result of this function.
 \smallskip{}
 
 {\tt dat\_Format}\key{dat\_Format} shall be initialized by the format that is used by the
@@ -951,23 +1009,23 @@ four-digit years.
 table~\ref{table:dateflags}. As {\tt StrToDate()} always accepts relative
 dates such as ``yesterday'', the {\tt DTF\_SUBST} flag is ignored and only
 {\tt DTF\_FUTURE} is honored. This flag indicates whether weekdays are
-considered a date in the past or in the future.
-\smallskip{}
+considered to correspond to a date in the past or in the future.
 
 {\tt dat\_StrDay}\key{dat\_StrDay} is ignored by this function. If a relative date given by a
 day of a week is to be converted, this weekday goes directly into {\tt dat\_StrDate}.
 \smallskip{}
 
-{\tt dat\_StrDate}\key{dat\_StrDate}, if it is non-{\tt NULL}, points to a string describing
-the date, in the format according to {\tt dat\_Format}. If this string is
-not given, the output date is taken from the system date, i.e. is today's
-date.
+{\tt dat\_StrDate}\key{dat\_StrDate}, if it is non-{\tt NULL}, points to a
+string describing the date, in the format according to {\tt dat\_Format}. If
+this string is not given, {\tt ds\_Days} of the {\tt dat\_Stamp} passed in
+remains unaltered.
 \smallskip{}
 
-{\tt dat\_StrTime}\key{dat\_StrTime}, if it is non-{\tt NULL}, points to a human-readable
-string describing the time of the day. This time shall be formatted as a 24h
-clock, in the order hours, minutes and seconds, each separated by colon. If
-this pointer is {\tt NULL}, the current system time is used.
+{\tt dat\_StrTime}\key{dat\_StrTime}, if it is non-{\tt NULL}, points to a
+human-readable string describing the time of the day. This time shall be
+formatted as a 24h clock, in the order hours, minutes and seconds, each
+separated by colon. If this pointer is {\tt NULL}, then {\tt ds\_Minute} and
+{\tt ds\_Ticks} remain unchanged from the time passed in.
 \smallskip{}
 
 This function returns non-zero on success, and~0 on error. It does not set
@@ -976,9 +1034,13 @@ strings the function cannot interpret.
 \smallskip{}
 
 Also note that this function is patched by the \emph{locale.library} once
-loaded. It adds conventions of the current locale how dates and times are
-supposed to be formatted. Interpretation of date and time will then follow
-the conventions of this library.
+loaded. It adds date and time conventions according to the current locale
+when setting {\tt dat\_Format} to {\tt FORMAT\_DEF}.
+\smallskip{}
+
+The {\tt ParseDate()} function of the \emph{locale.library} is more powerful
+than this function and should probably be preferred if this library is
+available.
 
 \chapter{Files} \label{sec:file}
 
