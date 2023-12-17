@@ -1045,11 +1045,21 @@ available.
 \chapter{Files} \label{sec:file}
 
 \section{What are Files?}
-\emph{Files}\mkey{File} are streams of sequences of bytes that can be read from
-and written to, along with a file pointer that points to the next byte
-to be read, or the next byte to be written or overwritten. Files may
-have an \emph{End-of-File position}, beyond which the file pointer can
-not advance when reading bytes from it.
+\emph{Files}\mkey{File} are streams of sequences of bytes that can be read
+from and written to, along with a file pointer that points to the next byte
+to be read, or the next byte to be written or overwritten. Files can run
+into an \emph{end of file condition} upon reaching it no further data can be
+read from them.
+\smallskip{}
+
+For files that represent an interface of the computer system with its
+environment, such as the console, the end of file condition depends on
+factors beyond the control of the system. If more data becomes available
+through the interface, e.g. as being typed into the console, additional data
+can be read from the stream. For files stored on a disk, the condition is
+triggered when the file pointer reaches the last byte of the file, the
+\emph{end of file position}. It can be adjusted by writing additional bytes
+into the file, or by setting the file size.
 
 \section{Interactive vs. non-Interactive Files} \label{sec:interactive}
 
@@ -1434,7 +1444,7 @@ forwards slash (``/''), and a final file or directory name. Note that this
 is different from some other operating system that use a backslash as
 component separator.
 
-\subsubsection{Locating Files or Directories} \label{sec:locate}
+\subsection{Locating Files or Directories} \label{sec:locate}
 
 When attempting to locate a particular file or directory, the
 \emph{dos.library} first checks whether an absolute path name is
@@ -1516,7 +1526,22 @@ i.e. codes between {\tt 0x00} to {\tt 0x1f} or {\tt 0x80} to
 AmigaDOS will behaive erratically if component names containing them are
 encountered.
 
-\section{Opening Files} \label{sec:open}
+\section{Opening and Closing Files}
+
+To open a file, an absolute or relative path name needs to be provided. The
+{\tt Open()}\key{Open()} function uses this information to construct a
+\emph{file handle} through which the contents of the file can be accessed or
+modified. Depending on how the file is opened, multiple processes may access
+the same file simultaneously, or may even alter the file simulatenously.
+\smallskip{}
+
+Once done with the file, file handles shall be released again with {\tt
+  Close()}. This not only returns system resources, it also makes files
+opened for exclusive access available to other processes, and ensures that
+all modifications are written back to the medium the file is located, or
+written out through the interface the file represents.
+
+\subsection{Opening Files} \label{sec:open}
 To read data from or write data to a file, it first needs to be opened
 by the {\tt Open()}\mkey{Open()} function:
 
@@ -1602,7 +1627,7 @@ error condition.
   the file name. While these characters are valid, they should be
   avoided as they make it hard to access such files the shell.}
 
-\section{Closing Files}
+\subsection{Closing Files}
 
 The {\tt Close()}\mkey{Close()} function writes all internally
 buffered data to disk and makes an exclusively opened file accessible
@@ -1643,7 +1668,7 @@ Attempting to close the {\tt ZERO} file handle under AmigaDOS version 36 or
 later returns success immediately. Under earlier versions, closing
 {\tt ZERO} causes a crash.
 
-\section{Types of Files and Handlers}
+\section{Testing for Interactive Files}
 
 As introduced in \ref{sec:interactive}, AmigaDOS distinguishes between
 non-interactive files managed by file systems and interactive files that
@@ -2008,11 +2033,15 @@ code. Handlers that do not implement this function will set {\tt IoErr()} to
 
 \section{Buffered Input and Output} \label{sec:bufferedio}
 
-AmigaDOS also offers buffered input and output functions that stores
-data in an intermediate buffer. AmigaDOS then transfers data only in
-larger chunks between the buffer and the handler, minimizing the task
-switching overhead and offering better performance if data is to be
-read or written in smaller units.
+AmigaDOS also offers buffered input and output functions that stores data in
+an intermediate buffer. It then transfers data only in larger chunks between
+the buffer and the handler, minimizing the task switching overhead and
+offering better performance if data is to be read or written in smaller
+units. All file handles AmigaDOS allow buffered input and output, and are
+requipped with a file buffer of a default size of 204 bytes as soon as
+buffered input or output is requested. The {\tt SetVBuf()}\key{SetVBuf()}
+function in section~\ref{sec:setvbuf} should be used to request larger
+buffers.
 
 \punchline{Performance Improved}{While buffered I/O functions of
   AmigaDOS V45 and below were designed around single-byte functions
@@ -2024,6 +2053,57 @@ read or written in smaller units.
   {\tt SetVBuf()}\key{SetVBuf()}. A suggested buffer size is 4096 bytes
   which corresponds to a disk block of modern hard drives.}
 
+While most buffered I/O functions closely reassemble those of ANSI-C, there
+is one important difference: Unlike many ANSI-C functions, the buffered I/O
+functions of the \emph{dos.library} retrieve the file handle as first and
+not as last parameter.
+\smallskip{}
+
+The standard input file handle of a shell command provided by {\tt
+  Input()}\key{Input()} is unfortunately a special case as its input buffer
+contains the command line parameters where the {\tt
+  ReadArgs()}\key{ReadArgs()} function specified in
+section~\ref{sec:readargs} retrieves them. Thus, any buffered read function
+from the input stream will receive the command line parameters and not the
+data from the actual stream. To release these buffers and synchronize the
+buffer of the input stream with the actual file contents, an {\tt
+  FFlush()}\key{FFlush()} would be necessary. Unfortunately, the input
+buffer containing the command line parameters is allocated manually
+following the algorithm in section~\ref{sec:stringstreams}, and an {\tt
+  FFlush()}\key{FFlush()} is not necessarily functional if the original
+stream was unbuffered. Instead, the input stream first needs to be converted
+to a buffered stream, and then flushed. The following code sequence performs
+this:
+
+\begin{verbatim}
+  FGetC(Input());  /* convert to buffered mode        */
+  FFlush(Input()); /* release the cmd line parameters */
+\end{verbatim}
+
+The include file {\tt dos/stdio.h} also defines a couple of additional
+macros for buffered I/O that are slightly inefficient by requiring an
+additional call to {\tt Input()} or {\tt Output()}. If called in a tight
+loop, the target file handle should be obtained first and the functions
+should be called manually rather than through the following macros:
+
+\mkey{ReadChar}\mkey{WriteChar}\mkey{UnReadChar}\mkey{ReadChars}
+\mkey{ReadLn}\mkey{WriteStr}\mkey{VWritef}
+\begin{verbatim}
+#define ReadChar()           FGetC(Input())
+#define WriteChar(c)         FPutC(Output(),(c))
+#define UnReadChar(c)        UnGetC(Input(),(c))
+#define ReadChars(buf,num)   FRead(Input(),(buf),1,(num))
+#define ReadLn(buf,len)      FGets(Input(),(buf),(len))
+#define WriteStr(s)          FPuts(Output(),(s))
+#define VWritef(format,argv) VFWritef(Output(),(format),(argv))
+\end{verbatim}
+
+While buffered I/O functions had always been part of AmigaDOS, they were
+only available to BCPL programs through the Global Vector\key{Global Vector}
+prior to version 36. In version 36, the \emph{dos.library} was rewritten in
+assembler and C, and as part of this rewrite, they became available to the
+library interface.
+
 \subsection{Buffered Read From a File} \label{sec:fread}
 
 The {\tt FRead()}\mkey{FRead()} function reads multiple equally-sized
@@ -2031,16 +2111,17 @@ records from a file through a buffer, and returns the number of
 records retrieved.
 
 \begin{verbatim}
-count = FRead(fh, buf, blocklen, blocks)
+count = FRead(fh, buf, blocklen, blocks) /* since V36 */
  D0           D1  D2     D3        D4
 
 LONG FRead(BPTR, STRPTR, ULONG, ULONG)
 \end{verbatim}
 
-This function reads {\tt blocks} records each of {\tt blocklen} bytes
-from the file {\tt fh} into the buffer {\tt buf}. It returns the
-number of complete records retrieved from the file. If the file runs
-out of data, the last record may be incomplete.
+This function reads {\tt blocks} records each of {\tt blocklen} bytes from
+the file {\tt fh} into the buffer {\tt buf}. It returns the number of
+complete records retrieved from the file. If the file runs out of data, the
+last record may be incomplete. Such an incomplete record is \emph{not}
+included in the {\tt count}.
 \smallskip{}
 
 From AmigaOs 3.2 onwards, {\tt FRead()} first attempts to satisfy the
@@ -2065,7 +2146,7 @@ records to a file through a buffer, and returns the number of
 records it could write.
 
 \begin{verbatim}
-count = FWrite(fh, buf, blocklen, blocks)
+count = FWrite(fh, buf, blocklen, blocks) /* since V36 */
 D0             D1  D2     D3        D4
 
 LONG FWrite(BPTR, STRPTR, ULONG, ULONG)
@@ -2074,7 +2155,8 @@ LONG FWrite(BPTR, STRPTR, ULONG, ULONG)
 This function write {\tt blocks} records each of {\tt blocklen} bytes
 from the buffer {\tt buf} to the file {\tt fh}. It returns the number
 of complete records written to the file. On an error, the last record
-written may be incomplete.
+written may be incomplete. Such an incomplete record is \emph{not} included
+in {\tt count}.
 \smallskip{}
 
 From AmigaOs 3.2 onwards, {\tt FWrite()} first checks whether the file
@@ -2088,7 +2170,7 @@ internal buffer.
 
 This function does not modify {\tt IoErr()}\key{IoErr()} in case the
 request can be satisfied completely by using the file handle
-buffer. It neither returns $-1$ in case of an error. Callers should
+buffer. It neither returns~$-1$ in case of an error. Callers should
 instead use {\tt SetIoErr(0)} to clear the error state before calling
 this function, and then use {\tt IoErr()} to learn if any error
 occurred if the number of records written is smaller than the number of
@@ -2100,22 +2182,23 @@ The {\tt WriteChars()}\mkey{WriteChars()} writes an array of bytes buffered
 to the output stream. 
 
 \begin{verbatim}
-count = WriteChars(buf, buflen)
+count = WriteChars(buf, buflen) /* since V36 */
 D0                 D1   D2
 
 LONG WriteChars(STRPTR, LONG)
 \end{verbatim}
 
 This function is equivalent to {\tt FWrite(Output(),buf,1,buflen)}, that is,
-the bytes in the buffer {\tt buf} of size {\tt buflen} is writing to the
-output stream, and the number of characters written is returned. Therefore,
+it writes {\tt buflen} bytes from {\tt buf} to the output stream of the
+calling process. The number of characters written is returned. Therefore,
 this function has similar quirks concerning error reporting as {\tt
   FWrite()}\key{FWrite()}: It does not set {\tt IoErr()}\key{IoErr()}
 consistently, namely only when the buffer is written to the stream. It
-neither returns~$-1$ on an error. It is therefore recommended to reset the
-error upfront with {\tt SetIoErr(0)}\key{SetIoErr()}.
+neither returns~$-1$ on an error\footnote{The information in~\cite{Bantam}
+on returning~$-1$ on error is incorrect.}. It is therefore recommended to
+reset the error upfront with {\tt SetIoErr(0)}\key{SetIoErr()}.
 
-\subsection{Adjusting the Buffer}
+\subsection{Adjusting the Buffer} \label{sec:setvbuf}
 
 The {\tt SetVBuf()}\mkey{SetVBuf()} function allows to adjust the
 internal buffer size for buffered input/output functions such as {\tt
@@ -2124,22 +2207,25 @@ the buffer mode. The default buffer size is 204 characters, which is
 too low for many applications.
 
 \begin{verbatim}
-error = SetVBuf(fh, buff, type, size)
+error = SetVBuf(fh, buff, type, size) /* since V39 */
 D0              D1   D2    D3    D4
 
 LONG SetVBuf(BPTR, STRPTR, LONG, LONG)
 \end{verbatim}
 
-This function sets the internal buffer of the file handle
-{\tt fh} to {\tt size} bytes. Sizes smaller than 204 characters will be
-rounded up to 204. If {\tt buff} is non-{\tt NULL}, it is a pointer to
-a user-provided buffer that will be used for buffering. This buffer
-shall be aligned to a 32-bit boundary. A user provided buffer will not
-be released when the file is closed.
+This function sets the internal buffer of the file handle {\tt fh} to {\tt
+  size} bytes. Sizes smaller than 204 bytes will be rounded up to
+204\footnote{While the official autodocs and~\cite{guru} reports a default
+buffer size of 208 characters, this information is not correct.} bytes. If
+{\tt buff} is non-{\tt NULL}, it is a pointer to a user-provided buffer that
+will be used for buffering. A user-provided buffer shall be aligned to a
+32-bit boundary. A user provided buffer will not be released when the file
+is closed or another buffer is provided.
 \smallskip{}
 
-Otherwise, if {\tt buff} is {\tt NULL} AmigaDOS will allocate the
-buffer for you, and will also release it when the file is closed.
+Otherwise, if {\tt buff} is {\tt NULL}, AmigaDOS will allocate the buffer
+for you, and will also release it when the file is closed or the buffer is
+updated.
 \smallskip{}
 
 The {\tt type} argument identifies the type of buffering according to
@@ -2173,10 +2259,15 @@ fill the entire buffer from the file; {\tt BUF\_NONE} disables
 buffering.
 \medskip{}
 
-The function returns non-zero on success, or $0$ on error. Error
+The function returns non-zero on success, or~$0$ on error. Error
 conditions are either out-of-memory, an invalid buffer mode or an
 invalid file handle. Unfortunately, {\tt IoErr()}\key{IoErr()} is only set on an
 out-of-memory condition and remains otherwise unchanged.
+\smallskip{}
+
+Even though this function is documented since AmigaDOS version~36, it was
+only implemented from version~39 onwards. Releases prior version~39 always
+returned~0.
 
 \subsection{Synchronize the File to the Buffer}
 
@@ -2185,15 +2276,15 @@ of a file handle and synchronizes the file pointer to the
 buffer position.
 
 \begin{verbatim}
-success = Flush(fh)
+success = Flush(fh) /* since V36 */
 D0              D1
 
 LONG Flush(BPTR)
 \end{verbatim}
 
-Synchronizes the file pointer to the buffer, that is, if bytes were
-written to the buffer, writes out buffer content to file. If bytes
-were read from the file and non-read files remained in the buffer,
+This function synchronizes the file pointer to the buffer, that is, if data
+were written to the buffer, it writes buffer content out to the file. If
+data were read from the file and non-read files remained in the buffer,
 such bytes are dropped and the function attempts to seek back to the
 position of the last read byte. This can fail for interactive files.
 \smallskip{}
@@ -2212,13 +2303,17 @@ check whether an error occurred.
   correctly. Also, {\tt Flush()}\key{Flush()} shall be called when switching from
   buffered to unbuffered input/output.}
 
+For flushing the command line parameters of the input stream of a process, a
+simple {\tt Flush()} is not necessarily sufficient, see the code sequence at
+the beginning of this section for further details.
+
 \subsection{Write a Character Buffered to a File}
 
 The {\tt FPutC()}\mkey{FPutC()} function writes a single character to
 a file, using the file handle internal buffer.
 
 \begin{verbatim}
-char = FPutC(fh, char)
+char = FPutC(fh, char) /* since V36 */
 D0           D1   D2
 
 LONG FPutC(BPTR, LONG)
@@ -2245,7 +2340,7 @@ The {\tt FPuts()}\mkey{FPuts()} function writes a {\tt NUL}-terminated
 string to a file, using the file handle internal buffer.
 
 \begin{verbatim}
-error = FPuts(fh, str)
+error = FPuts(fh, str) /* since V36 */
 D0            D1  D2
 
 LONG FPuts(BPTR, STRPTR)
@@ -2262,7 +2357,7 @@ buffer, or may be written out immediately. See
 for implicit buffer flushes.
 \smallskip{}
 
-This function returns $0$ on success, or {\tt ENDSTREAMCH}\key{ENDSTREAMCH} on an error. The
+This function returns~$0$ on success, or {\tt ENDSTREAMCH}\key{ENDSTREAMCH} on an error. The
 latter constant is defined in {\tt dos/stdio.h} and equals to~$-1$. The
 error code {\tt IoErr()}\key{IoErr()} is only adjusted when the buffer is
 flushed.
@@ -2270,10 +2365,11 @@ flushed.
 \subsection{Write a String Buffered to the Output Stream}
 
 The {\tt PutStr()}\mkey{PutStr()} function writes a {\tt NUL}-terminated
-string to the output. No newline is appended.
+string to the standard output of the calling process. No newline is
+appended.
 
 \begin{verbatim}
-error = PutStr(str)
+error = PutStr(str) /* since V36 */
 D0             D1
 
 LONG PutStr(STRPTR)
@@ -2292,28 +2388,34 @@ The {\tt FGetC()}\mkey{FGetC()} function reads a single character from
 a file through the internal buffer of the file handle.
 
 \begin{verbatim}
-char = FGetC(fh)
+char = FGetC(fh) /* since V36 */
 D0           D1
 
 LONG FGetC(BPTR)
 \end{verbatim}
 
-This function attempts to read a single character from the \emph{file
-  handle} {\tt fh} using the buffer of the handle. If characters are
+This function attempts to read a single character from the file
+handle {\tt fh} using the buffer of the handle. If characters are
 present in the buffer, the request is satisfied from the buffer first,
 then the function attempts to refill the buffer from the file and
 tries again.
 \smallskip{}
 
 The function returns the character read, or {\tt ENDSTREAMCH}\mkey{ENDSTREAMCH} on an
-end-of-file condition or an error. The latter constant is defined in
+end of file condition or an error. The latter constant is defined in
 {\tt dos/stdio.h} and equals to $-1$.
 \smallskip{}
 
-To distinguish between the error and the
-end-of-file case, the caller should first reset the error condition
-with {\tt SetIoErr(0)}\key{SetIoErr()}, and then check {\tt IoErr()}
-when the function returns with {\tt ENDSTREAMCH}\key{ENDSTREAMCH}.
+To distinguish between the error and the end of file case, the caller should
+first reset the error condition with {\tt SetIoErr(0)}\key{SetIoErr()}, and
+then check {\tt IoErr()} when the function returns with {\tt
+  ENDSTREAMCH}\key{ENDSTREAMCH}.
+\smallskip{}
+
+This function had a defect in version 36 where, after receiving an EOF once,
+would continue to return {\tt ENDSTREAMCH} regardless whether new data is
+available on the (potentially interactive) input stream. This was fixed in
+version~37.
 
 \subsection{Read a Line from a File}
 
@@ -2321,7 +2423,7 @@ The {\tt FGets()}\mkey{FGets()} function reads a newline-terminated
 string from a file, using the file handle internal buffer.
 
 \begin{verbatim}
-buffer = FGets(fh, buf, len)
+buffer = FGets(fh, buf, len) /* since V36 */
 D0             D1  D2   D3
 
 STRPTR FGets(BPTR, STRPTR, ULONG)
@@ -2333,7 +2435,7 @@ pointed to by {\tt buf}, capable of holding {\tt len} characters.
 
 Reading terminates either if {\tt len}-1 characters have been read, filling
 up the buffer completely; or a line-feed character is found, which is
-copied into the buffer; or if an end-of-file condition or an error
+copied into the buffer; or if an end of file condition or an error
 condition is encountered. In either event, the string is {\tt NUL}
 terminated.
 \smallskip{}
@@ -2345,6 +2447,13 @@ could be read. Otherwise, the function returns the buffer passed in.
 To distinguish between the error and end-of-file condition, the caller
 should first use {\tt SetIoErr(0)}\key{SetIoErr()}, and then test
 {\tt IoErr()} in case the function returns {\tt NULL}.
+\smallskip{}
+
+In AmigaDOS versions prior to version 39, this function would copy one byte
+too much if no line terminator such as a newline or end of file is found,
+and it thus overflows the input buffer by the {\tt NUL} termination of the
+string. This was fixed in version 39. To work around this defect, the
+{\tt len} parameter should be set to the size of the buffer minus~1.
 
 \subsection{Revert a Single Byte Read}
 
@@ -2352,23 +2461,27 @@ The {\tt UnGetC()} function reverts a single byte read from a
 stream and makes this byte available for reading again.
 
 \begin{verbatim}
-value = UnGetC(fh, ch)
+value = UnGetC(fh, ch) /* since V36 */
 D0             D1  D2
 
 LONG UnGetC(BPTR, LONG)
 \end{verbatim}
 
-The character {\tt ch} is pushed back into the file handle {\tt fh}
-such that the next attempt to read a character from {\tt fh}
-returns {\tt ch}. If {\tt ch} is $-1$, the last character read will be
-pushed back. If the last read operation indicated an error or end-of-file condition,
-{\tt UnGetC(fh,-1)} pushes an end-of-file condition back.
+The character {\tt ch} is pushed back into the file handle {\tt fh} such
+that the next attempt to read a character from {\tt fh} returns {\tt ch}. If
+{\tt ch} is $-1$, the last character read will be pushed back. If the last
+read operation indicated an error or end of file condition, {\tt
+  UnGetC(fh,-1)} pushes an end of file condition back.
 \smallskip{}
 
-This function returns non-zero on success or $0$ if the character
+This function returns non-zero on success or~$0$ if the character
 could not be pushed back. At most a single character can be pushed
 back after each read operation, an attempt to push back more
 characters can fail.
+\smallskip{}
+
+Under AmigaDOS version~36, it was not possible to push back an end of file
+condition. This was fixed in version~37.
 
 \section{File Handle Documentation}
 
