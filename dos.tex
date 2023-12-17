@@ -279,16 +279,16 @@ typedef long LONG;           /* a 32-bit integer          */
 \emph{AmigaDOS} is part of the \emph{Amiga Operating System} or short
 \emph{AmigaOs}. The \emph{dos.library} provides the application interface to
 AmigaDOS, even though it consists of components beyond this library,
-e.g. the \emph{AmigaDOS Shell} and the \emph{Fast File System}, which is the
-default (ROM-based) file system organizing the data on data carriers such as
-floppy disks or hard disks.
+e.g. the \emph{AmigaDOS Shell} and the \emph{Fast File System}\key{Fast File
+  System (FFS)}, which is the default (ROM-based) file system organizing the
+data on data carriers such as floppy disks or hard disks.
 \smallskip{}
 
 Unlike many other operating system, the \emph{dos.library} does not manage
 disks or files itself, neither does it provide access to hardware interface
 components. It rather implements a \emph{virtual file system} which forwards
 requests to its subsystems, called \emph{handlers}\key{Handler} or
-\emph{file systems}\key{File System}. The FFS is only one of the multiple
+\emph{file systems}\key{File System}. The FFS\key{Fast File System (FFS)} is only one of the multiple
 file systems AmigaDOS is able to handle; instead, it provides an abstract
 interface to handlers that allows its extension by third-party file systems
 and handlers. Handlers and file systems are introduced in
@@ -395,7 +395,7 @@ AmigaDOS and the C language.
 \section{Pointers and BPTRs} \label{sec:bptrs}
 AmigaDOS is a descendent of the \emph{Tripos} operating system and as such
 was originally implemented in the BCPL language. As of Kickstart 2.0,
-i.e. version 37 of the \emph{dos.library}, AmigaDOS was re-implemented in C
+i.e. version 36 of the \emph{dos.library}, AmigaDOS was re-implemented in C
 and assembler, but this implementation had to preserve the existing
 interface based on BCPL conventions.
 \smallskip{}
@@ -677,7 +677,7 @@ all elements of the {\tt rn\_Time} structure in the {\tt RootNode} structure
 (see section~\ref{sec:rootnode}) of the \emph{dos.library} remain~0,
 corresponding to a system date of January $1^{\mbox{\tiny st}}$ 1978. The
 boot file system shall check this condition and provide a better
-approximation in such a case. The FFS will use in this case the creation
+approximation in such a case. The FFS\key{Fast File System (FFS)} will use in this case the creation
 time of the boot volume recorded in the root block, see
 section~\ref{sec:rootblock} and adjusts the system time then through the
 \emph{timer.device}.
@@ -1057,63 +1057,71 @@ AmigaDOS knows two types of files: \emph{Interactive} and
 \emph{non-interactive} files.
 \smallskip{}
 
-\emph{Non-interactive} files are stored on some persistent data carrier;
-unless modified by a process\key{Process}, the contents of such non-interactive
-files does not change. They also have a defined \emph{file size}. The
-file size is the number of bytes between the start of the file and the
-end-of-file position, or short \emph{EOF position}\mkey{EOF}. This file size
-does not change unless some process\key{Process} writes to the file, which may or
-may not be the same process that reads from the file.
+\emph{Non-interactive} files are stored on some persistent data carrier
+whose contents only changes due to processes within the computer system
+itself. They also have a defined \emph{file size}, which is the number of
+bytes between the start of the file and the end-of-file position, or short
+\emph{EOF position}\mkey{EOF}. It is possible to open the same file by two
+or more processes in parallel, and in such a case, the file content and its
+size can change unpredictably, depending on how AmigaOs schedules the
+processes accessing the file. Such situations should be avoided, and
+AmigaDOS provides mechanisms to request exclusive access to a file (see
+section~\ref{sec:open} and chapter~\ref{sec:locks}), or even parts of a file
+(see section~\ref{sec:recordlocking}).
 \smallskip{}
 
-Examples for non-interactive files are data on a disk, such as a
-floppy or a harddisk. Such files have a name, possibly a path within a
-hierarchical file system, and possibly multiple protection flags that
-define which type of actions can be applied to a file; such flags
-define whether the file can be read from, written to, and so on.
+Examples for non-interactive files are data on a disk, such as on a floppy
+or a harddisk. Such files have a name, possibly a path within a hierarchical
+file system, possibly a creation date, a file comment and multiple
+protection flags that define which type of actions can be applied to a file;
+such flags define whether the file can be read from, written to, deleted,
+executed; this so-called \emph{meta-information} is discussed in more detail
+in section~\ref{sec:fib}.
 \smallskip{}
 
-\emph{Interactive} files depend on the interaction of the computer
-system with the outside world, and their contents can change due to
-such interaction. Interactive files may not define a clear end-of-file
-position, and an attempt to read from them or write to them may block
-an indefinite amount of time until triggered by an external event.
+\emph{Interactive} files depend on the interaction of the computer system
+with the outside world, and their contents can change due to such
+interaction. Interactive files do not have a well-defined file size as the
+number of bytes that can be read from them depends on events in the
+environment. An attempt to read from them or write to them can block an
+indefinite amount of time until triggered by an external event.
 \smallskip{}
 
-Examples for interactive files are the console\key{Console}, where reading from it
-depends on the user entering data in a console window and output
-corresponds to printing to the console; or the serial port, where read
-requests are satisfied by serial data arriving at the serial port and
-written bytes are transmitted out of the port. The parallel port is
-another example of an interactive file. Requests to read from it
-result in an error condition, while writing prints data on a printer
-connected to the port. Writing may block indefinitely if the printer
-runs out of paper or is turned off.
+Examples for interactive files are the console\key{Console}, where reading
+from it depends on the user entering data in a console window and output
+corresponds to printing to the console. Another example is the serial port,
+where read requests are satisfied by serial data arriving at the serial port
+and written bytes are transmitted out of the port. The parallel port is a
+third example of an interactive file. Requests to read from it result in an
+error condition, while writing prints data on a printer connected to the
+port. Writing may block indefinitely if the printer runs out of paper or is
+turned off.
 
 \section{Paths and File Names} \label{sec:paths}
 Files are identified by \emph{\mkey{Path}paths}, which are strings
-from which AmigaDOS locates a process\key{Process} through which
-access to the file is managed. Such a process is called the
-\emph{\key{Handler}Handler} of the file, or, in case of files of on a
-data carrier, also the \emph{\key{File System}File System}.  AmigaDOS
-itself does not operate on files directly, but delegates such work to
-its handler.
+identifying a particular file, and from which AmigaDOS also locates a
+process\key{Process} through which access to the file is managed. Such
+processes are called \emph{\key{Handler}handlers}, or, in case of
+non-interactive files organized on a persistent data carrier,
+\emph{\key{File System}file systems}. The \emph{dos.library} does not
+operate on files directly, but delegates such work to handlers and file
+systems.
 \smallskip{}
 
-A \emph{path} is broken up into two parts: An optional device or
-volume name terminated by a colon (``:''), followed by string that
-identifies the file within the handler identified by the first part.
+A \emph{path} is broken up into two parts: An optional device, volume or
+assign name terminated by a colon (``:''), followed by a string that allows
+the handler to locate the file and/or defines its properties.
 \smallskip{}
 
-The first part, if present, is interpreted by AmigaDOS itself. It
-relates to the name of a handler (or file system) of the given name,
-or a known disk volume\key{Volume}, or a logical volume of the name
+The first part, if present, is interpreted by the \emph{dos.library}
+itself. It relates to the name of a handler (or file system) of the given
+name, or a known disk volume\key{Volume}, or a logical volume of the name
 within the AmigaDOS \emph{device list}\key{Device List}. These concepts are
-presented in further detail in section~\ref{sec:devicelist}.
+presented in further detail in chapter~\ref{sec:devicelist}.
 \smallskip{}
 
-The second, or only part is interpreted by the handler identified by
-the first part.
+The second, or only part is interpreted by the handler or file system
+identified by the first part.
 
 \subsection{Devices, Volumes and Assigns}
 The first part of a path, up to the colon, identifies the device, the
@@ -1121,26 +1129,25 @@ volume or the assign a file is located in.
 
 \punchline{30 Characters Max!}{For legacy reasons, device, volume and assign
   names can be at most 30 characters long. The AmigaDOS functions that
-  locate handlers given the device, volume or assign name, most notably {\tt
-    GetDeviceProc()}\key{GetDeviceProc()}, are not able to handle longer
-  names, and the {\tt Assign} command suffers from a similar
-  restriction. This limit does not hold for file names or paths in general
-  as the corresponding AmigaDOS components have been augmented to also
-  support longer file names. Additional limits arise, unfortunately, for
-  path names.}
+  locate handlers, most notably {\tt GetDeviceProc()}\key{GetDeviceProc()},
+  are not able to handle longer names, and the {\tt Assign} command suffers
+  from a similar restriction. This 30 character limit does not hold for file
+  names or paths in general as the corresponding AmigaDOS components have
+  been augmented. However, additional limits also arise, unfortunately, for
+  paths.}
 
 \subsubsection{Devices} \label{sec:deviceoverview}
-A \emph{\mkey{Device name}device name} identifies the handler or file
-system directly. Handlers are typically responsible for particular
-hardware units within the system, for example for the first floppy
-drive, or the second partition of a harddisk. For example, {\tt df0}
+A \emph{\mkey{Device name}device name} identifies the handler or file system
+directly. Handlers are typically responsible for particular hardware units,
+or partitions on such units within the system, for example for the first
+floppy drive, or the second partition of a harddisk. For example, {\tt df0}
 is the name of the handler responsible for the first floppy drive,
 regardless of which disk is inserted into it.
 \smallskip{}
 
-Table~\ref{table:romdevices} lists all devices AmigaDOS mounts itself
-even without a boot volume available. They can be assumed present any
-time.
+Table~\ref{table:romdevices} lists all device names AmigaDOS creates itself
+even without a boot volume available. They can be assumed present any time
+as they are created by the AmigaDOS ROM components:
 
 \begin{rkrmtable}{System defined devices} \label{table:romdevices}
 {\bf Device Name} & {\bf Description}\\ \hline \hline
@@ -1158,8 +1165,15 @@ If more than one floppy drives are connected to the system, they are
 named {\tt DF1} through {\tt DF3}. If a hard disk is present, then the device
 name(s) of the harddisk partitions depend on the contents of Rigid
 Disk Block, see~\cite{rkrmdev}. These names can be selected upon
-installation of the harddisks, e.g. through \emph{HDToolBox}.  The
-general convention is to name them {\tt DH0} and following.
+installation of the harddisks, e.g. through the HDToolBox. The
+general convention is to name partitions is {\tt DH0} and following.
+\smallskip{}
+
+The devices {\tt SER}, {\tt PAR}, {\tt PRT} and {\tt PIPE} are created by
+the kickstart ROM, but the corresponding handler is disk-based and
+loaded from disk as soon as the device is needed. The addition of {\tt PIPE}
+to this list is relatively recent, AmigaDOS V47 (Kickstart 3.2) includes it
+in the ROM-mounted devices as the Boot Shell requires it.
 \medskip{}
 
 The following device names have a special meaning and do not belong to
@@ -1172,28 +1186,34 @@ a particular device:
 {\tt NIL}        & the data sink\\ \hline
 \end{rkrmtable}
 
-The {\tt NIL}\mkey{NIL} device is a special device without a handler
-that is maintained by AmigaDOS itself. Any data written into it
-vanishes completely, and any attempt to read data from it results in
-an end-of-file\key{EOF} condition.
+The {\tt NIL}\mkey{NIL} device is a special device without a handler that is
+maintained by the \emph{dos.library} itself. Any data written into it
+vanishes completely, and any attempt to read data from it results in an
+end-of-file\key{EOF} condition. It does not take nor allow any file name
+behind its name.
 \smallskip{}
 
-The {\tt *}\mkey{* (file name)}, if used as complete path name without
-a trailing colon, is the current console of the process\key{Process}, if such a
-console\key{console} exists. Any data output to the file named {\tt *} will be
-printed on the console. Any attempt to read from {\tt *} will wait on
-the user to input data on the console, and will return such data.
+The {\tt *}\mkey{* (file name)}, if used as complete path name without a
+trailing colon and without a file name, is the current console of the
+process\key{Process}, if such a console\key{console} exists. Any data output
+to the file named {\tt *} will be printed on the console. Reading from {\tt
+  *} will wait for the user to input data on the console, and will return
+such data. If no console exists, for example for processes run from the
+workbench, then AmigaDOS versions 36 and later fall back to {\tt NIL},
+aborbing any output. Earlier versions failed to open {\tt *} in such a case.
 
 \punchline{Not a wildcard!}{Unlike other operating systems, the
   asterisk {\tt *} is \emph{not} a wildcard under AmigaDOS. It rather
   identifies the current console of a process, or is used as escape
   character in AmigaDOS shell scripts.}
 
-The {\tt CONSOLE}\mkey{CONSOLE (device)} device is the default console
-of the process\key{Process}. Unlike {\tt *}, but like any other device name, it
-shall be followed by a colon, and an optional job name. Such job names
-form \emph{logical consoles} that are used by the shell for job
-control purposes.
+The {\tt CONSOLE}\mkey{CONSOLE (device)} device is the default console of
+the process\key{Process}. This special device name exists since AmigaDOS
+version 36. Unlike {\tt *}, but like any other device name, it shall be
+followed by a colon. It also takes an optional name behind the colon that
+identifies a job, and allows the console to block the input and output of
+all but the active foregroup job. While the AmigaDOS ROM Console-Handler
+does not provide job control features, some third party consoles do.
 
 \punchline{Prefer the stars}{The difference between {\tt *} and {\tt
     CONSOLE} is subtle, and the former should be preferred as it
@@ -1203,8 +1223,8 @@ control purposes.
   job started when creating the shell. Thus, in case of doubt, use the
   {\tt *} without any colon if you mean the console.}
 
-Additional devices can be loaded into the system by the \emph{Mount}\key{Mount}
-command, see section~\ref{sec:handlers}.
+Additional devices can be announced to the system by the
+\emph{Mount}\key{Mount} command, see chapter~\ref{sec:handlers}.
 
 \subsubsection{Volumes} \label{sec:volumelist}
 A \emph{volume name}\mkey{Volume name} identifies a particular data
@@ -1215,61 +1235,64 @@ floppy, regardless of whether it is inserted in the first {\tt df0} or
 second {\tt df1} drive.
 
 \subsubsection{Assigns} \label{sec:assignlist}
-An \emph{assign}\mkey{Assign} or \emph{logical volume} identifies a
-subset of a files within a file system under a unique name. Such
-assigns are created by the system or by the user helping to identify
-portions of the file system containing files that are of particular
-relevance for the system. For example, the assign {\tt C} contains all
-commands of the boot shell, and the assign {LIBS} contains dynamically
-loadable system libraries. Such assigns can be changed or redirected, and by that
-the system can be instructed to take system resources from other parts of a file system,
-or entirely different file systems.
+An \emph{assign}\mkey{Assign} or \emph{logical volume} identifies a subset
+of a files within a file system under a unique name. Such assigns are
+created by the system or by the user helping to identify portions of the
+file system containing files that are of particular relevance for the
+system. For example, the assign {\tt C} contains all commands of the Boot
+Shell, and the assign {\tt LIBS} contains dynamically loadable system
+libraries. Such assigns can be changed or relocated, and by that the system
+can be instructed to take system resources from other parts of a file
+system, or entirely different file systems. Assigns can be used
+interchangingly with device or volume names and thus form logical volumes
+within volumes, or even across volumes.
 \medskip{}
 
-Assigns can be of three types: \emph{Regular assigns},
-\emph{non-binding assigns} and \emph{late assigns}. \emph{Regular
-  assigns} bind to a particular directory on a particular volume. If
-the \emph{assign} is accessed, and the original volume the bound
-directory is not available, the system will ask to insert this
-particular volume, and no other volume will be accepted.
+Assigns can be of three types: \emph{Regular assigns}, \emph{non-binding
+assigns}\mkey{Non-Binding Assign} and \emph{late assigns}\mkey{Late
+  Assign}. \emph{Regular assigns} bind to a particular directory or multiple
+directories on a particular volume. If the assign is accessed, and the
+original volume the bound directory is not available, the system will ask to
+insert this particular volume, and no other volume, even of identical name,
+will be accepted.
 \smallskip{}
 
-\emph{Regular assigns} can also bind to multiple directories at once,
-in which case a particular file or directory within such a
-\emph{multi-assign} is searched in all directories bound to the
-assign. A particular use case for this is the {\tt FONTS} assign,
-containing all system-available fonts. Adding another directory to
-{\tt FONTS} makes additional fonts available to the system without
-loosing the original ones.
+Regular assigns can also bind to multiple directories at once, in which case
+a particular file or directory within such a
+\emph{multi-assign}\mkey{Multi-Assign} is searched in all directories
+included in the assign. A particular use case for this is the {\tt FONTS}
+assign, containing all system-available fonts. Adding another directory to
+{\tt FONTS} makes additional fonts available to the system without loosing
+the original ones.
+\medskip{}
+
+Regular assigns have the drawback that the volume remains known to the
+system, and the corresponding volume icon will not vanish from the
+workbench. They also require the volume to be present at the time the assign
+is created.
 \smallskip{}
 
-\emph{Regular assigns} have the drawback that the volume remains known
-to the system, and the corresponding volume icon will not vanish from
-the workbench. They also require the volume to be present at the time
-the assign is created.
+\emph{Non-binding assigns}\key{Non-binding Assign} avoid these problems by
+only storing the symbolic path the assign points to; whenever a file or path
+within the assign is accessed, any volume of the name given by the assign
+target will satisfy the request. However, this also implies that the
+target of the assign is not necessarily consistent, i.e. if the assign is
+accessed again at a later time, another volume of the same name, but
+potentially different content will also satisfy the request.
 \smallskip{}
 
-\emph{Non-binding assigns} avoid these problems by only storing the
-symbolic path the assign goes to; whenever the assign is accessed, any
-volume of the particular name containing the particular path will
-work. However, if this also implies that the target of the assign is
-not necessarily consistent, i.e. if the assign is accessed later on,
-another volume with different content will be accepted by the system.
-\smallskip{}
-
-\emph{Late assigns} are a compromise between \emph{regular assigns}
-and \emph{non-binding assigns}. AmigaDOS initially only stores a
-target path for the assign, but when the assign is accessed the first
-time, the assign is converted to a \emph{regular assign} and thus then
-binds to the particular directory of the particular volume that was
-inserted at the time of the first access.
+\emph{Late assigns}\key{Late Assign} are a compromise between regular
+assigns and non-binding assigns. AmigaDOS initially only stores a symbolic
+path for such a late assign, but when the assign is accessed the first time, the
+assign is converted to a regular assign and then binds to the accessed
+volume and directory from this point on.
 \medskip{}
 
 Table~\ref{table:romassigns} lists the assigns made by AmigaDOS
 automatically during bootstrap; except for the {\tt SYS} assign, they
 all go to a directory of the same name on the boot volume. They are
-all \emph{regular assigns}, except for {\tt ENVARC}, which is
-\emph{late assign}.
+all regular assigns, except for {\tt ENVARC}, which is
+late assign\key{Late Assign}. {\tt ENVARC} was added in release 36 of AmigaDOS.
 
 \begin{rkrmtable}{System defined assigns} \label{table:romassigns}
 {\bf Assign Name} & {\bf Description}\\ \hline \hline
@@ -1283,9 +1306,10 @@ all \emph{regular assigns}, except for {\tt ENVARC}, which is
 {\tt SYS}         & The boot volume \\ \hline
 \end{rkrmtable}
 
-In addition to the above table, the following assigns are handled by
-AmigaDOS internally and are not part of the \emph{device
-  list}\key{Device List}, (see section \ref{sec:devicelist}):
+In addition to the above table, the following (pseudo-)assign is handled by
+the \emph{dos.library} internally and is not part of the \emph{device
+list}\key{Device List}, (see section \ref{sec:devicelist}), it was also
+added in release 36 of AmigaDOS:
 
 \begin{rkrmtable}{System defined assigns} \label{table:specialassigns}
 {\bf Assign Name} & {\bf Description}\\ \hline \hline
@@ -1294,15 +1318,18 @@ AmigaDOS internally and are not part of the \emph{device
 
 Thus, {\tt PROGDIR}\mkey{PROGDIR} is the directory the currently
 executed binary was loaded from. Note that {\tt PROGDIR} does not
-exist in case an executable file was not loaded from disk, probably
+exist in case an executable was not loaded from disk, probably
 because it was either taken from ROM or was made resident. More on
-resident executables is found in section~\ref{sec:resident}.
+resident executables is found in section~\ref{sec:resident}\footnote{Unfortunately,
+attempting to access a file relative to {\tt PROGDIR} from within resident
+executables will create a requester to insert a volume of this name. This is
+likely a defect as this requester is not particularly instructive.}.
 \smallskip{}
 
 Additional assigns can become necessary for a fully operational
 system, though these assigns are created through the
 \emph{Startup-sequence}\key{Startup-Sequence}, a particular AmigaDOS
-script residing in the S assign which is executed by the boot shell.
+script residing in the {\tt S} assign which is executed by the Boot Shell.
 Table~\ref{table:startupassigns} lists some of them.
 
 \begin{rkrmtable}{Assigns made during bootstrap} \label{table:startupassigns}
@@ -1314,78 +1341,98 @@ Table~\ref{table:startupassigns} lists some of them.
 {\tt PRINTERS}    & Printer drivers\\ \hline
 {\tt REXX}        & ARexx scripts\\ \hline
 {\tt LOCALE}      & Catalogs and localization\\ \hline
+{\tt CLASSES}     & Boopsi GUI components\\ \hline
 \end{rkrmtable}
 
-Additional assigns can always be made with the
-\emph{Assign}\key{Assign} command, see section~\ref{sec:handlers}.
+The assigns {\tt ENV}, {\tt REXX}, {\tt LOCALE} and {\tt CLASSES} became
+part of AmigaDOS in releases 36, 38 and 39, respectively. Additional assigns
+can always be made with the \emph{Assign}\key{Assign} command, see
+section~\ref{sec:handlers} or the AmigaDOS functions discussed in
+section~\ref{sec:assigns}.
 
 \subsection{Relative and Absolute Paths}
 
-As introduced in section~\ref{sec:paths}, a path consists either of an
-device, volume or assign name followed by a colon followed by a second
-part, or the second part alone. If a device, volume or assign name is
-present, such a path is said to be an \emph{absolute path} because it
-identifies a location within a logical or physical volume.
+As introduced in section~\ref{sec:paths}, a path consists of an optional
+device, volume or assign name and a colon (``{\tt :}''), followed by a
+string describing a file or directory within the accessed volume, device or
+assign. If the colon is present, such a path is said to be an \emph{absolute
+path} because it identifies a location within a logical or physical volume
+relative to the topmost or \emph{root directory}\key{Root Directory} of the
+volume. If the device name and the colon are not present, such a path is
+called a \emph{relative path} because it corresponds to a location in the file system
+relative to the \emph{current directory} of the running process.
 \smallskip{}
 
-If no first part is present, or if it is empty, i.e. the colon is the
-first part of the path, AmigaDOS uses information from the calling
-process\key{Process} to identify a suitable handler. Details on this are provided
-in section~\ref{sec:process}. Such a path is called a
-\emph{relative path}.
+If only a colon is present but the device, volume or assign name is omitted,
+the path is still an absolute path and is relative to the root directory of
+volume that contains the current directory of the running
+processing. Details on this are provided in section~\ref{sec:process}.
 \smallskip{}
 
-This second part is forwarded to the handler and is not interpreted by
-the \emph{dos.library}. It is then within the responsibility of the
-handler to interpret this path and locate a file within the data
-carrier it manages, or to configure an interface to the outside world
-according to this path.
+If neither a colon nor a device, volume or assign name is present, the path
+is a relative path.
+\smallskip{}
+
+The path name behind the colon, or the entire relative path is forwarded to
+the handler or file system identified by either the current directory or the
+device, volume or assign name and is not interpreted by the
+\emph{dos.library}. It is within the responsibility of the handler to
+interpret this path and locate a file within the data carrier it manages, or
+to configure an interface to the outside world according to this path. For
+example, while the Fast File System (FFS)\key{Fast File System (FFS)} ---
+the Amiga ROM file system --- interprets this path as a location within the
+file system directory hiearchy, the Conole-Handler reads it as a
+specification of the dimensions and configuration of the window it is
+supposed to open.
 \smallskip{}
 
 In general, the \emph{dos.library} does not impose a particular syntax
 on how this second part looks like. However, several support functions
 of AmigaDOS implicitly define conventions file systems should follow
 to make these support functions workable and it is therefore advisable
-for file system implementors to follow these conventions.
+for file system implementors to follow these
+conventions. Section~\ref{sec:flathierarchical} provides them.
 
 \subsection{Maximum Path Length} \label{sec:pathlimit}
 
 The \emph{dos.library} does not enforce a limit on the size of file or
-directory names, except that the total length of a path including all
-of its components shall not be larger than 255 characters. This is
-because it is converted to a BSTR within the
-\emph{dos.library}. How large a component name can be is a matter of
-the file system itself. The \emph{Fast File System} includes variants
-that limit file names to 30, 56 or 106 characters.
+directory names, except that the total length of a path including all of its
+components shall not be larger than 255 characters. This is due to the
+AmigaDOS legacy that requires that paths are represented as BSTRs to the
+handlers. How large the name of a directory or a file, i.e. a component of a
+path, can be is a matter of the file system itself. The Fast File
+System\key{Fast File System (FFS)} includes variants that limit component
+(file or directory) names to 30, 56 or 106 characters.
 \smallskip{}
 
-File systems typically do not report an error if the maximum file
-name is exceeded; instead, the name is clamped to the maximum size
-without further notice, which may lead to undesired side effects. For
-example, a file system may clip or remove a trailing {\tt .info} from
-a workbench icon file name without ever reporting this, resulting in
-unexpected side effects. The \emph{icon.library} and
-\emph{workbench.library} of AmigaOs take care to avoid such file names
-and double check created objects for correct names.
+File systems typically do not report an error if the maximum component name
+is exceeded; instead, the name is clamped to the maximum size without
+further notice, which may lead to undesired side effects. For example, a
+file system may clip or remove a trailing {\tt .info} from a workbench icon
+file name without ever reporting this, resulting in unexpected side
+effects. The \emph{icon.library} and \emph{workbench.library} of AmigaOs
+take care of this problem to avoid such file names and double check created
+objects for correct names.
 
 \subsection{Flat vs. Hiearchical File Systems} \label{sec:flathierarchical}
 A flat file system organizes files as a single list of all files
 available on a physical data carrier. For large amounts of files, such
 a representation is clearly burdensome as files may be hard to find
 and hard to identify.
-\smallskip{}
 
 For this reason, all file systems provided by AmigaOs are
 \emph{hierarchical} and organize files in nested sets of
-\emph{directories}\mkey{Directory}, where each directory contains
-files or additional directories. The topmost directory of a volume forms
-the \emph{root directory}\mkey{Root Directory} of this volume.
+\emph{directories}\mkey{Directory}, where each directory contains files or
+more directories. The topmost directory of a volume forms the \emph{root
+directory}\mkey{Root Directory} of this volume.
 \smallskip{}
 
 While AmigaDOS itself does not enforce a particular convention, all
 file systems included in AmigaDOS follow the convention that a path
 consists of a sequence of zero or more directory names separated by a
-forwards slash (``/''), and a final file or directory name.
+forwards slash (``/''), and a final file or directory name. Note that this
+is different from some other operating system that use a backslash as
+component separator.
 
 \subsubsection{Locating Files or Directories} \label{sec:locate}
 
@@ -1401,32 +1448,29 @@ process\key{Process} to locate a handler responsible for the
 interpretation of the path name. If this current directory is {\tt
   ZERO} (see section~\ref{sec:bptrs}), it uses the \emph{default file
   system}\key{Default file system} of the process, which by itself,
-defaults to the boot file system.
+defaults to the file system that booted the system.
 \smallskip{}
 
 The second part of the path interpretation is up to the file system
 identified by the first step and is performed there, outside of the
-\emph{dos.library}. If the path name includes a colon (``:''), then locating
-a file starts from the root of the inserted volume. This also includes
-the special case of an absent device or volume name, though a present
-colon, i.e. ``:'' represents the root directory of the volume to which
-the current directory belongs.
+\emph{dos.library}. If the path name includes a colon (``{\tt :}''), then
+locating a file starts from the root of the inserted volume.
 \medskip{}
 
 The following paragraphs describe a recommended set of operations an
 AmigaDOS file system should follow. A path consists of a sequence of
-components separated by forward slashes (``/'').
+components separated by forward slashes (``{\tt /}'').
 \smallskip{}
 
 To locate a file, the file system should work iteratively through the
-path, component by component: A single isolated ``/'' without a
+path, component by component: A single isolated ``{\tt /}'' without a
 preceding component indicates the parent directory of the current
 directory. The parent directory of the root directory is the root
 directory itself.
 \smallskip{}
 
-Otherwise, a component followed by ``/'' instructs the handler to enter
-the directory of given by the component, and continue searching there.
+Otherwise, a component followed by ``{\tt /}'' instructs the file system to
+enter the directory of given by the component, and continue searching there.
 \smallskip{}
 
 Scanning terminates when the file system reaches the last component. The
@@ -1444,22 +1488,33 @@ indicates the current directory.
   the empty string, and the parent directory is represented by an
   isolated forwards slash without a preceding component.}
 
-Thus, for example, ``:S'' is a file or directory named ``S'' in the
-root directory of the current directory of the process, and
-``//Top/Hi'' is a file or directory named ``Hi'' two directories up
-from the current directory, in a directory named ``Top''.
+Thus, for example, ``{\tt :S}'' is a file or directory named ``{\tt S}'' in
+the root directory of the current directory of the process, and ``{\tt
+  //Top/Hi}'' is a file or directory named ``{\tt Hi}'' two directories up
+from the current directory, in a directory named ``{\tt Top}''.
 
-\subsection{Case Sensitivity}
+\subsection{Case Sensitivity and Character Encoding}
 
-The \emph{dos.library} does not define whether file names are
-case-sensitive or insensitive, except for the device or volume name
-which is case-insensitive. Most if not all AmigaDOS file-systems are
-also case-insensitive, or rather should. Some variants of the
-\emph{Fast File System} do not handle case-insensitive comparisons
-correctly on non-ASCII characters, i.e. ISO-Latin code points whose
-most-significant bit is set, see section~\ref{sec:rootblock} for
-details. These variants should be avoided and the ``international''
-variants should be preferred.
+The \emph{dos.library} does not define whether file names are case-sensitive
+or insensitive, except for the device, volume or assign names which are
+case-insensitive. Most if not all AmigaDOS file-systems are also
+case-insensitive, or rather should. Some variants of the Fast File
+System\key{Fast File System (FFS)} do not handle case-insensitive
+comparisons correctly on non-ASCII characters, i.e. ISO-Latin code points
+whose most-significant bit is set, see section~\ref{sec:rootblock} for
+details. These variants should be avoided and the ``international'' variants
+should be preferred, see table~\ref{table:ffsflavours} in section~\ref{sec:envec}.
+\smallskip{}
+
+In general, AmigaDOS support functions such as the pattern matching
+functions discussed in chapter~\ref{sec:patternmatch} assume that file
+systems are case-insensitive, and use the ISO-Latin character set. In
+particular, the functions in the above chapter will not function correctly
+if component names include code points from the control set of ISO-Latin,
+i.e. codes between {\tt 0x00} to {\tt 0x1f} or {\tt 0x80} to
+{\tt 0x9f}. These code points are not printable and multiple functions of
+AmigaDOS will behaive erratically if component names containing them are
+encountered.
 
 \section{Opening Files} \label{sec:open}
 To read data from or write data to a file, it first needs to be opened
@@ -3193,7 +3248,7 @@ types and access modes relate.
 The association of {\tt MODE\_READWRITE} to {\tt SHARED\_LOCK} is
 unfortunate, and due to a defect in the \emph{RAM-Handler}
 implementation in AmigaDOS 2.0 which was then later copied into the
-\emph{Fast File System} implementation. Exclusive access to a file
+Fast File System implementation. Exclusive access to a file
 without deleting its contents can, however, be established through the
 {\tt OpenFromLock()}\key{OpenFromLock()} function passing in an
 \emph{exclusive lock} to the function as argument.
@@ -3431,7 +3486,7 @@ the {\tt dostype} as reported in table~\ref{table:ffsflavours}.
   field that identifies the file system uniquely, the {\tt
     id\_DiskType} member \emph{does not} represent this {\tt
     DOSTYPE}. That it coincides with the {\tt DOSTYPE} for the
-  variants of the FFS is a historical error that shall not be mirrored
+  variants of the FFS\key{Fast File System (FFS)} is a historical error that shall not be mirrored
   by new file system designs. It is therefore advisable to
   check the first 3 bytes of the {\tt id\_DiskType} for the characters
   {\tt DOS}, and if so, assume that the disk is valid and can be
@@ -4482,13 +4537,13 @@ supports a third type that will be discussed below. \emph{Hard links}
 establish the relation between two \emph{file-system} objects on the
 same volume at the level of the file system. That is, whenever a link
 is accessed, the file system resolves the link, transparent to its
-user.  While for the Amiga \emph{Fast File System} and the
+user.  While for the Amiga Fast File System and the
 \emph{RAM-Handler} a hard link is a distinct directory entry
 type, some file systems do not distinguish between the original object
 and a \emph{hard link} to it. For such file systems, the same payload
 data is just referenced by two directory entries. If the larger of a
-link is deleted on the \emph{Fast File System} or the
-\emph{RAM-Handler}, and (at least one) link to the object still
+link is deleted on the Fast File System or the
+RAM-Handler, and (at least one) link to the object still
 exists, then (one of) the link(s) takes over and becomes the object
 itself. For other file systems, only a file system internal reference
 counter is decreased, and the payload data is removed only if this
@@ -5050,7 +5105,8 @@ used. The following types are defined in {\tt dos/dosextens.h}:
 {\tt DLT\_DIRECTORY}\mkey{DLT\_DIRECTORY} & A regular assign, see~\ref{sec:assignlist}\\ \hline
 {\tt DLT\_VOLUME}\mkey{DLT\_VOLUME} & A volume, see~\ref{sec:volumelist}\\ \hline
 {\tt DLT\_LATE}\mkey{DLT\_LATE} & A late binding assign, see~\ref{sec:assignlist}\\ \hline
-{\tt DLT\_NONBINDING}\mkey{DLT\_NONBINDING} & A non-binding assign, see~\ref{sec:assignlist}\\ \hline
+{\tt DLT\_NONBINDING}\mkey{DLT\_NONBINDING} & A non-binding
+assign\key{Non-Binding Assign}, see~\ref{sec:assignlist}\\ \hline
 \end{rkrmtable}
 
 {\tt dol\_Task}\mkey{dol\_Task} is the \emph{MsgPort} of the handler to contact for
@@ -5066,18 +5122,19 @@ volume goes away, e.g. is ejected. For regular assigns, this is
 also the pointer to the \emph{MsgPort} of the file system the
 assign binds to; in case the assign is a \emph{multi-assign}, this is
 the \emph{MsgPort} of the first directory bound to. All additional
-ports are part of the {\tt dol\_List}\key{dol\_List}. For \emph{late assigns} this
+ports are part of the {\tt dol\_List}\key{dol\_List}. For late
+assigns\key{Late Assign} this
 member is initially {\tt NULL}, but will be filled in as soon as the
 assign in bound to a particular directory, and then becomes the
 pointer to the \emph{MsgPort} of the handler the assign is bound
-to. Finally, for \emph{non-binding assigns} this member always stays
+to. Finally, for non-binding assigns\key{Non-Binding Assign} this member always stays
 {\tt NULL}.
 \smallskip{}
 
 {\tt dol\_Lock}\mkey{dol\_Lock} is only used for assigns, and only if it is
 bound to a particular directory. That is, the member remains
-{\tt ZERO} for \emph{non-binding assigns} and is initially {\tt ZERO} for
-late assigns. For all other types, this member stays {\tt ZERO}.
+{\tt ZERO} for non-binding assigns\key{Non-Binding Assign} and is initially {\tt ZERO} for
+late assigns\key{Late Assign}. For all other types, this member stays {\tt ZERO}.
 \smallskip{}
 
 {\tt dol\_Name}\mkey{dol\_Name} is a BPTR to a BSTR is
@@ -5212,8 +5269,8 @@ structure.
 \emph{file system type} that operated the volume and placed here such
 that an alternative process of the same file system is able to pick up
 or refuse the locks stored here for non-available
-volumes. Table~\ref{table:ffsflavours} lists the flavours the FFS
-supports, other file systems will deposit their own identifier here.
+volumes. Table~\ref{table:ffsflavours} lists the flavours the FFS\key{Fast
+  File System} supports, other file systems will deposit their own identifier here.
 \medskip{}
 
 Members of the {\tt dol\_assign}\mkey{dol\_assign} structure are used for all other
@@ -5221,7 +5278,7 @@ types, i.e. all types of \emph{assigns}.
 \smallskip{}
 
 {\tt dol\_AssignName}\mkey{dol\_AssignName} is pointer to the target name of the assign for
-\emph{non-binding} and \emph{late assigns}. The \emph{dos.library}
+non-binding\key{Non-Binding Assign} and late assigns\key{Late Assign}. The \emph{dos.library}
 uses this string to locate the target of the assign. For late assigns, this member
 is used only on the first attempt to access the assign at which {\tt dol\_Lock}\key{dol\_Lock} is populated.
 \smallskip{}
@@ -5407,14 +5464,16 @@ the capacity of the medium.
 The {\tt SECTORSPERBLOCK}\mkey{SECTORSPERBLOCK} keyword sets the {\tt de\_SectorsPerBlock}\mkey{de\_SectorsPerBlock}, and
 thus the number of physical sectors on a disk the file system
 combines to one longical storage block. Not all file systems support
-values different from~1 here; the FFS does, and always reads and writes data
+values different from~1 here; the FFS\key{Fast
+  File System} does, and always reads and writes data
 in units of {\tt de\_SectorsPerBlock} times {\tt de\_SizeBlock} of
 long-words. For the exec {\tt trackdisk} interface, the byte size is the
-only value that matters; however, the ``direct SCSI'' transfer latest FFS
+only value that matters; however, the ``direct SCSI'' transfer latest FFS\key{Fast File System (FFS)}
 releases offer addresses the disk in terms of physical sectors, and then
 {\tt de\_SizeBlock}\key{de\_SizeBlock} defines the size of a sector in long-words as addressed
 by SCSI commands, whereas {\tt de\_SectorsPerBlock}\key{de\_SectorsPerBlock} is the number of
-physical sectors the FFS reads for one logical block.
+physical sectors the FFS\key{Fast
+  File System} reads for one logical block.
 \smallskip{}
 
 The {\tt SECTORSPERTRACK}\mkey{SECTORSPERTRACK} and {\tt BLOCKSPERTRACK}\mkey{BLOCKSPERTRACK} keywords set both the
@@ -5437,7 +5496,7 @@ these reserved blocks hold a (minimal) boot procedure that initializes the
 The {\tt PREALLOC}\mkey{PREALLOC} keyword installs the {\tt
   de\_PreAlloc}\mkey{de\_PreAlloc} element, which is supposed to be
 the number of logical blocks set aside at the end of the
-partition. However, current FFS versions completely ignore its value.
+partition. However, current FFS\key{Fast File System (FFS)} versions completely ignore its value.
 \smallskip{}
 
 The {\tt INTERLEAVE}\mkey{INTERLEAVE} keyword defines the lower 16
@@ -5446,7 +5505,7 @@ reserved the entire long-word to define the interleave factor of the
 disk, which is the difference between two sector addresses the file
 system is supposed to reserve for subsequent storage. This interleave
 factor helped to speed up transfers for ancient harddisks, but neither
-the original OFS nor the latest FFS make use of this mechanism and
+the original OFS nor the latest FFS\key{Fast File System (FFS)} make use of this mechanism and
 allocate sectors contiguously, i.e. with an interleave factor of~1,
 regardless of what is set here. The upper 16 bits of {\tt
   de\_Interleave}\key{de\_Interleave} suit now a different purpose and
@@ -5543,7 +5602,7 @@ lists the available AmigaDOS file systems:
 \begin{rkrmtable}{Fast File System Flavours} \label{table:ffsflavours}
 {\bf FFS Flavour} & {\bf Description} \\ \hline \hline
 {\tt ID\_DOS\_DISK} & Original file system (OFS) \\ \hline
-{\tt ID\_FFS\_DISK} & First version of FFS \\ \hline
+{\tt ID\_FFS\_DISK} & First version of FFS\key{Fast File System (FFS)} \\ \hline
 {\tt ID\_INTER\_DOS\_DISK} & International variant of OFS \\ \hline
 {\tt ID\_INTER\_FFS\_DISK} & International variant of FFS \\ \hline
 {\tt ID\_FASTDIR\_DOS\_DISK} & OFS variant with directory cache \\ \hline
@@ -5569,7 +5628,7 @@ The OFS variants embed additional administration information into the
 data blocks and thus carry less payload data per block, and for that
 are more robust, but are slower as the data cannot be transmitted by
 DMA into the host memory but requires an additional copy. The first
-FFS variant addresses this issue. Both first types use, however, a
+FFS\key{Fast File System (FFS)} variant addresses this issue. Both first types use, however, a
 non-suitable algorithm for case-insensitive comparison of file names
 and thus do not interpret character from the extended ISO-Latin-1 set
 (i.e. printable characters outside the ASCII range) correctly. Thus,
@@ -5593,7 +5652,7 @@ variants are not generally recommended and should be considered
 experimental.
 \smallskip{}
 
-The {\tt LONG} variants of OFS and FFS allow file names of up to 106
+The {\tt LONG} variants of OFS and FFS\key{Fast File System (FFS)} allow file names of up to 106
 characters by using a slightly modified block syntax which overcomes
 the 30 character file name limit all above variants suffer from. They
 also use the correct case-insensitive file name comparison. In some
@@ -5603,7 +5662,8 @@ additional block keeping a long comment.
 
 The last variant offers a compatible form of long file names that is
 backwards compatible to earlier variants of the FFS. The file name
-limit is here 54 characters, though older versions of the FFS can
+limit is here 54 characters, though older versions of the FFS\key{Fast File
+  System} can
 still read the disk correctly, even though they will not be able to
 locate or list longer file names. This variant is also experimental.
 \medskip{}
@@ -5653,7 +5713,7 @@ type is indicated.
 \smallskip{}
 
 The {\tt BOOTBLOCKS}\mkey{BOOTBLOCKS} keyword initializes the {\tt de\_BootBlocks}\mkey{de\_BootBlocks} element;
-it is currently not used by any AmigaDOS file system. The FFS instead
+it is currently not used by any AmigaDOS file system. The FFS\key{Fast File System (FFS)} instead
 depends on {\tt de\_Reserved}\key{de\_Reserved}.
 \smallskip{}
 
@@ -5682,7 +5742,7 @@ devices that supported variably sized media, namely to the {\tt
   trackdisk.device} and {\tt carddisk.device}, i.e. the floppy and
 memory cards in the PCMCIA slot. Newer releases allow to extend
 this mechanism to other device drivers as well. As of V47, the FAT and
-the FFS both support this mechanism, though it has to be
+the FFS\key{Fast File System (FFS)} both support this mechanism, though it has to be
 enabled with the {\tt 'FAT\textbackslash0'} {\tt dostype} for the
 former driver.
 \medskip{}
@@ -5722,7 +5782,7 @@ the usual range.
 Unfortunately, multiple command sets exist to access (moderately) large
 disks. If {\tt DIRECTSCSI}\key{DIRECTSCSI} is enabled, SCSI commands will always be used,
 even for probing the medium size if {\tt SUPERFLOPPY}\key{SUPERFLOPPY} is set. If SCSI
-commands are not enabled, the FFS first attempts to use regular
+commands are not enabled, the FFS\key{Fast File System (FFS)} first attempts to use regular
 {\tt trackdisk} commands if the requested region of the device does not cross
 the 4GB barrier. If that is not possible, it probes the {\tt TD64} command
 set as it is historically the most popular extension. As last resort, it
@@ -5931,7 +5991,7 @@ the device list; they are released through {\tt
 \punchline{Obsolete and not fully functional}{{\tt DeviceProc()} function
   does not operate properly on \emph{multi-assigns} where it only provides
   the port and lock to the first directory participating in the
-  assign. It also returns {\tt NULL} for \emph{non-binding assigns} as there
+  assign. It also returns {\tt NULL} for non-binding assigns\key{Non-Binding Assign} as there
   is no way to release a temporary lock obtained on the target of the
   \emph{assign}. Same as {\tt GetDeviceProc()}, it does not properly handle
   {\tt NIL:} and ``{\tt *}''.}
@@ -6350,7 +6410,7 @@ generate startup messages the handler cannot interpret properly. Thus,
 in general, handlers should be written in an ``optimistic'' way
 (unlike the above heuristic) assuming that {\tt
   dol\_Startup}\key{dol\_Startup} is what they do expect. All AmigaDOS
-handlers are written in such a way, e.g. the FFS expects without
+handlers are written in such a way, e.g. the FFS\key{Fast File System (FFS)} expects without
 verification that the value in {\tt dol\_Startup} is, indeed, a
 {\tt FileSysStartupMsg}\key{FileSysStartupMsg}, even though it can be
 fooled by an incorrect mountlist\key{Mountlist} and by that crash the system.
@@ -6687,7 +6747,7 @@ same name (regardless of which type) already exists, the error code is
 \subsection{Create a Non-Binding Assign}
 
 The {\tt AssignPath()}\mkey{AssignPath()} function creates a
-non-binding assign and adds it to the device list. This
+non-binding assign\key{Non-Binding Assign} and adds it to the device list. This
 type of assign binds to a path independent of the volume the path is
 located on; that is, the assign resolves to whatever
 volume, handler or even other assign matches the
@@ -6699,12 +6759,12 @@ D0                    D1   D2
 
 BOOL AssignLate(STRPTR,STRPTR)
 \end{verbatim}
-This function creates a non-binding assign whose name is given
+This function creates a non-binding assign\key{Non-Binding Assign} whose name is given
 by the first argument, and which resolves to the path given as second
 argument, and then adds the assign to the device
   list. The {\tt name} shall not contain a trailing colon (``{\tt
   :}''). While not a formal requirement of the function or
-non-binding assigns, the {\tt path} should better be an
+non-binding assigns\key{Non-Binding Assign}, the {\tt path} should better be an
 absolute path as otherwise resolution of the created assign can
 be very confusing --- it is then resolved relative to the current
 directory of the calling process.
@@ -6721,7 +6781,7 @@ already exists, the error code is {\tt ERROR\_OBJECT\_EXISTS}\key{ERROR\_OBJECT\
 \subsection{Create a Late Assign}
 
 The {\tt AssignLate()}\mkey{AssignLate()} function creates a
-late assign whose target is initially given by a path; but
+late assign\key{Late Assign} whose target is initially given by a path; but
 after its first resolution, the assign reverts to a
 regular assigns such that the target of the assign will
 point to the same directory of the volume from that point on. This has
@@ -6758,7 +6818,7 @@ the function run out of memory.  If a {\tt DosList}\key{DosList} of the same nam
 
 The {\tt AssignAdd()}\mkey{AssignAdd()} function adds a directory,
 identified by a lock, to an already existing regular or
-multi-assign. On success, a regular assign is then
+multi-assign\key{Multi-Assign}. On success, a regular assign is then
 converted into a multi-assign.
 
 \begin{verbatim}
@@ -6794,7 +6854,7 @@ entry found was not a \emph{regular assign}.
 
 The {\tt RemAssignList()}\mkey{RemAssignList()} function removes a
 directory, represented by a {\tt lock}, from a multi-assign. If
-only a single directory remains in the multi-assign, it is
+only a single directory remains in the multi-assign\key{Multi-Assign}, it is
 converted into a regular assign. If the assign was a
 regular assign, and the only directory is removed from it, the
 assign itself is removed from the device list and
@@ -8580,7 +8640,7 @@ error could be used to indicate that an object is beyond the size a
 handler or file system is able to handle. Note that a full disk (or
 full storage medium) is indicated by {\tt ERROR\_DISK\_FULL}, and not
 this error. However, currently no AmigaDOS component uses this error,
-even though the FFS should probably return it on an attempt to create
+even though the FFS\key{Fast File System (FFS)} should probably return it on an attempt to create
 or access files larger than~2GB.
 \smallskip{}
 
@@ -8622,7 +8682,7 @@ for reading as a file will raise this error.
 This error indicates that the inserted medium is currently not
 validated, i.e. not checked for consistency. Such a consistency check
 (or validation) may be currently ongoing. This error is for example
-generated if a write operation is attempted on an FFS volume whose
+generated if a write operation is attempted on an FFS\key{Fast File System (FFS)} volume whose
 validation is still ongoing. In such a case, retrying the operation
 later may solve the problem already.
 \smallskip{}
@@ -8666,7 +8726,7 @@ generated by an attempt to {\tt Seek()} to a file position that is
 either negative, or behind the end of the file. It is also signalled
 if the mode of {\tt Seek()}\key{Seek()} or {\tt
   SetFileSize()}\key{SetFileSize()} is none of the modes indicated in
-table~\ref{table:seekmode}. The FFS also sets this mode if it cannot
+table~\ref{table:seekmode}. The FFS\key{Fast File System (FFS)} also sets this mode if it cannot
 read one of its administration blocks.
 \smallskip{}
 
@@ -9177,7 +9237,7 @@ inherited this mechanism from Tripos, it was not particularly useful
 as the calling conventions for such libraries did not follow the usual
 conventions of AmigaDOS, i.e. with the library base in register {\tt
   a6}. Later versions of AmigaDOS, in particular its re-implementation
-as of Kickstart v37, removed support for such libraries. As this
+as of Kickstart v36, removed support for such libraries. As this
 mechanism is no longer supported, it is not documented here. More
 information is found in~\cite{guru}.
 \smallskip{}
@@ -12959,30 +13019,30 @@ structure and organization of on disk. Table~\ref{table:ffsflavours} in
 section~\ref{sec:envec} provides an overview on the available flavours.
 \smallskip{}
 
-As a full hierarchical file system, the FFS supports all file-system
+As a full hierarchical file system, the FFS\key{Fast File System (FFS)} supports all file-system
 relevant packets listed from section~\ref{sec:fileactions} onwards; packets
 specific to interactive handlers listed in
 section~\ref{sec:packetsinteractive} are an exception and not implemented,
 and the {\tt ACTION\_SET\_OWNER}\key{ACTION\_SET\_OWNER} packet is neither
 implemented and remains exclusive to to multi-user network file systems. The
-FFS does support record locking, soft- and hard links and notification
+FFS\key{Fast File System (FFS)} does support record locking, soft- and hard links and notification
 requests. External links remain currently exclusive to the RAM-Handler and
-are neither supported. Latest versions of the FFS can also be shut down by
+are neither supported. Latest versions of the FFS\key{Fast File System (FFS)} can also be shut down by
 {\tt ACTION\_DIE}\key{ACTION\_DIE}.
 
 \subsection{Configuring the FFS}
 
-The FFS is customized through multiple sources. First of all, the {\tt
+The FFS\key{Fast File System (FFS)} is customized through multiple sources. First of all, the {\tt
   DosList}\key{DosList}, the {\tt FileSysStartupMsg}\key{FileSysStartupMsg}
 pointed to by this structure, and the environment vector in the
 latter. Section~\ref{sec:mountlist} provides a list of the configurable
 options and the corresponding entries in the mountlist\key{Mountlist}.
 \smallskip{}
 
-In some situations, however, the FFS will override the parameters found in
+In some situations, however, the FFS\key{Fast File System (FFS)} will override the parameters found in
 the above sources, and therefore parameters from the
 mountlist\key{Mountlist}. In case the device name is either ``{\tt
-  trackdisk.device}'' or ``{\tt carddisk.device}'', the FFS will instead
+  trackdisk.device}'' or ``{\tt carddisk.device}'', the FFS\key{Fast File System (FFS)} will instead
 request the disk geometry from the underlying exec device by a {\tt
   TD\_GETGEOMETRY} when validating an available medium. The same logic can
 also be enabled for all other devices by the mountlist\key{Mountlist}
@@ -13027,23 +13087,24 @@ parameter anytime.
 
 \subsection{The Boot Block}
 
-The FFS flavour is initially read from {\tt de\_DosType} element of the
+The FFS\key{Fast File System (FFS)} flavour is initially read from {\tt de\_DosType} element of the
 environment vector, see section~\ref{sec:envec}. However, the initial choice
 is overridden either by formatting (initializing) a volume, or during the
 (quick) validation that is triggered if a volume becomes available to the FFS.
 \smallskip{}
 
 During formatting, the flavour is taken from {\tt dp\_Arg2} of the {\tt
-  ACTION\_FORMAT}\key{ACTION\_FORMAT} packet. If {\tt dp\_Arg2} is none of known FFS flavours
+  ACTION\_FORMAT}\key{ACTION\_FORMAT} packet. If {\tt dp\_Arg2} is none of known FFS\key{Fast File System (FFS)} flavours
 from table~\ref{table:ffsflavours}, the currently active flavour remains in
 force and is used to initialize the disk structure. If the FFS did not adjust its
 flavour from accessing a previous volume, this remains the value from
 {\tt de\_DosType}\key{de\_DosType}.
 \smallskip{}
 
-During disk insertion, or if a volume becomes accessible to the FFS by other
+During disk insertion, or if a volume becomes accessible to the FFS\key{Fast
+  File System}by other
 means such as mounting it or uninhibiting a volume through
-{\tt ACTION\_INHIBIT}\key{ACTION\_INHIBIT}, the FFS reads the flavour from
+{\tt ACTION\_INHIBIT}\key{ACTION\_INHIBIT}, the FFS\key{Fast File System (FFS)} reads the flavour from
 the first long-word of the \emph{boot block}\mkey{Boot Block}, even if this block is placed
 on a hard-disk and not actually used for booting. It is found at sector
 
@@ -13054,12 +13115,12 @@ on a hard-disk and not actually used for booting. It is found at sector
 
 of the device. Note that this is not necessarily the sector~0 if the volume
 is a partition of a hard-disk. The remaining data of the boot block is not
-used by the FFS but, at least for floppy disks, for bootblock booting which
+used by the FFS\key{Fast File System (FFS)} but, at least for floppy disks, for bootblock booting which
 is described in mored detail in~\cite{rkrmdev}.
 
 \subsection{Disk Keys and Sectors}
 
-Except for the boot block, the FFS does not address sectors through their
+Except for the boot block, the FFS\key{Fast File System (FFS)} does not address sectors through their
 physical sector number, but due to their \emph{key}\mkey{Key (FFS)}, which
 addresses data on disk relative to the start of the partition in blocks, and
 not sectors. The relation between the physical sector~$S$ and the key~$K$ is
@@ -13148,7 +13209,7 @@ L-1        & \tt SecType & shall be 1, this is the BPCL constant ST.ROOT\mkey{ST
 \end{rkrmtabular}
 
 Each entry in the above table is 4 bytes, i.e. one long-word large. As the
-FFS supports multiple block sizes, some elements of this structure are
+FFS\key{Fast File System (FFS)} supports multiple block sizes, some elements of this structure are
 placed relative to the end of the block. Such element are indicated in the
 above table as $L-x$ where $L$ is the block size in long works, i.e.
 
@@ -13166,7 +13227,8 @@ The block type is indicated by {\tt Type}\mkey{Type (FFS)} and {\tt SecType}\mke
 block, these elements shall be $2$ and $1$, respectively.
 \smallskip{}
 
-{\tt HTSize}\mkey{HTSize} is the number of hash keys stored in the root block. The FFS
+{\tt HTSize}\mkey{HTSize} is the number of hash keys stored in the root
+block. The FFS\key{Fast File System (FFS)}
 stores in the root block $L-56$ hash keys, from offset $6$ to $L-51$.
 \smallskip{}
 
@@ -13175,13 +13237,13 @@ long-word sum over all long-words, including the checksum, is zero.
 \smallskip{}
 
 {\tt Hash}\mkey{Hash} stores the hash-chain of all objects in the root
-directory. The FFS computes for each file system object a \emph{hash key}
+directory. The FFS\key{Fast File System (FFS)} computes for each file system object a \emph{hash key}
 that is derived from its name. As multiple objects can have the same hash
 and thus hash conflicts may arise, all objects of the same hash are kept in
 a singly linked list. The head of each list is kept in the {\tt Hash} array.
 \smallskip{}
 
-How the FFS computes the hash key from the name depends on the FFS
+How the FFS\key{Fast File System (FFS)} computes the hash key from the name depends on the FFS
 flavour. The following algorithm computes the hash key from the object name,
 represented as a BSTR, i.e. the first character is the length of the string:
 
@@ -13210,10 +13272,10 @@ ULONG hash = size;    /* Initial hash is string length */
 
 In the above, {\tt HTSize}\key{HTSize} is the value of the element of the
 same name in the disk root block. As seen from the code, the
-non-international versions of the FFS only convert the ASCII characters
+non-international versions of the FFS\key{Fast File System (FFS)} only convert the ASCII characters
 between 'a' and 'z' to upper case, whereas the international version
 performs this conversion also for all characters in the latin-1 character
-set. The FFS \emph{does not} use the \emph{utility.library} for the
+set. The FFS\key{Fast File System (FFS)} \emph{does not} use the \emph{utility.library} for the
 upper-case conversion and thus hashing does not depend on the selected
 locale. However, it depends on the latin-1 encoding and will not map
 characters correctly for many other encodings. Latin-15 only replaces the
@@ -13261,12 +13323,11 @@ otherwise unchanged.
 \smallskip{}
 
 {\tt DCache}\mkey{DCache} is the key of the directory cache list of
-blocks. It is only used for the flavours of the FFS that utilize such a
-cache.
+blocks. It is only used for the flavours of the FFS\key{Fast File System (FFS)} that utilize such a cache.
 \smallskip{}
 
 Unlike user directories, the root block lacks a list of hard-links that
-points to it. This has the consequence that the FFS does not allow to create
+points to it. This has the consequence that the FFS\key{Fast File System (FFS)} does not allow to create
 hard-links to the root directory of a volume.
 
 \subsection{The User Directory Block}
@@ -13275,7 +13336,7 @@ The user header block represents a sub-directory of the
 volume root, or another user directory. It is enqueued in one of the
 hash-chains of the root block or its parent user directory block. This block
 exists in multiple variants, depending on the flavour of the
-FFS. Table~\ref{table:userdirblock} applies to all FFS variants except the
+FFS. Table~\ref{table:userdirblock} applies to all FFS\key{Fast File System (FFS)} variants except the
 long-file variants {\tt DOS\textbackslash{}06} and {\tt
   DOS\textbackslash{}07}.
 
@@ -13332,12 +13393,12 @@ system objects contained within.
 \smallskip{}
 
 {\tt OwnerID}\key{OwnerID} is reserved for the owner ID of this directory that can be set
-with {\tt ACTION\_SET\_OWNER}. As the FFS has no means to validate the
+with {\tt ACTION\_SET\_OWNER}. As the FFS\key{Fast File System (FFS)} has no means to validate the
 directory owner, this element does not bear any practical meaning.
 \smallskip{}
 
 {\tt PrtBits}\mkey{PrtBits} are the protection bits of this directory. The
-FFS actually ignores the protection bits on the directory, but stores the
+FFS\key{Fast File System (FFS)} actually ignores the protection bits on the directory, but stores the
 value here anyhow.
 \smallskip{}
 
@@ -13352,7 +13413,7 @@ that identifies the timestamp of the last change of this directory.
 \smallskip{}
 
 {\tt Name}\mkey{Name (FFS)} is the name of this directory encoded as BSTR with the name
-length in the first byte; even though~32 bytes are available here, the FFS
+length in the first byte; even though~32 bytes are available here, the FFS\key{Fast File System (FFS)}
 reserves one character, thus limiting the maximal directory name size to~30.
 \smallskip{}
 
@@ -13379,7 +13440,7 @@ block in case this directory is directly in the volume root.
 \smallskip{}
 
 {\tt DCache}\key{DCache} is the key of the first directory cache block. This
-key is only used for FFS flavours with directory caching enabled. Otherwise,
+key is only used for FFS\key{Fast File System (FFS)} flavours with directory caching enabled. Otherwise,
 it stays~0.
 \smallskip{}
 
@@ -13434,7 +13495,7 @@ and comment field is replaced by a new field at offset $L-46$.
 
 {\tt NaC}\mkey{NaC} contains both the file name and file comment as two BSTRs,
 directly placed next to each other. The file name comes first, followed by
-the comment. This element is capable of storing 112 bytes, but the FFS
+the comment. This element is capable of storing 112 bytes, but the FFS\key{Fast File System (FFS)}
 reserves one byte making in total 110 bytes available. In case the comment
 is too long and cannot be placed in this element, an additional comment
 block is created keeping only the comment, and this element then only keeps
@@ -13451,7 +13512,7 @@ The file header block represents a file in a directory or the volume
 root. It is enqueued in one of the hash-chains of the root block or its
 parent user directory block. This block exists in multiple variants,
 depending on the flavour of the FFS. Table~\ref{table:fileheaderblock} applies
-to all FFS variants except the long-file variants {\tt
+to all FFS\key{Fast File System (FFS)} variants except the long-file variants {\tt
   DOS\textbackslash{}06} and {\tt DOS\textbackslash{}07}.
 
 \begin{rkrmtabular}{FFS File Header Block} \label{table:fileheaderblock}
@@ -13521,7 +13582,7 @@ chained at $L-2$.
 \smallskip{}
 
 {\tt OwnerID} is reserved for the owner ID of this file that can be set
-with {\tt ACTION\_SET\_OWNER}. As the FFS has no means to validate the
+with {\tt ACTION\_SET\_OWNER}. As the FFS\key{Fast File System (FFS)} has no means to validate the
 file owner, this element does not bear any practical meaning.
 \smallskip{}
 
@@ -13544,7 +13605,7 @@ that identifies the timestamp of the last change of this file.
 \smallskip{}
 
 {\tt Name} is the name of this file encoded as BSTR with the name length in
-the first byte; even though~32 bytes are available here, the FFS reserves
+the first byte; even though~32 bytes are available here, the FFS\key{Fast File System (FFS)} reserves
 one character, thus limiting the maximal file name size to~30 characters.
 \smallskip{}
 
@@ -13623,7 +13684,7 @@ and comment field is replaced by a new field at offset $L-46$.
 
 {\tt NaC} contains both the file name and file comment as two BSTRs,
 directly placed next to each other. The file name comes first, followed by
-the comment. This element is capable of storing 112 bytes, but the FFS
+the comment. This element is capable of storing 112 bytes, but the FFS\key{Fast File System (FFS)}
 reserves one byte making in total 110 bytes available. In case the comment
 is too long and cannot be placed in this element, an additional comment
 block is created keeping only the comment, and this element then only keeps
@@ -13640,7 +13701,7 @@ The soft- and hard-link block represent a soft-link or a hard-link to
 another file system object. Similar to the file header and user directory
 blocks, this block exists in two variants,
 depending on the flavour of the FFS. Table~\ref{table:linkblock} applies
-to all FFS variants except the long-file variants {\tt
+to all FFS\key{Fast File System (FFS)} variants except the long-file variants {\tt
   DOS\textbackslash{}06} and {\tt DOS\textbackslash{}07}.
 
 \begin{rkrmtabular}{FFS Link Block} \label{table:linkblock}
@@ -13695,14 +13756,14 @@ the long-word sum over the entire block, including this element, is zero.
 as {\tt NUL}-terminated C-string, not as BSTR\footnote{The information
 in~\cite{Bantam} that this is a BSTR is incorrect}. The maximum path name
 that can be stored here is $(L-56)\times 4 - 1$ characters
-long. Unfortunately, all versions of the FFS currently do not check the
+long. Unfortunately, all versions of the FFS\key{Fast File System (FFS)} currently do not check the
 maximum link name and damage the file system structure if this path is too
 long, though in a default floppy with 512 bytes per sector, this element
 leaves room for paths up to 287 characters.
 \smallskip{}
 
 {\tt OwnerID}\key{OwnerID} is reserved for the owner ID of this link that can be set
-with {\tt ACTION\_SET\_OWNER}. As the FFS has no means to validate the
+with {\tt ACTION\_SET\_OWNER}. As the FFS\key{Fast File System (FFS)} has no means to validate the
 link owner, this element does not bear any practical meaning.
 \smallskip{}
 
@@ -13718,7 +13779,7 @@ except by walking a directory through {\tt ACTION\_EXAMINE\_NEXT} or
 represented as a BSTR with the comment length in the first character. There
 is room for 80 bytes, i.e. the maximum comment size is 79
 characters. Comments of links \emph{can} be set with
-{\tt ACTION\_SET\_COMMENT} as the FFS does not attempt to follow the link.
+{\tt ACTION\_SET\_COMMENT} as the FFS\key{Fast File System (FFS)} does not attempt to follow the link.
 \smallskip{}
 
 The elements at offset $L-23$ to $L-21$ form a {\tt DateStamp} structure
@@ -13726,13 +13787,13 @@ that identifies the timestamp of the creation of the link. For hard-links,
 this element bears no practical meaning as even an {\tt ACTION\_SET\_DATE}
 will update the date of the link target and not the link itself. An attempt
 to change the date of a soft-link creates an {\tt ERROR\_IS\_SOFT\_LINK} and
-thus instructs the client of the FFS to rather redirect the request to the
+thus instructs the client of the FFS\key{Fast File System (FFS)} to rather redirect the request to the
 linked target. Thus, this date may potentially be seen when walking a
 directory, but it cannot be changed.
 \smallskip{}
 
 {\tt Name}\key{Name (FFS)} is the name of this file encoded as BSTR with the name
-length in the first byte; even though~32 bytes are available here, the FFS
+length in the first byte; even though~32 bytes are available here, the FFS\key{Fast File System (FFS)}
 reserves one character, thus limiting the maximal file name size.
 \smallskip{}
 
@@ -13813,7 +13874,7 @@ field is replaced by a new field at offset $L-46$.
 
 {\tt NaC}\key{NaC} contains both the link name and file comment as two BSTRs,
 directly placed next to each other. The link name comes first, followed by
-the comment. This element is capable of storing 112 bytes, but the FFS
+the comment. This element is capable of storing 112 bytes, but the FFS\key{Fast File System (FFS)}
 reserves one byte making in total 110 bytes available. In case the comment
 is too long and cannot be placed in this element, an additional comment
 block is created keeping only the comment, and this element then only keeps
@@ -13908,7 +13969,7 @@ not sufficient. It is~0 in case this is the last bitmap extension block.
 
 \subsection{The Comment Block}
 
-This block keeps a file comment for the long filename FFS flavours {\tt
+This block keeps a file comment for the long filename FFS\key{Fast File System (FFS)} flavours {\tt
   DOS\textbackslash{}06} and {\tt DOS\textbackslash{}07} in case the file
 header, user directory or link block does not provide sufficient room to
 keep both the file name and the file comment.
@@ -14040,7 +14101,7 @@ belongs.
 \smallskip{}
 
 {\tt OwnerID}\key{OwnerID} is reserved for a 32-bit group and owner ID that can be set by
-the {\tt ACTION\_SET\_OWNER} packet. However, as the FFS has no means to
+the {\tt ACTION\_SET\_OWNER} packet. However, as the FFS\key{Fast File System (FFS)} has no means to
 verify access rights to an object, the purpose of this field remains opaque.
 \smallskip{}
 
@@ -14082,7 +14143,7 @@ listed, this information is gained from the regular directory structure.
 
 Within a directory cache block, zero or more directory cache entries follow
 each other; their count is provided by the {\tt NumNtry} element in the
-directory cache block. If the FFS has to delete entries from the directory,
+directory cache block. If the FFS\key{Fast File System (FFS)} has to delete entries from the directory,
 it moves entries within the current block upwards over the released
 entry. In worst case, no entries remain in a directory cache block. Such
 blocks are not released, but remain available to accept new entries.
@@ -14101,14 +14162,14 @@ Data blocks contain the payload data of files. It comes in two variants: The
   DOS\textbackslash{}06} keep a lot of redundant information within the data
 block that makes the file system structure very robust against media
 corruption; however, this information needs to be stripped off before the
-payload data is delivered to the FFS client, these variants are very slow.
+payload data is delivered to the FFS\key{Fast File System (FFS)} client, these variants are very slow.
 \medskip{}
 
 All remaining variants, including {\tt DOS\textbackslash{}08} only keep
-payload data in the data blocks. This enables the FFS to directly transmit
+payload data in the data blocks. This enables the FFS\key{Fast File System (FFS)} to directly transmit
 data from the medium to the target buffer of the client if the {\tt
   de\_Mask} allows it. If the host adapter offers DMA, the CPU is not even
-involved in copying the data and thus these variants of the FFS are faster,
+involved in copying the data and thus these variants of the FFS\key{Fast File System (FFS)} are faster,
 though also less robust. However, modern media rarely corrupt data, unlike
 floppy disks, and therefore are generally recommended. The OFS flavours are
 therefore only useful for slow and unreliable data carriers.
@@ -14155,7 +14216,7 @@ the long-word sum over the entire block, including this element, is zero.
 consists of {\tt Size} arbitrary bytes.
 \medskip{}
 
-The FFS data block does not have any structure, it contains only payload
+The FFS\key{Fast File System (FFS)} data block does not have any structure, it contains only payload
 data. This has the consequence that a disk scan, e.g. by a disk salvage
 tool, cannot safely identify whether a block carries administrational
 information of the disk, or is rather a data block that, by pure
@@ -14202,8 +14263,8 @@ corresponds to the key {\tt de\_Reserved}, i.e. the reserved blocks at the
 start of a volume \emph{are not} represented in the bitmap. As key~0
 corresponds to the boot-block and this block keeps the flavour of the FFS,
 and potentially boot code, {\tt de\_Reserved} cannot be~0 as otherwise the
-FFS could allocate it as key, and thus overwrite parts of its administration
-information. While the FFS could, in principle, always reserve key~0 for
+FFS\key{Fast File System (FFS)} could allocate it as key, and thus overwrite parts of its administration
+information. While the FFS\key{Fast File System (FFS)} could, in principle, always reserve key~0 for
 such purpose, no such provisions are made.
 \smallskip{}
 
@@ -14280,7 +14341,7 @@ ULONG *block;
 
 \subsection{The Deleted Block}
 
-The FFS also mark unused administration blocks as deleted to ensure
+The FFS\key{Fast File System (FFS)} also mark unused administration blocks as deleted to ensure
 that a disk scan does not confuse them with a used block. This change
 of the block type does not happen to data blocks of deleted files.
 
@@ -15617,7 +15678,7 @@ itself contains a list of links that reference it. If a link is deleted, it
 is removed from its directory and from the list of links within the target
 object. If the object itself is deleted, one of the links becomes the object
 itself and the list of links is copied from the deleted object to this
-link. The FFS follows (mostly for backwards compatibility) this latter
+link. The FFS\key{Fast File System (FFS)} follows (mostly for backwards compatibility) this latter
 approach.
 \medskip{}
 
@@ -15786,7 +15847,7 @@ On an error, {\tt dp\_Res1} shall be set to~$-1$ or to $-2$ in case the
 target buffer overflows and cannot take the full target
 path\footnote{Currently any negative value will do to indicate an error, and
 the \emph{dos.library} does not distinguish between $-1$ and $-2$ as result
-code. Unfortunately, even the latest version of the FFS will \emph{not}
+code. Unfortunately, even the latest version of the FFS\key{Fast File System (FFS)} will \emph{not}
 return a negative value but~$0$ in case of an error; this is a defect.}. In
 case of error, {\tt dp\_Res2} shall also be set to an error code. In
 particular, if the target buffer size {\tt dp\_Arg4} is too small to hold
@@ -15798,7 +15859,7 @@ If the source path in {\tt dp\_Arg2} does actually not contain a soft link
 and the scanning algorithm aborted without finding one, this also
 consistutes an error that shall be reported by setting {\tt dp\_Res1}
 to~$-1$. This error is not handled consistently in AmigaDOS. The RAM-Handler
-reports {\tt ERROR\_OBJECT\_WRONG\_TYPE}\key{ERROR\_OBJECT\_WRONG\_TYPE}, the FFS the error code
+reports {\tt ERROR\_OBJECT\_WRONG\_TYPE}\key{ERROR\_OBJECT\_WRONG\_TYPE}, the FFS\key{Fast File System (FFS)} the error code
 {\tt ERROR\_OBJECT\_NOT\_FOUND}\key{ERROR\_OBJECT\_NOT\_FOUND}. The former
 error is probably more sensible.
 \smallskip{}
@@ -16619,7 +16680,7 @@ by this argument.
 \smallskip{}
 
 {\tt dp\_Arg2} is file system specific information that may be used
-to define its flavour. For example, for the FFS {\tt dp\_Arg2} carries the
+to define its flavour. For example, for the FFS\key{Fast File System (FFS)} {\tt dp\_Arg2} carries the
 {\tt DosType}, which shall be one of the values documented in
 table~\ref{table:ffsflavours} in section~\ref{sec:envec}. If such a change
 of the {\tt DosType} also happens, and the handler allows formatting while
@@ -16657,7 +16718,7 @@ and~\ref{sec:packetinhibit}.
 \smallskip{}
 
 This packet does not take any arguments, it affects the currently inserted
-volume. The FFS implements this packet by setting the volume creation date to the
+volume. The FFS\key{Fast File System (FFS)} implements this packet by setting the volume creation date to the
 system date; other file systems can include volume IDs or other means to
 uniquely label disks. The {\tt DiskCopy} command of the workbench uses this
 packet after performing its job to ensure that the copy of a disk is
@@ -17421,12 +17482,12 @@ buffers and how large these buffers are is specific to the file system
 implementation and its configuration.
 \smallskip{}
 
-The FFS uses these buffers to temporary store administrative data such as
+The FFS\key{Fast File System (FFS)} uses these buffers to temporary store administrative data such as
 blocks describing the directory structure or information on which blocks a
 particular file occupies on disk. Providing additional buffers (within
 limits) can thus help to improve the performance of a file system by
 reducting the number of times the underlying device needs to be contacted.
-The FFS also uses these buffers to store payload data if the source or
+The FFS\key{Fast File System (FFS)} also uses these buffers to store payload data if the source or
 destination buffer of the client is not reachable by the exec device
 driver. The {\tt de\_Mask}\key{de\_Mask} element of the environment vector is used to
 determine such incompatibilities, see section~\ref{sec:envec}.
@@ -17554,7 +17615,7 @@ the file system to write out all modifications immediately.
 \smallskip{}
 
 This packet shall not be replied before all changes have been written and,
-if applicable, the drive motor has been turned off. However, FFS versions of
+if applicable, the drive motor has been turned off. However, FFS\key{Fast File System (FFS)} versions of
 V40 and before replied {\tt ACTION\_FLUSH}\key{ACTION\_FLUSH} immediately and thus only
 established a write barrier. This was fixed in V43.
 \smallskip{}
@@ -17749,7 +17810,7 @@ a {\tt timer.device} request to wait for a time period.
 This packet does \emph{not} constitute a request to the handler, it rather
 indicates that the {\tt timerequest} pointed to by {\tt dp\_Link} completed
 and the requested time span passed. As such, this packet shall never be
-replied. The FFS uses this packet to turn off the drive motor after the last
+replied. The FFS\key{Fast File System (FFS)} uses this packet to turn off the drive motor after the last
 read or write operation, and interactive handlers such as the console use it
 to implement {\tt ACTION\_WAIT\_CHAR}\key{ACTION\_WAIT\_CHAR}.
 
@@ -20125,7 +20186,7 @@ initialization to this list. This includes elementary commands such as
 
 Fourth, some segments are added to the list during initialization of AmigaDOS
 through System-Startup. These include the Console-Handler, the RAM-Handler,
-the FFS which is named ``FileHandler'' there, and --- finally -- the Shell.
+the FFS\key{Fast File System (FFS)} which is named ``FileHandler'' there, and --- finally -- the Shell.
 \smallskip{}
 
 The Shell is even added three times to this list. First, as {\tt
@@ -20186,7 +20247,7 @@ commands to the resident list during its initialization.
 
 Segments indicated by {\tt CMD\_SYSTEM}\mkey{CMD\_SYSTEM} are not commands that could be
 executed, but rather segments of system components. The RAM-Handler, the
-Console-Handler and the FFS aka FileHandler are indicated as system
+Console-Handler and the FFS\key{Fast File System (FFS)} aka FileHandler are indicated as system
 segments. These segments cannot be executed and are not found by the Shell
 when scanning the resident list for commands.
 \smallskip{}
@@ -21136,7 +21197,7 @@ global information.
 The {\tt rn\_FileHandlerSegment}\mkey{rn\_FileHandlerSegment} element is the BPTR to the segment of
 the ROM default AmigaDOS file system. This element is no longer in use
 today. This element is filled from the resident segment
-``FileHandler'', and is also updated if a newer version of the FFS is
+``FileHandler'', and is also updated if a newer version of the FFS\key{Fast File System (FFS)} is
 found in the RDB of the booting disk. Today, file systems are found
 through the ``FileSystem.resource'' and not through this BPTR.
 \smallskip{}
@@ -21185,7 +21246,7 @@ AmigaDOS 1.3 and before.
 The {\tt rn\_BootProc}\mkey{rn\_BootProc} element is a pointer to the {\tt MsgPort} of
 the file system that booted the system. This is not necessary the file
 system whose segment is recorded in {\tt rn\_FileHandlerSegment}\key{rn\_FileHandlerSegment}. It
-is different if the booting file system is not the ROM-based FFS
+is different if the booting file system is not the ROM-based FFS\key{Fast File System (FFS)}
 neither an updated version of it from the RDB. This pointer is used to
 initialize the {\tt pr\_FileSystemTask}\key{pr\_FileSystemTask} of all processes AmigaDOS
 creates, and thus the file system responsible for the {\tt ZERO} lock.
