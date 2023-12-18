@@ -2259,15 +2259,20 @@ fill the entire buffer from the file; {\tt BUF\_NONE} disables
 buffering.
 \medskip{}
 
-The function returns non-zero on success, or~$0$ on error. Error
-conditions are either out-of-memory, an invalid buffer mode or an
-invalid file handle. Unfortunately, {\tt IoErr()}\key{IoErr()} is only set on an
+The function returns~0 on success, and non-zero on error, unlike most
+other functions of the \emph{dos.library}. Error conditions
+are either out-of-memory, an invalid buffer mode or an invalid file
+handle. Unfortunately, {\tt IoErr()}\key{IoErr()} is only set on an
 out-of-memory condition and remains otherwise unchanged.
 \smallskip{}
 
 Even though this function is documented since AmigaDOS version~36, it was
 only implemented from version~39 onwards. Releases prior version~39 always
-returned~0.
+returned~0. Due to another defect, currently present in all versions of
+AmigaDOS, this function cannot be safely applied to file handles opened to
+the {\tt NIL} pseudo-device. As a workaround, the caller should check first
+the {\tt fh\_Type} element of the file handle, and should not call this
+function if this element is {\tt NULL}.
 
 \subsection{Synchronize the File to the Buffer}
 
@@ -2498,13 +2503,12 @@ In the following sections, this structure and its functions are documented.
 
 \subsection{The struct FileHandle} \label{sec:filehandle}
 
-A file is represented by a {\tt FileHandle} structure; the {\tt
-  Open()}\key{Open()} function returns a BPTR to such a structure.  It
-is allocated by the \emph{dos.library} through {\tt
-  AllocDosObject()}\key{AllocDosObject()}, and then forwarded to the
-file system or handler for second-level initialization. It is defined
-by the include file {\tt dos/dosextens.h} as replicated here:
-\mkey{FileHandle}
+A file is represented by a {\tt FileHandle} structure. For example, the {\tt
+  Open()}\key{Open()} function returns a BPTR to such a structure.  It is
+allocated by the \emph{dos.library} through {\tt
+  AllocDosObject()}\key{AllocDosObject()}, and then forwarded to the file
+system or handler for second-level initialization. It is defined by the
+include file {\tt dos/dosextens.h} as replicated here: \mkey{FileHandle}
 \begin{verbatim}
 struct FileHandle {
    struct Message *fh_Link;	 
@@ -2527,30 +2531,32 @@ value that shall not be interpreted or touched, and of which one
 cannot make productive use.
 \smallskip{}
 
-{\tt fh\_Port}\mkey{fh\_Port} is similarly not a pointer, but a {\tt LONG}. If it is
-non-zero, the file is interactive, otherwise it is a file system.
-{\tt IsInteractive()}\key{IsInteractive()} makes use of this
-member. The file system or handler shall initialize this value when
-opening a file and shall initialize it according to the nature of the
-handler.
+{\tt fh\_Port}\mkey{fh\_Port} is similarly not a pointer, but a {\tt
+  LONG}. If it is non-zero, the file is interactive, otherwise it is
+non-interactive and probably representing a file on a file system.  {\tt
+  IsInteractive()}\key{IsInteractive()} makes use of this member. The file
+system or handler shall initialize this value when opening a file and shall
+initialize it according to the nature of the handler.
 \smallskip{}
 
-{\tt fh\_Type}\mkey{fh\_Type} points to the {\tt MsgPort} of the handler or file
-system that implements all input and output
-operations. Section~\ref{sec:handlers} provides additional information
-on how handlers and file systems work. If this pointer is {\tt NULL},
-no handler is associated to the file handle. This is also the value
-AmigaDOS will deposit here when opening a file to the {\tt NIL:}
-(pseudo-)device. Attempting to {\tt Read()}\key{Read()} from this
-handle results in an end-of-file situation, and calling {\tt Write()}
-on such a handle does nothing, ignoring any data written.
+{\tt fh\_Type}\mkey{fh\_Type} points to the {\tt MsgPort} of the handler or
+file system that implements all input and output
+operations. Section~\ref{sec:handlers} provides additional information on
+how handlers and file systems work. If this pointer is {\tt NULL}, no
+handler is associated to the file handle. AmigaDOS will deposit this value
+here when opening a file to the {\tt NIL} (pseudo-)device. Attempting to
+{\tt Read()}\key{Read()} from such a handle results in an end-of-file
+situation, and calling {\tt Write()} on such a handle does nothing, ignoring
+any data written.
 \smallskip{}
 
 {\tt fh\_Buf}\mkey{fh\_Buf} is a {\tt BPTR} to the file handle internal buffer all
-buffered I/O function documented in this section use.
+buffered I/O function documented in section~\ref{sec:bufferedio} use.
 \smallskip{}
 
-{\tt fh\_Pos}\mkey{fh\_Pos} is the next read or write position within this buffer.
+{\tt fh\_Pos}\mkey{fh\_Pos} is the byte offset of the next byte to be read
+or the next available index for absorbing the next written byte within {\tt
+  fh\_Buf}.
 \smallskip{}
 
 {\tt fh\_End}\mkey{fh\_End} is the size of the buffer in bytes.
@@ -2562,66 +2568,63 @@ function itself, and the function prototype is intentionally not
 documented.
 \smallskip{}
 
-{\tt fh\_Func2}\mkey{fh\_Func2} is a second function pointer that is called whenever
-the buffer is full and is to be written by the handler. Users shall
-not call this function itself, and the function prototype is
-intentionally undocumented.
+{\tt fh\_Func2}\mkey{fh\_Func2} is a second function pointer that is called
+whenever the buffer is full and is to be written out by the handler. Users
+shall not call this function itself, and the function prototype is
+neither documented.
 \smallskip{}
 
-{\tt fh\_Func3}\mkey{fh\_Func3} is a final function pointer that is called whenever
-the file handle is closed. This function then potentially writes the
+{\tt fh\_Func3}\mkey{fh\_Func3} is a function pointer that is called whenever
+the file handle is closed. This function potentially writes the
 buffer content out when dirty, releases the buffer if it is
 system-allocated, and finally forwards the close request to the
 handler.
 \smallskip{}
 
-{\tt fh\_Arg1}\mkey{fh\_Arg1} is a file-system internal value the handler or file
-system uses to identify the file. The interpretation of this value is
-to the file system or handler, and the \emph{dos.library} does not
-attempt to interpret it. The handler deposits the file identification
-here when opening a file, and the \emph{dos.library} forwards it to the
-handler on {\tt Read()} and {\tt Write()}. See
-section~\ref{sec:handlers} for details.
+{\tt fh\_Arg1}\mkey{fh\_Arg1} is a file-system specific value the handler or
+file system uses to identify the file. The interpretation of this value is
+up to the file system or handler, and the \emph{dos.library} does not
+attempt to interpret it. The handler deposits the file identification here
+when opening a file, and the \emph{dos.library} forwards it to the handler
+on {\tt Read()} and {\tt Write()} requests. See chapters~\ref{sec:handlers}
+and~\ref{sec:packettypes} for details.
 \smallskip{}
 
 {\tt fh\_Arg2}\mkey{fh\_Arg2} is currently unused.
 
 \subsection{String Streams} \label{sec:stringstreams}
-It is sometimes useful to provide programs with (temporary) input not
-coming from a file system or handler directly, even though the program
-uses a file interface to access it. One solution to this problem is to
-deposit the input data on the {\tt RAM} disk, then opening this file
-and providing it as input to such a program. The drawback of this
-approach is that additional tests are necessary to ensure that the
-file name is unique, and to avoid that other than the intended program
-accesses it.
+It is sometimes useful to provide programs with (temporary) input not coming
+from a file system or handler directly, even though the program uses a file
+interface to access it. One solution to this problem is to deposit the input
+data on the {\tt RAM} disk, then opening this file and providing it as input
+to such a program. The drawback of this approach is that additional tests
+are necessary to ensure that the file name is unique, and to avoid that no
+other than the intended program accesses or modifies it.
 \smallskip{}
 
-AmigaDOS uses the technique documented here itself, for example to
-provide the command to be executed by the {\tt Run}\key{Run}
-command. There, the string stream contains the command to be run in
-background, which is then provided as input file to the shell. The
-{\tt System()}\key{System()} function of the \emph{dos.library} makes
-use of the same trick to feed the command to be executed as input
-file. Thus, even though the shell can only execute commands from a
-file, AmigaDOS can generate \emph{file handles} that do not correspond
-to a handler, but to a string in memory containing the commands.
+A better alternative is to place the data to be read in the file handle and
+thus hides it from other programs. AmigaDOS uses a similar technique
+internally, for example to provide the command to be executed by the {\tt
+  Run}\key{Run} command. There, the string stream contains the command(s) to
+be run in background, which is then provided as input file to the shell. The
+{\tt System()}\key{System()} function of the \emph{dos.library} makes use of
+the same trick to feed the command(s) to be executed also as input file to
+the shell. Thus, even though the shell can only execute commands from a
+file, AmigaDOS generates \emph{file handles} that do not correspond to a
+handler, but to a string in memory containing the commands.
 \smallskip{}
 
-The shell itself is using the same technique to pass arguments to the
-commands it executes; it deposits the command arguments in the file handle
-buffer of the input stream where {\tt ReadArgs()}\key{ReadArgs()} collects
-them.
+The shell uses the same technique to pass arguments to the commands it
+executes; it deposits the command arguments in the file handle buffer of the
+input stream where {\tt ReadArgs()}\key{ReadArgs()} collects them, see also
+section~\ref{sec:readargs}.
 \medskip{}
 
-The idea is to allocate a {\tt struct FileHandle} and initialize its
-buffer to contain the string within the file. For this {\tt fh->Buf}
-needs to point to the buffer containing the string, and {\tt fh->End}
-needs to be its size. The function pointers in the file handle
-remain 0 such as to avoid that the \emph{dos.library} reads, writes or
-flushes the buffer. The {\tt FileHandle} shall be allocated by {\tt
-  AllocVec()} as the \emph{dos.library} releases the handle through
-{\tt FreeVec()}.
+The idea is to create a dummy file handle from a {\tt NIL:} stream and inject
+the string to be read into its input buffer. The buffer is here allocated
+through {\tt AllocVec()} to ensure that it is aligned to a long word
+boundary, and thus to ensure that it is representable as BPTR.
+\smallskip{}
 
 The following program demonstrates this technique:
 \begin{verbatim}
@@ -2629,42 +2632,44 @@ The following program demonstrates this technique:
 #include <dos/dos.h>
 #include <dos/stdio.h>
 #include <string.h>
+#include <utility/tagitem.h>
 #include <proto/dos.h>
 #include <proto/exec.h>
 
 int main(int argc,char **argv)
 {
+  UBYTE *buf       = NULL;
   const char *test = "Hello World!\n";
-  const int len = strlen(test)+1;
+  const int len    = strlen(test);
   struct FileHandle *fh;
   BPTR file;
 
-  fh   = AllocVec(sizeof(struct FileHandle) + len,
-                  MEMF_PUBLIC|MEMF_CLEAR);
-  if (fh) {
-    UBYTE *c = (UBYTE *)(fh + 1);
-    file     = MKBADDR(fh);
-    memcpy(c,test,len);
-    fh->fh_Buf = MKBADDR(c);
-    fh->fh_End = len;
-    {
-      BPTR out = Output();
-      LONG ch;
-      while((ch = FGetC(file)) >= 0) {
-        FPutC(out,ch);
+  buf  = AllocVec(len,MEMF_PUBLIC);
+  if (buf) {
+    memcpy(buf,test,len);
+    
+    file         = Open("NIL:",MODE_OLDFILE);
+    if (file) {
+      fh         = BADDR(file);
+      fh->fh_Buf = MKBADDR(buf);
+      fh->fh_Pos = 0;
+      fh->fh_End = len;
+      /* Now read the buffer as a file */
+      {
+        BPTR out = Output();
+        LONG ch;
+        while((ch = FGetC(file)) >= 0) {
+          FPutC(out,ch);
+        }
       }
+      Close(file);
     }
-    Close(file);
+    FreeVec(buf);
   }
+  
   return 0;
 }
 \end{verbatim}
-Here the buffer is allocated along with the file handle, and thus
-released along with it. Setting {\tt MEMF\_PUBLIC} is of utter
-importance as it clears all function pointers, and in particular the
-{\tt fh\_Link}\key{fh\_Link} field to zero; the latter is an indication to the
-\emph{dos.library} that this structure was not allocated through
-itself.
 
 \subsection{An FSkip() Implementation} \label{sec:fskip}
 
