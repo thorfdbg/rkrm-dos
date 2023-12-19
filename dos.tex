@@ -2591,6 +2591,13 @@ and~\ref{sec:packettypes} for details.
 \smallskip{}
 
 {\tt fh\_Arg2}\mkey{fh\_Arg2} is currently unused.
+\smallskip{}
+
+Additional elements have been added at the end of the {\tt FileHandle}
+structure in release 39. They are not publicly documented. For this reason,
+this structure shall never be allocated manually, but shall rather be
+obtained by opening a file, or through {\tt
+  AllocDosObject()}\key{AllocDosObject()}, see section~\ref{sec:allocdosobject}.
 
 \subsection{String Streams} \label{sec:stringstreams}
 It is sometimes useful to provide programs with (temporary) input not coming
@@ -2598,35 +2605,35 @@ from a file system or handler directly, even though the program uses a file
 interface to access it. One solution to this problem is to deposit the input
 data on the {\tt RAM} disk, then opening this file and providing it as input
 to such a program. The drawback of this approach is that additional tests
-are necessary to ensure that the file name is unique, and to avoid that no
+are necessary to ensure that the file name is unique, and to avoid that any 
 other than the intended program accesses or modifies it.
 \smallskip{}
 
-A better alternative is to place the data to be read in the file handle and
-thus hides it from other programs. AmigaDOS uses a similar technique
-internally, for example to provide the command to be executed by the {\tt
+A better alternative is to place the data to be read in a file handle and
+thus hide them from other programs. AmigaDOS uses a similar technique
+internally, for example to provide the command to be executed to the {\tt
   Run}\key{Run} command. There, the string stream contains the command(s) to
-be run in background, which is then provided as input file to the shell. The
-{\tt System()}\key{System()} function of the \emph{dos.library} makes use of
-the same trick to feed the command(s) to be executed also as input file to
-the shell. Thus, even though the shell can only execute commands from a
-file, AmigaDOS generates \emph{file handles} that do not correspond to a
-handler, but to a string in memory containing the commands.
+be run in background, which is provided as command stream input file to the
+shell. The {\tt System()}\key{System()} function of the \emph{dos.library}
+makes use of the same trick to feed the command(s) to be executed to the
+shell as well. Thus, even though the shell reads its commands from a file
+only, AmigaDOS generates such file handles from strings..
 \smallskip{}
 
 The shell uses the same technique to pass arguments to the commands it
 executes; it deposits the command arguments in the file handle buffer of the
-input stream where {\tt ReadArgs()}\key{ReadArgs()} collects them, see also
-section~\ref{sec:readargs}.
+input stream where the {\tt ReadArgs()}\key{ReadArgs()} function called from the
+command collects them, see also section~\ref{sec:readargs}.
 \medskip{}
 
-The idea is to create a dummy file handle from a {\tt NIL:} stream and inject
-the string to be read into its input buffer. The buffer is here allocated
-through {\tt AllocVec()} to ensure that it is aligned to a long word
-boundary, and thus to ensure that it is representable as BPTR.
+The following program demonstrates this technique: It creates a dummy file
+handle from a {\tt NIL:} stream and replaces its input buffer with a pointer
+to the string. Since the buffer must be representable as BPTR, it is in the
+example program below allocated through {\tt AllocVec()} which ensures
+proper alignment. This step is not necessary if alignment can be guaranteed
+by other means.
 \smallskip{}
 
-The following program demonstrates this technique:
 \begin{verbatim}
 #include <exec/memory.h>
 #include <dos/dos.h>
@@ -2674,12 +2681,12 @@ int main(int argc,char **argv)
 \subsection{An FSkip() Implementation} \label{sec:fskip}
 
 Unlike most unbuffered functions, {\tt Seek()}\key{Seek()} can be safely
-mixed with buffered input and output functions. However, this function
-is not very efficient, and seeking should be avoided if buffer
-manipulation is sufficient. Buffer manipulation has the advantage that
-small amounts of bytes can be skipped easily without going through the
-file system; skipping over larger amounts of bytes can be performed by
-a single function without requiring to read bytes.
+mixed with buffered input and output functions. However, it is not very
+efficient, and seeking should be avoided if buffer manipulation is
+sufficient. Buffer manipulation has the advantage that small amounts of
+bytes can be skipped easily without going through the file system; skipping
+over larger amounts of bytes can be performed by a single function without
+requiring to read bytes.
 \smallskip{}
 
 The following function implements an {\tt FSkip()}\mkey{FSkip()}
@@ -2690,7 +2697,7 @@ LONG FSkip(BPTR file,LONG skip)
 {
   LONG res;
   struct FileHandle *fh = BADDR(file);
-  if (fh->fh_Pos >= 0 && fh->fh_End > 0 && fh->fh_Func3) {
+  if (fh->fh_Pos >= 0 && fh->fh_End > 0) {
     LONG newpos = fh->fh_Pos + skip;
     if (newpos >= 0 && newpos < fh->fh_End) {
       fh->fh_Pos = newpos;
@@ -2700,7 +2707,7 @@ LONG FSkip(BPTR file,LONG skip)
   skip += fh->fh_Pos - fh->fh_End;
   fh->fh_Pos = -1;
   fh->fh_End = -1;
-  if (Seek(fh,skip,OFFSET_CURRENT) != -1)
+  if (Seek(file,skip,OFFSET_CURRENT) != -1)
    return DOSTRUE;
   return DOSFALSE;
 }
@@ -2712,7 +2719,7 @@ the buffer, the new buffer position is installed as the work is done.
 \smallskip{}
 
 Otherwise, the skip distance is adjusted by the buffer
-position. Initializing the buffer size and position to $-1$ ensures
+position. Initializing the buffer size and position to~$-1$ ensures
 that the following {\tt Seek()} does not attempt to call {\tt Flush()}
 internally.
 \smallskip{}
@@ -2739,7 +2746,7 @@ LONG FGet(BPTR f,void *buf,LONG size)
 {
   struct FileHandle *cis = BADDR(f);
 
-  if (cis->fh_Pos) {
+  if (cis->fh_Pos > 0) {
     LONG end = cis->fh_Pos + size;
     if (end < cis->fh_End) {
       memcpy(buf,(UBYTE *)BADDR(cis->fh_Buf) + 
@@ -2766,7 +2773,7 @@ requires some preparation by a dummy {\tt UnGetC()}, see there.
 \section{Formatted Output}
 
 The functions in this section print strings formatted to a file. Both
-files use the internal buffer of the file handle.
+files use the internal buffer of the file handle and are thus buffered.
 
 \subsection{Print Formatted String using C-Syntax to a File}
 
@@ -2778,7 +2785,7 @@ language is different and thus arguments are expected directly as function
 arguments instead of requiring them to be collected in an array upfront.
 
 \begin{verbatim}
-count = VFPrintf(fh, fmt, argv)
+count = VFPrintf(fh, fmt, argv) /* since V36 */
 D0               D1  D2    D3
 
 LONG VFPrintf(BPTR, STRPTR, LONG *)
@@ -2795,7 +2802,7 @@ exec function {\tt RawDoFmt()}\key{RawDoFmt()}, and shares its problems. In
 particular, format strings indicating integer arguments such as
 {\tt \%d} and {\tt \%u} assume 16bit integers, independent of the integer
 model of the compiler. On compilers working with a 32bit integer
-models, the format modifier {\tt l} should be used, e.g. {\tt \%ld}
+models, the format modifier {\tt l} must be used, e.g. {\tt \%ld}
 for signed and {\tt \%lu} for unsigned integers.
 \smallskip{}
 
@@ -2807,7 +2814,7 @@ function of this library become available for {\tt VFPrintf()} and
 
 The result {\tt count} delivers the number of characters written to
 the file, or $-1$ for an error. In the latter case,
-{\tt IoErr}\key{IoErr()} provides an error code.
+{\tt IoErr()}\key{IoErr()} provides an error code.
 
 \subsection{BCPL Style Formatted Print to a File}
 
@@ -2828,7 +2835,7 @@ delivered as function arguments rather requiring the caller to collect
 them in an array upfront.
 
 \begin{verbatim}
-count = VFWritef(fh, fmt, argv)
+count = VFWritef(fh, fmt, argv) /* since V36 */
 D0               D1  D2    D3
 
 LONG VFWritef(BPTR, STRPTR, LONG *)
@@ -2849,33 +2856,43 @@ the BCPL language. The following format identifiers are supported:
   in a field whose width is given by the character {\tt x}. The length
   indicator is always a single character; a digit from {\tt 0} to
   {\tt 9} indicates the field widths from $0$ to $9$ directly. Characters
-  {\tt A} to {\tt Z} indicate field widths from $10$ onwards.
+  {\tt A} to {\tt Z} indicate field widths from $10$ onwards. Strings
+  that are too long to fit into the field width are not truncated.
 \item[{\tt \%C }] Writes a single character whose ISO-Latin-1 code is given
   as a 32-bit integer on the {\tt argv} array.
 \item[{\tt \%Ox}] Writes an integer in octal to the output where
   {\tt x} indicates the maximal field width. The field width is a single
   character that is encoded similarly to the {\tt \%T} format string.
+  If padding is required on the left, the number is padded with 0 digits,
+  if the number is too long to fit into the field, it is truncated.
 \item[{\tt \%Xx}] Writes an integer in hexadecimal to the output in a field
   that is at most {\tt x} characters long. {\tt x} is a single character and
-  encodes the width similar to that {\tt \%T} format string.
+  encodes the width similar to that {\tt \%T} format string. If padding is
+  required, the number is 0-padded on the left. If the number is too long,
+  it is truncated.
 \item[{\tt \%Ix}] Writes a (signed) integer in decimal to the output
   in field that is at most {\tt x} characters long. The field length
-  is again indicated by a single character.
+  is again indicated by a single character. If the number is shorter than
+  the field width, it is padded with spaces on the left. It is not truncated
+  if the number is longer than the field width.
 \item[{\tt \%N }] Writes a (signed) integer in decimal to the output
   without any length limitation.
 \item[{\tt \%Ux}] Writes an unsigned integer in decimal to the output,
   limiting the field length to at most {\tt x} characters, where
-  {\tt x} is encoded in a single character.
+  {\tt x} is encoded in a single character. If padding is required, the
+  number is padded with spaces on the left. If the number is too long, it is
+  not truncated.
 \item[{\tt \%\$ }] Ignores the next argument, i.e. skips over it.
+\item[{\tt \%\% }] Prints a literal percent sign.
 \end{itemize}
 
 This function is \emph{not} patched by the \emph{locale.library} and
-therefore is not localized or enhanced.
+therefore is not localized nor enhanced.
 \smallskip{}
 
 While the same function can also be found in the BPCL \emph{Global
   Vector}\key{Global Vector}, it there takes BSTRs instead of regular
-C strings for the format string and arguments of the {\tt \%S} and
+C strings for the format string and the arguments of the {\tt \%S} and
 {\tt \%T} formats.
 
 \subsection{Setting the Console Buffer Mode} \label{sec:setmode}
@@ -2886,10 +2903,11 @@ console, i.e. the CON-Handler\key{CON-Handler} and the AUX-Handler\key{AUX-Handl
 buffer mode of the console. Depending on this mode, the console either waits
 for an entire line to be completed to satisfy an input, or provides each
 individual key as input to programs, or provides a line buffer with the
-exception of some special control keys that are transmitted immediately.
+exception of some special control keys that are transmitted
+immediately. Section~\ref{sec:console} contains further details on the console.
 
 \begin{verbatim}
-success = SetMode(fh, mode)
+success = SetMode(fh, mode) /* since V36 */
 D0                D1  D2
 
 BOOL SetMode(BPTR, LONG)
@@ -2912,7 +2930,7 @@ follows:
 {\bf Buffer Mode} & {\bf Description}\\ \hline \hline
 \tt 0 & Cooked mode\key{Cooked Mode} \\ \hline
 \tt 1 & Raw mode\key{Raw Mode} \\ \hline
-\tt 2 & Medium mode\key{Medium Mode} \\ \hline
+\tt 2 & Medium mode\key{Medium Mode} (V47) \\ \hline
 All other values & Reserved for future use \\ \hline
 \end{rkrmtable}
 
@@ -2937,17 +2955,45 @@ In the \emph{medium mode}\key{Medium Mode}, the console also buffers lines, but 
 keystrokes are directly transmitted without requiring the user to press the
 {\tt RETURN} key. In specific, key-combinations of the up- and down cursor
 keys and the {\tt TAB} key are reported immediately to the caller through
-control sequences. The Amiga Shell uses this mode to offer a history and
+control sequences. These sequences are documented in
+section~\ref{sec:conmodes}. The Amiga Shell uses this mode to offer a history and
 provides through it {\tt TAB} expansion of commands and command line
 arguments. No device name corresponds to this mode; instead, the Shell
 switches a regular {\tt CON:} window to this mode in order to offer
-additional services. Section~\ref{sec:console} provides details.
+additional services.
 \smallskip{}
 
 Both the CON-Handler\key{CON-Handler} and the AUX-Handler\key{AUX-Handler} implement this function, supporting
 all three modes. However, there is --- unless explicitly mounted by the user
 --- no device name that corresponds to the \emph{medium mode} and no device
 name that corresponds to an {\tt AUX:} console in the \emph{raw mode}.
+\smallskip{}
+
+The {\tt SetMode()}\key{SetMode()} function returns a boolean success code,
+which is non-zero if the function could change the console mode, or~0 if it
+failed. In case of success, {\tt IoErr()}\key{IoErr()} is set to~0, in case
+of failure, it returns an error code from {\tt dos/dos.h}.
+\smallskip{}
+
+As an application, the following function attempts to read a keystroke from
+a given file handle, supposed to be connected to the console, without
+waiting for the return key; it returns~$-1$ on an error:
+
+\begin{verbatim}
+LONG getch(BPTR file)
+{
+  UBYTE c;
+  LONG err = -1;
+
+  if (SetMode(file,1)) { /* switch to raw */
+   if (Read(file,&c,1) == 1)
+    err = 0;
+   SetMode(file,0);      /* back to cooked */
+  }
+
+  return (err < 0)?err:c;
+}
+\end{verbatim}
 
 \section{Record Locking} \label{sec:recordlocking}
 
@@ -12711,7 +12757,7 @@ an ASCII {\tt FS} character = Hex {\tt 0x1c} need to be send by the user. This
 character is created on the Amiga keyboard with Ctrl+\textbackslash{}. This
 also mirrors the {\tt WAIT} keyword of the graphical console.
 
-\subsection{CON-Handler Line Buffer Modes}
+\subsection{CON-Handler Line Buffer Modes} \label{sec:conmodes}
 
 In addition to the window or serial parameters communicated to the path, the
 console is also configured through the {\tt SetMode()}\key{SetMode()}
