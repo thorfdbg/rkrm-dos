@@ -3197,8 +3197,10 @@ Locks come in two types: \emph{Exclusive locks}\key{EXCLUSIVE\_LOCK} and
 \emph{shared locks}\key{SHARED\_LOCK}. Only a single exclusive lock can
 exist on a file system object at a time, and no other locks on an
 exclusively locked object can exist. An attempt to lock an exclusively
-locked object results in failure, and attempting to exclusively lock an
-object that is already locked by a shared lock will also fail.
+locked object results in failure with the error code {\tt
+  ERROR\_OBJECT\_IN\_USE}\key{ERROR\_OBJECT\_IN\_USE}, and attempting to
+exclusively lock an object that is already locked by a shared lock will also
+fail with the same error.
 \smallskip{}
 
 Unlike exclusive locks, multiple shared locks can be kept on the same object
@@ -3206,18 +3208,17 @@ simultaneously, though once a shared lock has been obtained, any attempt to
 lock the same object exclusively fails.
 \smallskip{}
 
-One particular use case of locks\key{Lock} is to serve as an identifier
-of a particular directory or file on a file system. Since paths are
-limited to~255 characters, see~\ref{sec:paths}, locks are the
-preferred method of indicating a position within a file system. Even
-though paths are length limited, there is no restriction on the depth
-within the directory structure of a file system. The {\tt ZERO} lock
-identifies the boot volume, also known as {\tt SYS:}, see also
-section~\ref{sec:assignlist}.
+One particular use case of locks\key{Lock} is to serve as an identifier of a
+particular directory or file on a file system. Since paths are limited
+to~255 characters, see~\ref{sec:paths}, locks are the preferred method of
+indicating a position within a file system. Even though paths are length
+limited, there is no restriction on the depth within the directory structure
+of a file system. The {\tt ZERO} lock\mkey{ZERO lock} identifies the
+boot volume, also known as {\tt SYS:}, see also section~\ref{sec:assignlist}.
 \smallskip{}
 
-Locks are also the building stone of files; every file is internally
-represented by a lock on the corresponding object, even if the file system
+Locks are also the building stone of files; every file is typically
+associated with a lock on the corresponding object, even if the file system
 does not expose this lock to the caller.
 \smallskip{}
 
@@ -3226,6 +3227,12 @@ volume, the file system will keep the volume within the
 device list of the \emph{dos.library}, see section~\ref{sec:devicelist}.
 This has, for example, the consequence that the Workbench will
 continue to show an icon representing the volume in its window.
+\smallskip{}
+
+Locks cannot be held on links (see chapter~\ref{sec:links}) because the link
+--- regardless of whether it is a soft or a hard link --- is resolved as
+soon as the lock is acquired, and thus only the link target and not the link
+itself will be locked.
 
 \section{Obtaining and Releasing Locks}
 
@@ -3282,9 +3289,9 @@ an error code on failure.
 \subsection{Duplicating a Lock}
 
 The {\tt DupLock()}\mkey{DupLock()} function replicates a given
-lock\key{Lock}, returning a copy of the lock given as
-argument. This requires that the original lock is a
-\emph{shared lock}, and it returns a \emph{shared lock} if successful.
+lock\key{Lock}, returning a copy of the lock on the same object. This
+requires that the original lock is a shared lock, and it returns a shared
+lock if successful.
 
 \begin{verbatim}
 lock = DupLock( lock )
@@ -3294,17 +3301,22 @@ BPTR DupLock(BPTR)
 \end{verbatim}
 
 This function copies the (shared) lock passed in as {\tt lock} and
-returns a copy of it in {\tt lock}. In case of error, it returns {\tt
-  ZERO}, and then {\tt IoErr()}\key{IoErr()} returns an error code
-identifying the error. On success, {\tt IoErr()} is reset. It is not
-possible to copy an \emph{exclusive lock}.
+returns a copy of it in {\tt lock}. It is not possible to copy a lock by any
+other means (e.g. copying the {\tt FileLock} structure \emph{does not}
+work).
+\smallskip{}
+
+In case of error, {\tt DupLock()}\key{DupLock()} returns {\tt ZERO}, and
+then {\tt IoErr()}\key{IoErr()} returns an error code identifying the
+error. On success, {\tt IoErr()} is reset. It is not possible to copy an
+exclusive lock.
 
 \subsection{Obtaining the Parent of an Object}
 
-The {\tt ParentDir()}\mkey{ParentDir()} function obtains a
-\emph{shared lock} on the directory containing the locked object
-passed in. For directories, this is the parent directory, for files,
-this is the directory containing the file.
+The {\tt ParentDir()}\mkey{ParentDir()} function obtains a shared lock on
+the directory containing the object that is described by the lock passed
+in. For directories, this is the parent directory, for files, this is the
+directory containing the file.
 
 \begin{verbatim}
 newlock = ParentDir( lock )
@@ -3314,25 +3326,29 @@ BPTR ParentDir(BPTR)
 \end{verbatim}
 
 The {\tt lock} argument identifies the object whose parent is to be
-found; the function returns a lock\key{Lock} on the directory containing
-the object. If such parent does not exist, or an error occurs, the
-function returns {\tt ZERO}. The former case applies to the topmost
-directory of a file system, or the {\tt ZERO} lock itself.
+determined, this argument \emph{is not released} by this function. The function
+returns a shared lock\key{Lock} on the directory containing this object,
+regardless of the type of the lock passed in. If such parent does not exist,
+or an error occurs, the function returns {\tt ZERO}. The former case applies
+to the topmost directory of a file system, i.e. the root directory, or the
+{\tt ZERO}\key{ZERO lock} lock itself.
 \smallskip{}
 
 To distinguish the two cases, the caller should check the {\tt
-  IoErr()}\key{IoErr()} function; if this function returns $0$, then
-no error occurred and the passed in object is topmost and no parent
-exists. If it returns a non-zero error code, then the file system
-failed to identify the parent directory.
+  IoErr()}\key{IoErr()} function; if this function returns $0$, then no
+error occurred and the passed in object is the topmost directory and does
+not have a parent directory. If {\tt IoErr()}\key{IoErr()} returns a
+non-zero error code, then the file system failed to lock the parent
+directory. Possible reasons are lack of memory, or an exclusive lock on the
+the parent that prevents a second shared lock.
 
 \subsection{Creating a Directory}
 
-The {\tt CreateDir()} object creates a new empty directory whose name
-is given by the last component of the path passed in. It does not
-create any intermediate directories between the first component of the
-path and its last component, such directories need potentially be
-created manually by multiple calls to this function.
+The {\tt CreateDir()} object creates a new empty directory whose name is
+given by the last component of the path passed in. It does not create any
+intermediate directories between the first component of the path and its
+last component, such directories need to be created iteratively by multiple
+calls to this function.
 
 \begin{verbatim}
 lock = CreateDir( name )
@@ -3341,15 +3357,18 @@ lock = CreateDir( name )
 BPTR CreateDir(STRPTR)
 \end{verbatim}
 
-The {\tt name} argument is the path to the new directory to be
-created; that is, the directory given by the last component of the
-path (see section~\ref{sec:paths}) will be created. If successful,
-the function returns an \emph{exclusive lock} in {\tt lock}, otherwise
-it returns {\tt ZERO}.
+The {\tt name} argument is the path to the new directory to be created; that
+is, the directory given by the last component of the path (see
+section~\ref{sec:paths}) will be created. If a file or directory of the same
+name already exists, this function will fail with the error code {\tt
+  ERROR\_OBJECT\_EXISTS}\key{ERROR\_OBJECT\_EXISTS}\footnote{The information
+in~\cite{guru} that in such a case a conflicting file or directory is
+deleted is not accurate.}. If successful, the function returns an exclusive lock to the created directory, otherwise it
+returns {\tt ZERO}.
 \smallskip{}
 
-In either case, {\tt IoErr()}\key{IoErr()} is set to either an error
-code, or to $0$ in case the function succeeds.
+In either case, {\tt IoErr()}\key{IoErr()} is set to an error code, or to
+$0$ in case the function succeeds.
 \smallskip{}
 
 Note that not all file systems support directories, i.e. flat file
@@ -3357,12 +3376,11 @@ systems (see section~\ref{sec:flathierarchical}) do not.
 
 \subsection{Releasing a Lock}
 
-Once you are done with a lock\key{Lock} and no part of your program is
-using it anymore, you should release it to allow other processes or
-functions to access or modify the locked object. Note that setting the
-{\tt CurrentDir()}\key{CurrentDir()} to a particular lock implies
-usage of the lock, i.e. the lock installed as {\tt CurrentDir()} shall
-not be unlocked.
+Once a lock\key{Lock} is no longer required, it should be released as soon
+as possible to allow other functions or processes to access or modify the
+previously locked object. Note that setting the {\tt
+  CurrentDir()}\key{CurrentDir()} to a particular lock implies usage of the
+lock, i.e. the lock installed as {\tt CurrentDir()} shall not be unlocked.
 
 \begin{verbatim}
 UnLock( lock )
@@ -3373,7 +3391,9 @@ void UnLock(BPTR)
 
 This function releases the lock passed in as {\tt lock}
 argument. Passing {\tt ZERO} as a lock is fine and performs no
-activity.
+action. This function does not return an error code. It does, however, set
+{\tt IoErr()}\key{IoErr()} if {\tt lock} is not {\tt ZERO}, and thus
+potential problems of a file system releasing a lock may be identified.
 
 \subsection{Changing the Type of a Lock}
 
@@ -3381,10 +3401,10 @@ Once a lock\key{Lock} has been granted, it is possible to change the
 nature of the lock, either from
 {\tt EXCLUSIVE\_LOCK}\key{EXCLUSIVE\_LOCK} to
 {\tt SHARED\_LOCK}\key{SHARED\_LOCK}, or --- if this is the only lock on
-the object --- vice versa.
+the locked object --- vice versa.
 
 \begin{verbatim}
-success = ChangeMode(type, object, newmode)
+success = ChangeMode(type, object, newmode) /* since V36 */
 D0                    D1     D2      D3
 
 BOOL ChangeMode(ULONG, BPTR, ULONG)
@@ -3412,7 +3432,7 @@ On success, the function returns a non-zero result code, and
 {\tt IoErr()}\key{IoErr()} to an appropriate error code.
 \smallskip{}
 
-Unfortunately, this function may not work reliable for \emph{file handles}
+Unfortunately, this function will not work reliable for \emph{file handles}
 under all versions of AmigaDOS. In particular, the
 RAM-Handler\key{RAM-Handler} does not interpret {\tt newmode} correctly for
 {\tt CHANGE\_FH}.
@@ -3424,7 +3444,7 @@ returns information whether they are identical, or at least correspond
 to objects on the same volume.
 
 \begin{verbatim}
-value = SameLock(lock1, lock2)
+value = SameLock(lock1, lock2) /* since V36 */
  D0                D1     D2
 
 LONG SameLock(BPTR, BPTR)
@@ -3442,7 +3462,7 @@ all of them defined in {\tt dos/dos.h}, can be one of the following:
 
 This function does not set {\tt IoErr()}\key{IoErr()} consistently,
 and callers cannot depend on its value. Furthermore, the function does
-not compare a {\tt ZERO} lock with lock on the boot volume, e.g {\tt
+not compare a {\tt ZERO} lock\key{ZERO lock} with lock on the boot volume, e.g {\tt
   SYS:} as identical. It is recommended not to pass in the {\tt ZERO}
 lock for either {\tt lock1} or {\tt lock2}.
 
@@ -4604,7 +4624,7 @@ also set to $0$ and {\tt IoErr()} is set to an error code. However, on
 success, {\tt IoErr()} is not set consistently and cannot be depended
 upon. Possible cases of failure are that the volume the locked object
 is located on is currently not inserted in which case it will be
-requested. The {\tt ZERO} lock\key{Lock} is correctly interpreted, and resolves
+requested. The {\tt ZERO} lock\key{ZERO lock} is correctly interpreted, and resolves
 into the string {\tt SYS:}. The {\tt lock} remains valid after the
 call.
 
@@ -6278,7 +6298,7 @@ the Workbench. It does not alter {\tt IoErr()}\key{IoErr()}.
 The {\tt GetFileSysTask()}\mkey{GetFileSysTask()} function returns the
 \emph{MsgPort} of the default file system of the caller. The
 default file system is used as fall-back if a
-file system is required for a path relative to the {\tt ZERO} lock, and
+file system is required for a path relative to the {\tt ZERO} lock\key{ZERO lock}, and
 the path itself does not contain an indication of the responsible
 handler, i.e. is a relative path itself.
 \smallskip{}
@@ -8106,7 +8126,7 @@ not have a console, unless one is installed with {\tt
 
 {\tt pr\_FileSystemTask}\mkey{pr\_FileSystemTask} is the {\tt MsgPort}
 of the file system that is contacted in case a relative path is to be
-resolved relative to the {\tt ZERO} lock\key{Lock}. This member is initialized
+resolved relative to the {\tt ZERO} lock\key{ZERO lock}. This member is initialized
 to the {\tt MsgPort} of the file system the system was booted from,
 but can be changed by {\tt
   SetFileSysTask()}\key{SetFileSysTask()}. This member is also
@@ -8381,7 +8401,7 @@ While not explicitly available as a tag, {\tt pr\_FileSystemTask}\key{pr\_FileSy
 the created process is set to the default file system of the calling
 process if the caller is a process, or to the default file system from
 the \emph{dos.library}. This file system is contacted to resolve paths
-relative to the {\tt ZERO} lock\key{Lock}.
+relative to the {\tt ZERO} lock\key{ZERO lock}.
 \smallskip{}
 
 {\tt NP\_WindowPtr}\mkey{NP\_WindowPtr} specifies a pointer to a {\tt Screen} on which
@@ -9156,7 +9176,7 @@ section~\ref{sec:getconsoletask}.
 \subsection{Select the Default File System} \label{sec:setfilesystask}
 
 The {\tt SetFileSysTask()}\mkey{SetFileSysTask()} function selects the
-handler responsible for resolving paths relative to the {\tt ZERO} lock\key{Lock}.
+handler responsible for resolving paths relative to the {\tt ZERO} lock\key{ZERO lock}.
 
 \begin{verbatim}
 oldport = SetFileSysTask(port)
@@ -9167,7 +9187,7 @@ struct MsgPort *SetFileSysTask(struct MsgPort *)
 
 This function selects the {\tt MsgPort} of the default file
 system. AmigaDOS will contact this file system if a path relative to
-the {\tt ZERO} lock\key{Lock} is resolved, e.g. a relative path name if the current
+the {\tt ZERO} lock\key{ZERO lock} is resolved, e.g. a relative path name if the current
 directory is {\tt ZERO}. This file system should be identical to the
 file system of the {\tt SYS:} assign, and should therefore not be
 relaced as otherwise resolving file names may be inconsistent between
@@ -15238,7 +15258,7 @@ On success, {\tt dp\_Res1} is filled with the BPTR to a copy of the
 {\tt FileLock} passed in, and {\tt dp\_Res2} is set to~0. On error,
 {\tt dp\_Res1} is set to {\tt ZERO} and {\tt dp\_Res2} to an error code.
 While~\cite{Bantam} indicates that {\t dp\_Res1} may be {\tt ZERO} on an
-attempt to replicate the {\tt ZERO} lock\key{Lock}, this is not advisable as most
+attempt to replicate the {\tt ZERO} lock\key{ZERO lock}, this is not advisable as most
 users of this packet may misinterpret this result as failure case.
 \smallskip{}
 
@@ -15263,7 +15283,7 @@ the directory containing a locked object.
 This packet implements the {\tt ParentDir()}\key{ParentDir()} function of the
 \emph{dos.library} and attempts to create a lock\key{Lock} on the directory containing
 the object identified by {\tt dp\_Arg1}. If no parent exists because {\tt
-  dp\_Arg1} is a lock on the root directory or the {\tt ZERO} lock, the
+  dp\_Arg1} is a lock on the root directory or the {\tt ZERO} lock\key{ZERO lock}, the
 file system shall set {\tt dp\_Res1} to {\tt ZERO} and {\tt dp\_Res2}
 to~0, indicating that this is not a failure case.
 \smallskip{}
@@ -21197,7 +21217,7 @@ structure that is only used if {\tt type} is {\tt REPORT\_LOCK}\key{REPORT\_LOCK
 of a file handler that is contacted to learn about the name of the
 currently inserted volume. This could be the {\tt pr\_FileSystemTask}\key{pr\_FileSystemTask}
 of the calling process which contains the {\tt MsgPort} of the file
-handler responsible for the {\tt ZERO} lock\key{Lock}.
+handler responsible for the {\tt ZERO} lock\key{Lock}\key{ZERO lock}.
 \medskip{}
 
 This function returns a boolean indicator whether the currently
@@ -21502,7 +21522,7 @@ system whose segment is recorded in {\tt rn\_FileHandlerSegment}\key{rn\_FileHan
 is different if the booting file system is not the ROM-based FFS\key{Fast File System (FFS)}
 neither an updated version of it from the RDB. This pointer is used to
 initialize the {\tt pr\_FileSystemTask}\key{pr\_FileSystemTask} of all processes AmigaDOS
-creates, and thus the file system responsible for the {\tt ZERO} lock\key{Lock}.
+creates, and thus the file system responsible for the {\tt ZERO} lock\key{ZERO lock}.
 \smallskip{}
 
 The {\tt rn\_ShellSegment}\mkey{rn\_ShellSegment} is a pointer to the C entry point of the
