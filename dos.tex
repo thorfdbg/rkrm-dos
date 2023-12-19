@@ -1703,7 +1703,7 @@ by it generate interactive file handles, and so does the Console-Handler and
 the {\tt CON}, {\tt RAW} and {\tt AUX} devices it implements. The
 Queue-Handler and its {\tt PIPE} device is another example of a handler
 generating interactive files. The FFS\key{Fast File System (FFS)} and the
-RAM-Handler are file systems and thus create non-interactive files.
+RAM-Handler\key{RAM-Handler} are file systems and thus create non-interactive files.
 \smallskip{}
 
 While reading from interactive files may block indefinitely, the {\tt
@@ -2997,26 +2997,27 @@ LONG getch(BPTR file)
 
 \section{Record Locking} \label{sec:recordlocking}
 
-While locks control access to a file system object in total,
-record locks provide access control on portions of a file. Unlike
-locks, however, the file system does not block read or write
-access to the locked region. Instead, a record lock on a portion of a
-file only prevents another record lock on a region that overlaps with
-the locked region. Record locks therefore require the locking
-processes to follow the same locking protocol.
+While locks control access to a file system object in total, record locks
+provide access control on contiguous regions of a file. Unlike locks,
+however, the file system does not block read or write access to the locked
+region and does not attempt to enforce record locks during read or write
+operations. Instead, a record lock on a file region only prevents another
+record lock on a region that overlaps with the locked region. Record locks
+therefore require the locking processes to follow the same locking protocol.
 \smallskip{}
 
 Record locks are a relatively modern protocol not all file systems
-implement. The Ram-Handler and the Fast File System support it.
+implement. The RAM-Handler\key{RAM-Handler} and the Fast File
+System\key{Fast File System (FFS)} support it.
 
-\subsection{Locking a Portion of a File} \label{sec:lockrecord}
+\subsection{Locking a Region of a File} \label{sec:lockrecord}
 
 The {\tt LockRecord}\mkey{LockRecord} function locks a single region
 of a file, potentially waiting for a timeout for the region to become
 available.
 
 \begin{verbatim}
-success = LockRecord(fh,offset,length,mode,timeout)
+success = LockRecord(fh,offset,length,mode,timeout) /* since V36 */
 D0                   D1   D2     D3    D4    D5
 
 BOOL LockRecord(BPTR,ULONG,ULONG,ULONG,ULONG)
@@ -3045,8 +3046,8 @@ cannot overlap with shared locked regions or with each other.
 For the {\tt REC\_EXCLUSIVE}\mkey{REC\_EXCLUSIVE} and {\tt REC\_SHARED}\mkey{REC\_SHARED} modes, the {\tt
   timeout} value provides a time limit in ticks,
 i.e. $1/50^{\mbox{\tiny th}}$ of a second, after which an attempt to
-obtain a lock times out. This time limit may also be $0$ in which case
-an attempt to lock a region fails immediately.
+obtain a lock times out. This time limit may also be~$0$ in which case
+an attempt to lock a conflicting region fails immediately.
 \smallskip{}
 
 The {\tt REC\_EXCLUSIVE\_IMMED}\mkey{REC\_EXCLUSIVE\_IMMED} and {\tt REC\_SHARED\_IMMED}\mkey{REC\_SHARED\_IMMED} modes
@@ -3055,19 +3056,19 @@ soon as they can determine that the requested record cannot be locked.
 \smallskip{}
 
 This function returns~$0$ in case of failure and then returns a
-non-zero error code with {\tt IoErr()}. In case the record lock cannot
+non-zero error code with {\tt IoErr()}\key{IoErr()}. In case the record lock cannot
 be obtained because the region overlaps with another locked region,
 the error will be {\tt ERROR\_LOCK\_COLLISION}\key{ERROR\_LOCK\_COLLISION}. If the region can be
 locked, the call returns a non-zero result code and sets {\tt IoErr()}\key{IoErr()}
 to~0.
 
-\subsection{Locking Multiple Portions of a File} \label{sec:lockrecords}
+\subsection{Locking Multiple Regions of a File} \label{sec:lockrecords}
 
 The {\tt LockRecords()}\mkey{LockRecords()} function locks multiple
 records at once, potentially within multiple files.
 
 \begin{verbatim}
-success = LockRecords(record_array,timeout)
+success = LockRecords(record_array,timeout) /* since V36 */
 D0                       D1           D2
 
 BOOL LockRecords(struct RecordLock *,ULONG)
@@ -3103,41 +3104,40 @@ obtained. It shall be one of the modes listed in
 table~\ref{table:reclockmode}; the modes are all defined in {\tt dos/record.h}.
 \smallskip{}
 
-The {\tt timeout} specifies how long each of the attempts to obtain a
-lock is supposed to wait for a record to become available if a
-non-immediate record lock is requested. The {\tt timeout} is applied
-to each of the records in the {\tt RecordLock} array sequentially
-until either all records could be locked, or until locking one of the
-records fail. In such a case, the call unlocks all locks obtained so
-far, and then returns with failure.
+The {\tt timeout} specifies how long each of the attempts to obtain a lock
+is supposed to wait for a record to become available if a non-immediate
+record lock is requested. The {\tt timeout} is applied to each of the
+records in the {\tt RecordLock} array sequentially until either all records
+could be locked, or until locking one of the records fail. In such a case,
+the call unlocks all locks obtained so far, and then returns with
+failure. That is, the maximal time {\tt LockRecords()}\key{LockRecords()}
+blocks is the sum of all timeouts.
 \smallskip{}
 
 On failure, i.e. if one of the records cannot be locked, the function
-returns~0 and sets {\tt IoErr()} to an error code. On success, the
-function returns a non-zero result and sets {\tt IoErr()}\key{IoErr()} to~0.
+returns~0 and sets {\tt IoErr()}\key{IoErr()} to an error code. On success,
+the function returns a non-zero result and sets {\tt IoErr()}\key{IoErr()}
+to~0.
 \smallskip{}
 
-Unlike what the function prototype suggests, this function is
-\emph{not atomic}. Instead, it attempts to lock the records
-sequentially one after another, applying the same timeout for each
-call. Thus, it can happen that another task attempts for a lock of a
-conflicting region while the first caller is executing this
-function. It is therefore recommended to establish an order in which
-records within a file are locked, e.g. from smallest to largest start
-offset. Note that this also implies that the maximal time this
-function may take is given by the number of elements in the
-{\tt record\_array} times {\tt timeout}.
+Unlike what the function prototype suggests, this function is \emph{not
+atomic}. Instead, it attempts to lock the records sequentially one after
+another, applying the same timeout for each call, unless {\tt rec\_Mode}
+indicates that no timeout shall be applied to a particular record. Thus, it
+can happen that another task attempts for a lock of a conflicting region
+while the first caller is executing this function. It is therefore
+recommended to establish an order in which records within a file are locked,
+e.g. from smallest to largest start offset.
 
-\subsection{Unlocking a Portion of a File}
+\subsection{Unlocking a Region of a File}
 
-The {\tt UnLockRecord()}\mkey{UnLockRecord()} function unlocks a
-region of a file, releasing it for further locks. The provided region
-shall be identical to one of the regions locked before, i.e. it is not
-possible to partially unlock a region and leave the remaining bytes of
-the region locked.
+The {\tt UnLockRecord()}\mkey{UnLockRecord()} function unlocks a region of a
+file, making it available for other record locks. The provided region shall
+match one of the regions locked before, i.e. it is not possible to partially
+unlock a region and leave the remaining bytes of the region locked.
 
 \begin{verbatim}
-success = UnLockRecord(fh,offset,length)
+success = UnLockRecord(fh,offset,length) /* since V36 */
 D0		       D1   D2     D3
 
 BOOL UnLockRecord(BPTR,ULONG,ULONG)
@@ -3152,18 +3152,18 @@ is {\tt length} bytes large.
 This function returns~0 on failure and sets an error code that can be
 obtained by {\tt IoErr()}\key{IoErr()}. A possible error code is {\tt
   ERROR\_RECORD\_NOT\_LOCKED}\key{ERROR\_RECORD\_NOT\_LOCKED} if an attempt is made to unlock a record
-that is actually not locked, or to partially unlock a record. On
+that has not been not locked before, or to partially unlock a record. On
 success, the function returns a non-zero result code and sets {\tt
   IoErr()} to~0.
 
 \subsection{Unlocking Multiple Records of a File}
 
-The {\tt UnLockRecords()} function unlocks multiple records provided
-in an array of {\tt RecordLock} structures at once, sequentially
-releasing one record after another.
+The {\tt UnLockRecords()}\mkey{UnLockRecords()} function unlocks multiple
+records provided in an array of {\tt RecordLock} structures at once,
+sequentially releasing one record after another.
 
 \begin{verbatim}
-success = UnLockRecords(record_array)
+success = UnLockRecords(record_array) /* since V36 */
 D0		             D1
 
 BOOL UnLockRecords(struct RecordLock *)
@@ -3411,10 +3411,10 @@ On success, the function returns a non-zero result code, and
 {\tt IoErr()}\key{IoErr()} to an appropriate error code.
 \smallskip{}
 
-Unfortunately, this function may not work reliable for \emph{file
-  handles} under all versions of AmigaDOS. In particular, the
-\emph{RAM-Handler} does not interpret {\tt newmode} correctly for {\tt
-  CHANGE\_FH}.
+Unfortunately, this function may not work reliable for \emph{file handles}
+under all versions of AmigaDOS. In particular, the
+RAM-Handler\key{RAM-Handler} does not interpret {\tt newmode} correctly for
+{\tt CHANGE\_FH}.
 
 \subsection{Comparing two Locks} \label{sec:samelock}
 
@@ -3499,7 +3499,7 @@ types and access modes relate.
 \end{rkrmtable}
 
 The association of {\tt MODE\_READWRITE} to {\tt SHARED\_LOCK} is
-unfortunate, and due to a defect in the \emph{RAM-Handler}
+unfortunate, and due to a defect in the RAM-Handler\key{RAM-Handler}
 implementation in AmigaDOS 2.0 which was then later copied into the
 Fast File System implementation. Exclusive access to a file
 without deleting its contents can, however, be established through the
@@ -3675,7 +3675,7 @@ writeable.
 {\tt id\_NumBlocks}\mkey{id\_NumBlocks} is the total number of blocks into which the
 medium is divided. This includes both free and occupied blocks, and
 thus indicates the total capacity of the volume. This number is not
-necessarily constant. The RAM-Handler adjusts this value according to
+necessarily constant. The RAM-Handler\key{RAM-Handler} adjusts this value according to
 the available memory; RAM-Handler versions prior version 45 set this
 to~0. In means, in particular, that care needs to be taken when the
 disk fill state in percent is computed by a dividing the number of
@@ -3694,7 +3694,7 @@ useful value.
 in a physical block of the medium, and not necessarily the physical
 block size into which the storage medium is divided. Some file systems
 require additional bytes of the physical block for administrating
-files. Even the RAM-Handler segments data into blocks and provides in
+files. Even the RAM-Handler\key{RAM-Handler} segments data into blocks and provides in
 this member the number of data bytes stored there.
 \smallskip{}
 
@@ -4785,13 +4785,12 @@ directory, the change also appears in the other.
 
 AmigaDOS supports two (or, actually, three) types of links:
 \emph{Hard links}\mkey{Hard Link} and \emph{Soft links}\mkey{Soft Link}.
-The \emph{RAM-Handler}
-supports a third type that will be discussed below. \emph{Hard links}
+The RAM-Handler\key{RAM-Handler} supports a third type that will be discussed below. \emph{Hard links}
 establish the relation between two \emph{file-system} objects on the
 same volume at the level of the file system. That is, whenever a link
 is accessed, the file system resolves the link, transparent to its
-user.  While for the Amiga Fast File System and the
-\emph{RAM-Handler} a hard link is a distinct directory entry
+user.  While for the Amiga Fast File System\key{Fast File System (FFS)} and the
+RAM-Handler\key{RAM-Handler} a hard link is a distinct directory entry
 type, some file systems do not distinguish between the original object
 and a \emph{hard link} to it. For such file systems, the same payload
 data is just referenced by two directory entries. If the larger of a
@@ -4890,15 +4889,15 @@ or a maximum number of attempts failed. Currently, the \emph{dos.library}
 will perform at most~15 tries to resolve a soft-link until it finally fails.
 \medskip{}
 
-Finally, the \emph{RAM-Handler} supports a special type of
+Finally, the RAM-Handler\key{RAM-Handler} supports a special type of
 hard links that goes across volumes. These \emph{external
   links} copy the linked object on a read-access into the RAM disk,
-i.e. the \emph{RAM-Handler} implements a \emph{copy on access}. This
+i.e. the RAM-Handler implements a \emph{copy on access}. This
 feature is used for the {\tt ENV:} assign containing all active system
 settings. This assign points to a directory in the RAM disk which
 itself is externally linked to {\tt ENVARC:}. Thus, whenever a program
 attempts to access its settings --- such as the preferences programs
---- the \emph{RAM-Handler} automatically copies the data from {\tt
+--- the RAM-Handler automatically copies the data from {\tt
   ENVARC:} to {\tt ENV:}, avoiding a manual copy and also saving RAM
 space for settings that are currently not accessed and thus unused.
 \medskip{}
@@ -4910,7 +4909,7 @@ indicated by {\tt ST\_LINKFILE}\key{ST\_LINKFILE} and hard links to directories
 by {\tt ST\_LINKDIR}\key{ST\_LINKDIR}. Note, however, that not all file systems are
 able to distinguish hard links from regular directory entries,
 so this feature cannot be depended upon. In particular,
-\emph{external links} of the \emph{RAM-Handler} cannot be identified
+\emph{external links} of the RAM-Handler\key{RAM-Handler} cannot be identified
 by any particular value of the {\tt fib\_DirEntryType}\key{fib\_DirEntryType}.
 \smallskip{}
 
@@ -4952,7 +4951,7 @@ created. It shall be taken from table~\ref{table:linktypes}, defined in
 If {\tt soft} is {\tt LINK\_HARD}\mkey{LINK\_HARD}, {\tt dest} is a lock represented
 by {\tt BPTR}. For most file systems, {\tt dest} shall be on
 the same volume as the one identified by the path in {\tt name}. The
-currently only exception is the \emph{RAM-Handler} for which the
+currently only exception is the RAM-Handler\key{RAM-Handler} for which the
 destination lock may be on a different volume. In such a case,
 an \emph{external link} is created. While the target object will be
 created, it may look initially like an empty file or an empty
@@ -13279,7 +13278,7 @@ section~\ref{sec:packetsinteractive} are an exception and not implemented,
 and the {\tt ACTION\_SET\_OWNER}\key{ACTION\_SET\_OWNER} packet is neither
 implemented and remains exclusive to to multi-user network file systems. The
 FFS\key{Fast File System (FFS)} does support record locking, soft- and hard links and notification
-requests. External links remain currently exclusive to the RAM-Handler and
+requests. External links remain currently exclusive to the RAM-Handler\key{RAM-Handler} and
 are neither supported. Latest versions of the FFS\key{Fast File System (FFS)} can also be shut down by
 {\tt ACTION\_DIE}\key{ACTION\_DIE}.
 
@@ -15953,7 +15952,7 @@ far, an attempt to access the linked object fails with
 {\tt ERROR\_OBJECT\_NOT\_FOUND}\key{ERROR\_OBJECT\_NOT\_FOUND}.
 \smallskip{}
 
-Currently, only the RAM-Handler implements this type of link, and it
+Currently, only the RAM-Handler\key{RAM-Handler} implements this type of link, and it
 is there used to realize the {\tt ENV:} assign containing all preferences
 settings. The external link pulls only those preferences settings into the
 RAM disk that are actually required, at the time they are required.
@@ -16111,7 +16110,7 @@ the resolved path, {\tt dp\_Res2} shall be set to {\tt
 If the source path in {\tt dp\_Arg2} does actually not contain a soft link
 and the scanning algorithm aborted without finding one, this also
 consistutes an error that shall be reported by setting {\tt dp\_Res1}
-to~$-1$. This error is not handled consistently in AmigaDOS. The RAM-Handler
+to~$-1$. This error is not handled consistently in AmigaDOS. The RAM-Handler\key{RAM-Handler}
 reports {\tt ERROR\_OBJECT\_WRONG\_TYPE}\key{ERROR\_OBJECT\_WRONG\_TYPE}, the FFS\key{Fast File System (FFS)} the error code
 {\tt ERROR\_OBJECT\_NOT\_FOUND}\key{ERROR\_OBJECT\_NOT\_FOUND}. The former
 error is probably more sensible.
@@ -16744,7 +16743,7 @@ provided, a BPTR to the {\tt DosList} of the volume the handle is located on
 shall be provided in {\tt dp\_Res1}. In such case, the packet is safe as the
 volume entry cannot go away as long as the lock implicit to the handle
 uses it\footnote{In~\cite{Bantam}, {\tt dp\_Arg1} is not mentioned,
-though providing it is important to avoid a race condition. The RAM-Handler
+though providing it is important to avoid a race condition. The RAM-Handler\key{RAM-Handler}
 is probably an exception as it only maintains a single volume that cannot go
 away during its lifetime.}.
 \smallskip{}
@@ -20438,7 +20437,7 @@ initialization to this list. This includes elementary commands such as
 \smallskip{}
 
 Fourth, some segments are added to the list during initialization of AmigaDOS
-through System-Startup. These include the Console-Handler, the RAM-Handler,
+through System-Startup. These include the Console-Handler, the RAM-Handler\key{RAM-Handler},
 the FFS\key{Fast File System (FFS)} which is named ``FileHandler'' there, and --- finally -- the Shell.
 \smallskip{}
 
@@ -20499,7 +20498,7 @@ commands to the resident list during its initialization.
 \smallskip{}
 
 Segments indicated by {\tt CMD\_SYSTEM}\mkey{CMD\_SYSTEM} are not commands that could be
-executed, but rather segments of system components. The RAM-Handler, the
+executed, but rather segments of system components. The RAM-Handler\key{RAM-Handler}, the
 Console-Handler and the FFS\key{Fast File System (FFS)} aka FileHandler are indicated as system
 segments. These segments cannot be executed and are not found by the Shell
 when scanning the resident list for commands.
@@ -20655,7 +20654,7 @@ unfortunately \emph{also} sets {\tt IoErr()} to the same error code.}.
 AmigaDOS allows adding custom shells to the system that may optionally
 also replace the AmigaDOS default shell, the ``boot shell''\mkey{Boot Shell}. A shell
 is a resident system segment, see section~\ref{sec:resident}, similar
-to the Console-Handler or the RAM-Handler on the same list. When
+to the Console-Handler or the RAM-Handler\key{RAM-Handler} on the same list. When
 launching a shell with the {\tt System()}\key{System()} function, a
 custom shell may be requested by providing the name of its resident
 segment to the {\tt SYS\_CustomShell} tag. A custom shell may even
