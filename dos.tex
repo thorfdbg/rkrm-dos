@@ -451,7 +451,7 @@ Luckely, in most cases callers of the \emph{dos.library} do not need to
 convert from and to BPTRs but can rather use such ``pointers'' as
 \emph{opaque values} or \emph{handles} representing some AmigaDOS
 object. Examples for those objects are \emph{file handles} specified in
-chapter~\ref{sec:file}, and \emph{locks}, see section~\ref{sec:locks}. Both
+chapter~\ref{sec:file}, and \emph{locks}\key{Lock}, see section~\ref{sec:locks}. Both
 are represented as BPTRs to some structure the caller usually does not need
 to care about.
 \smallskip{}
@@ -558,7 +558,7 @@ such as a file or a directory. A locked file cannot be altered or removed by
 any other process, a locked directory can be altered, but not be
 deleted. Chapter~\ref{sec:locks} provides more details on locks. AmigaDOS
 represents locks through the \emph{FileLock}\key{FileLock} structure also
-introduced in the above chapter, though in most cases, locks are passed
+introduced in the above chapter, though in most cases, locks\key{Lock} are passed
 around as BPTRs to this structure.
 
 \section{Processes}
@@ -600,7 +600,7 @@ The AmigaDOS Shell is a command line interpreter and implements a (basic)
 programming language through which the user can communicate with the
 system. Historically, the Shell was also called the \emph{CLI} for
 \emph{Command Line Interface}, and it is the primary user interface of
-AmigaDOS. Unlike the graphical user interface, the workbench, it is purely
+AmigaDOS. Unlike the graphical user interface, the Workbench, it is purely
 text based and available even without a boot medium.
 \smallskip{}
 
@@ -1209,7 +1209,7 @@ process\key{Process}, if such a console\key{console} exists. Any data output
 to the file named {\tt *} will be printed on the console. Reading from {\tt
   *} will wait for the user to input data on the console, and will return
 such data. If no console exists, for example for processes run from the
-workbench, then AmigaDOS versions 36 and later fall back to {\tt NIL},
+Workbench, then AmigaDOS versions 36 and later fall back to {\tt NIL},
 aborbing any output. Earlier versions failed to open {\tt *} in such a case.
 
 \punchline{Not a wildcard!}{Unlike other operating systems, the
@@ -1278,7 +1278,7 @@ the original ones.
 
 Regular assigns have the drawback that the volume remains known to the
 system, and the corresponding volume icon will not vanish from the
-workbench. They also require the volume to be present at the time the assign
+Workbench. They also require the volume to be present at the time the assign
 is created.
 \smallskip{}
 
@@ -1418,7 +1418,7 @@ System\key{Fast File System (FFS)} includes variants that limit component
 File systems typically do not report an error if the maximum component name
 is exceeded; instead, the name is clamped to the maximum size without
 further notice, which may lead to undesired side effects. For example, a
-file system may clip or remove a trailing {\tt .info} from a workbench icon
+file system may clip or remove a trailing {\tt .info} from a Workbench icon
 file name without ever reporting this, resulting in unexpected side
 effects. The \emph{icon.library} and \emph{workbench.library} of AmigaOs
 take care of this problem to avoid such file names and double check created
@@ -1608,7 +1608,7 @@ attempting to open a file under this mode does not attempt to create files
 that do not exist, and exclusive access is granted. Due to these
 inconsistencies, {\tt MODE\_READWRITE} should probably be best avoided. If
 exclusive access without deleting existing file content is required, it is
-best to first obtain an exclusive lock, see section~\ref{sec:lock}, and then
+best to first obtain an exclusive lock\key{Lock}, see section~\ref{sec:lock}, and then
 use this lock to create a file handle from it though {\tt OpenFromLock()},
 see section~\ref{sec:openfromlock}.
 \smallskip{}
@@ -1652,7 +1652,7 @@ code and the contents of register {\tt d0} cannot be depended upon.
 File handles that had been obtained through {\tt Input()}, {\tt Output()} or
 {\tt ErrorOutput()} should, in general, not be closed as they had been
 created by the environment running the process, i.e. the shell or the
-workbench. These handles will automatically be closed when the running
+Workbench. These handles will automatically be closed when the running
 program terminates. Attempting to close the same file twice will most likely
 result in a crash.
 \smallskip{}
@@ -2997,13 +2997,14 @@ LONG getch(BPTR file)
 
 \section{Record Locking} \label{sec:recordlocking}
 
-While locks control access to a file system object in total, record locks
-provide access control on contiguous regions of a file. Unlike locks,
-however, the file system does not block read or write access to the locked
-region and does not attempt to enforce record locks during read or write
-operations. Instead, a record lock on a file region only prevents another
-record lock on a region that overlaps with the locked region. Record locks
-therefore require the locking processes to follow the same locking protocol.
+While locks\key{Lock}, see chapter~\ref{sec:locks} control access to a file
+system object in total, record locks provide access control on contiguous
+regions of a file. Unlike locks, however, the file system does not block
+read or write access to the locked region and does not attempt to enforce
+record locks during read or write operations. Instead, a record lock on a
+file region only prevents another record lock on a region that overlaps with
+the locked region. Record locks therefore require the locking processes to
+follow the same locking protocol.
 \smallskip{}
 
 Record locks are a relatively modern protocol not all file systems
@@ -3185,29 +3186,29 @@ saved on a failed unlock.
   
 \chapter{Locks} \label{sec:locks}
 
-\emph{Locks}\mkey{Lock} are access rights to objects, such as files or
-directories, on a file system. Once an object has been locked, it can
-no longer be deleted, or in case of files, it can no longer altered
-either. Depending on the file system, locks may also prevent other
-forms of changes of the object.
+\emph{Locks}\mkey{Lock} are access rights to file system objects, such as
+files or directories. Once an object has been locked, it can no longer be
+deleted, or in case of files, it can no longer altered either. Depending on
+the file system, locks may also prevent other forms of changes of the
+object as well.
 \medskip{}
 
-Locks come in two types: \emph{Exclusive} and \emph{shared
-  locks}. Only a single exclusive lock can exist on a file system
-object at a time, and no other locks on an exclusively locked object
-can exist. An attempt to lock an exclusively locked object results in
-failure, and attempting to exclusively lock an object that is already
-shared locked will also fail.
+Locks come in two types: \emph{Exclusive locks}\key{EXCLUSIVE\_LOCK} and
+\emph{shared locks}\key{SHARED\_LOCK}. Only a single exclusive lock can
+exist on a file system object at a time, and no other locks on an
+exclusively locked object can exist. An attempt to lock an exclusively
+locked object results in failure, and attempting to exclusively lock an
+object that is already locked by a shared lock will also fail.
 \smallskip{}
 
-Multiple \emph{shared locks} can be kept on the same object at the
-same time, though once a shared lock has been obtained, any attempt to
+Unlike exclusive locks, multiple shared locks can be kept on the same object
+simultaneously, though once a shared lock has been obtained, any attempt to
 lock the same object exclusively fails.
 \smallskip{}
 
-One particular use case of locks is to serve as an identifier
+One particular use case of locks\key{Lock} is to serve as an identifier
 of a particular directory or file on a file system. Since paths are
-limited to 255 characters, see~\ref{sec:paths}, locks are the
+limited to~255 characters, see~\ref{sec:paths}, locks are the
 preferred method of indicating a position within a file system. Even
 though paths are length limited, there is no restriction on the depth
 within the directory structure of a file system. The {\tt ZERO} lock
@@ -3215,23 +3216,23 @@ identifies the boot volume, also known as {\tt SYS:}, see also
 section~\ref{sec:assignlist}.
 \smallskip{}
 
-Locks are also the building stone of files; in fact, every file
-is internally represented by a lock on the corresponding object, even
-if the file system does not expose this lock to the caller.
+Locks are also the building stone of files; every file is internally
+represented by a lock on the corresponding object, even if the file system
+does not expose this lock to the caller.
 \smallskip{}
 
-As long as at least a single lock is held of an object on a particular
+As long as at least a single lock\key{Lock} is held of an object on a particular
 volume, the file system will keep the volume within the
 device list of the \emph{dos.library}, see section~\ref{sec:devicelist}.
-This has, for example, the consequence that the workbench will
+This has, for example, the consequence that the Workbench will
 continue to show an icon representing the volume in its window.
 
 \section{Obtaining and Releasing Locks}
 
 Locks can be obtained either explicitly from a path, or can be
-derived from another lock or file. As locks block altering accesses to
+derived from another lock\key{Lock} or file. As locks block altering accesses to
 an object of a file system, locks need to be released as early as
-possible to allow other accesses to the locked object.
+possible to allow other processes access to the locked object.
 
 \subsection{Obtaining a Lock from a Path} \label{sec:lock}
 
@@ -3268,7 +3269,7 @@ same object. This type of lock should be preferred. The access mode
 lock on the same object.
 \smallskip{}
 
-The return code {\tt lock} identifies the lock. It is non-{\tt ZERO}
+The return code {\tt lock} identifies the lock\key{Lock}. It is non-{\tt ZERO}
 (see~\ref{sec:bptrs}) on success, or {\tt ZERO} on failure. In either
 case, {\tt IoErr()}\key{IoErr()} is set to $0$ indicating success, or
 an error code on failure.
@@ -3281,7 +3282,7 @@ an error code on failure.
 \subsection{Duplicating a Lock}
 
 The {\tt DupLock()}\mkey{DupLock()} function replicates a given
-lock, returning a copy of the lock given as
+lock\key{Lock}, returning a copy of the lock given as
 argument. This requires that the original lock is a
 \emph{shared lock}, and it returns a \emph{shared lock} if successful.
 
@@ -3313,7 +3314,7 @@ BPTR ParentDir(BPTR)
 \end{verbatim}
 
 The {\tt lock} argument identifies the object whose parent is to be
-found; the function returns a lock on the directory containing
+found; the function returns a lock\key{Lock} on the directory containing
 the object. If such parent does not exist, or an error occurs, the
 function returns {\tt ZERO}. The former case applies to the topmost
 directory of a file system, or the {\tt ZERO} lock itself.
@@ -3356,7 +3357,7 @@ systems (see section~\ref{sec:flathierarchical}) do not.
 
 \subsection{Releasing a Lock}
 
-Once you are done with a lock and no part of your program is
+Once you are done with a lock\key{Lock} and no part of your program is
 using it anymore, you should release it to allow other processes or
 functions to access or modify the locked object. Note that setting the
 {\tt CurrentDir()}\key{CurrentDir()} to a particular lock implies
@@ -3376,7 +3377,7 @@ activity.
 
 \subsection{Changing the Type of a Lock}
 
-Once a lock has been granted, it is possible to change the
+Once a lock\key{Lock} has been granted, it is possible to change the
 nature of the lock, either from
 {\tt EXCLUSIVE\_LOCK}\key{EXCLUSIVE\_LOCK} to
 {\tt SHARED\_LOCK}\key{SHARED\_LOCK}, or --- if this is the only lock on
@@ -3448,7 +3449,7 @@ lock for either {\tt lock1} or {\tt lock2}.
 \subsection{Compare to Locks for the Device}
 
 The {\tt SameDevice()}\mkey{SameDevice()} function attempts to check whether
-two locks refer to two file systems that reside on the same physical device,
+two locks\key{Lock} refer to two file systems that reside on the same physical device,
 even if on potentially different partitions.
 
 \begin{verbatim}
@@ -3486,7 +3487,7 @@ determine the device a file system operates on.
 
 \section{Locks and Files}
 
-Each file handle is associated to a lock to the file that has
+Each file handle is associated to a lock\key{Lock} to the file that has
 been opened. The type of the lock depends on the access mode
 the file has been opened with, table~\ref{table:modelock} for how lock
 types and access modes relate.
@@ -3530,7 +3531,7 @@ $0$ in case of success, or an error code on failure.
 \subsection{Obtaining the Directory a File is Located in}
 
 The {\tt ParentOfFH()}\mkey{ParentOfFH()} function obtains a
-\emph{shared lock} on the parent directory of the file associated to
+shared lock\key{Lock} on the parent directory of the file associated to
 the file handle passed in. That is, this function it is roughly
 equivalent to first obtaining a lock on the file through {\tt
   DupLockFromFile()} \key{DupLockFromFile()}, and then calling {\tt
@@ -3545,7 +3546,7 @@ lock = ParentOfFH(fh)
 BPTR ParentOfFH(BPTR)
 \end{verbatim}
 
-This function returns in {\tt lock} a shared lock on the directory
+This function returns in {\tt lock} a shared lock\key{Lock} on the directory
 containing the file opened through the {\tt fh} file handle. It
 returns {\tt ZERO} on failure or in case there is no parent directory
 because {\tt fh} already represents the root directory.
@@ -3558,7 +3559,7 @@ in this case.
 
 \subsection{Opening a File from a Lock} \label{sec:openfromlock}
 
-The {\tt OpenFromLock()} function uses a lock and opens the
+The {\tt OpenFromLock()} function uses a lock\key{Lock} and opens the
 locked file, returning a file handle. If the lock is associated
 to a directory, the function fails. The lock passed in is then
 absorbed into the file handle and shall not be unlocked. It
@@ -3576,7 +3577,7 @@ file, and creates the file handle {\tt fh} from it. It fails in
 case the {\tt lock} argument belongs to a directory and not a file.
 \smallskip{}
 
-In case of success, the lock becomes an implicit part of the
+In case of success, the lock\key{Lock} becomes an implicit part of the
 file handle and shall not be unlocked by the caller anymore.
 In case of failure, the function returns {\tt ZERO} and the
 lock remains available to the caller, and also needs to be
@@ -3606,7 +3607,7 @@ D0		D1    D2
 BOOL Info(BPTR, struct InfoData *)
 \end{verbatim}
 
-The {\tt lock} is a lock to an arbitrary object on the volume
+The {\tt lock} is a lock\key{Lock} to an arbitrary object on the volume
 to be querried; its only purpose is to identify it. The function fills
 out an {\tt InfoData}\key{InfoData} structure that shall be aligned to long-word
 boundaries.
@@ -3637,7 +3638,7 @@ bound to the currently inserted medium.
 
 {\tt id\_UnitNumber}\mkey{id\_UnitNumber} is the unit number of the exec device on which
 the file system operates, and hence into which the volume
-identified by the lock is inserted.
+identified by the lock\key{Lock} is inserted.
 \smallskip{}
 
 {\tt id\_DiskState}\mkey{id\_DiskState} identifies the status of the file system, whether
@@ -3767,7 +3768,7 @@ touching the medium while they work on it.
 {\tt 'CON\textbackslash0'} and {\tt 'RAW\textbackslash0'} are indicators left by the CON-Handler\key{CON-Handler}
 (or console-type handlers) which use the {\tt InfoData} structure for
 other purposes, see section~\ref{sec:console}. As they do not (in
-general) hand out locks, the {\tt Info()} function will usually not
+general) hand out locks\key{Lock}, the {\tt Info()} function will usually not
 return these two types, but direct handler communication with a packet
 type of {\tt ACTION\_DISK\_INFO} can.
 \smallskip{}
@@ -3784,7 +3785,7 @@ which the object identified by the {\tt lock} is located. For this
 structure, see section~\ref{sec:devicelist}.
 \smallskip{}
 
-{\tt id\_InUse}\mkey{id\_InUse} counts the number of locks and files currently open on
+{\tt id\_InUse}\mkey{id\_InUse} counts the number of locks\key{Lock} and files currently open on
 the medium identified by {\tt lock}.
 \medskip{}
 
@@ -3829,7 +3830,7 @@ The {\tt fl\_Link}\mkey{fl\_Link} member has no practical value for users; the
 file system can use it to keep multiple links on object on the
 same volume in a list. This is particularly important if the volume is
 ejected from its drive and another file system needs to take over the
-locks if the volume is later inserted into another drive.
+locks\key{Lock} if the volume is later inserted into another drive.
 \smallskip{}
 
 The {\tt fl\_Key}\mkey{fl\_Key} member can be used by the file system to identify the
@@ -3845,7 +3846,7 @@ function. It is either {\tt SHARED\_LOCK}\key{SHARED\_LOCK} or {\tt
 \smallskip{}
 
 The {\tt fl\_Task}\mkey{fl\_Task} member points to the message port of the file
-system for processing requests on the lock. Any activity on the lock
+system for processing requests on the lock\key{Lock}. Any activity on the lock
 goes through this port.
 \smallskip{}
 
@@ -3879,7 +3880,7 @@ the tree structure of the file system.
 
 \section{Examining Objects on File Systems} \label{sec:fib}
 
-Given a lock on a file or a directory, information on the locked
+Given a lock\key{Lock} on a file or a directory, information on the locked
 object can be requested by the {\tt Examine()}\key{Examine()} function
 of the \emph{dos.library}. To read multiple directory entries at once
 and minimizing the calling overhead, {\tt ExAll()}\key{ExAll()}
@@ -3891,7 +3892,7 @@ system, the directory may change under your feed while scanning; in
 particular, entries you received through the above functions may not
 be up to date, may have been deleted already when the above functions
 return, or new entries may have been added the current scan will not
-reach. While a lock on a directory prevents that this directory
+reach. While a lock\key{Lock} on a directory prevents that this directory
 goes away, it does \emph{not} prevent other processes to add or remove
 objects to this directory, so beware.}
 
@@ -4053,7 +4054,7 @@ accessed.
 \subsection{Retrieving Information on an Directory Entry}
 
 The {\tt Examine()}\mkey{Examine()} function fills information on an
-object identified by a lock into a {\tt FileInfoBlock}\key{FileInfoBlock}.
+object identified by a lock\key{Lock} into a {\tt FileInfoBlock}\key{FileInfoBlock}.
 
 \begin{verbatim}
 success = Examine( lock, FileInfoBlock )
@@ -4077,7 +4078,7 @@ by $0$ on success, on an error code on failure.
 
 While {\tt Examine()}\key{Examine()} retrieves information a locked
 object, {\tt ExamineFH()}\mkey{ExamineFH()} retrieves the same
-information from a file handle, or rather from the lock
+information from a file handle, or rather from the lock\key{Lock}
 implicit to the handle.
 
 \begin{verbatim}
@@ -4109,7 +4110,7 @@ The {\tt ExNext()}\mkey{ExNext()} function iterates through entries of
 a directory, retrieving information on one object after another
 contained in this directory. For scanning through a directory, first
 {\tt Lock()}\key{Lock()} the directory itself. Then use {\tt
-  Examine()}\key{Examine()} on the lock. This provides
+  Examine()}\key{Examine()} on the lock\key{Lock}. This provides
 information on the directory itself.
 \smallskip{}
 
@@ -4129,7 +4130,7 @@ BOOL ExNext(BPTR, struct FileInfoBlock *)
 This call returns information on the subsequent entry of a directory
 identified by {\tt lock} and deposits this information in the {\tt
   FileInfoBlock}\key{FileInfoBlock} described in~\ref{sec:fib}. The
-{\tt lock} shall be a lock on a directory, in particular.
+{\tt lock} shall be a lock\key{Lock} on a directory, in particular.
 \smallskip{}
 
 On success, {\tt ExNext()} returns non-zero. If there is no further
@@ -4181,7 +4182,7 @@ of {\tt size} bytes. This buffer is filled by a linked list of {\tt
 determines which elements of {\tt ExAllData} is filled.
 \smallskip{}
 
-The {\tt lock} shall be a lock on the directory to be examined. It shall not
+The {\tt lock} shall be a lock\key{Lock} on the directory to be examined. It shall not
 be {\tt ZERO}.
 \smallskip{}
 
@@ -4383,7 +4384,7 @@ scan once it is running, for example on network file systems where the
 scan may proceed offline on a separate server. The arguments to
 {\tt ExAllEnd()} shall be exactly those supplied to
 {\tt ExAll()}\key{ExAll()} which it is supposed to terminate. Note in
-particular that the {\tt lock} shall be identical to the lock
+particular that the {\tt lock} shall be identical to the lock\key{Lock}
 passed into {\tt ExAll()}, and not just a lock to the same
 object.
 
@@ -4398,7 +4399,7 @@ The {\tt DeleteFile()}\mkey{DeleteFile()} function removes --- despite
 its name --- not only files, but also directories and links from a
 directory. For this to succeed, the object need to allow deletion
 through its protection bits (see section~\ref{sec:fib}), and no
-locks are held on the object (see section~\ref{sec:locks}).  To
+locks\key{Lock} are held on the object (see section~\ref{sec:locks}).  To
 be able to delete a directory, this directory needs to be empty in
 addition.
 
@@ -4581,7 +4582,7 @@ follow the conventions of AmigaDOS.
 
 The {\tt NameFromLock()}\mkey{NameFromLock()} function constructs a
 path to the locked object, i.e. if the constructed path is used to
-create a lock, it will refer to the same object.
+create a lock\key{Lock}, it will refer to the same object.
 
 \begin{verbatim}
 success = NameFromLock(lock, buffer, len)
@@ -4603,7 +4604,7 @@ also set to $0$ and {\tt IoErr()} is set to an error code. However, on
 success, {\tt IoErr()} is not set consistently and cannot be depended
 upon. Possible cases of failure are that the volume the locked object
 is located on is currently not inserted in which case it will be
-requested. The {\tt ZERO} lock is correctly interpreted, and resolves
+requested. The {\tt ZERO} lock\key{Lock} is correctly interpreted, and resolves
 into the string {\tt SYS:}. The {\tt lock} remains valid after the
 call.
 
@@ -4826,7 +4827,7 @@ functions listed in Table~\ref{table:softenabled}:
 {\tt SetComment()} & Modify object comment\\ \hline
 {\tt MakeLink()} & Create a link to an object\\ \hline
 {\tt SetOwner()} & Set User and Group ID\\ \hline \hline
-{\tt MatchFirst()} & Resolve a lock to a path\footnote{This function 
+{\tt MatchFirst()} & Resolve a lock\key{Lock} to a path\footnote{This function 
 works only partially with soft links - it fails if the pattern is not a wild card
 and the soft link cannot be resolved.}\\ \hline
 {\tt LoadSeg()} & Load an executable \\ \hline
@@ -4952,7 +4953,7 @@ If {\tt soft} is {\tt LINK\_HARD}\mkey{LINK\_HARD}, {\tt dest} is a lock represe
 by {\tt BPTR}. For most file systems, {\tt dest} shall be on
 the same volume as the one identified by the path in {\tt name}. The
 currently only exception is the RAM-Handler\key{RAM-Handler} for which the
-destination lock may be on a different volume. In such a case,
+destination lock\key{Lock} may be on a different volume. In such a case,
 an \emph{external link} is created. While the target object will be
 created, it may look initially like an empty file or an empty
 directory, depending on the type of the link destination. Its contents
@@ -4971,7 +4972,7 @@ section~\ref{sec:readlink}.
 \smallskip{}
 
 This function returns in {\tt success} non-zero if creation of the
-lock succeeded, or $0$ in case of failure. In either case,
+lock\key{Lock} succeeded, or $0$ in case of failure. In either case,
 {\tt IoErr()} is set to an error code on failure, or $0$ on success.
 
 \subsection{Resolving Soft-Links} \label{sec:readlink}
@@ -5006,7 +5007,7 @@ This function creates in {\tt buffer} of {\tt size} bytes a path to
 the target of a \emph{soft-link} contained in the input {\tt path}
 relative to the directory represented by {\tt lock}. Typically, {\tt
   path} is the path given to some object you attempted to access, and
-{\tt lock} is the lock as given by the current
+{\tt lock} is the lock\key{Lock} as given by the current
 directory\key{CurrentDir()} to which the path is relative. The output
 path constructed in {\tt buffer} is then an updated path relative to
 the same directory, i.e. relative to {\tt lock}.
@@ -5520,7 +5521,7 @@ structure.
 {\tt dol\_DiskType}\mkey{dol\_DiskType} is an identifier of the
 \emph{file system type} that operated the volume and placed here such
 that an alternative process of the same file system is able to pick up
-or refuse the locks stored here for non-available
+or refuse the locks\key{Lock} stored here for non-available
 volumes. Table~\ref{table:ffsflavours} lists the flavours the FFS\key{Fast
   File System (FFS)} supports, other file systems will deposit their own identifier here.
 \medskip{}
@@ -5535,7 +5536,7 @@ uses this string to locate the target of the assign. For late assigns, this memb
 is used only on the first attempt to access the assign at which {\tt dol\_Lock}\key{dol\_Lock} is populated.
 \smallskip{}
 
-{\tt dol\_List}\key{dol\_List} contains additional locks for multi-assigns and
+{\tt dol\_List}\key{dol\_List} contains additional locks\key{Lock} for multi-assigns and
 is thus only used if {\tt dol\_Type}\key{dol\_Type} equals {\tt DLT\_DIRECTORY}\key{DLT\_DIRECTORY}. In such a
 case, {\tt dol\_Lock}\key{dol\_Lock} is the lock to the first directory of the
 \emph{multi-assign}, while {\tt dol\_List} contains all following
@@ -5549,7 +5550,7 @@ struct AssignList {
 };
 \end{verbatim}
 
-{\tt al\_Next}\mkey{al\_Next} points to the next lock that is part of the
+{\tt al\_Next}\mkey{al\_Next} points to the next lock\key{Lock} that is part of the
 multi-assign and {\tt al\_Lock}\mkey{al\_Lock} is the lock itself. This
 structure is also defined in {\tt dos/dosextens.h}.
 
@@ -6113,7 +6114,7 @@ be tried to resolve {\tt name}.
 \smallskip{}
 
 If the matching handler is a file system, then {\tt dvp\_Lock}
-is a lock of a directory. The path in {\tt name}is a path
+is a lock\key{Lock} of a directory. The path in {\tt name}is a path
 relative to this directory. This lock shall not be released,
 but it may be copied with {\tt DupLock}\key{DupLock()}.
 \smallskip{}
@@ -6194,7 +6195,7 @@ itself and no further activity is necessary.
 
 The {\tt dvp\_Port}\key{dvp\_Port} or {\tt dvp\_Lock}\key{dvp\_Lock} within the {\tt DevProc}
 structure shall not be used after releasing it with {\tt
-  FreeDeviceProc()}\key{FreeDeviceProc()}. If the lock is required after releasing a
+  FreeDeviceProc()}\key{FreeDeviceProc()}. If the lock\key{Lock} is required after releasing a
 {\tt DevProc}\key{DevProc} structure, a copy of {\tt dvp\_Lock} shall be made with
 {\tt DupLock()}\key{DupLock()}. If the port of the handler or
 file system is needed afterwards, a resource of this handler
@@ -6215,7 +6216,7 @@ particular value may be assumed. It may or may not alter its value.
 
 The {\tt DeviceProc()}\mkey{DeviceProc()} function is a legacy variant
 of {\tt GetDeviceProc()}\key{GetDeviceProc()} that should not be used
-anymore. It is not able to reliably provide locks to \emph{assigns}
+anymore. It is not able to reliably provide locks\key{Lock} to \emph{assigns}
 and will not work through all directories of a \emph{multi-assign}.
 
 \begin{verbatim}
@@ -6232,7 +6233,7 @@ file systemable to handle the path {\tt name}. It returns
 
 If the passed in {\tt name} is part of an assign, the handler
 port of the directory the assign binds to is returned, and {\tt
-  IoErr()}\key{IoErr()} is set to the lock of the assign. Unfortunately, one
+  IoErr()}\key{IoErr()} is set to the lock\key{Lock} of the assign. Unfortunately, one
 cannot safely make use of this lock as the device list
 may be altered any time, including the time between the return from
 this function and its first use by the caller. Thus, {\tt
@@ -6242,7 +6243,7 @@ the device list; they are released through {\tt
 
 \punchline{Obsolete and not fully functional}{{\tt DeviceProc()} function
   does not operate properly on \emph{multi-assigns} where it only provides
-  the port and lock to the first directory participating in the
+  the port and lock\key{Lock} to the first directory participating in the
   assign. It also returns {\tt NULL} for non-binding assigns\key{Non-Binding Assign} as there
   is no way to release a temporary lock obtained on the target of the
   \emph{assign}. Same as {\tt GetDeviceProc()}, it does not properly handle
@@ -6270,7 +6271,7 @@ struct MsgPort *GetConsoleTask(void)
 This function returns a port to the handler of the console of the
 calling process, or {\tt NULL} in case there is no console associated
 to the caller. The latter holds for example for programs started from
-the workbench. It does not alter {\tt IoErr()}\key{IoErr()}.
+the Workbench. It does not alter {\tt IoErr()}\key{IoErr()}.
 
 \subsection{Obtaining the Default File System} \label{sec:getfilesystask}
 
@@ -6305,7 +6306,7 @@ typically identical. However, as the former is returned by {\tt
 \section{Iterating and Accessing the Device List} \label{sec:devlistaccess}
 
 While {\tt GetDeviceProc()}\key{GetDeviceProc()} uses the device
-  list to locate a particular \emph{MsgPort} and lock, all
+  list to locate a particular \emph{MsgPort} and lock\key{Lock}, all
 other members of the {\tt DosList}\key{DosList} structure remain unavailable. For
 them, the device list containing these structures need to be
 scanned manually. The \emph{dos.library} provides functions to grant
@@ -6678,7 +6679,7 @@ and they also ensure proper linkage of the structures.
 
 \punchline{Locking the device list in file systems}{There is one
   particular race condition file system authors should be aware
-  of. When opening a file, or obtaining a lock, the \emph{dos.library}
+  of. When opening a file, or obtaining a lock\key{Lock}, the \emph{dos.library}
   calls through {\tt GetDeviceProc()}\key{LockDosList()} to identify a
   handler responsible for the requested path. As this function
   requires access to the device list, it will secure access to it
@@ -6969,7 +6970,7 @@ in a single call and are thus easier to use.
 \subsection{Create and Add a Regular Assign}
 
 The {\tt AssignAdd()}\mkey{AssignAdd()} function creates a new assign
-to a directory from a lock, and then enqueues it into the
+to a directory from a lock\key{Lock}, and then enqueues it into the
 device list.
 
 \begin{verbatim}
@@ -7069,7 +7070,7 @@ the function run out of memory.  If a {\tt DosList}\key{DosList} of the same nam
 \subsection{Add a Directory to a Multi-Assign}
 
 The {\tt AssignAdd()}\mkey{AssignAdd()} function adds a directory,
-identified by a lock, to an already existing regular or
+identified by a lock\key{Lock}, to an already existing regular or
 multi-assign\key{Multi-Assign}. On success, a regular assign is then
 converted into a multi-assign.
 
@@ -7105,7 +7106,7 @@ entry found was not a \emph{regular assign}.
 \subsection{Remove a Directory From a Multi-Assign}
 
 The {\tt RemAssignList()}\mkey{RemAssignList()} function removes a
-directory, represented by a {\tt lock}, from a multi-assign. If
+directory, represented by a lock\key{Lock}, from a multi-assign. If
 only a single directory remains in the multi-assign\key{Multi-Assign}, it is
 converted into a regular assign. If the assign was a
 regular assign, and the only directory is removed from it, the
@@ -7124,9 +7125,9 @@ name shall not contain a trailing colon (``{\tt :}''). If only a
 single directory remains in the assign, it is converted to a
 regular assign. If no directory remains at all, the
 assign is deleted and removed from the device list. The
-{\tt lock} remains available to the caller, regardless of the
+lock\key{Lock} remains available to the caller, regardless of the
 result code. Note that the {\tt lock} passed in does not need to be
-identical to the lock contained in the assign, but it
+identical to the lock\key{Lock} contained in the assign, but it
 needs to be a lock on the same directory. This function uses
 {\tt SameLock()}\key{SameLock()} function to compare the two locks.
 
@@ -7140,7 +7141,7 @@ assign or a multi-assign.
 \section{File System Support Functions} \label{sec:filesysmisc}
 
 Functions in this section act on a file system as a whole;
-thus, they do not need a file or a lock to operate on, but modify the
+thus, they do not need a file or a lock\key{Lock} to operate on, but modify the
 file system globally.
 
 \subsection{Adjusting File System Buffers} \label{sec:addbuffers}
@@ -7270,7 +7271,7 @@ only support a single flavour.
 
 Unfortunately, AmigaDOS does not provide an easy way to access the
 flavours supported by a file system. The {\tt Format} command of the
-workbench offers the types listed in the first half of
+Workbench offers the types listed in the first half of
 table~\ref{table:ffsflavours} if the mount entry of the file system
 indicates that it is the FFS, and otherwise does not offer any choices
 and just copies the {\tt dostype} from the {\tt
@@ -7281,7 +7282,7 @@ structure, see also section~\ref{sec:mountlist}.
 After initializing the file system, use {\tt
   Inhibit(filesystem,DOSFALSE)}\key{Inhibit()} or the corresponding packet {\tt
   ACTION\_INHIBIT}\key{ACTION\_INHIBIT} to grant the file system access to the partition or
-medium again. As the volume name can be different and locks or
+medium again. As the volume name can be different and locks\key{Lock} or
 file handles on the original file system clearly became
 invalid, it is advisable to pass the device name of the
 file system to {\tt Inhibit()}\key{Inhibit()} if this call is used, see also
@@ -7322,7 +7323,7 @@ The {\tt flag} argument controls whether access to the medium is
 allowed or disallowed. If {\tt flag} is set to {\tt DOSTRUE}, access
 is inhibited and the file system stops accessing the partition
 or volume. It also sets {\tt id\_DiskType}\key{id\_DiskType} to the four-character code
-{\tt 'BUSY'}, which will be interpreted by the workbench to ghost the
+{\tt 'BUSY'}, which will be interpreted by the Workbench to ghost the
 corresponding drive icon. Application programs are then allowed to
 access the exec device driver directly to access or modify blocks
 within the partition managed by the inhibited file system.
@@ -7393,7 +7394,7 @@ defined:
     sequence {\tt ab}, such as {\tt ab}, {\tt abab} or {\tt ababab}.
   \item[{\tt \textasciitilde{} }] The ASCII tilde (``{\tt \textasciitilde{}}'') matches names that do not
     match the next token. This is particularly valuable for filtering out
-    the workbench icon files that end on {\tt .info}, i.e. {\tt \textasciitilde{}(\#?.info)}
+    the Workbench icon files that end on {\tt .info}, i.e. {\tt \textasciitilde{}(\#?.info)}
     matches all files that do not end with {\tt .info}.
   \item[{\tt[]}] The square brackets (``{\tt []}'') matches a single
     character from a range, e.g. {\tt [a-z]} matches a single alphabetic
@@ -7428,7 +7429,7 @@ defined:
     brackets to bind them, i.e. {\tt (a|b)} is either the character {\tt a}
     or {\tt b} and therefore matches the same strings {\tt [ab]} matches. A
     particular example is {\tt \textasciitilde{}((\#?.info)|.backdrop)}
-    which matches all files not used by the workbench for storing
+    which matches all files not used by the Workbench for storing
     meta-information. 
 \end{itemize}   
 
@@ -7566,7 +7567,7 @@ struct AChain {
 be interpreted by the caller.
 \smallskip{}
 
-{\tt an\_Lock}\mkey{an\_Lock} is a lock to the directory corresponding to the {\tt
+{\tt an\_Lock}\mkey{an\_Lock} is a lock\key{Lock} to the directory corresponding to the {\tt
   AChain}\key{AChain} structure, i.e. {\tt ap\_Last->an\_Lock} is a lock to
 the directory that is currently being scanned, and {\tt
   ap\_Base->an\_Lock} a lock to the topmost directory at which the
@@ -7720,7 +7721,7 @@ signal bits in {\tt ap->ap\_BreakBits} have been received during the scan.
 \smallskip{}
 
 On success, {\tt ap->ap\_Info.fib\_FileName} contains the name of the first
-matched object, the directory represented as a lock containing the
+matched object, the directory represented as a lock\key{Lock} containing the
 object is available in {\tt ap->ap\_Current->an\_Lock}. You would typically set
 the current directory to this lock, then access this object, then revert the
 lock. This lock \emph{shall not} be released; this is performed by the
@@ -7762,7 +7763,7 @@ this function returns an error code on failure and~$0$ for success. It does
 
 As for {\tt MatchFirst()}\key{MatchFirst()}, this call fills {\tt ap\_Info}\key{ap\_Info} with meta
 information on the found object, in particular its file name, and
-{\tt ap->ap\_Current->an\_Lock} the lock of the directory containing the
+{\tt ap->ap\_Current->an\_Lock} the lock\key{Lock} of the directory containing the
 object. As for {\tt MatchFirst()}, {\tt APF\_DODIR}\key{APF\_DODIR} may be set to enter
 directories recursively, and {\tt ap\_Buf}\key{ap\_Buf} will be filled with the
 full path of the found object if {\tt ap\_Strlen}\key{ap\_Strlen} is non-zero.
@@ -8051,7 +8052,7 @@ libraries. As no particular advantage can be taken from this vector
 execute a shell, or are binaries that have been launched by the shell. The
 number here corresponds to the integer printed by the {\tt Status}
 command. Note that AmigaDOS does not use task numbers consistently,
-i.e. processes that are started from the workbench or have been created by
+i.e. processes that are started from the Workbench or have been created by
 some other means are not identified by a task number. In such a case, this
 member remains~$0$.
 \smallskip{}
@@ -8068,7 +8069,7 @@ by many functions of the \emph{dos.library}. The value stored here is
 delivered by {\tt IoErr()}\key{IoErr()}.
 \smallskip{}
 
-{\tt pr\_CurrentDir}\mkey{pr\_CurrentDir} is the lock representing the current directory
+{\tt pr\_CurrentDir}\mkey{pr\_CurrentDir} is the lock\key{Lock} representing the current directory
 of the process. All relative paths are resolved from this lock,
 i.e. they are relative to {\tt pr\_CurrentDir}. If this member is {\tt ZERO},
 the current directory is the root directory of the file system stored in
@@ -8082,7 +8083,7 @@ process. It is also returned by {\tt Input()}\key{Input()}. It can be {\tt
   ZERO} in case the process does not have a standard input stream. This is
 \emph{not} equivalenqt to a {\tt NIL:} input handle --- in fact, any attempt
 to read from a non-existing input stream will crash. Processes started from
-the workbench do not have an input stream, unless one is installed here with
+the Workbench do not have an input stream, unless one is installed here with
 {\tt SelectInput()}\key{SelectInput()}.
 \smallskip{}
 
@@ -8091,21 +8092,21 @@ process. It is also returned by the {\tt Output()}\key{Output()} function of
 the \emph{dos.library}. It can be {\tt ZERO} in case the process does not
 have a standard output stream, which is not equivalent to a {\tt NIL:} file
 handle. Any attempt to output to {\tt ZERO} will crash the system. Processes
-started from the workbench do not have an output stream, unless one is
+started from the Workbench do not have an output stream, unless one is
 installed with {\tt SelectOutput()}\key{SelectOutput()}.
 \smallskip{}
 
 {\tt pr\_ConsoleTask}\mkey{pr\_ConsoleTask} is the {\tt MsgPort} of
 the console within which this process is run, if such a console
 exists. This handler is contacted when opening ``{\tt *}'' or a path
-relative to {\tt CONSOLE:}. Processes started from the workbench do
+relative to {\tt CONSOLE:}. Processes started from the Workbench do
 not have a console, unless one is installed with {\tt
   SetConsoleTask()}\key{SetConsoleTask()}.
 \smallskip{}
 
 {\tt pr\_FileSystemTask}\mkey{pr\_FileSystemTask} is the {\tt MsgPort}
 of the file system that is contacted in case a relative path is to be
-resolved relative to the {\tt ZERO} lock. This member is initialized
+resolved relative to the {\tt ZERO} lock\key{Lock}. This member is initialized
 to the {\tt MsgPort} of the file system the system was booted from,
 but can be changed by {\tt
   SetFileSysTask()}\key{SetFileSysTask()}. This member is also
@@ -8116,7 +8117,7 @@ returned by {\tt GetFileSysTask()}\key{SetFileSysTask()}.
 \key{CommandLineInterface} structure containing information on the Shell
 this process is running in. If this process is not part of a Shell, this
 member is {\tt ZERO}. This is for example the case for programs started from
-the workbench, or handler or file system.
+the Workbench, or handler or file system.
 \smallskip{}
 
 {\tt pr\_ReturnAddr}\mkey{pr\_ReturnAddr} is another BCPL legacy and should not be used by
@@ -8167,15 +8168,15 @@ see the {\tt DoPkt()}\key{DoPkt()} function and section~\ref{sec:handlers}.
 pointer to an \emph{intuition} {\tt Screen} structure, see {\tt
   intuition/screens.h}, on which error requesters will appear. If this is
 {\tt NULL}, error requesters appear on the default public screen, usually
-the workbench screen, and if this is set to {\tt (APTR)(-1L)}, error
+the Workbench screen, and if this is set to {\tt (APTR)(-1L)}, error
 requesters will be suppressed at all, and the implied response to them is to
 cancel the operation. This error requester is specified in more detail with
 the {\tt ErrorReport()}\key{ErrorReport()} function.
 \smallskip{}
 
-{\tt pr\_HomeDir}\mkey{pr\_HomeDir} is the lock to the directory containing the binary
+{\tt pr\_HomeDir}\mkey{pr\_HomeDir} is the lock\key{Lock} to the directory containing the binary
 that is currently executed as this process, if such a directory exists. It
-is {\tt ZERO} if the binary is resident. This lock is filled in by
+is {\tt ZERO} if the binary is resident. This lock\key{Lock} is filled in by
 the Shell or the Workbench when loading and starting a process. It is used
 to resolve paths relative to the {\tt PROGDIR}\key{PROGDIR} pseudo-assign, see
 section~\ref{table:specialassigns}. If this lock is {\tt ZERO}, any attempt
@@ -8346,7 +8347,7 @@ compatibility.
 \smallskip{}
 
 {\tt NP\_CurrentDir}\mkey{NP\_CurrentDir} sets the current directory of the process to be
-created. The argument is a lock. The default is to duplicate the
+created. The argument is a lock\key{Lock}. The default is to duplicate the
 current directory of the caller with {\tt DupLock()}\key{DupLock()} if the
 caller is a process, or leave the current directory at {\tt ZERO}.
 The current directory of the process, i.e. {\tt pr\_CurrentDir}, is released
@@ -8380,12 +8381,12 @@ While not explicitly available as a tag, {\tt pr\_FileSystemTask}\key{pr\_FileSy
 the created process is set to the default file system of the calling
 process if the caller is a process, or to the default file system from
 the \emph{dos.library}. This file system is contacted to resolve paths
-relative to the {\tt ZERO} lock.
+relative to the {\tt ZERO} lock\key{Lock}.
 \smallskip{}
 
 {\tt NP\_WindowPtr}\mkey{NP\_WindowPtr} specifies a pointer to a {\tt Screen} on which
 error requesters will be displayed. If this pointer is $0$, requesters
-will be shown on the workbench, and if it is $-1$, error requesters
+will be shown on the Workbench, and if it is $-1$, error requesters
 are suppressed. This value will be installed in the {\tt pr\_WindowPtr}\key{pr\_WindowPtr} of
 the process to be created. The default is to copy the pointer from the
 calling process if the window pointer of the parent is $0$ or
@@ -8399,9 +8400,9 @@ any pointers are still pointing to its structure.
 \smallskip{}
 
 {\tt NP\_HomeDir}\mkey{NP\_HomeDir} sets the {\tt pr\_HomeDir}\key{pr\_HomeDir}
-lock which is used to resolve paths relative to the {\tt PROGDIR}\key{PROGDIR} pseudo-assign.
+lock\key{Lock} which is used to resolve paths relative to the {\tt PROGDIR}\key{PROGDIR} pseudo-assign.
 The default is to copy {\tt pr\_HomeDir} of the calling process, or {\tt ZERO} in
-case the caller is a task. This lock is released when the process
+case the caller is a task. This lock\key{Lock} is released when the process
 terminates, i.e. the lock provided as argument here remains available
 to the caller, and shall be released by the caller in one way or
 another.
@@ -8427,7 +8428,7 @@ copied over. If~$0$, no such environment will be created. The latter is also the
 default.
 \smallskip{}
 
-{\tt NP\_Path}\mkey{NP\_Path} provides a chained list of locks within which commands
+{\tt NP\_Path}\mkey{NP\_Path} provides a chained list of locks\key{Lock} within which commands
 are searched. This is the same list the {\tt Path} command adjusts, see
 section~\ref{sec:getcli} for details on this structure. This tag only applies
 if {\tt NP\_Cli}\key{NP\_Cli} is non-zero to create a shell environment. This chained
@@ -8700,8 +8701,8 @@ file handle. It sets {\tt pr\_CES} of the calling process.
 \subsection{Retrieve the Current Directory}
 
 The {\tt GetCurrentDir()}\mkey{GetCurrentDir()} function returns the current
-directory of the directory, indicated by a lock on this object. This
-lock, and the file system that created the lock are used to
+directory of the directory, indicated by a lock\key{Lock} on this object. This
+lock\key{Lock}, and the file system that created the lock are used to
 resolve relative paths, see also section~\ref{sec:paths}.
 
 \begin{verbatim}
@@ -8711,7 +8712,7 @@ D0
 BPTR GetCurrentDir()
 \end{verbatim}
 
-This function returns the lock to the current directory, unlike the
+This function returns the lock\key{Lock} to the current directory, unlike the
 {\tt CurrentDir()}\key{CurrentDir()} function which also changes
 it. It returns {\tt pr\_CurrentDir}\key{pr\_CurrentDir} of the calling
 process.
@@ -8720,7 +8721,7 @@ process.
 
 The {\tt CurrentDir()}\mkey{CurrentDir()} selects and retrieves the current
 directory of the calling process. The directory is indicated by a
-lock to this object. This lock, and the file system
+lock\key{Lock} to this object. This lock, and the file system
 that created the lock are used to resolve relative paths, see also
 section~\ref{sec:paths}.
 
@@ -8733,7 +8734,7 @@ BPTR CurrentDir(BPTR)
 This function sets the current directory to {\tt lock} and returns in
 {\tt oldLock} the previously installed current directory. The passed in
 {\tt lock} then becomes part of the process and shall not be released by
-{\tt UnLock()}\key{UnLock()} until another lock is installed as current
+{\tt UnLock()}\key{UnLock()} until another lock\key{Lock} is installed as current
 directory.
 \smallskip{}
 
@@ -8775,7 +8776,7 @@ Some functions provide a secondary result code different from an error code,
 and thus make such additional return value available through
 {\tt IoErr()}. Such additional return values are also explicitly mentioned in
 the description of the corresponding function. A particular example is
-{\tt DeviceProc()}\key{DeviceProc()}, which returns the (first) lock of a
+{\tt DeviceProc()}\key{DeviceProc()}, which returns the (first) lock\key{Lock} of a
 regular assign in {\tt IoErr()}, but additional functions exist.
 \medskip{}
 
@@ -8856,7 +8857,7 @@ error code is also not in use. Its intended purpose is unclear.
 {\tt ERROR\_OBJECT\_IN\_USE}\mkey{ERROR\_OBJECT\_IN\_USE}: This error
 code is used by multiple Os components to indicate that a particular
 operation cannot be performed because the object to be modified is in
-use. AmigaDOS uses it, for example, to indicate that a lock was
+use. AmigaDOS uses it, for example, to indicate that a lock\key{Lock} was
 obtained on an object that is supposed to be modified or deleted, and
 thus cannot be modified or removed.
 \smallskip{}
@@ -8878,7 +8879,7 @@ working directory to a non-working target directory.
 {\tt ERROR\_OBJECT\_NOT\_FOUND}\mkey{ERROR\_OBJECT\_NOT\_FOUND}: This
 is a generic error code that indicates that the object on which a
 particular operation is to be performed does not exist. It is for
-example generated on an attempt to open a non-existing file or to lock
+example generated on an attempt to open a non-existing file or to lock\key{Lock}
 a file or directory that could not be found.
 \smallskip{}
 
@@ -8914,7 +8915,7 @@ points below {\tt 0x20}, i.e. ASCII control characters.
 \smallskip{}
 
 {\tt ERROR\_INVALID\_LOCK}\mkey{ERROR\_INVALID\_LOCK}: This error is
-raised if a value is passed in as a lock that is, in fact, not a valid
+raised if a value is passed in as a lock\key{Lock} that is, in fact, not a valid
 lock of the target file system. For example, an attempt to use
 a file handle as a lock will result in such an error condition. Note,
 however, that file systems can, but do not need to check locks for
@@ -9050,7 +9051,7 @@ binary executables is documented in section~\ref{sec:loadseg}.
 \smallskip{}
 
 {\tt ERROR\_NOT\_IMPLEMENTED}\mkey{ERROR\_NOT\_IMPLEMENTED}: This
-error code is not used by any ROM component, but several workbench
+error code is not used by any ROM component, but several Workbench
 components signal this error indicating that the requested function is
 not supported by this component. For example, the {\tt Format} command
 generates it on an attempt to format a disk with long file names if
@@ -9096,9 +9097,9 @@ the user through the console by pressing {\tt Ctrl + C} through {\tt
 \smallskip{}
 
 {\tt ERROR\_NOT\_EXECUTABLE}\mkey{ERROR\_NOT\_EXECUTABLE}: This error
-is generated by the workbench on an attempt to start an application
+is generated by the Workbench on an attempt to start an application
 icon from a file whose {FIBB\_EXECUTE} is set, indicating that the
-file is not executable. Why the workbench does not use the same error
+file is not executable. Why the Workbench does not use the same error
 code as the \emph{Shell} remains unclear.
 
 \subsection{Setting IoErr}
@@ -9155,7 +9156,7 @@ section~\ref{sec:getconsoletask}.
 \subsection{Select the Default File System} \label{sec:setfilesystask}
 
 The {\tt SetFileSysTask()}\mkey{SetFileSysTask()} function selects the
-handler responsible for resolving paths relative to the {\tt ZERO} lock.
+handler responsible for resolving paths relative to the {\tt ZERO} lock\key{Lock}.
 
 \begin{verbatim}
 oldport = SetFileSysTask(port)
@@ -9166,7 +9167,7 @@ struct MsgPort *SetFileSysTask(struct MsgPort *)
 
 This function selects the {\tt MsgPort} of the default file
 system. AmigaDOS will contact this file system if a path relative to
-the {\tt ZERO} lock is resolved, e.g. a relative path name if the current
+the {\tt ZERO} lock\key{Lock} is resolved, e.g. a relative path name if the current
 directory is {\tt ZERO}. This file system should be identical to the
 file system of the {\tt SYS:} assign, and should therefore not be
 relaced as otherwise resolving file names may be inconsistent between
@@ -9182,7 +9183,7 @@ of the calling process.
 
 \subsection{Retrieve the Lock to the Program Directory}
 
-The {\tt GetProgramDir()}\mkey{GetProgramDir()} returns a lock to the
+The {\tt GetProgramDir()}\mkey{GetProgramDir()} returns a lock\key{Lock} to the
 directory that contains the binary from which the caller executes, if
 such a directory exists. If the executable was taken from the list of
 resident segments (see section~\ref{sec:resident}), this function
@@ -9215,7 +9216,7 @@ D0		         D1
 BPTR SetProgramDir(BPTR)
 \end{verbatim}
 
-This function installs {\tt lock} into {\tt pr\_HomeDir} of the {\tt
+This function installs {\tt lock}\key{Lock} into {\tt pr\_HomeDir} of the {\tt
   Process} structure. This {\tt lock} is supposed to belong to the
 directory the currently executing program was loaded from and is used
 to resolve the {\tt PROGDIR}\key{PROGDIR} pseudo-assign. If {\tt ZERO} is
@@ -9226,7 +9227,7 @@ pseudo-assign.
 
 The {\tt GetArgStr()}\mkey{GetArgStr()} function returns the command
 line arguments, if any, of the calling process. If called from the
-workbench, this function returns {\tt NULL}.
+Workbench, this function returns {\tt NULL}.
 
 \begin{verbatim}
 ptr = GetArgStr()
@@ -9239,7 +9240,7 @@ This function returns the command line arguments as {\tt
   NUL}-terminated string. This is the same string the process finds in
 register {\tt a0} on startup, or that is placed into the file buffer
 of the {\tt Input()} file handle. This function returns {\tt NULL} if
-the program was run from the workbench; it is equivalent to reading
+the program was run from the Workbench; it is equivalent to reading
 the {\tt pr\_Arguments} member of the {\tt Process} structure.
 
 \subsection{Set the Command Line Arguments}
@@ -9269,7 +9270,7 @@ arguments from a different source, namely the input buffer of the
 
 The AmigaDOS \emph{Hunk} format represents executable and linkable
 object files. The first type includes application programs that are
-loaded from the workbench or the shell, the latter an intermediate
+loaded from the Workbench or the shell, the latter an intermediate
 format that is generated by compilers from a translation unit that
 still contain open references to other parts of the compiled source.
 Multiple linkable object files will then be combined into link
@@ -11131,7 +11132,7 @@ printed by the {\tt Version} command.
 
 \subsection{The Stack Cookie} \label{sec:stackcookie}
 
-The workbench, the shell, and also {\tt
+The Workbench, the shell, and also {\tt
   GetDeviceProc()}\key{GetDeviceProc()} when loading handlers
 scan the loaded binary for the string sequence {\tt \$STACK:}. If this
 string sequence is found, AmigaDOS attempts to read a following
@@ -11141,7 +11142,7 @@ decimal number, and interprets this as stack size in bytes.
 The stack of the program is then, potentially increased to the
 provided size. Note that AmigaDOS also scans alternative sources for a
 stack size: The {\tt Stack} setting in the icon information window of the
-workbench, the {\tt Stack} command of the shell, or the {\tt
+Workbench, the {\tt Stack} command of the shell, or the {\tt
   STACKSIZE} entry in the mount list. The stack size indicated by the
 above stack cookie does not override these settings, it can only
 \emph{increase} the stack size. This allows program authors to ensure
@@ -11896,13 +11897,13 @@ into $a_s$, $a_o$ and $d_o$.
 \chapter{Handlers, Devices and File Systems} \label{sec:handlers}
 
 The \emph{dos.library} does not implement all of its functions itself;
-operations that are related to files, locks, notification requests and
+operations that are related to files, locks\key{Lock}, notification requests and
 many others are off-loaded to file systems or handlers. Thus, the
 \emph{dos.library} provides a virtual file system that provides a
 common function interface for its clients, but requires the services
 of handlers to implement them. \emph{File systems} are special
 handlers that organize data streams on volumes such as hard disks in
-files, and also provide locks to reserve access rights to files. Most
+files, and also provide locks\key{Lock} to reserve access rights to files. Most
 file systems also support directories and thus a hierarchical
 organization of files.
 \smallskip{}
@@ -11922,7 +11923,7 @@ section~\ref{sec:filehandle} for this structure. It is created by the
 
 Similarly, the {\tt fl\_Task}\key{fl\_Task} element of the {\tt
   FileLock} structure includes the port through which communication
-with the file system concerning the lock is routed. Unlike {\tt
+with the file system concerning the lock\key{Lock} is routed. Unlike {\tt
   FileHandle} structures, the {\tt FileLock} structure is created by
 the file system itself which initializes its {\tt fl\_Task}. This is
 again in many cases identical to the {\tt dol\_Task}\key{dol\_Task} message port
@@ -12018,7 +12019,7 @@ belonging to a handler. The {\tt port} is the {\tt MsgPort} of the handler
 to contact. Depending on the context, this port should be taken from various
 sources. If low-level file I/O is to be performed, the best source for the
 port is the {\tt fh\_Type}\key{fh\_Type} pointer in the {\tt FileHandle}\key{FileHandle} structure. If the
-communication is related to a lock, the {\tt fl\_Task}\key{fl\_Task} member of the
+communication is related to a lock\key{Lock}, the {\tt fl\_Task}\key{fl\_Task} member of the
 {\tt FileLock}\key{FileLock} is the right source. For activities unrelated to locks or
 files, the {\tt dol\_Task}\key{dol\_Task} member of the device list is another
 source.
@@ -12058,7 +12059,7 @@ quite different from exec-style communications with exec devices through
 the port without creating a conflict if another message is still pending in
 the port. This problem of packet communication manifests itself typically
 when attempting to perform I/O operations through the \emph{dos.library}
-while the workbench startup message is still queued in the process message
+while the Workbench startup message is still queued in the process message
 port.
 \medskip{}
 
@@ -12356,7 +12357,7 @@ received in {\tt dp\_Art3}. This is typically, but not necessarily, the
 \smallskip{}
 
 Whenever a client program opens a file on this file system or
-attempts to lock an object, the handler process will be contacted by sending
+attempts to lock\key{Lock} an object, the handler process will be contacted by sending
 a packet to the port listed in {\tt dol\_Task}.
 \medskip{}
 
@@ -12417,7 +12418,7 @@ used to send packets to.
 If the handler is contacted through a path starting with ``{\tt
   PROGDIR:}''\key{PROGDIR} and the {\tt pr\_HomeDir}\key{pr\_HomeDir} element of the
 calling process is non-{\tt NULL}, the {\tt fl\_Task}\key{fl\_Task} element of the
-lock stored there is used to contact the handler.
+lock\key{Lock} stored there is used to contact the handler.
 \smallskip{}
 
 If the handler is contacted through an absolute path, the \emph{dos.library}
@@ -12447,7 +12448,7 @@ this particular file on an alternative port. The \emph{dos.library}
 places by default there the port it found through the path, see above.
 \smallskip{}
 
-If the handler is contacted through a lock, the {\tt fl\_Task}\key{fl\_Task} element of
+If the handler is contacted through a lock\key{Lock}, the {\tt fl\_Task}\key{fl\_Task} element of
 the {\tt FileLock}\key{FileLock} structure is used to send out packets. A file system thus
 may customize a port through which all packets related to a particular lock
 are transmitted by placing this port in {\tt fl\_Task} when creating a lock.
@@ -12512,7 +12513,7 @@ these files had been closed\footnote{This is a simplification, ignoring {\tt
 \medskip{}
 
 File systems such as the FFS, however, typically do initialize
-{\tt dol\_Task}\key{dol\_Task} and thus can be reached even if all files, locks or
+{\tt dol\_Task}\key{dol\_Task} and thus can be reached even if all files, locks\key{Lock} or
 notification requests on the volume they manage have been
 released. Thus, in addition to such resource tracking, file systems
 should check for incoming packets of the type {\tt ACTION\_DIE}\key{ACTION\_DIE} and
@@ -12528,7 +12529,7 @@ table~\ref{table:unimp}.
 
 Despite such precautions, {\tt ACTION\_DIE}\key{ACTION\_DIE} cannot be implemented in a
 fully reliable way as the {\tt MsgPort} of the file system could still
-be cached by some client programs even if no active locks or open file
+be cached by some client programs even if no active locks\key{Lock} or open file
 handles exist. Section~\ref{sec:packetactiondie} contains further details.
 
 \section{The CON-Handler} \label{sec:console}
@@ -12672,7 +12673,7 @@ opened window.
 \smallskip{}
 
 {\tt SCREEN}\mkey{SCREEN} provides a name of a public screen on which the
-console shall appear instead of the workbench. The public screen name
+console shall appear instead of the Workbench. The public screen name
 follows, optionally separated by spaces, e.g. {\tt SCREEN~myProgram.1}. If
 the screen name is {\tt *}, then the frontmost public screen will be used as
 host for the console.
@@ -12690,7 +12691,7 @@ e.g. {\tt ALT 0,0,320,200}.
 {\tt ICONIFY}\mkey{ICONIFY} equips the window with an iconfication
 gadget. This requires the {\tt ConCip} program running in order to have an
 icon available for the console. If the iconification gadget is pressed, this
-icon will appear on the workbench, and the window will disappear. The window
+icon will appear on the Workbench, and the window will disappear. The window
 will be forced open when a incoming read or write request requires a window
 to read from or write data into. Similar to the {\tt AUTO}\key{AUTO} option,
 windows will loose the ability to become iconified if a program requests the
@@ -14661,7 +14662,7 @@ identical to {\tt MODE\_OLDFILE}\key{MODE\_OLDFILE}.
 be initialized to a value the handler or file system may use later on to
 identify the file it operates on. This is particularly important to
 file systems that handle multiple files by a single process. In a
-typical implementation, this opaque value may be the (internal) lock to the
+typical implementation, this opaque value may be the (internal) lock\key{Lock} to the
 opened file.
 \smallskip{}
 
@@ -14674,7 +14675,7 @@ otherwise defaults to the process port of the handler.
 {\tt dp\_Arg2} is initialized to the {\tt BPTR} to a {\tt
   FileLock}\key{FileLock} structure describing the directory within which
 the file to be opened is located. Typically, this corresponds to the current
-directory of the caller of {\tt Open()}\key{Open()}. If this lock is {\tt
+directory of the caller of {\tt Open()}\key{Open()}. If this lock\key{Lock} is {\tt
   ZERO}, then the file system shall assume that the provided path is
 relative to the root directory of the currently inserted volume. Flat file
 systems or handlers may ignore this argument.
@@ -14779,7 +14780,7 @@ section~\ref{sec:actionfindinput}.
 \subsection{Opening a File from a Lock}
 
 The packet {\tt ACTION\_FH\_FROM\_LOCK}\mkey{ACTION\_FH\_FROM\_LOCK} initializes a {\tt
-  FileHandle}\key{FileHandle} structure from a lock on an existing
+  FileHandle}\key{FileHandle} structure from a lock\key{Lock} on an existing
 file. Whether this access is shared or exclusive depends on the type of the
 lock. Upon success, the lock is absorbed into the {\tt FileHandle}.
 
@@ -14794,7 +14795,7 @@ lock. Upon success, the lock is absorbed into the {\tt FileHandle}.
 
 This packet type implements the {\tt OpenFromLock()}\key{OpenFromLock()}
 function of the \emph{dos.library}, see section~\ref{sec:openfromlock}. It
-opens a file from a lock. On a hierarchical file system, this is equivalent
+opens a file from a lock\key{Lock}. On a hierarchical file system, this is equivalent
 to an {\tt ACTION\_FINDINPUT}\key{ACTION\_FINDINPUT} packet with {\tt
   dp\_Arg3} set to an empty string.
 \smallskip{}
@@ -14824,7 +14825,7 @@ system} internal resources of a file handle.
 {\tt FileHandle}\key{FileHandle} structure corresponding to the file that is supposed to be
 closed. This value may be used by the File System or Handler
 to uniquely identify the resources associated to the file, for example any
-implicit lock on the file system object.
+implicit lock\key{Lock} on the file system object.
 \smallskip{}
 
 Before repyling to the packet, {\tt dp\_Res1} shall be set to {\tt DOSTRUE}
@@ -15117,13 +15118,13 @@ to~0. On error, {\tt dp\_Res1} shall be set to {\tt DOSFALSE} and {\tt
 
 The packets listed in this section implement the \emph{dos.library}
 functions listed in section~\ref{sec:locks}; they create, release or
-duplicate locks or create directories.
+duplicate locks\key{Lock} or create directories.
 
 \subsection{Obtaining a Lock}
 
 The {\tt ACTION\_LOCATE\_OBJECT}\mkey{ACTION\_LOCATE\_OBJECT} packet locates
 an object --- a file or a directory --- on a file system and creates
-from it a lock identifying the object uniquely. The object can later
+from it a lock\key{Lock} identifying the object uniquely. The object can later
 be used as active directory, to open a file from it or to retrieve metadata
 such as comments or protection bits associated to the identified object.
 
@@ -15137,7 +15138,7 @@ such as comments or protection bits associated to the identified object.
 \tt dp\_Res2  & Error code \\ \hline
 \end{rkrmtable}
 
-This packet creates a lock from a path and a directory to which this path is
+This packet creates a lock\key{Lock} from a path and a directory to which this path is
 relative, also represented as a lock. As such, it implements the
 {\tt Lock()}\key{Lock} function of the \emph{dos.library}.
 \smallskip{}
@@ -15150,7 +15151,7 @@ case the file system shall assume that {\tt dp\_Arg3} is relative to
 the root of the currently inserted volume handled by the file system.
 \smallskip{}
 
-{\tt dp\_Arg2} is the type of the lock to be created as defined in
+{\tt dp\_Arg2} is the type of the lock\key{Lock} to be created as defined in
 table~\ref{table:lockmodes}. The value {\tt SHARED\_LOCK}\key{SHARED\_LOCK} requests a
 non-exclusive lock on an object; multiple of such locks can be held on the
 same object. The value {\tt EXCLUSIVE\_LOCK}\key{EXCLUSIVE\_LOCK} requests an exclusive an
@@ -15189,10 +15190,10 @@ section~\ref{sec:devicelist}.
 \smallskip{}
 
 {\tt fl\_Access}\key{fl\_Access} shall be filled by {\tt dp\_Arg2},
-identifying the type of the lock.
+identifying the type of the lock\key{Lock}.
 \smallskip{}
 
-{\tt fl\_Link}\key{fl\_Link} may be used to queue up locks on a volume that is currently
+{\tt fl\_Link}\key{fl\_Link} may be used to queue up locks\key{Lock} on a volume that is currently
 not inserted. When a volume with locked objects is removed from the drive,
 the file system may store all these locks in a singly linked list
 starting at {\tt dol\_LockList}\key{dol\_LockList} and chained by {\tt fl\_Link}. If the same
@@ -15217,7 +15218,7 @@ section~\ref{sec:ioerr}.
 
 Despite its misguiding name, the packet
 {\tt ACTION\_COPY\_DIR}\mkey{ACTION\_COPY\_DIR} makes a copy of a (shared)
-lock.
+lock\key{Lock}.
 
 \begin{rkrmtable}{\tt ACTION\_COPY\_DIR} \label{table:actioncopydir}
 {\bf DosPacket Element}   & {\bf Value}\\ \hline \hline
@@ -15228,7 +15229,7 @@ lock.
 \end{rkrmtable}
 
 This packet implements the {\tt DupLock()}\key{DupLock()} function of the
-\emph{dos.library} and attempts to replicate the lock passed in {\tt
+\emph{dos.library} and attempts to replicate the lock\key{Lock} passed in {\tt
   dp\_Arg1}. If this argument is {\tt ZERO}, the packet is supposed to
 create a lock on the root directory of the currently mounted volume.
 \smallskip{}
@@ -15237,7 +15238,7 @@ On success, {\tt dp\_Res1} is filled with the BPTR to a copy of the
 {\tt FileLock} passed in, and {\tt dp\_Res2} is set to~0. On error,
 {\tt dp\_Res1} is set to {\tt ZERO} and {\tt dp\_Res2} to an error code.
 While~\cite{Bantam} indicates that {\t dp\_Res1} may be {\tt ZERO} on an
-attempt to replicate the {\tt ZERO} lock, this is not advisable as most
+attempt to replicate the {\tt ZERO} lock\key{Lock}, this is not advisable as most
 users of this packet may misinterpret this result as failure case.
 \smallskip{}
 
@@ -15248,7 +15249,7 @@ empty string.
 
 \subsection{Finding the Parent of a Lock}
 
-The packet {\tt ACTION\_PARENT}\mkey{ACTION\_PARENT} obtains a shared lock on
+The packet {\tt ACTION\_PARENT}\mkey{ACTION\_PARENT} obtains a shared lock\key{Lock} on
 the directory containing a locked object.
 
 \begin{rkrmtable}{\tt ACTION\_PARENT} \label{table:actionparent}
@@ -15260,7 +15261,7 @@ the directory containing a locked object.
 \end{rkrmtable}
 
 This packet implements the {\tt ParentDir()}\key{ParentDir()} function of the
-\emph{dos.library} and attempts to create a lock on the directory containing
+\emph{dos.library} and attempts to create a lock\key{Lock} on the directory containing
 the object identified by {\tt dp\_Arg1}. If no parent exists because {\tt
   dp\_Arg1} is a lock on the root directory or the {\tt ZERO} lock, the
 file system shall set {\tt dp\_Res1} to {\tt ZERO} and {\tt dp\_Res2}
@@ -15275,7 +15276,7 @@ error code.
 \subsection{Duplicating a Lock from a File Handle}
 
 The packet {\tt ACTION\_COPY\_DIR\_FH}\mkey{ACTION\_COPY\_DIR\_FH} creates a
-shared lock from an object opened by a file handle; that is, it
+shared lock\key{Lock} from an object opened by a file handle; that is, it
 copies the implicit lock of the handle.
 
 \begin{rkrmtable}{\tt ACTION\_COPY\_DIR\_FH} \label{table:actioncopydirfh}
@@ -15287,7 +15288,7 @@ copies the implicit lock of the handle.
 \end{rkrmtable}
 
 This packet implements the {\tt DupLockFromFH()}\key{DupLockFromFH()}
-function of the \emph{dos.library}, and thus creates a copy of the lock that
+function of the \emph{dos.library}, and thus creates a copy of the lock\key{Lock} that
 is implicit to an open file handle. This works only if the file is open in a
 non-exclusive mode, i.e. either {\tt MODE\_READWRITE}\key{MODE\_REAWRITE} or
 {\tt MODE\_OLDFILE}\key{MODE\_OLDFILE}.
@@ -15298,13 +15299,13 @@ non-exclusive mode, i.e. either {\tt MODE\_READWRITE}\key{MODE\_REAWRITE} or
 \smallskip{}
 
 On success, {\tt dp\_Res1} is filled by the BPTR to the {\tt FileLock}\key{FileLock}
-created, namely a lock to the object opened by the file handle. In such a
+created, namely a lock\key{Lock} to the object opened by the file handle. In such a
 case, {\tt dp\_Res2} is set to~0. On error, {\tt dp\_Res1} is set to
 {\tt ZERO} and {\tt dp\_Res2} to an error code.
 
 \subsection{Finding the Parent Directory of a File Handle}
 
-The packet {\tt ACTION\_PARENT\_FH}\mkey{ACTION\_PARENT\_FH} creates a lock
+The packet {\tt ACTION\_PARENT\_FH}\mkey{ACTION\_PARENT\_FH} creates a lock\key{Lock}
 on the directory containing a file identified by a file handle.
 
 \begin{rkrmtable}{\tt ACTION\_PARENT\_FH} \label{table:actionparentfh}
@@ -15316,7 +15317,7 @@ on the directory containing a file identified by a file handle.
 \end{rkrmtable}
 
 This packet implements the {\tt ParentOfFH()}\key{ParentOfFH()} function of
-the \emph{dos.library} and as such creates a lock on the directory that
+the \emph{dos.library} and as such creates a lock\key{Lock} on the directory that
 contains a given file handle. {\tt dp\_Arg1} is a copy of the {\tt
   fh\_Arg1} element of the {\tt FileHandle}\key{FileHandle} structure and thus identifies
 the handle.
@@ -15329,7 +15330,7 @@ created, and {\tt dp\_Res2} is set to~0. On error, {\tt dp\_Res1} is set to
 \subsection{Creating a new Directory}
 
 The packet {\tt ACTION\_CREATE\_DIR}\mkey{ACTION\_CREATE\_DIR} creates a new
-directory and represents it by an exclusive lock on the directory created.
+directory and represents it by an exclusive lock\key{Lock} on the directory created.
 
 \begin{rkrmtable}{\tt ACTION\_CREATE\_DIR} \label{table:actioncreatedir}
 {\bf DosPacket Element}   & {\bf Value}\\ \hline \hline
@@ -15342,17 +15343,17 @@ directory and represents it by an exclusive lock on the directory created.
 
 This packet implements the {\tt CreateDir()}\key{CreateDir()} function of
 the \emph{dos.library} and creates a new directory of the name {\tt
-  dp\_Arg2} within the directory identified by the lock {\tt dp\_Arg1}.
+  dp\_Arg2} within the directory identified by the lock\key{Lock} {\tt dp\_Arg1}.
 \smallskip{}
 
-On success, it creates a new exclusive lock which is returned in {\tt
+On success, it creates a new exclusive lock\key{Lock} which is returned in {\tt
   dp\_Res1}, and {\tt dp\_Res2} is set to~0. On error, {\tt dp\_Res1} is set
 to {\tt ZERO} and {\tt dp\_Res2} is set to an error code.
 
 \subsection{Comparing two Locks}
 
 The packet {\tt ACTION\_SAME\_LOCK}\mkey{ACTION\_SAME\_LOCK} compares two
-locks on the same file system and checks whether the two locks are on the
+locks\key{Lock} on the same file system and checks whether the two locks are on the
 same object.
 
 \begin{rkrmtable}{\tt ACTION\_SAME\_LOCK} \label{table:actionsamelock}
@@ -15365,14 +15366,14 @@ same object.
 \end{rkrmtable}
 
 This packet is the core of the {\tt SameLock()}\key{SameLock()} function of the
-\emph{dos.library}, which, however, first checks whether the two locks to
+\emph{dos.library}, which, however, first checks whether the two locks\key{Lock} to
 compare are on the same file system. Only if so, the file system
 corresponding the two locks is contacted with the above packet to compare
 the two locks. For this, {\tt dp\_Arg1} and {\tt dp\_Arg2} are BPTRs to the
 two {\tt FileLocks}\key{FileLock} to compare.
 \smallskip{}
 
-Upon reply, {\tt dp\_Res1} shall be set to {\tt DOSTRUE} if the two locks
+Upon reply, {\tt dp\_Res1} shall be set to {\tt DOSTRUE} if the two locks\key{Lock}
 are on the same object, and in that case, {\tt dp\_Res2} shall be set
 to~0. If the two locks are on two different objects, then {\tt dp\_Res1}
 shall be set to {\tt DOSFALSE} and {\tt dp\_Res2} shall also be set to~0. On
@@ -15383,7 +15384,7 @@ incorrect.}.
 \subsection{Changing the Mode of a Lock or a File Handle}
 
 The packet {\tt ACTION\_CHANGE\_MODE}\mkey{ACTION\_CHANGE\_MODE} changes the
-access mode of a lock or a file handle, thus potentially granting exclusive
+access mode of a lock\key{Lock} or a file handle, thus potentially granting exclusive
 access --- if possible --- or lowering the rights to shared access.
 
 \begin{rkrmtable}{\tt ACTION\_CHANGE\_MODE} \label{table:actionchangemode}
@@ -15403,7 +15404,7 @@ exclusive or shared access mode.
 
 {\tt dp\_Arg1} identifies the object whose mode is to be changed. This is a
 value from table~\ref{table:changemode}, i.e. either {\tt CHANGE\_LOCK} to
-adjust the type of the lock, or {\tt CHANGE\_FH} to change the access mode
+adjust the type of the lock\key{Lock}, or {\tt CHANGE\_FH} to change the access mode
 of a file handle.
 \smallskip{}
 
@@ -15416,7 +15417,7 @@ packet is an exception.
 \smallskip{}
 
 {\tt dp\_Arg3} is the target mode. This is either {\tt SHARED\_LOCK} for
-shared access to the file or the lock, or {\tt EXCLUSIVE\_LOCK} for
+shared access to the file or the lock\key{Lock}, or {\tt EXCLUSIVE\_LOCK} for
 exclusive access to the file or the lock\footnote{The information
 in~\cite{Bantam} is incorrect on this subject matter.}. However, as
 information on this packet is sparse and application programs can call the
@@ -15426,7 +15427,7 @@ file handlers should also accept {\tt ACTION\_FINDINPUT}\key{ACTION\_FINDINPUT} 
 {\tt ACTION\_FINDOUTPUT}\key{ACTION\_FINDOUTPUT} for exclusive access.
 \smallskip{}
 
-Note that it is not always possible to change the mode of a lock or a file
+Note that it is not always possible to change the mode of a lock\key{Lock} or a file
 to exclusive access, namely if it is accessed by a second file handle or
 locked a second time. This packet shall then fail.
 \smallskip{}
@@ -15439,7 +15440,7 @@ code.
 \subsection{Releasing a Lock}
 
 The packet {\tt ACTION\_FREE\_LOCK}\mkey{ACTION\_FREE\_LOCK} releases a
-lock on a file system.
+lock\key{Lock} on a file system.
 
 \begin{rkrmtable}{\tt ACTION\_FREE\_LOCK} \label{table:actionfreelock}
 {\bf DosPacket Element}   & {\bf Value}\\ \hline \hline
@@ -15450,7 +15451,7 @@ lock on a file system.
 \end{rkrmtable}
 
 This packet implements the \emph{dos.library} function {\tt
-  UnLock()}\key{UnLock()} and releases a {\tt FileLock}\key{FileLock}. A BPTR to the lock
+  UnLock()}\key{UnLock()} and releases a {\tt FileLock}\key{FileLock}. A BPTR to the lock\key{Lock}
 to release is provided in {\tt dp\_Arg1}. If this argument is {\tt ZERO},
 the file system shall ignore the request and return success.
 \smallskip{}
@@ -15477,7 +15478,7 @@ deleted.
 
 The {\tt ACTION\_EXAMINE\_OBJECT}\mkey{ACTION\_EXAMINE\_OBJECT} packet
 retrieves metadata such as file name, comment and protection bits from a
-lock on an object on a file system and fills a {\tt FileInfoBlock}\key{FileInfoBlock} with this
+lock\key{Lock} on an object on a file system and fills a {\tt FileInfoBlock}\key{FileInfoBlock} with this
 data.
 
 \begin{rkrmtable}{\tt ACTION\_EXAMINE\_OBJECT} \label{table:actionexamineobject}
@@ -15491,7 +15492,7 @@ data.
 
 This packet implements the {\tt Examine()}\key{Examine()} function of the
 \emph{dos.library} and retrieves metainformation on the object represented
-by the lock in {\tt dp\_Arg1}. This information is provided in a {\tt
+by the lock\key{Lock} in {\tt dp\_Arg1}. This information is provided in a {\tt
   FileInfoBlock} structure that is documented in section~\ref{sec:fib}.
 \smallskip{}
 
@@ -15525,7 +15526,7 @@ programs, i.e. callers of the \emph{dos.library}, shall not interpret.
 
 This packet is also used to start a scan over the contents of a
 directory. In such a case, the examined object is the directory itself,
-i.e. the lock in {\tt dp\_Arg1} is on a directory. As such, the file system
+i.e. the lock\key{Lock} in {\tt dp\_Arg1} is on a directory. As such, the file system
 should prepare for a scan over this directory and potentially initialize an
 internal state machine.
 \smallskip{}
@@ -15557,7 +15558,7 @@ corresponding next entry.
 \end{rkrmtable}
 
 This function continues a directory scan by providing information on the
-next subsequent object in the directory identified by the lock in {\tt
+next subsequent object in the directory identified by the lock\key{Lock} in {\tt
   dp\_Arg1}. Meta-information on the object itself is copied into the {\tt
   FileInfoBlock}\key{FileInfoBlock} structure in the BPTR in {\tt dp\_Arg2}. Similar
 to {\tt ACTION\_EXAMINE\_OBJECT}\key{ACTION\_EXAMINE\_OBJECT} discussed
@@ -15578,7 +15579,7 @@ system as the directory may change while the scan is active. In particular,
 file systems shall handle the situation gracefully in which the object from
 the previous iteration identified by {\tt fib\_DiskKey}\key{fib\_DiskKey} has been deleted,
 moved or replaced by another object, or in which {\tt dp\_Arg1} is a
-different lock than the lock that was used to start the scan by {\tt
+different lock\key{Lock} than the lock that was used to start the scan by {\tt
   ACTION\_EXAMINE\_OJBECT}\key{ACTION\_EXAMINE\_OJBECT}. The file system may
 only assume that the lock in {\tt dp\_Arg1} is a lock on the same directory
 on which the scan has been started. Similarly, {\tt dp\_Arg2} may have
@@ -15595,7 +15596,7 @@ released.
 \smallskip{}
 
 A possible implementation strategy is to store full state information in the
-lock given by {\tt dp\_Arg1}, though keep sufficient information in {\tt
+lock\key{Lock} given by {\tt dp\_Arg1}, though keep sufficient information in {\tt
   fib\_DiskKey}\key{fib\_DiskKey} to rebuild the full information in case the lock is released and
 replaced during the scan. In the simplest possible case, {\tt fib\_DiskKey}\key{fib\_DiskKey}
 could be a counter that enumerates the elements in the directory, whereas
@@ -15655,7 +15656,7 @@ emulates it using {\tt ACTION\_EXAMINE\_OBJECT}\key{ACTION\_EXAMINE\_OBJECT}
 and {\tt ACTION\_EXAMINE\_NEXT}\key{ACTION\_EXAMINE\_NEXT}.
 \smallskip{}
 
-{\tt dp\_Arg1} is a lock on the directory to be examined.
+{\tt dp\_Arg1} is a lock\key{Lock} on the directory to be examined.
 \smallskip{}
 
 {\tt dp\_Arg2} is a pointer to the buffer to be filled with information on
@@ -15719,7 +15720,7 @@ renaming or moving objects out or into the directory. Using a disk block or
 a pointer to a structure representing a specific object as {\tt
   eac\_LastKey}\key{eac\_LastKey} is therefore discouraged. Similarly, {\tt dp\_Arg1} will be
 a lock to the same directory, though may not necessarily be the identical
-lock as used in the previous iteration over the same directory, only the
+lock\key{Lock} as used in the previous iteration over the same directory, only the
 directory that is locked may assumed to be the same. In other words, {\tt
   eac\_DiskKey}\key{eac\_DiskKey} shall hold sufficient state information to reconstruct the
 point from which the scan is to be continued. What is, however, is ensured
@@ -15774,7 +15775,7 @@ an implementing file system to release any temporary resources
 allocated for the purpose of the scan.
 \smallskip{}
 
-{\tt dp\_Arg1} is the lock on the directory on which a partial directory
+{\tt dp\_Arg1} is the lock\key{Lock} on the directory on which a partial directory
 scan has been started. It is not necessarily the original lock passed into
 {\tt ACTION\_EXAMINE\_ALL}\key{ACTION\_EXAMINE\_ALL}, but a lock on the same directory.
 \smallskip{}
@@ -15830,7 +15831,7 @@ On any other error, {\tt dp\_Res1} shall be set to {\tt DOSFALSE} and {\tt
 
 The {\tt ACTION\_EXAMINE\_FH}\mkey{ACTION\_EXAMINE\_FH} packet provides meta
 data on an object identified by a file handle rather than a
-lock; that is, it uses the (implied) lock of the opened file to
+lock\key{Lock}; that is, it uses the (implied) lock of the opened file to
 retrieve information.
 
 \begin{rkrmtable}{\tt ACTION\_EXAMINE\_FH} \label{table:actionexaminefh}
@@ -15844,7 +15845,7 @@ retrieve information.
 
 This packet implements the {\tt ExamineFH()}\key{ExamineFH()} function of
 the \emph{dos.library} and retrieves information on an object from a
-file handle rather than a lock.
+file handle rather than a lock\key{Lock}.
 \smallskip{}
 
 {\tt dp\_Arg1} is a copy of the {\tt fh\_Arg1} element of the
@@ -16022,7 +16023,7 @@ intended location relative to the location of the soft link, and that is not
 necessarily the same as a path relative to {\tt dp\_Arg1}.
 \smallskip{}
 
-{\tt dp\_Arg1} is a lock to a directory in the file system to which
+{\tt dp\_Arg1} is a lock\key{Lock} to a directory in the file system to which
 this packet has been send and relative to which the path in {\tt dp\_Arg2}
 shall be interpreted. This \emph{need not} to be the directory containing
 the link.
@@ -16302,7 +16303,7 @@ within the directory tree of a volume.
 This packet implements the {\tt Rename()}\key{Rename()} function of the
 \emph{dos.library} and relocates and renames objects within the directory
 structure of a volume. This packet cannot relocate across volumes,
-i.e. {\tt dp\_Arg1} and {\tt dp\_Arg3} are locks to objects within the same
+i.e. {\tt dp\_Arg1} and {\tt dp\_Arg3} are locks\key{Lock} to objects within the same
 volume, and {\tt dp\_Arg2} and {\tt dp\_Arg4} represent paths within this
 volume.
 \smallskip{}
@@ -16377,7 +16378,7 @@ This packet implements the {\tt DeleteFile()}\key{DeleteFile()} function of
 the \emph{dos.library}, which can delete files, directories and links.
 \smallskip{}
 
-{\tt dp\_Arg1} is a lock to the directory to which the path in {\tt
+{\tt dp\_Arg1} is a lock\key{Lock} to the directory to which the path in {\tt
   dp\_Arg2} is relative. The {\tt DeleteFile()} function fills it with the
 current directory of the calling process.
 \smallskip{}
@@ -16420,7 +16421,7 @@ objects, such as directories; in such a case, they may ignore the request,
 or may only implement a subset of all bits.
 \smallskip{}
 
-{\tt dp\_Arg2} is a lock of a directory which the path in {\tt dp\_Arg3} is
+{\tt dp\_Arg2} is a lock\key{Lock} of a directory which the path in {\tt dp\_Arg3} is
 relative to\footnote{This not a typo, {\tt dp\_Arg1} is really unused}.
 \smallskip{}
 
@@ -16741,7 +16742,7 @@ into the requester, for example to ask the user to insert it.
 a {\tt FileHandle} structure, or shall be {\tt ZERO}. If a handle is
 provided, a BPTR to the {\tt DosList} of the volume the handle is located on
 shall be provided in {\tt dp\_Res1}. In such case, the packet is safe as the
-volume entry cannot go away as long as the lock implicit to the handle
+volume entry cannot go away as long as the lock\key{Lock} implicit to the handle
 uses it\footnote{In~\cite{Bantam}, {\tt dp\_Arg1} is not mentioned,
 though providing it is important to avoid a race condition. The RAM-Handler\key{RAM-Handler}
 is probably an exception as it only maintains a single volume that cannot go
@@ -16753,7 +16754,7 @@ currently inserted volume, or {\tt ZERO} if no volume is inserted, shall be
 returned. Unfortunately, as the volume may be ejected any time, it is
 unclear whether the {\tt DosList}\key{DosList} entry provided in {\tt dp\_Res1} is still
 valid at the time it is interpreted by the issuer of of this packet. In such
-a case, the issuer of the packet should lock the device list upfront,
+a case, the issuer of the packet should lock\key{Lock} the device list upfront,
 and should copy the name before the list is unlocked again, i.e.
 
 \begin{verbatim}
@@ -16782,7 +16783,7 @@ detected.
 \subsection{Retrieving Information on a Volume from a Lock}
 
 The {\tt ACTION\_INFO}\mkey{ACTION\_INFO} packet retrieves information on a
-volume, given a lock on an object on the volume, and provides it in an
+volume, given a lock\key{Lock} on an object on the volume, and provides it in an
 {\tt InfoData} structure.
 
 \begin{rkrmtable}{\tt ACTION\_INFO} \label{table:actioninfo}
@@ -16799,7 +16800,7 @@ This packet implements the {\tt Info()}\key{Info()} function of the
 locked object is located.
 \smallskip{}
 
-{\tt dp\_Arg1} is a BPTR to a lock, used to identify a volume from which
+{\tt dp\_Arg1} is a BPTR to a lock\key{Lock}, used to identify a volume from which
 information is to be requested. If the volume is not inserted, not validated
 or the lock is invalid, this packet will fail.
 \smallskip{}
@@ -16812,8 +16813,8 @@ section~\ref{sec:info}.
 \smallskip{}
 
 Upon replying this packet, {\tt dp\_Res1} shall be set to a boolean success
-indicator that includes the result of the validity test of the lock. If the
-lock is valid and information on the volume could be retrieved, {\tt
+indicator that includes the result of the validity test of the lock\key{Lock}. If the
+lock\key{Lock} is valid and information on the volume could be retrieved, {\tt
   dp\_Res1} shall be set to {\tt DOSTRUE} and {\tt dp\_Res2} shall be set
 to~0. On failure, {\tt dp\_Res1} shall be set to {\tt DOSFALSE} and {\tt
   dp\_Res2} to an error code.
@@ -16834,7 +16835,7 @@ any) and provides this information in an {\tt InfoData} structure.
 
 This packet is currently not exposed by the \emph{dos.library} and must be
 issued through the packet interface. It is almost identical to {\tt
-  ACTION\_INFO}\key{ACTION\_INFO}, except that it does not take a lock as
+  ACTION\_INFO}\key{ACTION\_INFO}, except that it does not take a lock\key{Lock} as
 argument. Therefore, it always refers to the currently inserted volume, and
 not to the volume the locked object is located on. Otherwise, the
 information provided by this packet and {\tt ACTION\_INFO}\key{ACTION\_INFO} is identical.
@@ -16912,7 +16913,7 @@ or partition currently inserted into the drive. Note, however, that it does
 not perform a low-level formatting, such as creating sectors on a floppy
 disk or issuing a low-level SCSI command. If this is intended, it must be
 performed by a client application, e.g. the {\tt Format} command of the
-workbench disk. This packet only writes administrative information on a
+Workbench disk. This packet only writes administrative information on a
 volume representing it in empty state. This packet is probably the only one
 that should be used while a file system is inhibited and would usually
 refuse to alter any information on disk, see also
@@ -16972,7 +16973,7 @@ and~\ref{sec:packetinhibit}.
 This packet does not take any arguments, it affects the currently inserted
 volume. The FFS\key{Fast File System (FFS)} implements this packet by setting the volume creation date to the
 system date; other file systems can include volume IDs or other means to
-uniquely label disks. The {\tt DiskCopy} command of the workbench uses this
+uniquely label disks. The {\tt DiskCopy} command of the Workbench uses this
 packet after performing its job to ensure that the copy of a disk is
 distinguishable from its original.
 \smallskip{}
@@ -16998,7 +16999,7 @@ disallowing any write access through the file system on it.
 \end{rkrmtable}
 
 This packet is not exposed by any function of the \emph{dos.library}, though
-the {\tt Lock} command of the workbench uses it to enable or
+the {\tt Lock} command of the Workbench uses it to enable or
 disable write protection on media. Optionally, write protection may be
 secured by a password of which only an integer hash key is provided to the
 file system. To re-enable write access, the file system shall check whether
@@ -17824,7 +17825,7 @@ a handler is a file system.
 This packet implements the {\tt IsFileSystem()}\key{IsFileSystem()} function
 of the \emph{dos.library} and tests whether a particular handler provide
 sufficient services to operate as a file system. A file system shall
-be able to access multiple separate files, shall be able to support locks
+be able to access multiple separate files, shall be able to support locks\key{Lock}
 and shall also be able to examine directories. A file system may be either a
 flat or a hierarchical file system, i.e. a file system is not required to
 support multiple directories on a storage medium, device or partition.
@@ -17843,7 +17844,7 @@ cannot interpret this particular packet. If this secondary result code is
 identified by the {\tt IsFileSystem()} function, it falls back to a
 heuristic for determining whether a handler is a file system: It uses {\tt
   Lock(":",SHARED\_ACCESS)}\key{Lock()}, i.e. {\tt ACTION\_LOCATE\_OBJECT}\key{ACTION\_LOCATE\_OBJECT} on the file
-system root. If such a lock can be obtained, then this heuristic assumes
+system root. If such a lock\key{Lock} can be obtained, then this heuristic assumes
 that the handler is, in fact, a file system.
 
 \subsection{Write out all Pending Modifications}
@@ -17904,7 +17905,7 @@ A file system may not exit as long as client programs cache copies of
 its {\tt MsgPort}; this port is typically the {\tt pr\_MsgPort} of the
 handler process which is released by AmigaDOS as soon as the process
 exits, and it will thus become unusable. At least all file handles
-and locks need to indicate that the file system is no longer usable. Either,
+and locks\key{Lock} need to indicate that the file system is no longer usable. Either,
 the file system may refuse to exit if some file handles using it are still
 open, or some locks are not yet unlocked. Alternatively, the file system
 may zero out the {\tt fh\_Type} element of all files open to it, thus
@@ -17961,7 +17962,7 @@ Some handlers do not initialize the {\tt dol\_Task}\key{dol\_Task} element of it
 that are not file systems such as the Console-Handler are typical
 examples. Such handlers shall terminate themselves without requiring
 an {\tt ACTION\_DIE}\key{ACTION\_DIE} when the last resource opened on them
-had been shut down, i.e. all file handles have been closed, all locks (if
+had been shut down, i.e. all file handles have been closed, all locks\key{Lock} (if
 they are supported at all) have been unlocked and all notification requests
 (if supported) had been canceled.
 
@@ -18862,7 +18863,7 @@ variables are copied into the new shell. The default is to copy the
 variables.
 \smallskip{}
 
-{\tt NP\_Path}\key{NP\_Path} contains a linked list of directory locks that establish the
+{\tt NP\_Path}\key{NP\_Path} contains a linked list of directory locks\key{Lock} that establish the
 path of the newly created shell. The structure of this path is specified in
 section~\ref{sec:clistruct}. The path provided by this tag \emph{is not}
 copied for the new shell, but directly used \emph{and released} by it when
@@ -18888,7 +18889,7 @@ on success, and {\tt IoErr()} will be set to~0.
 This function is used to implement a couple of essential system
 functionalities, and all Shell commands and system functions that create a
 Shell go through this function. This includes the {\tt NewShell} and {\tt
-  Run} shell commands and the {\tt Shell} icon on the workbench. The initial
+  Run} shell commands and the {\tt Shell} icon on the Workbench. The initial
 CLI interpreting {\tt S:Startup-Sequence} is also created through the {\tt
   System()}\key{System()} function.
 \smallskip{}
@@ -19221,7 +19222,7 @@ struct Process *FindCliProc(ULONG)
 
 This function returns a process given its task number. Note, however, that
 AmigaDOS only assigns task numbers to shells and commands run within or from
-shells and not to other processes, such as those started from the workbench,
+shells and not to other processes, such as those started from the Workbench,
 handlers, file systems or device drivers. Thus, this function is not quite
 as useful as it seems.
 \smallskip{}
@@ -19264,7 +19265,7 @@ First, this information does \emph{not} correspond to the number of running
 processes, but only describes the number of entries the process table is
 able to hold. Second, only shells and commands run within or from shells
 are recorded in the process table, and other processes as those started from
-the workbench, or handlers, file systems or device drivers do not enter this
+the Workbench, or handlers, file systems or device drivers do not enter this
 table. Third, the size of this table changes dynamically depending on how
 many shell processes are active, even under the feed of the caller. Thus,
 this function should be avoided.
@@ -19323,7 +19324,7 @@ supplied by this function may not correspond to the current directory the
 shell actually uses.
 \smallskip{}
 
-If the caller is not a shell command, then the function uses the lock
+If the caller is not a shell command, then the function uses the lock\key{Lock}
 representing the current directory of the calling process, namely {\tt
   pr\_CurrentDir}\key{pr\_CurrentDir}, and converts it to a string by {\tt
   NameFromLock()}\key{NameFromLock()}. This function, see
@@ -19554,7 +19555,7 @@ struct PathComponent {
 };
 \end{verbatim}
 where {\tt pc\_Next}\mkey{pc\_Next} is the BPTR to the next directory in the path or {\tt
-  ZERO} for the end of the list, and {\tt pc\_Lock}\mkey{pc\_Lock} is a lock of the
+  ZERO} for the end of the list, and {\tt pc\_Lock}\mkey{pc\_Lock} is a lock\key{Lock} of the
 directory that will be scanned for a matching command file.
 \smallskip{}
 
@@ -21131,7 +21132,7 @@ console, or by creating a requester with a message on a screen.
 
 The {\tt ErrorReport}\mkey{ErrorReport()} function creates an error
 requester based on an error code and a file system object such as a
-file handle or a lock and waits a the response of the user who may
+file handle or a lock\key{Lock} and waits a the response of the user who may
 either abort or retry an activity.
 
 \begin{verbatim}
@@ -21141,7 +21142,7 @@ D0                    D1    D2    D3     D4
 BOOL ErrorReport(LONG, LONG, ULONG, struct MsgPort *)
 \end{verbatim}
 
-This function creates an error requester either on the workbench
+This function creates an error requester either on the Workbench
 screen, or on a screen that is given by the {\tt pr\_WindowPtr}\key{pr\_WindowPtr} of the
 calling process. If {\tt pr\_WindowPtr} is~$-1$, then no requester is
 shown and the function returns immediately with a non-zero return
@@ -21196,7 +21197,7 @@ structure that is only used if {\tt type} is {\tt REPORT\_LOCK}\key{REPORT\_LOCK
 of a file handler that is contacted to learn about the name of the
 currently inserted volume. This could be the {\tt pr\_FileSystemTask}\key{pr\_FileSystemTask}
 of the calling process which contains the {\tt MsgPort} of the file
-handler responsible for the {\tt ZERO} lock.
+handler responsible for the {\tt ZERO} lock\key{Lock}.
 \medskip{}
 
 This function returns a boolean indicator whether the currently
@@ -21501,7 +21502,7 @@ system whose segment is recorded in {\tt rn\_FileHandlerSegment}\key{rn\_FileHan
 is different if the booting file system is not the ROM-based FFS\key{Fast File System (FFS)}
 neither an updated version of it from the RDB. This pointer is used to
 initialize the {\tt pr\_FileSystemTask}\key{pr\_FileSystemTask} of all processes AmigaDOS
-creates, and thus the file system responsible for the {\tt ZERO} lock.
+creates, and thus the file system responsible for the {\tt ZERO} lock\key{Lock}.
 \smallskip{}
 
 The {\tt rn\_ShellSegment}\mkey{rn\_ShellSegment} is a pointer to the C entry point of the
