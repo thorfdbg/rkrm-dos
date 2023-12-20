@@ -3445,7 +3445,7 @@ to objects on the same volume.
 
 \begin{verbatim}
 value = SameLock(lock1, lock2) /* since V36 */
- D0                D1     D2
+D0                D1     D2
 
 LONG SameLock(BPTR, BPTR)
 \end{verbatim}
@@ -3455,8 +3455,8 @@ all of them defined in {\tt dos/dos.h}, can be one of the following:
 
 \begin{rkrmtable}{Lock Comparison Return Code} \label{table:lockcompare}
 {\bf Return Code} & {\bf Description}\\ \hline \hline
-{\tt SAME\_LOCK}\mkey{SAME\_LOCK} & Both locks are on the same object\\ \hline
-{\tt SAME\_VOLUME}\mkey{SAME\_VOLUME} & Locks are on different objects, but on the same volume\\ \hline
+{\tt LOCK\_SAME}\mkey{LOCK\_LOCK} & Both locks are on the same object\\ \hline
+{\tt LOCK\_SAME\_VOLUME}\mkey{LOCK\_SAME\_VOLUME} & Locks are on different objects, but on the same volume\\ \hline
 {\tt LOCK\_DIFFERENT}\mkey{LOCK\_DIFFERENT} & Locks are on different volumes\\ \hline
 \end{rkrmtable}
 
@@ -3465,16 +3465,60 @@ and callers cannot depend on its value. Furthermore, the function does
 not compare a {\tt ZERO} lock\key{ZERO lock} with lock on the boot volume, e.g {\tt
   SYS:} as identical. It is recommended not to pass in the {\tt ZERO}
 lock for either {\tt lock1} or {\tt lock2}.
+\medskip{}
+
+Under AmigaDOS versions 34 and below, this function is not available. The
+following code may be used as a (limited) workaround:
+
+\begin{verbatim}
+#include <dos/dos.h>
+#include <dos/dosextens.h>
+
+LONG SameLockV34(BPTR lock1,BPTR lock2)
+{
+  struct FileLock *fl1 = BADDR(lock1);
+  struct FileLock *fl2 = BADDR(lock2);
+
+  /* This implies two ZERO locks */
+  if (fl1 == fl2)
+    return LOCK_SAME;
+
+  /* Does not indicate SYS: == NULL */
+  if (fl1 && fl2) {
+    if (fl1->fl_Volume != fl2->fl_Volume)
+      return LOCK_DIFFERENT;
+    if (fl1->fl_Task   != fl2->fl_Task)
+      return LOCK_DIFFERENT;
+    if (fl1->fl_Key    != fl2->fl_Key)
+      return LOCK_SAME_VOLUME;
+    return LOCK_SAME;
+  }
+  /* Not fully correct */
+  return LOCK_DIFFERENT;
+}
+\end{verbatim}
+The above function will work correctly for the AmigaDOS ROM file system, the
+FFS\key{Fast File System (FFS)} and the RAM-Handler\key{RAM-Handler}
+versions 34 and below \emph{only}. For other file systems, and newer
+variants of the above file systems, proper results cannot be expected as the
+above algorithm depends on {\tt fl\_Key} uniquely identifying the locked
+object. This is, however, not necessarily true as {\tt fl\_Key} is,
+actually, a file system internal value that cannot be savely interpreted,
+see also section~\ref{sec:filelock}. AmigaDOS version 36 introduced a new
+interface to request comparing two locks from the file system, see
+section~\ref{sec:actionsamelock}. However, even the current
+\emph{dos.library} falls back to the above algorithm in case this interface
+is not implemented by the target file system.
 
 \subsection{Compare to Locks for the Device}
 
-The {\tt SameDevice()}\mkey{SameDevice()} function attempts to check whether
-two locks\key{Lock} refer to two file systems that reside on the same physical device,
-even if on potentially different partitions.
+The {\tt SameDevice()}\mkey{SameDevice()} function checks whether two
+locks\key{Lock} refer to two file systems that reside on the same physical
+device, even if on potentially different partitions.
 
 \begin{verbatim}
-same = SameDevice(lock1, lock2)
-D0		   D1     D2
+same = SameDevice(lock1, lock2) /* since V36 */
+D0                 D1     D2
 
 BOOL SameDevice( BPTR, BPTR )
 \end{verbatim}
@@ -3482,17 +3526,24 @@ BOOL SameDevice( BPTR, BPTR )
 The {\tt SameDevice()} function takes two locks {\tt lock1} and {\tt
   lock2} and checks whether they were created by file systems that operate
 on the same physical device, even if the two locks refer to different
-file systems or different partitions. Only the \emph{exec device} and the
+file systems or different partitions. Only the exec device and the
 corresponding unit is compared, that is, this function is not able to
 determine whether whether the locks refer to file systems on the same or
 different physical volumes.
 \smallskip{}
 
 This function returns a non-zero result if the resonsible file systems
-operate on the same \emph{exec device}, and it returns~$0$ otherwise. If
-the function is not able to identify the file systems, or cannot identify the
+operate on the same exec device, and it returns~$0$ otherwise. If the
+function is not able to identify the file systems, or cannot identify the
 lower level exec {\tt device} on which the file systems operate, the
 function also returns~$0$.
+\smallskip{}
+
+Unfortunately, this function is not necessarily fully reliable as locks can
+be transferred from one medium to another, e.g. if a disk is removed from
+the first floppy drive and re-inserted into the second, and thus, the
+physical device the locked object is located on can change even \emph{after}
+this function has been called.
 \smallskip{}
 
 A possible use case of this function is to determine whether the involved
@@ -3521,11 +3572,12 @@ types and access modes relate.
 
 The association of {\tt MODE\_READWRITE} to {\tt SHARED\_LOCK} is
 unfortunate, and due to a defect in the RAM-Handler\key{RAM-Handler}
-implementation in AmigaDOS 2.0 which was then later copied into the
-Fast File System implementation. Exclusive access to a file
-without deleting its contents can, however, be established through the
-{\tt OpenFromLock()}\key{OpenFromLock()} function passing in an
-\emph{exclusive lock} to the function as argument.
+implementation in AmigaDOS 2.0 which was then later copied into the Fast
+File System implementation. In AmigaDOS versions 34 and below, this mode was
+associated to an {\tt EXCLUSIVE\_LOCK}. For version 36 and above, exclusive
+access to a file without deleting its contents can, however, be established
+through the {\tt OpenFromLock()}\key{OpenFromLock()} function passing in an
+exclusive lock to the function as argument.
 
 \subsection{Duplicate the Implicit Lock of a File}
 
@@ -3533,20 +3585,22 @@ The {\tt DupLockFromFH()}\mkey{DupLockFromFH()} function performs a copy of a lo
 to a file handle of an opened file. For this to succeed, the
 file must be opened in the mode {\tt MODE\_OLDFILE}\key{MODE\_OLDFILE}
 or {\tt MODE\_READWRITE}\key{MODE\_READWRITE}. Files opened with {\tt
-  MODE\_NEWFILE}\key{MODE\_NEWFILE} are based on an implicit \emph{exclusive
-lock} that cannot be copied.
+  MODE\_NEWFILE}\key{MODE\_NEWFILE} are based on an implicit exclusive
+lock that cannot be duplicated.
 
 \begin{verbatim}
-lock = DupLockFromFH(fh)
+lock = DupLockFromFH(fh) /* since V36 */
 D0                   D1
 
 BPTR DupLockFromFH(BPTR)
 \end{verbatim}
 
-This function returns a copy of the lock the file handle {\tt
-  fh} is based on and returns it in {\tt lock}. In case of failure,
-{\tt ZERO} is returned. In either case, {\tt IoErr()} is set to either
-$0$ in case of success, or an error code on failure.
+This function returns a copy of the lock the file handle {\tt fh} is based
+on and returns it in {\tt lock}, that is, returned lock is a lock on the
+file described by the handle {\tt fh}. This file handle remains valid and
+usable after this call. In case of failure, {\tt ZERO} is returned. In
+either case, {\tt IoErr()} is set to~$0$ in case of success, or an error
+code on failure.
 
 \subsection{Obtaining the Directory a File is Located in}
 
@@ -3560,33 +3614,28 @@ applies to files opened in the {\tt MODE\_NEWFILE}\key{MODE\_NEWFILE}
 mode.
 
 \begin{verbatim}
-lock = ParentOfFH(fh)
- D0               D1
+lock = ParentOfFH(fh) /* since V36 */
+D0                D1
 
 BPTR ParentOfFH(BPTR)
 \end{verbatim}
 
-This function returns in {\tt lock} a shared lock\key{Lock} on the directory
-containing the file opened through the {\tt fh} file handle. It
-returns {\tt ZERO} on failure or in case there is no parent directory
-because {\tt fh} already represents the root directory.
-\smallskip{}
-
-In either case, {\tt IoErr()}\key{IoErr()} is set, namely to~$0$ in case of
-success or to an error code on failure. Attempting to obtain the parent of
-the root directory is not a failure case, and thus {\tt IoErr()} is set to~0
-in this case.
+This function returns a shared lock\key{Lock} on the directory containing
+the file opened through the {\tt fh} file handle. The file handle remains
+valid and usable after this call. This function returns {\tt ZERO} in case
+of failure. {\tt IoErr()}\key{IoErr()} is set to~$0$ in case of success or
+to an error code from {\tt dos/dos.h} in case of failure.
 
 \subsection{Opening a File from a Lock} \label{sec:openfromlock}
 
-The {\tt OpenFromLock()} function uses a lock\key{Lock} and opens the
-locked file, returning a file handle. If the lock is associated
-to a directory, the function fails. The lock passed in is then
-absorbed into the file handle and shall not be unlocked. It
-will be released by the file system upon closing the file.
+The {\tt OpenFromLock()} function uses a lock\key{Lock} to a file and opens
+the locked file, returning a file handle. If the lock is associated to a
+directory, the function fails. The lock passed in is then absorbed into the
+file handle and shall not be unlocked. It will be released by the file
+system upon closing the returned file handle.
 
 \begin{verbatim}
-fh = OpenFromLock(lock)
+fh = OpenFromLock(lock) /* since V36 */
 D0                 D1
 
 BPTR OpenFromLock(BPTR)
@@ -3597,22 +3646,43 @@ file, and creates the file handle {\tt fh} from it. It fails in
 case the {\tt lock} argument belongs to a directory and not a file.
 \smallskip{}
 
-In case of success, the lock\key{Lock} becomes an implicit part of the
-file handle and shall not be unlocked by the caller anymore.
-In case of failure, the function returns {\tt ZERO} and the
-lock remains available to the caller, and also needs to be
-unlocked at a later time. In either case, {\tt IoErr()} is set, to an
-error code in case of failure, or $0$ on success.
+In case of success, the lock\key{Lock} becomes an implicit part of the file
+handle and shall not be unlocked by the caller anymore.  In case of failure,
+the function returns {\tt ZERO} and the lock remains available to the
+caller. This function always sets {\tt IoErr()}, to an error code in case of
+failure, or to~$0$ in case of success.
 \smallskip{}
 
-This function allows to open files in exclusive mode without deleting
-its contents. For that, obtain an \emph{exclusive lock} on the file to
-be opened, and then call {\tt OpenFromLock()} as second step.
+This function allows to open files in exclusive mode without deleting its
+contents. For that, obtain an exclusive lock on the file to be opened, and
+then call {\tt OpenFromLock()} in a second step.
+\medskip{}
+
+While this function is not available in AmigaDOS versions 34 and below, the
+following workaround may be used, which, however, only operates on shared
+locks and cannot open files from exclusive locks:
+\begin{verbatim}
+BPTR OpenFromLockV34(BPTR lock)
+{
+  BPTR dir = CurrentDir(lock);
+  BPTR fh  = Open("",MODE_OLDFILE);
+
+  if (fh)
+    UnLock(lock);
+
+  CurrentDir(dir);
+
+  return fh;
+}
+\end{verbatim}
+This function depends on the empty string describing the object locked by
+the current directory of the calling process, a feature every AmigaDOS file
+system supports, see also section~\ref{sec:actionfindinput}.
 
 \subsection{Get Information on the State of the Medium} \label{sec:info}
 
 The {\tt Info()}\mkey{Info()} function returns information on the
-medium on which the locked object is located, and fills an {\tt
+file system on which the locked object is located, and fills an {\tt
   InfoData}\key{InfoData} structure with the status of the file system. If it
 is instead intended to retrieve information on the currently inserted
 volume, i.e. without requiring a lock, direct communication
@@ -3663,7 +3733,7 @@ identified by the lock\key{Lock} is inserted.
 
 {\tt id\_DiskState}\mkey{id\_DiskState} identifies the status of the file system, whether
 the volume is writable and whether it is consistent. Disk states are
-also defined in {\tt dos/dos.h} and set according to the following table:
+defined in {\tt dos/dos.h} and set according to the following table:
 
 \begin{rkrmtable}{Disk States} \label{table:diskstate}
 {\bf Disk State} & {\bf Description}\\ \hline \hline
@@ -3698,7 +3768,7 @@ medium is divided. This includes both free and occupied blocks, and
 thus indicates the total capacity of the volume. This number is not
 necessarily constant. The RAM-Handler\key{RAM-Handler} adjusts this value according to
 the available memory; RAM-Handler versions prior version 45 set this
-to~0. In means, in particular, that care needs to be taken when the
+to~0. This means, in particular, that care needs to be taken when the
 disk fill state in percent is computed by a dividing the number of
 used blocks by this number.
 \smallskip{}
@@ -3708,15 +3778,16 @@ system on the disk. As it is dependent on the file system how many
 blocks it needs in addition to the actual payload data, no conclusion
 can be derived from this number whether a particular file fits on the
 volume. RAM-Handlers prior to release 45 did not even fill this with a
-useful value.
+useful value. This element does not contain a useful number for file systems
+that are currently in the state {\tt ID\_VALIDATING}.
 \smallskip{}
 
-{\tt id\_BytesPerBlock}\mkey{id\_BytesPerBlock} is the number of bytes available for payload
-in a physical block of the medium, and not necessarily the physical
-block size into which the storage medium is divided. Some file systems
-require additional bytes of the physical block for administrating
-files. Even the RAM-Handler\key{RAM-Handler} segments data into blocks and provides in
-this member the number of data bytes stored there.
+{\tt id\_BytesPerBlock}\mkey{id\_BytesPerBlock} is the number of bytes
+available for payload data in a physical block of the medium, and not
+necessarily the physical block size into which the storage medium is
+divided. Some file systems require additional bytes of the physical block
+for adminstration.  Even the RAM-Handler\key{RAM-Handler} segments data into
+blocks and provides in this element the number of data bytes stored there.
 \smallskip{}
 
 {\tt id\_DiskType}\mkey{id\_DiskType} identifies whether the file system that
@@ -3740,26 +3811,27 @@ AmigaDOS currently defines the following disk types in {\tt dos/dos.h}:
 {\bf Disk Type} & {\bf Description}\\ \hline \hline
 {\tt ID\_NO\_DISK\_PRESENT} & No disk is inserted \\ \hline
 {\tt ID\_UNREADABLE\_DISK} & Reading disk data failed at exec device level \\ \hline
-{\tt ID\_DOS\_DISK} & The disk is in a format the file system attempts to interpret \\ \hline
+{\tt ID\_DOS\_DISK} & The disk is in a format the file system knows to interpret \\ \hline
 {\tt ID\_NOT\_REALLY\_DOS} & While physically accessible, the disk structure is invalid\\ \hline
 {\tt ID\_KICKSTART\_DISK} & A disk containing an A1000 kickstart \\ \hline
 {\tt 'BUSY'} & The file system is currently inhibited \\ \hline
-{\tt 'CON\textbackslash0'} & Not a file system, but the CON-Handler\key{CON-Handler} \\ \hline
-{\tt 'RAW\textbackslash0'} & Not a file system, but the CON-Handler\key{CON-Handler} \\ \hline
+{\tt 'CON\textbackslash0'} & Not a file system, but returned by the Console-Handler\key{CON-Handler} \\ \hline
+{\tt 'RAW\textbackslash0'} & Not a file system, but returned by the Console-Handler\key{CON-Handler} \\ \hline
 All others & The first long word of the first block of the medium \\ \hline
 \end{longtable}
 \end{rkrmtabular}
 
-As mentioned above {\tt ID\_DOS\_DISK}\mkey{ID\_DOS\_DISK} is the {\tt id\_DiskType} file
-systems should return in case they recognize the structure and attempt to
-interpret them. Despite this fact, the Fast File System returns erroneously
-the {\tt dostype} as reported in table~\ref{table:ffsflavours}.
+As mentioned above {\tt ID\_DOS\_DISK}\mkey{ID\_DOS\_DISK} is the {\tt
+  id\_DiskType} file systems should return in case they recognize the
+structure and attempt to interpret them. Despite this fact, the Fast File
+System returns erroneously the {\tt DOSTYPE} of its mountlist entry as
+reported in table~\ref{table:ffsflavours} of section~\ref{sec:envec}.
 \smallskip{}
 
-\punchline{Not the DosType}{While mount lists include a {\tt DOSTYPE}
+\punchline{Not the DosType}{While mountlists include a {\tt DOSTYPE}
   field that identifies the file system uniquely, the {\tt
     id\_DiskType} member \emph{does not} represent this {\tt
-    DOSTYPE}. That it coincides with the {\tt DOSTYPE} for the
+    DOSTYPE}. That it coincides with the {\tt DOSTYPE} for 
   variants of the FFS\key{Fast File System (FFS)} is a historical error that shall not be mirrored
   by new file system designs. It is therefore advisable to
   check the first 3 bytes of the {\tt id\_DiskType} for the characters
@@ -3772,7 +3844,21 @@ indicate disks the file system cannot make use of. The first because
 the logical structure of the disk content cannot be interpreted, and
 the second because the underlying exec device cannot gain access to
 the contents of the blocks, i.e. the physical layer of the disk is not
-readable.
+readable. The {\tt Info()} function cannot return either of these disk types
+as the corresponding file system interface fails then with the error code
+{\tt ERROR\_NOT\_A\_DOS\_DISK}\key{ERROR\_NOT\_A\_DOS\_DISK}. However, the
+packet type {\tt ACTION\_DISK\_INFO}\key{ACTION\_DISK\_INFO} not requiring a
+lock but analyzing the inserted volume directly can return these two disk
+types, see section~\ref{sec:packetdiskinfo}.
+\smallskip{}
+
+{\tt ID\_NO\_DISK\_PRESENT} indicates that the drive currently does not
+contain any disk. Similar to the above, {\tt Info()} cannot return this disk
+type as the file system interface fails early with {\tt
+  ERROR\_NO\_DISK}\key{ERROR\_NO\_DISK}, but the packet type {\tt
+  ACTION\_DISK\_INFO}\key{ACTION\_DISK\_INFO} of the packet level interface
+filling the same {\tt InfoData} structure can. See again
+section~\ref{sec:packetdiskinfo}.
 \smallskip{}
 
 {\tt 'BUSY'} is a four-character constant that is not documented in
@@ -3782,41 +3868,53 @@ stopped. Thus, any attempt to access this file system is currently
 suspended, probably because some program attempts to operate on the
 medium on a lower level. Disk editors or disk salvage programs will
 typically make use of this practise to avoid file systems from
-touching the medium while they work on it.
+touching the medium while they work on it. The {\tt Inhibit()} function of
+section~\ref{sec:inhibit} blocks file system access to the physical layer
+and thus causes this disk type.
 \smallskip{}
 
-{\tt 'CON\textbackslash0'} and {\tt 'RAW\textbackslash0'} are indicators left by the CON-Handler\key{CON-Handler}
+{\tt 'CON\textbackslash0'} and {\tt 'RAW\textbackslash0'} are indicators left by the Console-Handler\key{CON-Handler}
 (or console-type handlers) which use the {\tt InfoData} structure for
 other purposes, see section~\ref{sec:console}. As they do not (in
 general) hand out locks\key{Lock}, the {\tt Info()} function will usually not
 return these two types, but direct handler communication with a packet
-type of {\tt ACTION\_DISK\_INFO} can.
+type of {\tt ACTION\_DISK\_INFO} can. The Console-Handler populates the {\tt
+  InfoData} structure in a different way than file systems do, this is
+documented in section~\ref{sec:diskinfoconsole}.
 \smallskip{}
 
 All other types are returned in case the file system cannot
 interpret the disk structure, and are then copied from the first 4
 bytes of the medium or partition into {\tt id\_DiskType}. In case
-these bytes are all~0, it is changed to {\tt ID\_NOT\_REALLY\_DOS}.
+these bytes are all~0, it is changed to {\tt ID\_NOT\_REALLY\_DOS}. One
+special case is {\tt ID\_KICKSTART\_DISK}
+which identifies a disk containing the A1000 kickstart. This is, however,
+just a side effect of the first four bytes of the medium containing the
+characters {\tt 'KICK'}. The {\tt Info()} function cannot return such disk
+types, but instead aborts with the error code {\tt
+  ERROR\_NOT\_A\_DOS\_DISK}\key{ERROR\_NOT\_A\_DOS\_DISK}, but the similar
+packet level interface based on {\tt
+  ACTION\_DISK\_INFO}\key{ACTION\_DISK\_INFO} can.
 \medskip{}
 
 {\tt id\_VolumeNode}\mkey{id\_VolumeNode} in the {\tt InfoData} structure is a BPTR to the
 {\tt DosList}\key{DosList} structure corresponding to the volume on
 which the object identified by the {\tt lock} is located. For this
-structure, see section~\ref{sec:devicelist}.
+structure, see chapter~\ref{sec:devicelist}.
 \smallskip{}
 
 {\tt id\_InUse}\mkey{id\_InUse} counts the number of locks\key{Lock} and files currently open on
 the medium identified by {\tt lock}.
 \medskip{}
 
-This function returns a non-zero result code on success and sets then
+The {\tt Info()} function returns a non-zero result code on success and sets then
 {\tt IoErr()}\key{IoErr()} to~0. On failure, it returns~0 and sets
 {\tt IoErr()} to an error code.
 
 \subsection{The struct FileLock} \label{sec:filelock}
 
 Locks have been so far been opaque identifiers; in fact, they
-are BPTRs to a {\tt struct FileLock} that is defined in {\tt
+are BPTRs to a {\tt FileLock} structure that is defined in {\tt
   dos/dosextens.h}.
 
 \begin{verbatim}
@@ -3846,17 +3944,25 @@ they should not be interpreted in any way. What is listed here is the
 information callers can depend upon.
 \smallskip{}
 
-The {\tt fl\_Link}\mkey{fl\_Link} member has no practical value for users; the
-file system can use it to keep multiple links on object on the
-same volume in a list. This is particularly important if the volume is
-ejected from its drive and another file system needs to take over the
-locks\key{Lock} if the volume is later inserted into another drive.
+The {\tt fl\_Link}\mkey{fl\_Link} member has no practical value for users;
+the file system can use it to keep multiple links on object on the same
+volume in a list. The Fast File System\key{Fast File System (FFS)} creates a
+singly linked list of all locks of a medium it is responsible for once the medium is
+ejected, and queues them in the {\tt dol\_LockList} element of the {\tt
+  DosList} structure such that a FFS incarnation responsible for the same
+medium, but potentially inserted into a different drive can pick them up
+from there, see also chapter~\ref{sec:devicelist}.
 \smallskip{}
 
 The {\tt fl\_Key}\mkey{fl\_Key} member can be used by the file system to identify the
 object that has been locked. It may not necessarily be an integer, but
 can be any data type, potentially a pointer to some internal
-management object. It shall not be interpreted in any particular way.
+management object. It shall not be interpreted in any particular way as its
+interpretation is file system dependent. The Fast File System\key{Fast File
+  System (FFS)} stores here the block number (the ``key'') of the file
+header block or directory block that has been locked, see
+sections~\ref{sec:rootblock}, \ref{sec:userdirblock} and
+\ref{sec:fileheaderblock} for the structure of these blocks.
 \smallskip{}
 
 The {\tt fl\_Access}\mkey{fl\_Access} member keeps the access type of the lock and
@@ -3866,15 +3972,16 @@ function. It is either {\tt SHARED\_LOCK}\key{SHARED\_LOCK} or {\tt
 \smallskip{}
 
 The {\tt fl\_Task}\mkey{fl\_Task} member points to the message port of the file
-system for processing requests on the lock\key{Lock}. Any activity on the lock
-goes through this port.
+system for processing requests to the lock\key{Lock}. Any activity on the lock
+goes through this port. In case the medium has been ejected and the lock has
+not yet been reclaimed by any other file system, this is the pointer to the
+port of the most recent file system responsible for the lock.
 \smallskip{}
 
-The {\tt fl\_Volume}\mkey{fl\_Volume} is a BPTR to the \emph{volume node} on the
-device list\key{Device List}. The \emph{volume node} identifies
-the volume the locked object is located
-on. Section~\ref{sec:devicelist} provides further information on this
-list and its entries.
+The {\tt fl\_Volume}\mkey{fl\_Volume} is a BPTR to the {\tt DosList}
+structure on the device list\key{Device List} identifying the volume the
+locked object is located on. Chapter~\ref{sec:devicelist} provides further
+information on this list and its entries.
 
 \chapter{Working with Directories}
 
@@ -13603,7 +13710,7 @@ Unlike user directories, the root block lacks a list of hard-links that
 points to it. This has the consequence that the FFS\key{Fast File System (FFS)} does not allow to create
 hard-links to the root directory of a volume.
 
-\subsection{The User Directory Block}
+\subsection{The User Directory Block} \label{sec:userdirblock}
 
 The user header block represents a sub-directory of the
 volume root, or another user directory. It is enqueued in one of the
@@ -13613,7 +13720,7 @@ FFS. Table~\ref{table:userdirblock} applies to all FFS\key{Fast File System (FFS
 long-file variants {\tt DOS\textbackslash{}06} and {\tt
   DOS\textbackslash{}07}.
 
-\begin{rkrmtabular}{FFS User Header Block} \label{table:userdirlock}
+\begin{rkrmtabular}{FFS User Header Block} \label{table:userdirblock}
 \begin{longtable}{|l|l|l|} \hline
 {\bf Long-word Offset} & {\bf Content} & {\bf Notes} \\ \hline \hline
 0          & \tt Type    & shall be 2, this is the BCPL constant T.SHORT\key{T.SHORT} \\ \hline
@@ -13726,7 +13833,7 @@ For the long file-name enabled flavours of the FFS, namely {\tt
   DOS\textbackslash{}06} and {\tt DOS\textbackslash{}07}, this block looks
 somewhat different:
 
-\begin{rkrmtabular}{Long-Filename FFS Directory User Header Block} \label{table:userdirblock}
+\begin{rkrmtabular}{Long-Filename FFS Directory User Header Block}
 \begin{longtable}{|l|l|l|} \hline
 {\bf Long-word Offset} & {\bf Content} & {\bf Notes} \\ \hline \hline
 0          & \tt Type    & shall be 2, this is the BCPL constant T.SHORT\key{T.SHORT} \\ \hline
@@ -13779,7 +13886,7 @@ the file name.
 the {\tt NaC} element is too short. If no comment block is needed, this
 element is~0.
 
-\subsection{The File Header Block}
+\subsection{The File Header Block} \label{sec:fileheaderblock}
 
 The file header block represents a file in a directory or the volume
 root. It is enqueued in one of the hash-chains of the root block or its
@@ -15370,7 +15477,7 @@ On success, it creates a new exclusive lock\key{Lock} which is returned in {\tt
   dp\_Res1}, and {\tt dp\_Res2} is set to~0. On error, {\tt dp\_Res1} is set
 to {\tt ZERO} and {\tt dp\_Res2} is set to an error code.
 
-\subsection{Comparing two Locks}
+\subsection{Comparing two Locks} \label{sec:actionsamelock}
 
 The packet {\tt ACTION\_SAME\_LOCK}\mkey{ACTION\_SAME\_LOCK} compares two
 locks\key{Lock} on the same file system and checks whether the two locks are on the
