@@ -450,7 +450,7 @@ formed by the following macros, also defined in {\tt dos/dos.h}:
 Luckely, in most cases callers of the \emph{dos.library} do not need to
 convert from and to BPTRs but can rather use such ``pointers'' as
 \emph{opaque values} or \emph{handles} representing some AmigaDOS
-object. Examples for those objects are \emph{file handles} specified in
+object. Examples for those objects are \emph{file handles}\key{FileHandle} specified in
 chapter~\ref{sec:file}, and \emph{locks}\key{Lock}, see section~\ref{sec:locks}. Both
 are represented as BPTRs to some structure the caller usually does not need
 to care about.
@@ -549,7 +549,7 @@ Files\key{File} are streams of bytes together with a file pointer that
 identifies the next position to be read, or the next byte position to be
 filled. Files are explained in more detail in
 chapter~\ref{sec:file}. AmigaDOS represents files through \emph{file
-handles} in the form of a \emph{FileHandle}\mkey{FileHandle} structure,
+handles}\key{FileHandle} in the form of a \emph{FileHandle}\mkey{FileHandle} structure,
 though most of the time, only BPTRs to such handles are passed around.
 
 \section{Locks}
@@ -1168,7 +1168,7 @@ as they are created by the AmigaDOS ROM components:
 {\tt CON}              & Line-interactive console\\ \hline
 {\tt RAW}              & Character based console\\ \hline
 {\tt PIPE}             & Pipeline between processes\\ \hline
-{\tt RAM}              & RAM-based file handler\\ \hline
+{\tt RAM}              & RAM-based file system\\ \hline
 \end{rkrmtable}
 
 If more than one floppy drives are connected to the system, they are
@@ -1530,12 +1530,12 @@ encountered.
 
 To open a file, an absolute or relative path name needs to be provided. The
 {\tt Open()}\key{Open()} function uses this information to construct a
-\emph{file handle} through which the contents of the file can be accessed or
+\emph{file handle}\key{FileHandle} through which the contents of the file can be accessed or
 modified. Depending on how the file is opened, multiple processes may access
 the same file simultaneously, or may even alter the file simulatenously.
 \smallskip{}
 
-Once done with the file, file handles shall be released again with {\tt
+Once done with the file, file handles\key{FileHandle} shall be released again with {\tt
   Close()}. This not only returns system resources, it also makes files
 opened for exclusive access available to other processes, and ensures that
 all modifications are written back to the medium the file is located, or
@@ -1609,7 +1609,7 @@ that do not exist, and exclusive access is granted. Due to these
 inconsistencies, {\tt MODE\_READWRITE} should probably be best avoided. If
 exclusive access without deleting existing file content is required, it is
 best to first obtain an exclusive lock\key{Lock}, see section~\ref{sec:lock}, and then
-use this lock to create a file handle from it though {\tt OpenFromLock()},
+use this lock to create a file handle\key{FileHandle} from it though {\tt OpenFromLock()},
 see section~\ref{sec:openfromlock}.
 \smallskip{}
 
@@ -1664,7 +1664,7 @@ returns with an error, an error requester has already been shown to the user
   Close()} does not provide an advantage.
 \smallskip{}
 
-Attempting to close the {\tt ZERO} file handle under AmigaDOS version 36 or
+Attempting to close the {\tt ZERO} file handle\key{FileHandle} under AmigaDOS version 36 or
 later returns success immediately. Under earlier versions, closing
 {\tt ZERO} causes a crash.
 
@@ -1692,7 +1692,7 @@ BOOL IsInteractive(BPTR)
 \end{verbatim}
 
 The {\tt IsInteractive()}\mkey{IsInteractive()} function returns
-{\tt TRUE} in case the file handle passed in is interactive, or
+{\tt TRUE} in case the file handle\key{FileHandle} passed in is interactive, or
 {\tt FALSE} in case it corresponds to a non-interactive stream of
 bytes, potentially on a file system.
 This function cannot fail and does not alter {\tt IoErr()}.
@@ -1779,7 +1779,7 @@ LONG Read(BPTR, void *, LONG)
 \end{verbatim}
 
 The {\tt Read()}\mkey{Read()} function reads {\tt length} bytes from an opened
-file identified by the file handle {\tt file} into the buffer pointed
+file identified by the file handle\key{FileHandle} {\tt file} into the buffer pointed
 to by {\tt buffer}. The buffer is a standard C pointer, not a BPTR.
 \smallskip{}
 
@@ -1823,7 +1823,7 @@ blocking. Otherwise, and also in case of an error, the function returns {\tt
 
 This function does not remove any bytes from the stream, it only checks for
 the availability of bytes at the level of the handler. This function is
-neither aware of any bytes buffered in the file handle the buffered IO
+neither aware of any bytes buffered in the file handle\key{FileHandle} the buffered IO
 functions of section~\ref{sec:bufferedio} would be able to read.
 \smallskip{}
 
@@ -1861,7 +1861,7 @@ LONG Write(BPTR, void *, LONG)
 \end{verbatim}
 
 The Write\key{Write} function writes {\tt length} bytes in the buffer
-pointed to by {\tt buffer} to the file handle given by the {\tt file}
+pointed to by {\tt buffer} to the file handle\key{FileHandle} given by the {\tt file}
 argument. On success, it returns the number of bytes written as {\tt
   returnedLength}, and advances the file pointer of the file by this
 amount. The number of bytes written can be less than the number of bytes
@@ -1972,7 +1972,7 @@ D0                    D1    D2     D3
 LONG SetFileSize(BPTR, LONG, LONG)
 \end{verbatim}
 This function extends or truncates the size of the file identified by
-the file handle {\tt fh}; the target size is determined by the
+the file handle\key{FileHandle} {\tt fh}; the target size is determined by the
 current file pointer, {\tt offset} and the {\tt mode}. Interpretation
 of {\tt mode} and {\tt offset} is similar to {\tt Seek()}, except that
 the end-of-file position\key{EOF} of the file is adjusted. The file pointer
@@ -2001,7 +2001,7 @@ current file size plus {\tt offset}. That is, the file is extended by
 current file pointer is irrelevant and ignored.
 \smallskip{}
 
-If the current file pointer of any file handle opened on the same file is,
+If the current file pointer of any file handle\key{FileHandle} opened on the same file is,
 after a potential truncation, beyond the new end-of-file, it is clamped to
 the end-of-file. File pointers remain unaltered otherwise.
 \smallskip{}
@@ -2037,7 +2037,7 @@ AmigaDOS also offers buffered input and output functions that stores data in
 an intermediate buffer. It then transfers data only in larger chunks between
 the buffer and the handler, minimizing the task switching overhead and
 offering better performance if data is to be read or written in smaller
-units. All file handles AmigaDOS allow buffered input and output, and are
+units. All file handles\key{FileHandle} AmigaDOS allow buffered input and output, and are
 requipped with a file buffer of a default size of 204 bytes as soon as
 buffered input or output is requested. The {\tt SetVBuf()}\key{SetVBuf()}
 function in section~\ref{sec:setvbuf} should be used to request larger
@@ -2055,7 +2055,7 @@ buffers.
 
 While most buffered I/O functions closely reassemble those of ANSI-C, there
 is one important difference: Unlike many ANSI-C functions, the buffered I/O
-functions of the \emph{dos.library} retrieve the file handle as first and
+functions of the \emph{dos.library} retrieve the file handle\key{FileHandle} as first and
 not as last parameter.
 \smallskip{}
 
@@ -2083,7 +2083,7 @@ this:
 The include file {\tt dos/stdio.h} also defines a couple of additional
 macros for buffered I/O that are slightly inefficient by requiring an
 additional call to {\tt Input()} or {\tt Output()}. If called in a tight
-loop, the target file handle should be obtained first and the functions
+loop, the target file handle\key{FileHandle} should be obtained first and the functions
 should be called manually rather than through the following macros:
 
 \mkey{ReadChar}\mkey{WriteChar}\mkey{UnReadChar}\mkey{ReadChars}
@@ -2125,14 +2125,14 @@ included in the {\tt count}.
 \smallskip{}
 
 From AmigaOs 3.2 onwards, {\tt FRead()} first attempts to satisfy the
-request from the file handle internal buffer, but if the number of
+request from the file handle\key{FileHandle} internal buffer, but if the number of
 remaining bytes is larger than the buffer size, the handler will be
 invoked directly for ``bursting'' the data into the target buffer,
 bypassing the file buffer.
 \smallskip{}
 
 This function does not modify {\tt IoErr()}\key{IoErr()} in case the
-request can be satisfied completely from the file handle buffer. It
+request can be satisfied completely from the file handle\key{FileHandle} buffer. It
 neither returns $-1$ in case of an error. Callers should instead use
 {\tt SetIoErr(0)} to clear the error state before calling this
 function, and then use {\tt IoErr()} to learn if any error occurred if
@@ -2160,7 +2160,7 @@ in {\tt count}.
 \smallskip{}
 
 From AmigaOs 3.2 onwards, {\tt FWrite()} first checks whether the file
-handle internal buffer is partially filled. If so, the file handle
+handle\key{FileHandle} internal buffer is partially filled. If so, the file handle
 internal buffer is filled from {\tt buf}. If any bytes remain to be
 written, and the number of bytes is larger than the internal buffer
 size, the handler will be invoked to write the data in a single block,
@@ -2169,7 +2169,7 @@ internal buffer.
 \smallskip{}
 
 This function does not modify {\tt IoErr()}\key{IoErr()} in case the
-request can be satisfied completely by using the file handle
+request can be satisfied completely by using the file handle\key{FileHandle}
 buffer. It neither returns~$-1$ in case of an error. Callers should
 instead use {\tt SetIoErr(0)} to clear the error state before calling
 this function, and then use {\tt IoErr()} to learn if any error
@@ -2213,7 +2213,7 @@ D0              D1   D2    D3    D4
 LONG SetVBuf(BPTR, STRPTR, LONG, LONG)
 \end{verbatim}
 
-This function sets the internal buffer of the file handle {\tt fh} to {\tt
+This function sets the internal buffer of the file handle\key{FileHandle} {\tt fh} to {\tt
   size} bytes. Sizes smaller than 204 bytes will be rounded up to
 204\footnote{While the official autodocs and~\cite{guru} reports a default
 buffer size of 208 characters, this information is not correct.} bytes. If
@@ -2262,14 +2262,14 @@ buffering.
 The function returns~0 on success, and non-zero on error, unlike most
 other functions of the \emph{dos.library}. Error conditions
 are either out-of-memory, an invalid buffer mode or an invalid file
-handle. Unfortunately, {\tt IoErr()}\key{IoErr()} is only set on an
+handle\key{FileHandle}. Unfortunately, {\tt IoErr()}\key{IoErr()} is only set on an
 out-of-memory condition and remains otherwise unchanged.
 \smallskip{}
 
 Even though this function is documented since AmigaDOS version~36, it was
 only implemented from version~39 onwards. Releases prior version~39 always
 returned~0. Due to another defect, currently present in all versions of
-AmigaDOS, this function cannot be safely applied to file handles opened to
+AmigaDOS, this function cannot be safely applied to file handles\key{FileHandle} opened to
 the {\tt NIL} pseudo-device. As a workaround, the caller should check first
 the {\tt fh\_Type} element of the file handle, and should not call this
 function if this element is {\tt NULL}.
@@ -2277,7 +2277,7 @@ function if this element is {\tt NULL}.
 \subsection{Synchronize the File to the Buffer}
 
 The {\tt Flush()}\mkey{Flush()} function flushes the internal buffer
-of a file handle and synchronizes the file pointer to the
+of a file handle\key{FileHandle} and synchronizes the file pointer to the
 buffer position.
 
 \begin{verbatim}
@@ -2315,7 +2315,7 @@ the beginning of this section for further details.
 \subsection{Write a Character Buffered to a File}
 
 The {\tt FPutC()}\mkey{FPutC()} function writes a single character to
-a file, using the file handle internal buffer.
+a file, using the file handle\key{FileHandle} internal buffer.
 
 \begin{verbatim}
 char = FPutC(fh, char) /* since V36 */
@@ -2325,7 +2325,7 @@ LONG FPutC(BPTR, LONG)
 \end{verbatim}
 
 This function writes the single character {\tt char} to the file
-  handle {\tt fh}.  Depending on the buffer mode, the character and
+  handle\key{FileHandle} {\tt fh}.  Depending on the buffer mode, the character and
 the type of file, the character may go to the buffer first, or may
 cause the buffer to be emptied. See {\tt SetVBuf()}\key{SetVBuf()} for
 details on buffer modes and conditions for implicit buffer flushes.
@@ -2342,7 +2342,7 @@ into the internal buffer.
 \subsection{Write a String Buffered to a File}
 
 The {\tt FPuts()}\mkey{FPuts()} function writes a {\tt NUL}-terminated
-string to a file, using the file handle internal buffer.
+string to a file, using the file handle\key{FileHandle} internal buffer.
 
 \begin{verbatim}
 error = FPuts(fh, str) /* since V36 */
@@ -2352,7 +2352,7 @@ LONG FPuts(BPTR, STRPTR)
 \end{verbatim}
 
 This function writes the NUL-terminated (C-style) string {\tt str} to
-the file handle {\tt fh}. The terminating {\tt NUL} character
+the file handle\key{FileHandle} {\tt fh}. The terminating {\tt NUL} character
 is not written.
 \smallskip{}
 
@@ -2384,13 +2384,13 @@ This function is equivalent to {\tt FPuts(Output(),str)}, that is, it writes
 the {\tt NUL}-terminated string pointed to by {\tt str} to the output. It
 returns~$0$ on success and~$-1$ on error. The {\tt IoErr()}\key{IoErr()} is
 only adjusted when the buffer of the {\tt Output()}\key{Output()}
-file handle is flushed. When this happens depends on the buffer mode
+file handle\key{FileHandle} is flushed. When this happens depends on the buffer mode
 installed by {\tt SetVBuf()}\key{SetVBuf()}.
 
 \subsection{Read a Character from a File}
 
 The {\tt FGetC()}\mkey{FGetC()} function reads a single character from
-a file through the internal buffer of the file handle.
+a file through the internal buffer of the file handle\key{FileHandle}.
 
 \begin{verbatim}
 char = FGetC(fh) /* since V36 */
@@ -2400,7 +2400,7 @@ LONG FGetC(BPTR)
 \end{verbatim}
 
 This function attempts to read a single character from the file
-handle {\tt fh} using the buffer of the handle. If characters are
+handle\key{FileHandle} {\tt fh} using the buffer of the handle. If characters are
 present in the buffer, the request is satisfied from the buffer first,
 then the function attempts to refill the buffer from the file and
 tries again.
@@ -2425,7 +2425,7 @@ version~37.
 \subsection{Read a Line from a File}
 
 The {\tt FGets()}\mkey{FGets()} function reads a newline-terminated
-string from a file, using the file handle internal buffer.
+string from a file, using the file handle\key{FileHandle} internal buffer.
 
 \begin{verbatim}
 buffer = FGets(fh, buf, len) /* since V36 */
@@ -2434,7 +2434,7 @@ D0             D1  D2   D3
 STRPTR FGets(BPTR, STRPTR, ULONG)
 \end{verbatim}
 
-This function reads a line from the file handle into the buffer
+This function reads a line from the file handle\key{FileHandle} into the buffer
 pointed to by {\tt buf}, capable of holding {\tt len} characters.
 \smallskip{}
 
@@ -2472,7 +2472,7 @@ D0             D1  D2
 LONG UnGetC(BPTR, LONG)
 \end{verbatim}
 
-The character {\tt ch} is pushed back into the file handle {\tt fh} such
+The character {\tt ch} is pushed back into the file handle\key{FileHandle} {\tt fh} such
 that the next attempt to read a character from {\tt fh} returns {\tt ch}. If
 {\tt ch} is $-1$, the last character read will be pushed back. If the last
 read operation indicated an error or end of file condition, {\tt
@@ -2490,7 +2490,7 @@ condition. This was fixed in version~37.
 
 \section{File Handle Documentation}
 
-So far, the file handle has been used as an opaque value bare
+So far, the file handle\key{FileHandle} has been used as an opaque value bare
 any meaning. However, the {\tt BPTR}, once converted to a regular
 pointer, is a pointer to {\tt FileHandle}\mkey{FileHandle} structure:
 
@@ -2543,14 +2543,14 @@ initialize it according to the nature of the handler.
 file system that implements all input and output
 operations. Section~\ref{sec:handlers} provides additional information on
 how handlers and file systems work. If this pointer is {\tt NULL}, no
-handler is associated to the file handle. AmigaDOS will deposit this value
+handler is associated to the file handle\key{FileHandle}. AmigaDOS will deposit this value
 here when opening a file to the {\tt NIL} (pseudo-)device. Attempting to
 {\tt Read()}\key{Read()} from such a handle results in an end-of-file
 situation, and calling {\tt Write()} on such a handle does nothing, ignoring
 any data written.
 \smallskip{}
 
-{\tt fh\_Buf}\mkey{fh\_Buf} is a {\tt BPTR} to the file handle internal buffer all
+{\tt fh\_Buf}\mkey{fh\_Buf} is a {\tt BPTR} to the file handle\key{FileHandle} internal buffer all
 buffered I/O function documented in section~\ref{sec:bufferedio} use.
 \smallskip{}
 
@@ -2575,7 +2575,7 @@ neither documented.
 \smallskip{}
 
 {\tt fh\_Func3}\mkey{fh\_Func3} is a function pointer that is called whenever
-the file handle is closed. This function potentially writes the
+the file handle\key{FileHandle} is closed. This function potentially writes the
 buffer content out when dirty, releases the buffer if it is
 system-allocated, and finally forwards the close request to the
 handler.
@@ -2609,7 +2609,7 @@ are necessary to ensure that the file name is unique, and to avoid that any
 other than the intended program accesses or modifies it.
 \smallskip{}
 
-A better alternative is to place the data to be read in a file handle and
+A better alternative is to place the data to be read in a file handle\key{FileHandle} and
 thus hide them from other programs. AmigaDOS uses a similar technique
 internally, for example to provide the command to be executed to the {\tt
   Run}\key{Run} command. There, the string stream contains the command(s) to
@@ -2617,17 +2617,17 @@ be run in background, which is provided as command stream input file to the
 shell\key{Shell}. The {\tt System()}\key{System()} function of the \emph{dos.library}
 makes use of the same trick to feed the command(s) to be executed to the
 shell\key{Shell} as well. Thus, even though the shell\key{Shell} reads its commands from a file
-only, AmigaDOS generates such file handles from strings..
+only, AmigaDOS generates such file handles\key{FileHandle} from strings.
 \smallskip{}
 
 The shell\key{Shell} uses the same technique to pass arguments to the commands it
-executes; it deposits the command arguments in the file handle buffer of the
+executes; it deposits the command arguments in the file handle\key{FileHandle} buffer of the
 input stream where the {\tt ReadArgs()}\key{ReadArgs()} function called from the
 command collects them, see also section~\ref{sec:readargs}.
 \medskip{}
 
 The following program demonstrates this technique: It creates a dummy file
-handle from a {\tt NIL:} stream and replaces its input buffer with a pointer
+handle\key{FileHandle} from a {\tt NIL:} stream and replaces its input buffer with a pointer
 to the string. Since the buffer must be representable as BPTR, it is in the
 example program below allocated through {\tt AllocVec()} which ensures
 proper alignment. This step is not necessary if alignment can be guaranteed
@@ -2767,13 +2767,13 @@ It reads {\tt size} bytes from the file {\tt fh} into the buffer {\tt
 As seen from this implementation, the function attempts to satisfy the
 read if a partial buffer is present. If not, the above implementation
 runs into the operating system function. As for the {\tt FSkip()}
-implementation presented in section~\ref{sec:fskip}, the file handle
+implementation presented in section~\ref{sec:fskip}, the file handle\key{FileHandle}
 requires some preparation by a dummy {\tt UnGetC()}, see there.
 
 \section{Formatted Output}
 
 The functions in this section print strings formatted to a file. Both
-files use the internal buffer of the file handle and are thus buffered.
+files use the internal buffer of the file handle\key{FileHandle} and are thus buffered.
 
 \subsection{Print Formatted String using C-Syntax to a File}
 
@@ -2976,7 +2976,7 @@ of failure, it returns an error code from {\tt dos/dos.h}.
 \smallskip{}
 
 As an application, the following function attempts to read a keystroke from
-a given file handle, supposed to be connected to the console, without
+a given file handle\key{FileHandle}, supposed to be connected to the console, without
 waiting for the return key; it returns~$-1$ on an error:
 
 \begin{verbatim}
@@ -3093,7 +3093,7 @@ structure that is terminated by a {\tt RecordLock} structure with {\tt
 correspond to the arguments of the {\tt LockRecord()}\key{LockRecord()} function:
 \smallskip{}
 
-{\tt rec\_FH}\mkey{rec\_FH} is the file handle to the file within which a record is
+{\tt rec\_FH}\mkey{rec\_FH} is the file handle\key{FileHandle} to the file within which a record is
 to be locked. It shall be {\tt NULL} for the last element in the array.
 \smallskip{}
 
@@ -3419,7 +3419,7 @@ in {\tt dos/dos.h}:
 \begin{rkrmtable}{Object Types for ChangeMode()} \label{table:changemode}
 {\bf {\tt \bf type}} & {\bf {\tt \bf object} Type}\\ \hline \hline
 {\tt CHANGE\_LOCK}\mkey{CHANGE\_LOCK} & {\tt object} shall be a lock\\ \hline
-{\tt CHANGE\_FH}\mkey{CHANGE\_FH} & {\tt object} shall be a file handle\\ \hline
+{\tt CHANGE\_FH}\mkey{CHANGE\_FH} & {\tt object} shall be a file handle\key{FileHandle}\\ \hline
 \end{rkrmtable}
 
 The argument {\tt newmode} shall be one of the modes indicated in
@@ -3432,7 +3432,7 @@ On success, the function returns a non-zero result code, and
 {\tt IoErr()}\key{IoErr()} to an appropriate error code.
 \smallskip{}
 
-Unfortunately, this function will not work reliable for \emph{file handles}
+Unfortunately, this function will not work reliable for file handles\key{FileHandle}
 under all versions of AmigaDOS. In particular, the
 RAM-Handler\key{RAM-Handler} does not interpret {\tt newmode} correctly for
 {\tt CHANGE\_FH}.
@@ -3558,7 +3558,7 @@ determine the device a file system operates on.
 
 \section{Locks and Files}
 
-Each file handle is associated to a lock\key{Lock} to the file that has
+Each file handle\key{FileHandle} is associated to a lock\key{Lock} to the file that has
 been opened. The type of the lock depends on the access mode
 the file has been opened with, table~\ref{table:modelock} for how lock
 types and access modes relate.
@@ -3582,7 +3582,7 @@ exclusive lock to the function as argument.
 \subsection{Duplicate the Implicit Lock of a File}
 
 The {\tt DupLockFromFH()}\mkey{DupLockFromFH()} function performs a copy of a lock implicit
-to a file handle of an opened file. For this to succeed, the
+to a file handle\key{FileHandle} of an opened file. For this to succeed, the
 file must be opened in the mode {\tt MODE\_OLDFILE}\key{MODE\_OLDFILE}
 or {\tt MODE\_READWRITE}\key{MODE\_READWRITE}. Files opened with {\tt
   MODE\_NEWFILE}\key{MODE\_NEWFILE} are based on an implicit exclusive
@@ -3595,7 +3595,7 @@ D0                   D1
 BPTR DupLockFromFH(BPTR)
 \end{verbatim}
 
-This function returns a copy of the lock the file handle {\tt fh} is based
+This function returns a copy of the lock the file handle\key{FileHandle} {\tt fh} is based
 on and returns it in {\tt lock}, that is, returned lock is a lock on the
 file described by the handle {\tt fh}. This file handle remains valid and
 usable after this call. In case of failure, {\tt ZERO} is returned. In
@@ -3606,7 +3606,7 @@ code on failure.
 
 The {\tt ParentOfFH()}\mkey{ParentOfFH()} function obtains a
 shared lock\key{Lock} on the parent directory of the file associated to
-the file handle passed in. That is, this function it is roughly
+the file handle\key{FileHandle} passed in. That is, this function it is roughly
 equivalent to first obtaining a lock on the file through {\tt
   DupLockFromFile()} \key{DupLockFromFile()}, and then calling {\tt
   ParentDir()}\key{ParentDir()} on it, except that this function also
@@ -3621,7 +3621,7 @@ BPTR ParentOfFH(BPTR)
 \end{verbatim}
 
 This function returns a shared lock\key{Lock} on the directory containing
-the file opened through the {\tt fh} file handle. The file handle remains
+the file opened through the {\tt fh} file handle\key{FileHandle}. The file handle remains
 valid and usable after this call. This function returns {\tt ZERO} in case
 of failure. {\tt IoErr()}\key{IoErr()} is set to~$0$ in case of success or
 to an error code from {\tt dos/dos.h} in case of failure.
@@ -3629,7 +3629,7 @@ to an error code from {\tt dos/dos.h} in case of failure.
 \subsection{Opening a File from a Lock} \label{sec:openfromlock}
 
 The {\tt OpenFromLock()} function uses a lock\key{Lock} to a file and opens
-the locked file, returning a file handle. If the lock is associated to a
+the locked file, returning a file handle\key{FileHandle}. If the lock is associated to a
 directory, the function fails. The lock passed in is then absorbed into the
 file handle and shall not be unlocked. It will be released by the file
 system upon closing the returned file handle.
@@ -3642,12 +3642,12 @@ BPTR OpenFromLock(BPTR)
 \end{verbatim}
 
 This function attempts to open the object locked by {\tt lock} as
-file, and creates the file handle {\tt fh} from it. It fails in
+file, and creates the file handle\key{FileHandle} {\tt fh} from it. It fails in
 case the {\tt lock} argument belongs to a directory and not a file.
 \smallskip{}
 
 In case of success, the lock\key{Lock} becomes an implicit part of the file
-handle and shall not be unlocked by the caller anymore.  In case of failure,
+handle\key{FileHandle} and shall not be unlocked by the caller anymore.  In case of failure,
 the function returns {\tt ZERO} and the lock remains available to the
 caller. This function always sets {\tt IoErr()}, to an error code in case of
 failure, or to~$0$ in case of success.
@@ -4334,7 +4334,7 @@ failure.
 
 While {\tt Examine()}\key{Examine()} retrieves information a locked
 object, {\tt ExamineFH()}\mkey{ExamineFH()} retrieves the same
-information from a file handle, or rather from the lock\key{Lock}
+information from a file handle\key{FileHandle}, or rather from the lock\key{Lock}
 implicit to the handle.
 
 \begin{verbatim}
@@ -4353,7 +4353,7 @@ see also the general information in section~\ref{sec:fib}.
 \smallskip{}
 
 Currently, throughout all versions, the \emph{dos.library} is not able to
-handle an attempt to examine a {\tt NIL} file handle gracefully; it will
+handle an attempt to examine a {\tt NIL} file handle\key{FileHandle} gracefully; it will
 just crash. Callers should therefore check the {\tt fh\_Type} element of the
 file handle upfront and fail if it is {\tt NULL}.
 \smallskip{}
@@ -4785,17 +4785,19 @@ fall-back function is corrupt and not reliable in all situations.
 \section{Modifying Directory Entries}
 
 While the functions in section~\ref{sec:fib} read directory entries,
-the functions listed here modify the directory and its entries.
+the functions listed in this section modify the directory and its entries,
+that is, they delete entries, or adjust metadata of directory entries.
 
-\subsection{Deleting Objects on the File System}
+\subsection{Delete Objects on the File System}
 
-The {\tt DeleteFile()}\mkey{DeleteFile()} function removes --- despite
-its name --- not only files, but also directories and links from a
-directory. For this to succeed, the object need to allow deletion
-through its protection bits (see section~\ref{sec:fib}), and no
-locks\key{Lock} are held on the object (see section~\ref{sec:locks}).  To
-be able to delete a directory, this directory needs to be empty in
-addition.
+The {\tt DeleteFile()}\mkey{DeleteFile()} function removes --- despite its
+name --- not only files, but also directories and links from a
+directory. For this to succeed, the object need to allow deletion through
+its protection bits (see section~\ref{sec:fib}), and the object must not be
+locked (see section~\ref{sec:locks}) or accessed through a file
+handle\key{FileHandle}\footnote{This typically implies that a file system
+internal lock is held on the object, thus is equivalent to the first condition.}. To
+be able to delete a directory, it also needs to be empty.
 
 \begin{verbatim}
 success = DeleteFile( name )
@@ -4806,13 +4808,14 @@ BOOL DeleteFile(STRPTR)
 
 This function deletes the object given by the last component of the
 path passed in as {\tt name}. It returns non-zero in case of success,
-or $0$ in case of error. In either case, {\tt IoErr()}\key{IoErr()} is
-set, namely $0$ on success or an error code in case of failure.
+or~$0$ in case of error. In either case, {\tt IoErr()}\key{IoErr()} is
+set, namely~$0$ on success or an error code in case of failure.
 
 \subsection{Rename or Relocate an Object}
 
 The {\tt Rename()}\mkey{Rename()} function changes the name of an
-object, or even relocates it from one directory to another.
+object, or relocates it from one directory to another provided both
+directories are on the same volume.
 
 \begin{verbatim}
 success = Rename( oldName, newName )
@@ -4831,21 +4834,25 @@ may be different from the current name. However, current path and
 target path shall be on the same volume, and the target directory
 shall not already contain an object of the target name; otherwise,
 current and target path may be either relative or absolute paths.
-\smallskip{}
-
 A third condition is that if the object to relocate is a directory,
 then the target path shall not be a position within the object to
 relocate, i.e. you cannot move a directory into itself.
 \smallskip{}
 
 This function returns a boolean success indicator. It is non-zero on
-success, or $0$ on error. In either case, {\tt IoErr()}\key{IoErr()}
-is set, to $0$ on success, or to an error code otherwise.
+success, or~$0$ on error. In either case, {\tt IoErr()}\key{IoErr()}
+is set, to~$0$ on success, or to an error code otherwise.
+\smallskip{}
+
+Versions 34 and below of the OFS allowed to rename directories into itself,
+and thus make them vanish completely without, actually, deleting them. This
+was fixed in at least version 36.
 
 \subsection{Set the File Comment}
 
-The {\tt SetComment()}\mkey{SetComment()} function sets the comment of
-an directory entry, provided the file system supports comments.
+The {\tt SetComment()}\mkey{SetComment()} function sets the comment of a
+file system object, i.e. a file or directory, provided the file system
+supports comments.
 
 \begin{verbatim}
 success = SetComment( name, comment )
@@ -4854,15 +4861,22 @@ D0                    D1    D2
 BOOL SetComment(STRPTR, STRPTR)
 \end{verbatim}
 
-This function sets the comment of the file system object whose
+This function sets or replaces the comment of the file system object whose
 path is given by {\tt name} to {\tt comment}. It depends on the file
 system whether or how long comments can grow. The maximum comment
 length AmigaDOS supports is 79 characters, due to the available space
 in the {\tt FileInfoBlock}\key{FileInfoBlock} structure.
 \smallskip{}
 
-This function returns non-zero on success and $0$ on error. In either
-case, the function sets {\tt IoErr()}\key{IoErr()} to $0$ on success
+Whether or to which degree soft-\key{Soft Link} or hard links\key{Hard Link}
+support comments is up to the file system. For the FFS\key{Fast File System (FFS)}
+and the RAM-Handler\key{RAM-Handler}, links can carry their own
+comments that are separate from the comment on the corresponding link
+target.
+\smallskip{}
+
+This function returns non-zero on success and~$0$ on error. In either
+case, the function sets {\tt IoErr()}\key{IoErr()} to~$0$ on success
 or to an error code otherwise.
 
 \subsection{Setting Protection Bits}
@@ -4878,12 +4892,27 @@ D0                         D1    D2
 BOOL SetProtection (STRPTR, LONG)
 \end{verbatim}
 
-This function sets the protection bits of the file system object {\tt name}
-in the current directory to the combination given by {\tt mask}. The
-protection bits are defined in {\tt dos/dos.h} and their function is listed.
-in table~\ref{table:protectionbits}. The {\tt mask} value corresponds to
+This function sets the protection bits of the file system object identified
+by the path {\tt name} to the combination given by {\tt mask}. The
+protection bits are defined in {\tt dos/dos.h} and their function is listed
+in table~\ref{table:protectionbits} of section~\ref{sec:fib}. The {\tt mask} value corresponds to
 what {\tt Examine()}\key{Examine()} returns in the {\tt FileInfoBlock}\key{FileInfoBlock}
-structure in {\tt fib\_Protection}\key{fib\_Protection}, see also section~\ref{sec:fib}.
+structure in {\tt fib\_Protection}\key{fib\_Protection}, see also
+section~\ref{sec:fib}. In particular, remember that the four least
+significant bits are shown inverted by shell commands and the Workbench.
+\smallskip{}
+
+The current versions of the AmigaDOS file systems allow changes of the
+protection bits of locked or open files.
+\smallskip{}
+
+It is file system dependent whether links carry protection bits, even though
+they are there not very useful as upon locking an object through a link
+resolves the link and thus allows only to retrieve the protection bits of
+the link target. The FFS\key{Fast File System (FFS)} and the
+RAM-Handler\key{RAM-Handler} mirror any protection bits of a
+hard-link\key{Hard Link} target in the link. For soft links\key{Soft Link},
+the RAM-Handler supports a separate set of protection bits.
 \smallskip{}
 
 This function returns a non-zero result code on success, or zero on
@@ -4895,23 +4924,35 @@ on success or to an error code otherwise.
 The {\tt SetFileDate()}\mkey{SetFileDate()} function sets the
 modification date of an object of a file system. Despite its
 name, the function can also set the modification date of directories
-and links if the file system supports them.
+if the file system supports them.
 
 \begin{verbatim}
-success = SetFileDate(name, date)
+success = SetFileDate(name, date) /* since V36 */
 D0                     D1    D2
 
 BOOL SetFileDate(STRPTR, struct DateStamp *)
 \end{verbatim}
 
 This function adjusts the modification date of the file system
-object identified by path as given by {\tt name} to {\tt date}. The
+object identified by the path as given by {\tt name} to {\tt date}. The
 {\tt DateStamp}\key{DateStamp} structure is specified in
 section~\ref{sec:datestamp}.
 \smallskip{}
 
-This function returns $0$ on error or non-zero on success. In either
-case, {\tt IoErr()} is set, either to $0$ on success or to an error
+For links, it is file system dependent whether a link carries a modification
+date different from the modification date of the link target. The Amiga DOS
+Fast File System\key{Fast File System (FFS)} and the
+RAM-Handler\key{RAM-Handler} synchronize the modification date of a hard
+link\key{Hard Link} with that of the link target. For soft links\key{Soft
+  Link}, the FFS updates the link target if the modification date of link is
+updated, whereas the RAM-Handler keeps a separate date for the link. The
+modification date of a link is, however, of limited use as the {\tt
+  Lock()}\key{Lock()} function implicitly resolves links and thus cannot
+gain access to the link itself.
+\smallskip{}
+
+This function returns~$0$ on error or non-zero on success. In either
+case, {\tt IoErr()} is set, either to~$0$ on success or to an error
 code otherwise.
 \smallskip{}
 
@@ -4919,6 +4960,12 @@ Note that not all file systems may be able to set the date precisely
 to ticks, e.g. {\tt FAT} has only a precision of 2 seconds. Some file
 systems may refuse to set the modification date if an object is
 exclusively locked, this is unfortunately not handled consistently.
+\smallskip{}
+
+Even though even AmigaDOS releases 34 and earlier supported setting the
+modification date of file system objects through the packet interface, see
+section~\ref{sec:packetsetdate}, a convenient interface on the level of the
+\emph{dos.library} did not exist.
 
 \subsection{Set User and Group ID}
 
@@ -5005,7 +5052,7 @@ call.
 \subsection{Find the Path from a File Handle}
 
 The {\tt NameFromFH()}\mkey{NameFromFH()} function constructs a path name
-from a file handle, i.e. it finds a path that is suitable to identify
+from a file handle\key{FileHandle}, i.e. it finds a path that is suitable to identify
 the file identified by the passed in file handle.
 
 \begin{verbatim}
@@ -5015,7 +5062,7 @@ D0                   D1    D2    D3
 BOOL NameFromFH(BPTR, STRPTR, LONG)
 \end{verbatim}
 
-This function takes a file handle in {\tt fh} and from that
+This function takes a file handle\key{FileHandle} in {\tt fh} and from that
 constructs an absolute path of the opened file in the supplied {\tt buffer}
 capable of storing {\tt len} bytes, including a terminating {\tt NUL} byte.
 \smallskip{}
@@ -7676,7 +7723,7 @@ After initializing the file system, use {\tt
   Inhibit(filesystem,DOSFALSE)}\key{Inhibit()} or the corresponding packet {\tt
   ACTION\_INHIBIT}\key{ACTION\_INHIBIT} to grant the file system access to the partition or
 medium again. As the volume name can be different and locks\key{Lock} or
-file handles on the original file system clearly became
+file handles\key{FileHandle} on the original file system clearly became
 invalid, it is advisable to pass the device name of the
 file system to {\tt Inhibit()}\key{Inhibit()} if this call is used, see also
 sections~\ref{sec:deviceoverview} and~\ref{sec:inhibit}.
@@ -8471,7 +8518,7 @@ of the boot volume, this is usually identical to the directory identified by
 the {\tt SYS} assign.
 \smallskip{}
 
-{\tt pr\_CIS}\mkey{pr\_CIS} is file handle of the standard input stream of the
+{\tt pr\_CIS}\mkey{pr\_CIS} is file handle\key{FileHandle} of the standard input stream of the
 process. It is also returned by {\tt Input()}\key{Input()}. It can be {\tt
   ZERO} in case the process does not have a standard input stream. This is
 \emph{not} equivalenqt to a {\tt NIL:} input handle --- in fact, any attempt
@@ -8480,7 +8527,7 @@ the Workbench do not have an input stream, unless one is installed here with
 {\tt SelectInput()}\key{SelectInput()}.
 \smallskip{}
 
-{\tt pr\_COS}\mkey{pr\_COS} is the file handle of the standard output stream of the
+{\tt pr\_COS}\mkey{pr\_COS} is the file handle\key{FileHandle} of the standard output stream of the
 process. It is also returned by the {\tt Output()}\key{Output()} function of
 the \emph{dos.library}. It can be {\tt ZERO} in case the process does not
 have a standard output stream, which is not equivalent to a {\tt NIL:} file
@@ -8627,7 +8674,7 @@ Shell and its value shall not be used, modified or interpreted. It is
 currently unused, but can be used by future releases.
 \smallskip{}
 
-{\tt pr\_CES}\mkey{pr\_CES} is the file handle to be used for error output. This
+{\tt pr\_CES}\mkey{pr\_CES} is the file handle\key{FileHandle} to be used for error output. This
 stream gues usually to the console the process runs in, if such a console
 exists. This handle can be changed by {\tt SelectError()}\key{SelectError()}.
 If {\tt pr\_CES}\key{pr\_CES} is {\tt NULL}, processes should fall back to {\tt pr\_COS}\key{pr\_COS}
@@ -8703,37 +8750,37 @@ created. If this tag is provided, then {\tt NP\_FreeSeglist} shall
   NP\_Seglist} shall be included in the tag list.
 \smallskip{}
      
-{\tt NP\_Input}\mkey{NP\_Input} sets the input file handle, i.e. {\tt
+{\tt NP\_Input}\mkey{NP\_Input} sets the input file handle\key{FileHandle}, i.e. {\tt
   pr\_CIS}\key{pr\_CIS} of the process to be created. This tag takes a
 BPTR to a {\tt FileHandle} structure. The default is \emph{not} to set
 the input file handle, e.g. to leave it {\tt ZERO}.
 \smallskip{}
 
-{\tt NP\_CloseInput}\mkey{NP\_CloseInput} selects whether the input file handle, if provided,
-will be closed when the process terminates. If non-zero, the input file handle
+{\tt NP\_CloseInput}\mkey{NP\_CloseInput} selects whether the input file handle\key{FileHandle}, if provided,
+will be closed when the process terminates. If non-zero, the input file handle\key{FileHandle}
 will be closed, otherwise it remains opened. The default is to close the
 input file handle.
 \smallskip{}
 
-{\tt NP\_Output}\mkey{NP\_Output} sets the output file handle,
+{\tt NP\_Output}\mkey{NP\_Output} sets the output file handle\key{FileHandle},
 i.e. {\tt pr\_COS}\key{pr\_COS} of the process to be created. This tag
 takes a BPTR to a {\tt FileHandle} structure. The default is to
 leave the output at {\tt ZERO}.
 \smallskip{}
 
-{\tt NP\_CloseOutput}\mkey{NP\_CloseOutput} selects whether the output file handle, if
+{\tt NP\_CloseOutput}\mkey{NP\_CloseOutput} selects whether the output file handle\key{FileHandle}, if
 provided, will be closed when the process terminates. If non-zero, the
 output file handle will be closed, otherwise it remains open. The default is
 to close the output file handle.
 \smallskip{}
 
-{\tt NP\_Error}\mkey{NP\_Error} sets the error file handle, i.e. {\tt
+{\tt NP\_Error}\mkey{NP\_Error} sets the error file handle\key{FileHandle}, i.e. {\tt
   pr\_CES}\key{pr\_CES} of the process to be created. This tag also
 takes a BPTR to a {\tt FileHandle} structure. The default is to leave
 the error output handle at {\tt ZERO}.
 \smallskip{}
 
-{\tt NP\_CloseError}\mkey{NP\_CloseError} selects whether the error file handle, if provided, will
+{\tt NP\_CloseError}\mkey{NP\_CloseError} selects whether the error file handle\key{FileHandle}, if provided, will
 be closed when the process terminates. If non-zero, the error file handle
 will be closed, otherwise it remains open. The default is \emph{not} to
 close the error file handle. This (different) default is to ensure backwards
@@ -8851,7 +8898,7 @@ process to be created, and will also be released there. If provided, the
 arguments are copied in {\tt pr\_Arguments}\key{pr\_Arguments} of the process to be created,
 and will also be loaded into registers {\tt A0} and its length into
 {\tt D0}. If {\tt NP\_Arguments} are non-zero, a non-{\tt ZERO} {\tt
-  NP\_Input} file handle shall also provided. This is because the arguments
+  NP\_Input} file handle\key{FileHandle} shall also provided. This is because the arguments
 are also copied into the buffer associated to the input file handle
 to make them available to {\tt ReadArgs()}\key{ReadArgs()}, or any other
 function that performs buffered read from {\tt pr\_CIS}\key{pr\_CIS}, see
@@ -8910,7 +8957,7 @@ is initialized from the default file system from the
 \emph{dos.library} if called from a task.
 \smallskip{}
 
-Input, output and error file handles are set to {\tt ZERO}, and no shell\key{Shell}
+Input, output and error file handles\key{FileHandle} are set to {\tt ZERO}, and no shell\key{Shell}
 environment is created either. The current directory and home directory are
 also left at {\tt ZERO}. No arguments are provided to the called function,
 and no shell variables\key{Shell Variable} are copied.
@@ -8977,7 +9024,7 @@ explicitly stated.
 
 \subsection{Retrieve the Process Input File Handle}
 
-The {\tt Input()}\mkey{Input()} function returns the input file handle of
+The {\tt Input()}\mkey{Input()} function returns the input file handle\key{FileHandle} of
 the calling process if one is installed. If no input file handle is provided,
 the function returns {\tt ZERO}.
 
@@ -8988,18 +9035,18 @@ D0
 BPTR Input(void)
 \end{verbatim}
 
-This function returns a BPTR to the input file handle of the calling
+This function returns a BPTR to the input file handle\key{FileHandle} of the calling
 process, or {\tt ZERO} if none is defined. It returns {\tt
   pr\_CIS}\key{pr\_CIS} of the calling process, which is approximately
 the {\tt stdin} of ANSI-C. Depending on process creation, this file
-handle can be closed by the process shutdown code or the calling shell\key{Shell}
+handle\key{FileHandle} can be closed by the process shutdown code or the calling shell\key{Shell}
 and thus should in general not be closed explicitly. It can be changed
 through {\tt SelectInput()}\key{SelectInput()}.
 
 \subsection{Replace the Input File Handle}
 
 The {\tt SelectInput()}\mkey{SelectInput()} function replaces the input
-file handle of the calling process with its argument and returns the
+file handle\key{FileHandle} of the calling process with its argument and returns the
 previously used input handle.
 
 \begin{verbatim}
@@ -9009,13 +9056,13 @@ D0                   D1
 BPTR SelectInput(BPTR)
 \end{verbatim}
 
-This call replaces the input file handle of the calling process with
+This call replaces the input file handle\key{FileHandle} of the calling process with
 the file handle given by {\tt fh} and returns the previously used input
 file handle. It sets {\tt pr\_CIS}\key{pr\_CIS} of the calling process.
 
 \subsection{Retrieve the Output File Handle}
 
-The {\tt Output()}\mkey{Output()} function returns the output file handle of
+The {\tt Output()}\mkey{Output()} function returns the output file handle\key{FileHandle} of
 the calling process if one is installed. If no output file handle is provided,
 the function returns {\tt ZERO}.
 
@@ -9026,7 +9073,7 @@ D0
 BPTR Output(void)
 \end{verbatim}
 
-This function returns a BPTR to the output file handle of the
+This function returns a BPTR to the output file handle\key{FileHandle} of the
 calling process, or {\tt ZERO} if none is defined. It returns {\tt
   pr\_COS}\key{pr\_COS} of the calling process, which is approximately
 the {\tt stdout} of ANSI-C. Depending on process creation, this file
@@ -9037,7 +9084,7 @@ through {\tt SelectOutput()}\key{SelectOutput()}.
 \subsection{Replace the Output File Handle}
 
 The {\tt SelectOutput()}\mkey{SelectOutput()} function replaces the output
-file handle of the calling process with its argument and returns the
+file handle\key{FileHandle} of the calling process with its argument and returns the
 previously used output handle.
 
 \begin{verbatim}
@@ -9047,14 +9094,14 @@ D0                    D1
 BPTR SelectOutput(BPTR)
 \end{verbatim}
 
-This call replaces the output file handle of the calling process with
+This call replaces the output file handle\key{FileHandle} of the calling process with
 the file handle given by {\tt fh} and returns the previously used output
 file handle. It sets {\tt pr\_COS}\key{pr\_COS} of the calling process.
 
 \subsection{Retrieve the Error File Handle}
 
 The {\tt ErrorOutput()}\mkey{ErrorOutput()} function returns the file
-handle through which diagnostic or error outputs should be printed. It
+handle\key{FileHandle} through which diagnostic or error outputs should be printed. It
 uses either {\tt pr\_CES}\key{pr\_CES} if this handle is non-{\tt
   ZERO}, or {\tt pr\_COS}\key{pr\_COS} if the former is {\tt ZERO}. If
 neither an error output nor a regular output is provided, this
@@ -9067,7 +9114,7 @@ D0
 BPTR ErrorOutput(void)
 \end{verbatim}
 
-This function returns a BPTR to the error file handle of the
+This function returns a BPTR to the error file handle\key{FileHandle} of the
 calling process, or falls back to the BPTR of the output file
 handle if the former is not available. This is the file handle through
 which diagnostic output should be printed and is therefore approximately
@@ -9079,7 +9126,7 @@ thus should in general not be closed explicitly. It can be changed through
 \subsection{Replace the Error File Handle}
 
 The {\tt SelectError()}\mkey{SelectError()} function replaces the error
-file handle of the calling process with its argument and returns the
+file handle\key{FileHandle} of the calling process with its argument and returns the
 previously used error handle.
 
 \begin{verbatim}
@@ -9089,7 +9136,7 @@ D0                   D1
 BPTR SelectError(BPTR)
 \end{verbatim}
 
-This call replaces the error file handle of the calling process with
+This call replaces the error file handle\key{FileHandle} of the calling process with
 the file handle given by {\tt fh} and returns the previously used error
 file handle. It sets {\tt pr\_CES} of the calling process.
 
@@ -9312,7 +9359,7 @@ points below {\tt 0x20}, i.e. ASCII control characters.
 {\tt ERROR\_INVALID\_LOCK}\mkey{ERROR\_INVALID\_LOCK}: This error is
 raised if a value is passed in as a lock\key{Lock} that is, in fact, not a valid
 lock of the target file system. For example, an attempt to use
-a file handle as a lock will result in such an error condition. Note,
+a file handle\key{FileHandle} as a lock will result in such an error condition. Note,
 however, that file systems can, but do not need to check locks for
 validity. Passing incorrect objects to file systems can raise multiple
 error conditions of which this error code is probably the most
@@ -9634,7 +9681,7 @@ STRPTR GetArgStr(void)
 This function returns the command line arguments as {\tt
   NUL}-terminated string. This is the same string the process finds in
 register {\tt a0} on startup, or that is placed into the file buffer
-of the {\tt Input()} file handle. This function returns {\tt NULL} if
+of the {\tt Input()} file handle\key{FileHandle}. This function returns {\tt NULL} if
 the program was run from the Workbench; it is equivalent to reading
 the {\tt pr\_Arguments} member of the {\tt Process} structure.
 
@@ -9656,7 +9703,7 @@ This function requires a pointer to a {\tt NUL} terminated string as
 {\tt Process}\key{Process} structure. This is unfortunately of limited use as the
 {\tt ReadArgs()}\key{ReadArgs()} function takes the command line
 arguments from a different source, namely the input buffer of the
-{\tt Input()} file handle. 
+{\tt Input()} file handle\key{FileHandle}. 
 
 \chapter{Binary File Structure} \label{sec:binary}
 
@@ -9842,7 +9889,7 @@ following the hunk type.
 \smallskip{}
 
 Loading a binary executable terminates on three conditions. Either, if
-an end of file is encountered. This closes the file handle and returns
+an end of file is encountered. This closes the file handle\key{FileHandle} and returns
 to the caller with the loaded segment list. Or, if a {\tt
   HUNK\_BREAK}\key{HUNK\_BREAK} or {\tt HUNK\_OVERLAY} are found. This
 mechanism is used for \emph{overlaid} files. In the latter two cases,
@@ -10391,7 +10438,7 @@ D0                        D0  A0   A1
 BPTR InternalLoadSeg(BPTR,BPTR,struct LoadSegFuncs *)
 \end{verbatim}
 This function loads a binary executable in the hunk format from an
-opaque file handle {\tt fh} through functions in the {\tt funcs}. The
+opaque file handle\key{FileHandle} {\tt fh} through functions in the {\tt funcs}. The
 {\tt table} argument shall be {\tt ZERO} when loading regular binaries
 or the root node of an overlay file, and shall be a BPTR to the
 array containing pointers to all segments when loading a non-root
@@ -10415,7 +10462,7 @@ struct LoadSegFuncs {
 }
 \end{verbatim}
 The {\tt ReadFunc()}\mkey{ReadFunc()} function retrieves {\tt d0} bytes from an opaque
-file handle passed into register {\tt d1} and places the read bytes
+file handle\key{FileHandle} passed into register {\tt d1} and places the read bytes
 into the buffer pointed to by register {\tt a0}, it shall return the
 number of bytes read in register {\tt d0}, or a negative value in case
 of error. Note that the file handle {\tt d1} need not to be a file
@@ -10443,7 +10490,7 @@ The purpose of this function is to load a segment or a binary without
 having access to a file or a file system; for example, this
 function could load binaries from ROM-space, or from the Rigit Disk
 Block of a boot partition. In particular, the {\tt fh} argument does
-not need to be a regular file handle; it is rather an opaque
+not need to be a regular file handle\key{FileHandle}; it is rather an opaque
 value identifying the source. This argument is not interpreted, it is
 rather passed into {\tt funcs->ReadFunc()} in register {\tt d1}.
 \smallskip{}
@@ -10531,14 +10578,14 @@ This function is also able to release overlaid binaries, but then
 closes the file stored in the root node of the overlay tree (see
 section~\ref{sec:overlays}) through the {\tt Close()}\key{Close()} function of the
 \emph{dos.library}. It therefore can only release overlaid files that
-were loaded from regular \emph{file handles} obtained through {\tt
+were loaded from regular file handles\key{FileHandle} obtained through {\tt
   Open()}\key{Open()}.
 \smallskip{}
 
 This function returns a non-negative result code in case of success,
 or~$0$ in case of failure. Currently, the only cause of failure is to
 pass in a {\tt ZERO} segment list, the function does not check of the
-result code of {\tt Close()}\key{Close()} on the file handle of overlaid files. It
+result code of {\tt Close()}\key{Close()} on the file handle\key{FileHandle} of overlaid files. It
 therefore neither sets {\tt IoErr()}\key{IoErr()} consistently in case of failure.
 
 \section{Overlays} \label{sec:overlays}
@@ -10912,7 +10959,7 @@ D0                        D0  A0   A1
 BPTR InternalLoadSeg(BPTR,BPTR,struct LoadSegFuncs *)
 \end{verbatim}
 
-The {\tt fh} argument is an opaque file handle that is suitable for
+The {\tt fh} argument is an opaque file handle\key{FileHandle} that is suitable for
 the {\tt ReadFunc()}\key{ReadFunc()} provided by the {\tt funcs} structure. The
 corresponding file pointer shall first be placed to the file offset of
 the {\tt HUNK\_HEADER} of the overlaid node, e.g. by a functionality
@@ -11008,7 +11055,7 @@ custom memory allocator has been used to load the binary, independent
 on which overlay manager has been used. {\tt UnLoadSeg()} will detect
 the overlay manager from the magic value in {\tt oh\_Magic} and will
 then not only release the segments, but also close the overlay file
-handle and release the segment table.
+handle\key{FileHandle} and release the segment table.
 \smallskip{}
 
 If {\tt InternalLoadSeg()}\key{InternalLoadSeg()} has been used for
@@ -11024,7 +11071,7 @@ to close {\tt oh\_FileHandle} manually upfront with whatever method is
 appropriate, then zero it out manually and then finally call into {\tt
   InternalUnLoadSeg()} to perform all the necessary cleanup steps.
 This strategy works because {\tt Close()} on a {\tt ZERO}
-file handle performs no operation and is legit.
+file handle\key{FileHandle} performs no operation and is legit.
 
 \subsection{Internal Working of the Overlay Manager} \label{sec:stdoverlay}
 
@@ -12833,7 +12880,7 @@ target port. If {\tt pr\_CurrentDir}\key{pr\_CurrentDir} is {\tt ZERO}, the {\tt
   pr\_FileSystemTask}\key{pr\_FileSystemTask} is used as target port.
 \smallskip{}
 
-If the handler is contacted through a file handle, for example
+If the handler is contacted through a file handle\key{FileHandle}, for example
 to read or write bytes from a file, the {\tt fh\_Type}\key{fh\_Type} element of the
 handle is used as destination port. A file system may place a custom
 port in this element on opening files by {\tt ACTION\_FINDINPUT}\key{ACTION\_FINDINPUT},
@@ -12891,7 +12938,7 @@ A handler that does not initialize the {\tt dol\_Task}\key{dol\_Task} element of
 {\tt DosList} structure should keep a counter that is incremented for each
 object it creates, and decremented for each object deleted or disposed. For
 example, if the handler supports opening files, then the initialization of
-each file handle should increment the counter, and each file handle
+each file handle\key{FileHandle} should increment the counter, and each file handle
 closed through {\tt ACTION\_END}\key{ACTION\_END} should decrement the counter. Once the use
 counter reaches zero, the handler process should die by releasing all of its
 resources and falling off its main function. This ensures that the system is
@@ -12925,7 +12972,7 @@ table~\ref{table:unimp}.
 Despite such precautions, {\tt ACTION\_DIE}\key{ACTION\_DIE} cannot be implemented in a
 fully reliable way as the {\tt MsgPort} of the file system could still
 be cached by some client programs even if no active locks\key{Lock} or open file
-handles exist. Section~\ref{sec:packetactiondie} contains further details.
+handles\key{FileHandle} exist. Section~\ref{sec:packetactiondie} contains further details.
 
 \section{The CON-Handler} \label{sec:console}
 
@@ -13014,7 +13061,7 @@ lock the window open, see section~\ref{sec:diskinfoconsole} for alternatives
 to this packet or how to regain the {\tt AUTO} feature.
 \smallskip{}
 
-{\tt WAIT}\mkey{WAIT} delays closing the window after every file handle to the console
+{\tt WAIT}\mkey{WAIT} delays closing the window after every file handle\key{FileHandle} to the console
 has been closed. With this flag, the window stays open until the close
 gadget has been pressed, even if no client is connected to the terminal
 anymore to receive input or perform output.
@@ -13147,7 +13194,7 @@ the graphical console.
 \smallskip{}
 
 {\tt WAIT}\key{WAIT} indicates that the serial connection stays open even after every
-file handle to the console was closed. To shut down the serial connection,
+file handle\key{FileHandle} to the console was closed. To shut down the serial connection,
 an ASCII {\tt FS} character = Hex {\tt 0x1c} need to be send by the user. This
 character is created on the Amiga keyboard with Ctrl+\textbackslash{}. This
 also mirrors the {\tt WAIT} keyword of the graphical console.
@@ -13534,7 +13581,7 @@ Control  = "8N1"
 \section{The Queue-Handler}
 
 The Queue-Handler\mkey{Queue-Handler} provides inter-process communication on the basis of
-AmigaDOS file handles. It is used by the Shell to implement pipes; they
+AmigaDOS file handles\key{FileHandle}. It is used by the Shell to implement pipes; they
 collect the output of one command and provide it as input to another,
 without requiring to store the entire output. The reading end of a pipe
 blocks as long as no data becomes available at the writing end, and the
@@ -15196,7 +15243,7 @@ to an {\tt ACTION\_FINDINPUT}\key{ACTION\_FINDINPUT} packet with {\tt
   dp\_Arg3} set to an empty string.
 \smallskip{}
 
-To uniquely identify the file handle and resources associated to it later
+To uniquely identify the file handle\key{FileHandle} and resources associated to it later
 on, the handler may place an identifier or a handle or pointer to internal
 resources in the {\tt fh\_Arg1} element of the {\tt FileHandle} provided by
 {\tt dp\_Arg1}. Before replying the packet, {\tt dp\_Res1} shall be set by
@@ -15207,7 +15254,7 @@ success, {\tt dp\_Res2} shall be set to~$0$, and to an error code from {\tt
 \subsection{Closing a File}
 
 The packet {\tt ACTION\_END}\mkey{ACTION\_END} releases all \emph{file
-system} internal resources of a file handle.
+system} internal resources of a file handle\key{FileHandle}.
 
 \begin{rkrmtable}{\tt ACTION\_END} \label{table:actionend}
 {\bf DosPacket Element}   & {\bf Value}\\ \hline \hline
@@ -15672,7 +15719,7 @@ error code.
 \subsection{Duplicating a Lock from a File Handle}
 
 The packet {\tt ACTION\_COPY\_DIR\_FH}\mkey{ACTION\_COPY\_DIR\_FH} creates a
-shared lock\key{Lock} from an object opened by a file handle; that is, it
+shared lock\key{Lock} from an object opened by a file handle\key{FileHandle}; that is, it
 copies the implicit lock of the handle.
 
 \begin{rkrmtable}{\tt ACTION\_COPY\_DIR\_FH} \label{table:actioncopydirfh}
@@ -15685,7 +15732,7 @@ copies the implicit lock of the handle.
 
 This packet implements the {\tt DupLockFromFH()}\key{DupLockFromFH()}
 function of the \emph{dos.library}, and thus creates a copy of the lock\key{Lock} that
-is implicit to an open file handle. This works only if the file is open in a
+is implicit to an open file handle\key{FileHandle}. This works only if the file is open in a
 non-exclusive mode, i.e. either {\tt MODE\_READWRITE}\key{MODE\_REAWRITE} or
 {\tt MODE\_OLDFILE}\key{MODE\_OLDFILE}.
 \smallskip{}
@@ -15695,14 +15742,14 @@ non-exclusive mode, i.e. either {\tt MODE\_READWRITE}\key{MODE\_REAWRITE} or
 \smallskip{}
 
 On success, {\tt dp\_Res1} is filled by the BPTR to the {\tt FileLock}\key{FileLock}
-created, namely a lock\key{Lock} to the object opened by the file handle. In such a
+created, namely a lock\key{Lock} to the object opened by the file handle\key{FileHandle}. In such a
 case, {\tt dp\_Res2} is set to~0. On error, {\tt dp\_Res1} is set to
 {\tt ZERO} and {\tt dp\_Res2} to an error code.
 
 \subsection{Finding the Parent Directory of a File Handle}
 
 The packet {\tt ACTION\_PARENT\_FH}\mkey{ACTION\_PARENT\_FH} creates a lock\key{Lock}
-on the directory containing a file identified by a file handle.
+on the directory containing a file identified by a file handle\key{FileHandle}.
 
 \begin{rkrmtable}{\tt ACTION\_PARENT\_FH} \label{table:actionparentfh}
 {\bf DosPacket Element}   & {\bf Value}\\ \hline \hline
@@ -15714,7 +15761,7 @@ on the directory containing a file identified by a file handle.
 
 This packet implements the {\tt ParentOfFH()}\key{ParentOfFH()} function of
 the \emph{dos.library} and as such creates a lock\key{Lock} on the directory that
-contains a given file handle. {\tt dp\_Arg1} is a copy of the {\tt
+contains a given file handle\key{FileHandle}. {\tt dp\_Arg1} is a copy of the {\tt
   fh\_Arg1} element of the {\tt FileHandle}\key{FileHandle} structure and thus identifies
 the handle.
 \smallskip{}
@@ -15780,7 +15827,7 @@ incorrect.}.
 \subsection{Changing the Mode of a Lock or a File Handle}
 
 The packet {\tt ACTION\_CHANGE\_MODE}\mkey{ACTION\_CHANGE\_MODE} changes the
-access mode of a lock\key{Lock} or a file handle, thus potentially granting exclusive
+access mode of a lock\key{Lock} or a file handle\key{FileHandle}, thus potentially granting exclusive
 access --- if possible --- or lowering the rights to shared access.
 
 \begin{rkrmtable}{\tt ACTION\_CHANGE\_MODE} \label{table:actionchangemode}
@@ -15801,7 +15848,7 @@ exclusive or shared access mode.
 {\tt dp\_Arg1} identifies the object whose mode is to be changed. This is a
 value from table~\ref{table:changemode}, i.e. either {\tt CHANGE\_LOCK} to
 adjust the type of the lock\key{Lock}, or {\tt CHANGE\_FH} to change the access mode
-of a file handle.
+of a file handle\key{FileHandle}.
 \smallskip{}
 
 {\tt dp\_Arg2} is the BPTR to the object whose mode is to be changed. If
@@ -15818,13 +15865,13 @@ exclusive access to the file or the lock\footnote{The information
 in~\cite{Bantam} is incorrect on this subject matter.}. However, as
 information on this packet is sparse and application programs can call the
 corresponding {\tt ChangeMode()}\key{ChangeMode()} function with incorrect target modes,
-file handlers should also accept {\tt ACTION\_FINDINPUT}\key{ACTION\_FINDINPUT} and
+file systems should also accept {\tt ACTION\_FINDINPUT}\key{ACTION\_FINDINPUT} and
 {\tt ACTION\_FINDUPDATE}\key{ACTION\_FINDUPDATE} for shared access and
 {\tt ACTION\_FINDOUTPUT}\key{ACTION\_FINDOUTPUT} for exclusive access.
 \smallskip{}
 
 Note that it is not always possible to change the mode of a lock\key{Lock} or a file
-to exclusive access, namely if it is accessed by a second file handle or
+to exclusive access, namely if it is accessed by a second file handle\key{FileHandle} or
 locked a second time. This packet shall then fail.
 \smallskip{}
 
@@ -16226,7 +16273,7 @@ On any other error, {\tt dp\_Res1} shall be set to {\tt DOSFALSE} and {\tt
 \subsection{Examining from a File Handle}
 
 The {\tt ACTION\_EXAMINE\_FH}\mkey{ACTION\_EXAMINE\_FH} packet provides meta
-data on an object identified by a file handle rather than a
+data on an object identified by a file handle\key{FileHandle} rather than a
 lock\key{Lock}; that is, it uses the (implied) lock of the opened file to
 retrieve information.
 
@@ -16241,7 +16288,7 @@ retrieve information.
 
 This packet implements the {\tt ExamineFH()}\key{ExamineFH()} function of
 the \emph{dos.library} and retrieves information on an object from a
-file handle rather than a lock\key{Lock}.
+file handle\key{FileHandle} rather than a lock\key{Lock}.
 \smallskip{}
 
 {\tt dp\_Arg1} is a copy of the {\tt fh\_Arg1} element of the
@@ -16878,7 +16925,7 @@ set to {\tt DOSTRUE} and {\tt dp\_Res2} shall be set to~0. On error, {\tt
   dp\_Res1} shall be set to {\tt DOSFALSE} and {\tt dp\_Res2} to an error
 code.
 
-\subsection{Setting the Creation Date of an Object}
+\subsection{Setting the Creation Date of an Object} \label{sec:packetsetdate}
 
 The {\tt ACTION\_SET\_DATE}\mkey{ACTION\_SET\_DATE} packet sets the creation
 date of an object on a file system.
@@ -17088,7 +17135,7 @@ specified in section~\ref{sec:startnotify}.
 \smallskip{}
 
 If any notifications are still pending, e.g. because the monitored object
-has already been changed through a file handle though this file handle has
+has already been changed through a file handle\key{FileHandle} though this file handle has
 not yet been closed, such pending notifications shall be canceled as
 well. The file system shall be aware that even after this packet has
 been replied, some {\tt NotifyMessage}s send out to clients may come back
@@ -17454,7 +17501,7 @@ characters becoming available on an interactive handler.
 This packet implements the {\tt WaitForChar()}\key{WaitForChar()} function
 of the \emph{dos.library}. As such, it checks whether (interactive) input is
 available to satisfy a potential {\tt Read()}\key{Read()}. Note that this packet does
-not receive an indicator of a file handle, thus even if input is available,
+not receive an indicator of a file handle\key{FileHandle}, thus even if input is available,
 it is not specified which {\tt ACTION\_READ}\key{ACTION\_READ} packet will receive the
 available data.
 \smallskip{}
@@ -18302,7 +18349,7 @@ device list to {\tt NULL}, and then terminate the process.
 A file system may not exit as long as client programs cache copies of
 its {\tt MsgPort}; this port is typically the {\tt pr\_MsgPort} of the
 handler process which is released by AmigaDOS as soon as the process
-exits, and it will thus become unusable. At least all file handles
+exits, and it will thus become unusable. At least all file handles\key{FileHandle}
 and locks\key{Lock} need to indicate that the file system is no longer usable. Either,
 the file system may refuse to exit if some file handles using it are still
 open, or some locks are not yet unlocked. Alternatively, the file system
@@ -18360,7 +18407,7 @@ Some handlers do not initialize the {\tt dol\_Task}\key{dol\_Task} element of it
 that are not file systems such as the Console-Handler are typical
 examples. Such handlers shall terminate themselves without requiring
 an {\tt ACTION\_DIE}\key{ACTION\_DIE} when the last resource opened on them
-had been shut down, i.e. all file handles have been closed, all locks\key{Lock} (if
+had been shut down, i.e. all file handles\key{FileHandle} have been closed, all locks\key{Lock} (if
 they are supported at all) have been unlocked and all notification requests
 (if supported) had been canceled.
 
@@ -18483,7 +18530,7 @@ list does not claim to be complete:
 \tt ACTION\_FINDREADONLY(1009) & open a file for exclusive reading \\ \hline
 \tt ACTION\_FINDONEWRITER(1010) & open a file for exclusive writing \\ \hline
 \tt ACTION\_DIRECT\_READ(1900) & used by the CDTV \\ \hline
-\tt ACTION\_DOUBLE(2000) & create two file handles for a pipe \\ \hline
+\tt ACTION\_DOUBLE(2000) & create two file handles\key{FileHandle} for a pipe \\ \hline
 \tt ACTION\_PEEK(2005) & retrieve console input line \\ \hline
 \tt ACTION\_REPLACE(2006) & replace console input line \\ \hline
 \tt ACTION\_GET\_HISTORY(2007) & retrieve history of the console \\ \hline
@@ -19018,7 +19065,7 @@ The generated script\key{Shell Script} after substitution of formal parameters i
 into the {\tt T:} assign, its name in {\tt cli\_CommandFile}\key{cli\_CommandFile} and the
 command input of the invoking Shell, namely {\tt cli\_CurrentInput}\key{cli\_CurrentInput}
 (see section~\ref{sec:clistruct}), is redirected to a file
-  handle to this temporary script. Thus, the shell\key{Shell} continues
+  handle\key{FileHandle} to this temporary script. Thus, the shell\key{Shell} continues
 execution of commands, but rather takes its input from the temporary
 file rather than its current input. As this construction would forbid
 the recursive execution of another Shell script\key{Shell Script} within a Shell script,
@@ -19032,7 +19079,7 @@ environment\footnote{This is a major difference compared to previous
   script could not skip backwards over an {\tt Execute} command.} that
 allows redirection of its input. Once {\tt cli\_CurrentInput}
 exhausted, the Shell terminates execution there, closes the file
-  handle stored there, deletes the temporary file whose name is
+  handle\key{FileHandle} stored there, deletes the temporary file whose name is
 stored in {\tt cli\_CommandFile} and, depending on how it was
 initiated and configured, continues execution from {\tt
   cli\_StandardInput}\key{cli\_StandardInput}. The {\tt System()}\key{System()}\key{System()} function with
@@ -19108,7 +19155,7 @@ shell\key{Boot Shell}.
 \smallskip{}
 
 By default, the newly created Shell receives the input and output file
-handles of the caller, i.e. {\tt pr\_CIS}\key{pr\_CIS} and {\tt pr\_COS}\key{pr\_COS} are copied from
+handles\key{FileHandle} of the caller, i.e. {\tt pr\_CIS}\key{pr\_CIS} and {\tt pr\_COS}\key{pr\_COS} are copied from
 the calling process, see section~\ref{sec:process} for the documentation of
 the process structure. However, with suitable tags the caller can provide
 alternative input and output streams. Whether these file handles are closed
@@ -19118,7 +19165,7 @@ even if they were the streams of the caller, so beware and provide suitable
 tags.
 \smallskip{}
 
-The input and output file handles provided to the Shell \emph{shall be
+The input and output file handles\key{FileHandle} provided to the Shell \emph{shall be
 different}, i.e. it is not permissible to provide the same file handle as
 input and as output stream. If the input and output handle should go to an
 interactive stream such as the console, then only provide an input stream
@@ -19149,7 +19196,7 @@ The tags this function tags are documented in {\tt dos/dostags.h} and
 consist of the {\tt SYS\_} tags and a subset of the {\tt NP\_} tags. 
 \smallskip{}
 
-{\tt SYS\_Input}\mkey{SYS\_Input} This tag takes a BPTR to a file handle as argument which
+{\tt SYS\_Input}\mkey{SYS\_Input} This tag takes a BPTR to a file handle\key{FileHandle} as argument which
 becomes the input stream of the new shell\key{Shell}. If this tag is not provided, the
 input stream of the calling process ({\tt pr\_CIS}) will be used.
 \smallskip{}
@@ -19161,7 +19208,7 @@ closed when done, regardless of other tags. This tag is mutually exclusive
 to {\tt SYS\_Input}.
 \smallskip{}
 
-{\tt SYS\_Output}\mkey{SYS\_Output} This tag defines a BPTR to a file handle which will be
+{\tt SYS\_Output}\mkey{SYS\_Output} This tag defines a BPTR to a file handle\key{FileHandle} which will be
 used as output stream of the new shell\key{Shell}. This handle \emph{shall be
 different} than the handle provided by {\tt SYS\_Input}. If this tag is not
 present, the output stream of the calling process ({\tt pr\_COS})\key{pr\_COS} will be
@@ -19185,7 +19232,7 @@ shell\key{Shell}. This file will always be closed when the shell terminates. Thi
 is mutually exclusive to {\tt SYS\_Output}.
 \smallskip{}
 
-{\tt SYS\_CmdStream}\mkey{SYS\_CmdStream} provides a BPTR to a file handle from which commands
+{\tt SYS\_CmdStream}\mkey{SYS\_CmdStream} provides a BPTR to a file handle\key{FileHandle} from which commands
 are read, i.e. a shell script\key{Shell Script} is supplied as stream, and not as a string.
 This tag is only used if the {\tt command} argument is {\tt NULL} and then
 provides an alternative (stream-based) source for the script to be
@@ -19254,7 +19301,7 @@ default priority is~0.
 handler that is used for opening the {\tt *}\key{* (file name)} and {\tt CONSOLE:} files, which
 will be copied to {\tt pr\_ConsoleTask}\key{pr\_ConsoleTask}. This tag is only used if the input
 stream of the new shell\key{Shell} is not interactive, and otherwise overridden by the
-process {\tt MsgPort} port of the input file handle.
+process {\tt MsgPort} port of the input file handle\key{FileHandle}.
 \smallskip{}
 
 {\tt NP\_CopyVars}\key{NP\_CopyVars} is a boolean tag that specifies whether
@@ -19319,7 +19366,7 @@ System(NULL,SYS_InName,window_arg,
 \end{verbatim}
 where the {\tt window} argument and the {\tt from} argument are coming from
 the command line arguments of {\tt NewShell} of the same names. That is,
-{\tt System()} receives a console as new input file handle, and a command
+{\tt System()} receives a console as new input file handle\key{FileHandle}, and a command
 stream which is by default ``{\tt S:Shell-Startup}''. Setting {\tt
   SYS\_Asynch} to {\tt TRUE} ensures that the shell\key{Shell} continues to read
 commands from its input file handle as soon as the command file depletes.
@@ -19361,7 +19408,7 @@ The first argument is a string containing a shell script\key{Shell Script}. If t
 is {\tt NULL} and thus no command string is present, a new shell\key{Shell} is created
 and run asynchronously in the background, i.e. {\tt Execute()} returns then
 immediately. The new shell\key{Shell} receives its input, and thus its commands from
-the file handle provided as second argument. The output of the commands go
+the file handle\key{FileHandle} provided as second argument. The output of the commands go
 to the stream provided as third argument if non-{\tt ZERO}, or to a console
 cloned by opening ``{\tt *}''\key{* (file name)} from the console task of caller if possible,
 or to a {\tt NIL:} handle if this fails.
@@ -19436,7 +19483,7 @@ register {\tt d0} is filled with {\tt argsize}. Second, the {\tt
   pr\_Arguments}\key{pr\_Arguments} element of the process is temporarly replaced by {\tt
   argptr}, see also section~\ref{sec:process}, and thus the arguments are
 made available to~{\tt GetArgStr()}\key{GetArgStr()}. Third, a buffer for
-the input file handle {\tt pr\_CIS} of the caller is allocated and filled
+the input file handle\key{FileHandle} {\tt pr\_CIS} of the caller is allocated and filled
 with a copy of the argument line; more on the file handle structure is in
 section~\ref{sec:filehandle}. Thus, buffered I/O operations as those listed
 in section~\ref{sec:bufferedio} will retrieve the arguments. This step is
@@ -19453,7 +19500,7 @@ will make use of the entire string.
 \medskip{}
 
 All changes performed by {\tt RunCommand()}\key{RunCommand()} on the caller and its resources,
-namely the stack, the modifications of the input file handle and storage of
+namely the stack, the modifications of the input file handle\key{FileHandle} and storage of
 the arguments and the modified stack are reverted when the called command
 returns.
 \smallskip{}
@@ -19466,7 +19513,7 @@ construct {\tt argv[0]} from it.
 \smallskip{}
 
 This function returns the result code of the called command, or~$-1$ if it
-failed to allocate resources such as the input file handle buffer or the
+failed to allocate resources such as the input file handle\key{FileHandle} buffer or the
 stack. {\tt IoErr()}\key{IoErr()} remains its value from the called command,
 or is set to {\tt ERROR\_NO\_FREE\_STORE}\key{ERROR\_NO\_FREE\_STORE} if
 resources could not be allocated.
@@ -20010,7 +20057,7 @@ printed prompt. Any ``{\tt \%}'' sign included in expanded variables or backtick
 is \emph{not} a formatting command but stands for itself.
 \medskip{}
 
-{\tt cli\_StandardInput}\mkey{cli\_StandardInput} is a BPTR to a file handle that represents the primary
+{\tt cli\_StandardInput}\mkey{cli\_StandardInput} is a BPTR to a file handle\key{FileHandle} that represents the primary
 source of commands. This file handle typically corresponds to a console
 window within which the shell\key{Shell} is executed. The {\tt Run} command will deposit
 here a string stream (see section~\ref{sec:stringstreams}) containing the
@@ -20020,7 +20067,7 @@ through the {\tt SYS\_Input}\key{SYS\_Input} or {\tt SYS\_InName}\key{SYS\_InNam
 exhaused, the Shell terminates.
 \smallskip{}
 
-{\tt cli\_CurrentInput}\mkey{cli\_CurrentInput} is a BPTR to a file handle from which the
+{\tt cli\_CurrentInput}\mkey{cli\_CurrentInput} is a BPTR to a file handle\key{FileHandle} from which the
 shell\key{Shell} is currently executing commands. This stream is either comming
 from the {\tt SYS\_CmdStream}\key{SYS\_CmdStream} or {\tt SYS\_CmdIn}\key{SYS\_CmdIn} tags of the {\tt
   System()}\key{System()} function, or a string stream constructed
@@ -20062,7 +20109,7 @@ reaches its EOF, indicating that the shell terminates.
 \smallskip{}
 
 {\tt cli\_CurrentOutput}\mkey{cli\_CurrentOutput} is currently not used by the Shell. It is currently
-initialized with the same file handle as {\tt cli\_StandardOutput}\key{cli\_StandardOutput}.
+initialized with the same file handle\key{FileHandle} as {\tt cli\_StandardOutput}\key{cli\_StandardOutput}.
 \smallskip{}
 
 {\tt cli\_DefaultStack}\mkey{cli\_DefaultStack} is the minimum stack in long-words the Shell
@@ -20073,7 +20120,7 @@ enlarge the stack further. This element is set by the {\tt
 shell\key{Shell} process itself, but a lower limit of the stack size for its clients.
 \smallskip{}
 
-{\tt cli\_StandardOutput}\mkey{cli\_StandardOutput} is the file handle the shell\key{Shell} provides as default
+{\tt cli\_StandardOutput}\mkey{cli\_StandardOutput} is the file handle\key{FileHandle} the shell\key{Shell} provides as default
 output handle to its clients, and to which it prints output. This handle is
 copied from the {\tt SYS\_Output}\key{SYS\_Output} or {\tt SYS\_OutName}\key{SYS\_OutName} tags of the {\tt
   System()}\key{System()} function if they are provided.
@@ -20546,7 +20593,7 @@ The {\tt rdargs} parameter provides a source of the arguments, and is also
 used for internal resource management of {\tt
   ReadArgs()}\key{ReadArgs()}. If {\tt NULL} is passed in here, this
 function will allocate and initialize it, and the command line to be parsed
-will be taken from the buffer of the input file handle of the calling
+will be taken from the buffer of the input file handle\key{FileHandle} of the calling
 process, i.e. {\tt pr\_CIS}.
 \smallskip{}
 
@@ -20723,7 +20770,7 @@ LONG ReadItem(STRPTR, LONG, struct CSource *)
 \end{verbatim}
 
 This function reads a single argument from the command line, i.e. the buffer
-of the input file handle of the calling process, or the supplied {\tt
+of the input file handle\key{FileHandle} of the calling process, or the supplied {\tt
   CSource} structure. This structure is defined in {\tt dos/rdargs.h} and
 specified in section~\ref{sec:readargs}.
 \smallskip{}
@@ -21284,7 +21331,7 @@ shall only be replied after the first command executed by the shell\key{Shell},
 leaving the {\tt dp\_Res1} and {\tt dp\_Res2} unaltered from the
 values left by {\tt CliInitRun()}\key{CliInitRun()}. When the shell\key{Shell}
 terminates, the shell shall close the {\tt cli\_StandardOutput}\key{cli\_StandardInput} and
-the {\tt cli\_StandardInput} file handles of the {\tt
+the {\tt cli\_StandardInput} file handles\key{FileHandle} of the {\tt
   CommandLineInterface}\key{CommandLineInterface} structure. This type of startup is typically
 used when the shell is instructed to execute commands in the
 background, e.g. by the {\tt Run} command, and if {\tt
@@ -21541,7 +21588,7 @@ console, or by creating a requester with a message on a screen.
 
 The {\tt ErrorReport}\mkey{ErrorReport()} function creates an error
 requester based on an error code and a file system object such as a
-file handle or a lock\key{Lock} and waits a the response of the user who may
+file handle\key{FileHandle} or a lock\key{Lock} and waits a the response of the user who may
 either abort or retry an activity.
 
 \begin{verbatim}
@@ -21603,7 +21650,7 @@ name is extracted.
 The {\tt device} argument is a (regular) pointer to a {\tt MsgPort}
 structure that is only used if {\tt type} is {\tt REPORT\_LOCK}\key{REPORT\_LOCK} and
 {\tt arg1} is {\tt ZERO}. This port is assumed to be a {\tt MsgPort}
-of a file handler that is contacted to learn about the name of the
+of a file handler\key{FileHandle} that is contacted to learn about the name of the
 currently inserted volume. This could be the {\tt pr\_FileSystemTask}\key{pr\_FileSystemTask}
 of the calling process which contains the {\tt MsgPort} of the file
 handler responsible for the {\tt ZERO} lock\key{Lock}\key{ZERO lock}.
@@ -21719,7 +21766,7 @@ output {\tt pr\_COS}\key{pr\_COS} of the caller.
 This function returns $0$ on success, or {\tt ENDSTREAMCH}\key{ENDSTREAMCH} on an
 error. The latter constant is defined in {\tt dos/stdio.h} and equals
 to~$-1$. The error code {\tt IoErr()}\key{IoErr()} is only adjusted
-if the buffer of the used file handle is flushed.
+if the buffer of the used file handle\key{FileHandle} is flushed.
 
 \chapter{The DOS Library} \label{sec:dosbase}
 
