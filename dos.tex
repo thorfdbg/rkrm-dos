@@ -5001,15 +5001,14 @@ either to $0$ on success or to an error code otherwise.
 
 \section{Working with Paths} \label{sec:workpaths}
 
-The \emph{dos.library} contains a couple of support functions that
-help working with paths, see also section~\ref{sec:paths}. What is
-different from the remaining functions is that the paths are not
-interpreted by the file system, but rather by the \emph{dos.library}
-itself. This has several consequences: First, there is no 255
-character limit as the path is never communicated into the \emph{file
-  system} as it was stated in section~\ref{sec:pathlimit}. Second, as
-the paths are constructed or interpreted by the library and not the
-file system, the syntax of the path is also that imposed by the
+The \emph{dos.library} contains a couple of support functions that help
+working with paths, see also section~\ref{sec:paths}. What is different from
+many other functions in the library is that the paths are not interpreted by the
+file system, but rather by the \emph{dos.library} itself. This has several
+consequences: First, there is no 255 character limit (see
+section~\ref{sec:pathlimit}) as the path is never communicated to a file
+system. Second, as the paths are constructed or interpreted by the library
+and not the file system, the syntax of the path is also that imposed by the
 library.
 \smallskip{}
 
@@ -5017,61 +5016,78 @@ That is, for these functions to work, the separator between component
 must be the forwards slash ('{\tt /}') and the parent directory must
 be indicated by an isolated single forward slash without a component
 upfront. This implies, in particular, that the involved file systems
-follow the conventions of AmigaDOS.
+need to follow these conventions.
 
 \subsection{Find the Path From a Lock} \label{sec:namefromlock}
 
 The {\tt NameFromLock()}\mkey{NameFromLock()} function constructs a
-path to the locked object, i.e. if the constructed path is used to
-create a lock\key{Lock}, it will refer to the same object.
+path from a locked object, i.e. if the constructed path is used to
+create a lock\key{Lock}, it will refer to the locked object.
 
 \begin{verbatim}
-success = NameFromLock(lock, buffer, len)
+success = NameFromLock(lock, buffer, len) /* since V36 */
 D0                      D1     D2    D3
 
 BOOL NameFromLock(BPTR, STRPTR, LONG)
 \end{verbatim}
 
-This function constructs in {\tt buffer} an absolute path that
-identifies the object locked by {\tt lock}. At most {\tt len} bytes
-will be filled into {\tt buffer}, including {\tt NUL} termination of the
-string. The created string is always {\tt NUL}-terminated, even if the
-buffer is too short. However, in such a case the function returns~$0$,
-and {\tt IoErr()}\key{IoErr()} is set to {\tt ERROR\_LINE\_TOO\_LONG}.
+This function constructs in {\tt buffer} an absolute path that identifies
+the object locked by {\tt lock}. This lock remains usable after the call. At
+most {\tt len} bytes will be filled into {\tt buffer}, including {\tt NUL}
+termination of the string. The created string is always {\tt
+  NUL}-terminated, even if the buffer is too short. However, in such a case
+the function returns~$0$, and {\tt IoErr()}\key{IoErr()} is set to {\tt
+  ERROR\_LINE\_TOO\_LONG}.
 \smallskip{}
 
-If the path cannot be constructed due to an error, {\tt success} is
-also set to $0$ and {\tt IoErr()} is set to an error code. However, on
-success, {\tt IoErr()} is not set consistently and cannot be depended
-upon. Possible cases of failure are that the volume the locked object
-is located on is currently not inserted in which case it will be
-requested. The {\tt ZERO} lock\key{ZERO lock} is correctly interpreted, and resolves
-into the string {\tt SYS:}. The {\tt lock} remains valid after the
-call.
+The returned path is not necessarily identical to the path through which
+{\tt lock} has been obtained; first, the created path is always absolute,
+and second, if links were involved in the original path, the created path
+refers to the link target(s) and not the link itself.
+\smallskip{}
+
+If the path cannot be constructed due to an error, {\tt success} is also set
+to $0$ and {\tt IoErr()}\key{IoErr()} is set to an error code. In such a
+case, the buffer content is not useful. In case of success, {\tt IoErr()} is
+not set consistently and cannot be depended upon. Possible cases of failure
+are that the volume the locked object is located on is currently not
+inserted. The {\tt ZERO} lock\key{ZERO lock} is resolved into the string
+{\tt SYS:}, which is not necessarily correct if the {\tt SYS:}
+assign\key{Assign} or the default file system of the calling process had
+been modified.
 
 \subsection{Find the Path from a File Handle}
 
 The {\tt NameFromFH()}\mkey{NameFromFH()} function constructs a path name
-from a file handle\key{FileHandle}, i.e. it finds a path that is suitable to identify
+from a file handle\key{FileHandle}, i.e. it finds a path that is suitable to open
 the file identified by the passed in file handle.
 
 \begin{verbatim}
-success = NameFromFH(fh, buffer, len)
+success = NameFromFH(fh, buffer, len) /* since V36 */
 D0                   D1    D2    D3
 
 BOOL NameFromFH(BPTR, STRPTR, LONG)
 \end{verbatim}
 
 This function takes a file handle\key{FileHandle} in {\tt fh} and from that
-constructs an absolute path of the opened file in the supplied {\tt buffer}
-capable of storing {\tt len} bytes, including a terminating {\tt NUL} byte.
+constructs an absolute path of the file corresponding to {\tt fh} in the
+supplied {\tt buffer} capable of storing {\tt len} bytes, including a
+terminating {\tt NUL} byte. This even works if the file has been opened for
+exclusive access.
+\smallskip{}
+
+The returned path is not necessarily identical to the path through the file
+was opened; first, the created path is always absolute, and second, if links
+were involved in the original path, the created path refers to the link
+target(s) and not the link itself.
 \smallskip{}
 
 On success, the function returns a non-zero return code and sets
-{\tt IoErr()}\key{IoErr()} to 0. On error, it returns~$0$ and sets
+{\tt IoErr()}\key{IoErr()} to~0. On error, it returns~$0$ and sets
 {\tt IoErr()} to an error code. In particular, if the supplied buffer
-is not large enough, it is set to {\tt ERROR\_LINE\_TOO\_LONG}\key{ERROR\_LINE\_TOO\_LONG}. Even in the
-latter case, the created path is {\tt NUL} terminated, though not useful.
+is not large enough, it is set to {\tt ERROR\_LINE\_TOO\_LONG}\key{ERROR\_LINE\_TOO\_LONG}.
+Even in the latter case, the created path is {\tt NUL} terminated, though
+not useful.
 
 \subsection{Append a Component to a Path}
 
@@ -5079,14 +5095,14 @@ The {\tt AddPart()}\mkey{AddPart()} adds an absolute or relative path
 to an existing path; the resulting path is constructed as if the input
 path is a directory, and the attached (second) path identifies an object
 relative to this given directory. The function handles special cases
-such as the colon ('{\tt :}') and one or multiple leading slashes
-('{\tt /}') correctly and are interpreted according to the rules
-explained in section~\ref{sec:paths}: The colon identifies the root of
-the volume, and a leading slash the parent directory, upon which the
+such as the colon (``{\tt :}'') and one or multiple leading slashes
+(``{\tt /}'') correctly and interprets according to the rules
+explained in section~\ref{sec:paths}; the colon identifies the root of
+the volume, and a leading slash the parent directory upon which the
 trailing component of the input path is removed.
 
 \begin{verbatim}
-success = AddPart( dirname, filename, size )
+success = AddPart( dirname, filename, size ) /* since V36 */
 D0                   D1        D2      D3
 
 BOOL AddPart( STRPTR, STRPTR, ULONG )
@@ -5100,36 +5116,37 @@ terminating {\tt NUL} byte.
 
 If the required buffer for the constructed path, including
 termination, is larger than {\tt size} bytes, then the function
-returns $0$ and {\tt IoErr()} is set to {\tt ERROR\_LINE\_TOO\_LONG}\key{ERROR\_LINE\_TOO\_LONG},
+returns~$0$ and {\tt IoErr()} is set to {\tt ERROR\_LINE\_TOO\_LONG}\key{ERROR\_LINE\_TOO\_LONG},
 and the input buffers are not altered. Otherwise, the function returns
-non-zero, and {\tt IoErr()} is not altered.
+non-zero, and {\tt IoErr()}\key{IoErr()} is not altered.
 \smallskip{}
 
-This function does not interact with a file system and does not
-check whether the paths passed in correspond to accessible
-objects. The output path is constructed purely based on the AmigaDOS
-syntax of paths.
+This function does not interact with a file system and does not check
+whether the paths passed in correspond to accessible objects. The output
+path is constructed purely based on the AmigaDOS path syntax. Version 36 of
+AmigaDOS did not handle leading slashes and absolute paths in {\tt filename}
+correctly, this was fixed in release 37.
 
 \subsection{Find the last Component of a Path}
 
 The {\tt FilePart()}\mkey{FilePart()} function finds the last
 component of a path; the function name is a bit misleading since the
 last component does not necessarily correspond to a file, but could
-also correspond to a directory once identified by a \emph{file
-  system}. If there is only a single component in the path passed in,
+also correspond to a directory (or link) once identified by a file
+system. If there is only a single component in the path passed in,
 this component is returned. If the path passed in terminates with at
-least two slashes ('{\tt /}') indicating that the last component is at
+least two slashes (``{\tt /}'') indicating that the last component is at
 least one level above, a pointer to the terminating slash is returned.
 
 \begin{verbatim}
-fileptr = FilePart( path )
+fileptr = FilePart( path ) /* since V36 */
 D0                   D1
 
 STRPTR FilePart( STRPTR )
 \end{verbatim}
 
 This function returns in {\tt fileptr} a pointer to the last component
-of the path passed in as {\tt path}, or a pointer to '{\tt /}' in case
+of the path passed in as {\tt path}, or a pointer to ``{\tt /}'' in case
 the input path terminates with at least two slashes.
 \smallskip{}
 
@@ -5137,16 +5154,16 @@ This function cannot fail, and does not touch {\tt IoErr()}.
 
 \subsection{Find End of Next-to-Last Component in a Path}
 
-The {\tt PathPart()}\mkey{PathPart()} identifies the end of the
-next-to-last component in a path. That is, if a {\tt NUL} is injected
-at the pointer returned by this function, the resulting string
-starting at the passed in buffer corresponds to a path that
-corresponds to the directory containing the last component of the
-path. If the passed in path consists only of a single component, the
-returned pointer is identical to the pointer passed in.
+The {\tt PathPart()}\mkey{PathPart()} identifies the end of the next-to-last
+component in a path. That is, if a {\tt NUL} is injected at the pointer
+returned by this function, the resulting string starting at the passed in
+buffer forms a path that corresponds to the directory containing the last
+component of the original path. If the passed in path consists only of a
+single component, the returned pointer is identical to the pointer passed
+in.
 
 \begin{verbatim}
-fileptr = PathPart( path )
+fileptr = PathPart( path ) /* since V36 */
 D0                   D1
 
 STRPTR PathPart( STRPTR )
@@ -5170,12 +5187,13 @@ the same path without the trailing slash.
 
 The {\tt SplitName()}\mkey{SplitName()} function extracts a component
 starting at a given offset from a path and delivers the component in a
-buffer. It also returns a new position at which to continue parsing a path.
-By iteratively calling {\tt SplitName()}, a path can be resolved directory
-by directory, walking the file system tree from top to bottom.
+buffer. It also returns a new position at which to continue parsing the path
+for the next component. By iteratively calling {\tt SplitName()}, a path can
+be resolved directory by directory, walking the file system tree from top to
+bottom.
 
 \begin{verbatim}
-newpos = SplitName(name, separator, buf, oldpos, size)
+newpos = SplitName(name, separator, buf, oldpos, size) /* since V36 */
 D0                  D1      D2      D3     D4     D5
 
 WORD SplitName(STRPTR, UBYTE, STRPTR, WORD, LONG)
@@ -5194,22 +5212,29 @@ If no separator is found, the function returns~$-1$ as {\tt newpos}
 indicating that the entire path has been scanned. Otherwise, it returns the
 offset into {\tt name} at which the next component starts, i.e. the offset
 behind the found separator. These return values are also valid even in case
-the found component was too large to fit into {\tt buf} and it had to be
+the found component was too large to fit into {\tt buf} and had to be
 truncated.
 \smallskip{}
 
-This function does not set error codes, even in case {\tt buf} was too
-small to hold the copied component.
+This function does not provide error codes, even in case {\tt buf} was too
+small.
 \smallskip{}
 
 The intended purpose of this function is to walk a path component by
-component, identifying the names of the directories as scanning
-proceeds. That is, if result code {\tt newpos} is not negative, it should be
-passed back into this function as {\tt oldpos} for a subsequent scan which
-then extracts the next component of the path. The main user of this function
-are therefore file systems when locating an object in the file system
-tree. For most AmigaDOS file systems the sparator is therefore the
-forwards slash (``{\tt /}'').
+component, extracting the components as scanning progresses. That is, if
+result code {\tt newpos} is not negative, it should be passed back into this
+function as {\tt oldpos} for a subsequent scan which then extracts the next
+component of the path. The intended users of this function are file systems
+for locating objects in the file system tree. For most (if not all)
+AmigaDOS file systems the sparator is therefore the forwards slash (``{\tt
+  /}''). Another use case is to identify the device name of an absolute path
+by splitting it at the colon (``{\tt :}'').
+\smallskip{}
+
+In AmigaDOS version 37 and below, components larger or equal than {\tt size}
+characters terminated by a separator are truncated one character too early,
+causing the last character to be lost. The returned index then points at the
+separator rather than behind it. This was fixed in release~39.
 
 \section{Links} \label{sec:links}
 
