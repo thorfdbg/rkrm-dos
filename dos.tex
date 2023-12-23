@@ -5238,43 +5238,44 @@ separator rather than behind it. This was fixed in release~39.
 
 \section{Links} \label{sec:links}
 
-\emph{Links} are tools to escape the tree-like hierarchy of
-directories, sub-directories and files. A \emph{link} mirrors one
-object of a file system to another location such that if the object is
-changed using the path of one location, the changes are reflected in
-another location. Put differently, creating a link is like copying an
-object except that copy and original are always in sync. The storage
-for the payload data of a file is only required once, the link just
-points to the same data as the original directory entry. The same goes
-for links between directories: Whenever a new entry is made in one
-directory, the change also appears in the other.
+\emph{Links}\mkey{Link (see also Soft Link, Hard Link, External Link)}
+escape the tree-like hierarchy of directories, sub-directories
+and files. A \emph{link} mirrors an object of a file system to another
+location such that if the object is changed using the path of one location,
+the changes are reflected in another location. Put differently, creating a
+link is like copying an object except that copy and original remain always
+identical. The storage for the file content is only required once, the
+link just points to the same data as the original directory entry. The same
+goes for links between directories: Whenever a new entry is made in the
+directory, the change also appears in the link and vice versa.
 \smallskip{}
 
-AmigaDOS supports two (or, actually, three) types of links:
-\emph{Hard links}\mkey{Hard Link} and \emph{Soft links}\mkey{Soft Link}.
-The RAM-Handler\key{RAM-Handler} supports a third type that will be discussed below. \emph{Hard links}
-establish the relation between two \emph{file-system} objects on the
-same volume at the level of the file system. That is, whenever a link
-is accessed, the file system resolves the link, transparent to its
-user.  While for the Amiga Fast File System\key{Fast File System (FFS)} and the
-RAM-Handler\key{RAM-Handler} a hard link\key{Hard Link} is a distinct directory entry
-type, some file systems do not distinguish between the original object
-and a hard link to it. For such file systems, the same payload
-data is just referenced by two directory entries. If the larger of a
-link is deleted on the Fast File System or the
-RAM-Handler, and (at least one) link to the object still
-exists, then (one of) the link(s) takes over and becomes the object
-itself. For other file systems, only a file system internal reference
-counter is decreased, and the payload data is removed only if this
+AmigaDOS supports two (or, actually, three) types of links: \emph{Hard
+links}\mkey{Hard Link} and \emph{Soft links}\mkey{Soft Link}.  The
+RAM-Handler\key{RAM-Handler} supports a third type that will be discussed
+below. \emph{Hard links} establish the relation between two objects at the
+level of the file system, and thus the two objects must be located on the
+same volume. That is, whenever a link is accessed, the file system resolves
+the link, transparent to its user and transparent to the \emph{dos.library}.
+While for the Amiga Fast File System\key{Fast File System (FFS)} and the
+RAM-Handler\key{RAM-Handler} a hard link\key{Hard Link} is a distinct
+directory entry type, some other file systems do not distinguish between the
+original object and a hard link to it. For such file systems, the same file
+content is just referenced by two directory entries. If the target of a link
+is deleted on the Fast File System or the RAM-Handler, and (at least one)
+link to the object still exists, then (one of) the link(s) takes over and
+becomes the object itself. For other file systems, only an internal
+reference counter is decreased, and the file content or directory is removed only if this
 counter becomes zero.
 \smallskip{}
 
-Soft links\key{Soft Link} work differently and can also be established between
-two different file systems, or between two different
-volumes. Here, the soft link is a type of its own that contains
-the path of the referenced object. Unlike hard links\key{Hard Link}, soft links are
-resolved through an interaction of the file-system and the
-\emph{dos.library}.
+Soft links\key{Soft Link} work differently and can also be established
+between different file systems, or between different volumes. Here, the soft
+link is a type of its own that contains the path of the referenced
+object. Unlike hard links\key{Hard Link}, soft links are resolved through an
+interaction of the file system and the \emph{dos.library}. Due to
+defects in the Fast File System\key{Fast File System (FFS)}, soft links did
+not work correctly prior to AmigaDOS version 45.
 \smallskip{}
 
 The \emph{dos.library} supports soft links\key{Soft Link} through the
@@ -5306,34 +5307,39 @@ and the soft link cannot be resolved.}\\ \hline
 \end{longtable}
 \end{rkrmtabular}
 
-All of the above functions take a path of its first argument. If the path
+All of the above functions take a path as one of its arguments. If the path
 consists of multiple components, i.e. identifies an object in a nested
-directory, and one of the intermediate components are soft links\key{Soft Link}, the
-\emph{dos.library} will automatically resolve such an intermediate link and
-construct internally a resolved path to the link destination. Whether a
-soft-link at the last component is resolved is typically file system
-and function dependent. For example, {\tt Open()}\key{Open()} will always resolve
-soft links, but {\tt Lock()}\key{Lock()} or {\tt SetProtection()}\key{SetProtection()} may not and may
-instead affect the link, not the target object. {\tt DeleteFile()}\key{DeleteFile()} will
-never resolve a link at the final component of the path, and will therefore
-delete the link, not the object linked to.
+directory, and one of the intermediate components is a soft link\key{Soft
+  Link}, the \emph{dos.library} will automatically resolve such an
+intermediate link and constructs a resolved path to the link
+destination. Whether a soft link as the last component of a path is resolved
+is file system and function dependent. For example, {\tt Open()}\key{Open()}
+and {\tt Lock()}\key{Lock()} will always resolve soft links, but {\tt
+  SetProtection()}\key{SetProtection()} may not and may instead affect the
+link, not the target object. Here, the Fast File System\key{Fast File System
+  (FFS)} resolves soft links, whereas the RAM-Handler\key{RAM-Handler} does
+not. {\tt DeleteFile()}\key{DeleteFile()} will never resolve a link at the
+final component of the path, and will therefore delete the link and not the
+link target.
 \smallskip{}
 
-Note that {\tt Rename()}\key{Rename()} is currently not on the list
-supporting soft-links as part of the path to the object to be renamed, or as
-part of the target path.
+Note that {\tt Rename()}\key{Rename()} is currently not on the list of functions
+supporting soft links as part of the path to the object to be renamed, or as
+part of the target path. Thus, if the source or destination argument of {\tt
+  Rename()} contain a soft link, the function will fail.
 \smallskip{}
 
-If the target of a soft link\key{Soft Link} is deleted (and not the link
-itself), a link pointing to it becomes invalid, even though remains in the
-file system. Any attempt to resolve the link then, obviously,
-fails. AmigaDOS does not attempt to identify such invalid links. The
-same cannot happen for hard links\key{Hard Link}.
+If the target of a soft link\key{Soft Link} is deleted, soft links pointing
+to it becomes invalid, even though they remain in the file system. Any
+attempt to resolve the link then, obviously, fails. AmigaDOS does not
+attempt to identify invalid links when the link target is deleted. The same
+cannot happen for hard links\key{Hard Link} as in such a case one of the
+links will take the role of the link target.
 \smallskip{}
 
 Soft link resolution works as follows: Functions of the \emph{dos.library}
 create a packet of a type that corresponds to the called function; these
-packets are specified in chapter~\ref{sec:handlers}. If the handler
+packets are specified in chapter~\ref{sec:packettypes}. If the handler
 addressed by the packet determines that the path provided by the user
 contains a soft link, it will respond with failure and the error code
 {\tt ERROR\_IS\_SOFT\_LINK}\key{ERROR\_IS\_SOFT\_LINK}.
@@ -5341,24 +5347,25 @@ contains a soft link, it will respond with failure and the error code
 
 The \emph{dos.library} then requests the handler to resolve the softlink via
 the \emph{ReadLink()}\key{ReadLink()} function which sends a packet of type
-{\tt ACTION\_READ\_LINK}\key{ACTION\_READ\_LINK} back to the handler. The handler then computes from
-the original path and the target of the soft link\key{Soft Link} an updated path and
-provides it back to the \emph{dos.library}, which then attempts again to
-perform the requested function. Details on how a file system merges a path
-and a softlink is provided in section~\ref{sec:actionreadlink}. The
-additional round-trip is unfortunately necessary as the handler the
-soft link points to may be a different handler than the one the soft link is
-stored on.
+{\tt ACTION\_READ\_LINK}\key{ACTION\_READ\_LINK} back to the handler, see
+section~\ref{sec:actionreadlink}. The handler then creates from the original
+path and the link target stored in the soft link\key{Soft Link} an updated
+path. The updated path is received by the \emph{dos.library}, which then
+attempts again to perform the requested function. Details on how a file
+system merges a path and a softlink is provided in
+section~\ref{sec:actionreadlink}. The additional round-trip is unfortunately
+necessary as the file system addressed by the link target can be a different
+from the file system on which the soft link is stored.
 \smallskip{}
 
 This process continues until either the requested action could be performed,
 or a maximum number of attempts failed. Currently, the \emph{dos.library}
-will perform at most~15 tries to resolve a soft-link until it finally fails.
+will try at most~15 times to resolve a soft-link until it finally fails.
 \medskip{}
 
 Finally, the RAM-Handler\key{RAM-Handler} supports a special type of
-hard links\key{Hard Link} that goes across volumes. These \emph{external
-  links}\mkey{External Link} copy the linked object on a read-access into the RAM disk,
+hard link\key{Hard Link} that goes across volumes. These \emph{external
+  links}\mkey{External Link} copy the content of the link on a read-access into the RAM disk,
 i.e. the RAM-Handler implements a \emph{copy on access}. This
 feature is used for the {\tt ENV:} assign\key{Assign} containing all active system
 settings. This assign points to a directory in the RAM disk which
@@ -5366,43 +5373,45 @@ itself is externally linked to {\tt ENVARC:}. Thus, whenever a program
 attempts to access its settings --- such as the preferences programs
 --- the RAM-Handler automatically copies the data from {\tt
   ENVARC:} to {\tt ENV:}, avoiding a manual copy and also saving RAM
-space for settings that are currently not accessed and thus unused.
+space for settings that are currently not accessed and thus unused. This
+process is completely transparent to the \emph{dos.library}. External links
+were added to AmigaDOS in version~47.
 \medskip{}
 
 The {\tt FileInfoBlock}\key{FileInfoBlock} introduced in section~\ref{sec:fib} identifies
 links through the {\tt fib\_DirEntryType}\key{fib\_DirEntryType} member. As seen from
-table~\ref{table:direntrytypes}, \emph{hard-links} to files are
+table~\ref{table:direntrytypes}, hard links to files are
 indicated by {\tt ST\_LINKFILE}\key{ST\_LINKFILE} and hard links\key{Hard Link} to directories
 by {\tt ST\_LINKDIR}\key{ST\_LINKDIR}. Note, however, that not all file systems are
 able to distinguish hard links from regular directory entries,
-so this feature cannot be depended upon. In particular,
+so the above directory entry types cannot be depended upon. In particular,
 external links\key{External Link} of the RAM-Handler\key{RAM-Handler} cannot be identified
 by any particular value of the {\tt fib\_DirEntryType}\key{fib\_DirEntryType}.
 \smallskip{}
 
 Table~\ref{table:direntrytypes} also provides the {\tt
   fib\_DirEntryType}\key{fib\_DirEntryType} for soft links, namely {\tt
-  ST\_SOFTLINK}. As the target of a soft link may not under
-control of the file system, it cannot know whether the link
-target is a file or a directory (or maybe another link), and therefore
-a single type is sufficient to identify them.
+  ST\_SOFTLINK}. As the target of a soft link may not under control of the
+file system containing the link, it cannot know whether the link target is a
+file or a directory (or maybe another link), and therefore a single type is
+sufficient to identify them.
 
 \subsection{Creating Links}
 
-The {\tt MakeLink()}\mkey{MakeLink()} function creates a
-hard link\key{Hard Link} or a soft link\key{Soft Link} to an existing object on a
-file system.
+The {\tt MakeLink()}\mkey{MakeLink()} function creates a hard link\key{Hard
+  Link}, soft link\key{Soft Link} or external link\key{External Link} to an
+existing object.
 
 \begin{verbatim}
-success = MakeLink( name, dest, soft )
+success = MakeLink( name, dest, soft ) /* since V36 */
 D0                   D1    D2    D3
 
 BOOL MakeLink( STRPTR, LONG, LONG )
 \end{verbatim}
 
-This function creates a new link at the path {\tt name} of the type
-given by {\tt soft}. The destination the link points to is given by
-{\tt dest}.
+This function creates a new link at the path {\tt name} of the type given by
+{\tt soft}. The destination the link points to, i.e. the link target, is
+given by {\tt dest}.
 \smallskip{}
 
 The third argument, {\tt soft}, identifies the type of the link to be
@@ -5415,76 +5424,77 @@ created. It shall be taken from table~\ref{table:linktypes}, defined in
 \tt LINK\_SOFT & Soft link\key{Soft Link} \\ \hline
 \end{rkrmtable}
 
-If {\tt soft} is {\tt LINK\_HARD}\mkey{LINK\_HARD}, {\tt dest} is a lock represented
-by {\tt BPTR}. For most file systems, {\tt dest} shall be on
-the same volume as the one identified by the path in {\tt name}. The
-currently only exception is the RAM-Handler\key{RAM-Handler} for which the
-destination lock\key{Lock} may be on a different volume. In such a case,
-an external link\key{External Link} is created. While the target object will be
-created, it may look initially like an empty file or an empty
-directory, depending on the type of the link destination. Its contents
-is copied, potentially recursively creating directories, by copying
-the contents of the link destination into the link, or to a file or
-directory within the link. Thus, the link becomes a mirror of the link
-destination whenever an object within the link or the link itself is
-accessed.
+If {\tt soft} is {\tt LINK\_HARD}\mkey{LINK\_HARD}, {\tt dest} is a lock
+represented by {\tt BPTR}. For most file systems, {\tt dest} shall be on the
+same volume as the one identified by the path in {\tt name}. The only
+exception is currently the RAM-Handler\key{RAM-Handler} for which the
+destination lock\key{Lock} may be on a different volume. In such a case, an
+external link\key{External Link} is created. While the target object of an
+external object will be created immediately, it may look initially like an
+empty file or an empty directory, depending on the type of the link
+destination. Its contents is copied, potentially creating intermediate
+directories, on attempts accessing the link contents. Thus, the link becomes a mirror
+of the link destination whenever an object within the link or the link
+itself is accessed. From that point on, the copied object is detached from
+its original, and may be overwritten without affecting the link
+target. External links were added to AmigaDOS in version~47.
 \smallskip{}
 
-If {\tt soft} is {\tt LINK\_SOFT}\mkey{LINK\_SOFT}, {\tt dest} is a {\tt const UBYTE *} that
+If {\tt soft} is {\tt LINK\_SOFT}\mkey{LINK\_SOFT}, {\tt dest} is a {\tt const UBYTE *}~that
 shall be casted to a {\tt LONG}. Then, this function creates a
 \emph{soft-link} that is relative to the path of the link, i.e.  {\tt
-  name}. For details on \emph{soft-link} resolution, see
-section~\ref{sec:readlink}.
+  name}. For details on soft link resolution, see
+section~\ref{sec:readlink}. In case of soft links, the target does not even
+need to exist. Soft links did not work reliable prior to version 45 of AmigaDOS.
 \smallskip{}
 
-This function returns in {\tt success} non-zero if creation of the
-lock\key{Lock} succeeded, or $0$ in case of failure. In either case,
+This function returns non-zero in {\tt success} if creation of the
+lock\key{Lock} succeeded, or~$0$ in case of failure. In either case,
 {\tt IoErr()} is set to an error code on failure, or $0$ on success.
 
-\subsection{Resolving Soft-Links} \label{sec:readlink}
+\subsection{Resolving Soft Links} \label{sec:readlink}
 
-The {\tt ReadLink()}\mkey{ReadLink()} function locates the destination
-of a soft link\key{Soft Link} and constructs from the path and directory of
-the link a new path that identifies the target of the link. A typical
-use case for this function is if a \emph{dos.library} function returns
-with the error {\tt ERROR\_IS\_SOFT\_LINK}\key{ERROR\_IS\_SOFT\_LINK}, indicating that the
-file system needs help from a higher layer to grant access to
-the object. You then typically retry the access to the object with the
-path constructed by this function. Note well that this path may be
-that of yet another soft link, requiring recursive resolution
-of the link. To avoid endless recursion, this loop should be aborted
-after a maximum number of attempts, then generating an error such as
-{\tt ERROR\_TOO\_MANY\_LEVELS}\key{ERROR\_TOO\_MANY\_LEVELS}. A suggested maximum level of nested
-\emph{soft-links}, also used by the \emph{dos.library}, is 15 links.
+The {\tt ReadLink()}\mkey{ReadLink()} function locates the target of a
+soft link\key{Soft Link} and constructs from the path and directory containing the
+link a new path that resolves the link in the original path. In most cases,
+namely for the function listed in table~\ref{table:softenabled}, the
+\emph{dos.library} calls this function itself internally and its user does
+not need to worry about soft links.
 \smallskip{}
 
-Note, however, that such steps would not be necessary for the
-functions listed in table~\ref{table:softenabled} as they already
-perform such steps internally.
+If, however, a \emph{dos.library} function or a packet in direct
+communication with a handler (see chapter~\ref{sec:handlers}) returns 
+the error {\tt ERROR\_IS\_SOFT\_LINK}\key{ERROR\_IS\_SOFT\_LINK}, then this
+function helps to resolve the soft link in the path. The access is then
+typically retried with the path constructed by this function. Note well that
+this path can be that of yet another soft link, requiring recursive
+resolution of the link. To avoid endless recursion, this loop should be
+aborted after a maximum number of attempts, and should generate the error
+{\tt ERROR\_TOO\_MANY\_LEVELS}\key{ERROR\_TOO\_MANY\_LEVELS}. A suggested
+maximum level of nested soft links, also used by the \emph{dos.library}, is
+15~links.
 
 \begin{verbatim}
-success = ReadLink( port, lock, path, buffer, size)
+success = ReadLink( port, lock, path, buffer, size) /* since V36 */
 D0                   D1    D2    D3     D4     D5
 
 BOOL ReadLink( struct MsgPort *, BPTR, STRPTR, STRPTR, ULONG)
 \end{verbatim}
 
-This function creates in {\tt buffer} of {\tt size} bytes a path to
-the target of a \emph{soft-link} contained in the input {\tt path}
-relative to the directory represented by {\tt lock}. Typically, {\tt
-  path} is the path given to some object you attempted to access, and
-{\tt lock} is the lock\key{Lock} as given by the current
-directory\key{CurrentDir()} to which the path is relative. The output
-path constructed in {\tt buffer} is then an updated path relative to
-the same directory, i.e. relative to {\tt lock}.
+This function creates an updated path in {\tt buffer} from an input {\tt
+  path} whose resolution failed due to a soft link somewhere in this
+path. The input path is relative to the directory represented by {\tt
+  lock}. The output path constructed in {\tt buffer}, which is {\tt size}
+bytes large, is again relative to {\tt lock}, but can also be an absolute
+path.
 \smallskip{}
 
-The {\tt port} is the message port of the file system that is queried
-to resolve the soft link\key{Soft Link}; this port should be obtained from
-{\tt GetDeviceProc()}\key{GetDeviceProc()}, see
-section~\ref{sec:getdeviceproc}. For relative paths, this port is
-identical to the one in the {\tt fl\_Task}\key{fl\_Task} member of the {\tt FileLock}
-structure representing {\tt lock}, see section~\ref{sec:filelock}.
+The {\tt port} is the message port of the file system containing the soft
+link\key{Soft Link} and which is requested to resolve this link. In typical
+cases, this port and {\tt lock} are obtained from {\tt dvp\_Port} and {\tt
+  dvp\_Link} of the {\tt DevProc} structure returned by {\tt
+  GetDeviceProc()}\key{GetDeviceProc()} called on {\tt path}, see
+section~\ref{sec:getdeviceproc} for this structure and the function.
 \smallskip{}
 
 If {\tt size} is too small to hold the adjusted path, the function
@@ -14526,7 +14536,7 @@ extends from {\tt Name}, then overflows into {\tt NameX1} and from there to
 {\tt NameX2}.
 \smallskip{}
 
-{\tt Link}\key{Link (FFS)} is the key of the file header or user directory key for
+{\tt Link}\key{Link (FFS Block)} is the key of the file header or user directory key for
 hard-links. For soft-links, this element is not used and set to~0.
 \smallskip{}
 
