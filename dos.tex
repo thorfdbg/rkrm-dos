@@ -4768,7 +4768,7 @@ terminates due to an error or due to the end of the directory. That is, {\tt
 \smallskip{}
 
 {\tt ExAllEnd()} is also be the fastest way to terminate a running directory
-scan, for example of a network file systems where a directory scan may proceed
+scan, for example of a network file systems where the scan may proceed
 offline on a separate server. The arguments to {\tt ExAllEnd()} shall be
 exactly those supplied to {\tt ExAll()}\key{ExAll()} which it is supposed to
 terminate. Note in particular that the {\tt lock} shall be identical to the
@@ -5273,11 +5273,14 @@ Soft links\key{Soft Link} work differently and can also be established
 between different file systems, or between different volumes. Here, the soft
 link is a type of its own that contains the path of the referenced
 object. Unlike hard links\key{Hard Link}, soft links are resolved through an
-interaction of the file system and the \emph{dos.library}. Due to
-defects in the Fast File System\key{Fast File System (FFS)}, soft links did
-not work correctly prior to AmigaDOS version 45, and soft links accessed
-through a multi-assigned directory still fail to work correctly even under
-the latest version of AmigaDOS.
+interaction of the file system and the \emph{dos.library}. Due to defects in
+the Fast File System\key{Fast File System (FFS)}, soft links did not work
+correctly prior to AmigaDOS version 45, and soft links containing two
+components of which the first (directory) component is a soft link do not
+work correctly in the RAM-Handler\key{RAM-Hander} even in its latest
+version. Unfortunately, soft links accessed through a multi
+assign\key{Multi-Assign} also fail to work correctly due a defect even in
+the latest \emph{dos.library}.
 \smallskip{}
 
 The \emph{dos.library} supports soft links\key{Soft Link} through the
@@ -5309,7 +5312,7 @@ and the soft link cannot be resolved.}\\ \hline
 \end{longtable}
 \end{rkrmtabular}
 
-All of the above functions take a path as one of its arguments. If the path
+All of the above functions take a path as one of their arguments. If the path
 consists of multiple components, i.e. identifies an object in a nested
 directory, and one of the intermediate components is a soft link\key{Soft
   Link}, the \emph{dos.library} will automatically resolve such an
@@ -5328,14 +5331,15 @@ link target.
 Note that {\tt Rename()}\key{Rename()} is currently not on the list of functions
 supporting soft links as part of the path to the object to be renamed, or as
 part of the target path. Thus, if the source or destination argument of {\tt
-  Rename()} contain a soft link, the function will fail.
+  Rename()} contain a soft link, the function will
+fail. Section~\ref{sec:readlink} contains code for a (partial) workaround.
 \smallskip{}
 
 If the target of a soft link\key{Soft Link} is deleted, soft links pointing
-to it becomes invalid, even though they remain in the file system. Any
-attempt to resolve the link then, obviously, fails. AmigaDOS does not
-attempt to identify invalid links when the link target is deleted. The same
-cannot happen for hard links\key{Hard Link} as in such a case one of the
+to it become invalid, even though they remain in the file system. Any
+attempt to resolve such a link then, obviously, fails, and AmigaDOS does not
+attempt to identify invalid links upon deletion of the link target. The same
+issue does not exist for hard links\key{Hard Link} as in such a case one of the
 links will take the role of the link target.
 \smallskip{}
 
@@ -5343,16 +5347,16 @@ Soft link resolution works as follows: Functions of the \emph{dos.library}
 create a packet of a type that corresponds to the called function; these
 packets are specified in chapter~\ref{sec:packettypes}. If the handler
 addressed by the packet determines that the path provided by the user
-contains a soft link, it will respond with failure and the error code
+contains a soft link, it will respond with failure and the error
 {\tt ERROR\_IS\_SOFT\_LINK}\key{ERROR\_IS\_SOFT\_LINK}.
 \smallskip{}
 
-The \emph{dos.library} then requests the handler to resolve the softlink via
+The \emph{dos.library} requests the handler to resolve the softlink via
 the \emph{ReadLink()}\key{ReadLink()} function which sends a packet of type
 {\tt ACTION\_READ\_LINK}\key{ACTION\_READ\_LINK} back to the handler, see
 section~\ref{sec:actionreadlink}. The handler then creates from the original
 path and the link target stored in the soft link\key{Soft Link} an updated
-path. The updated path is received by the \emph{dos.library}, which then
+path. The updated path is received by the \emph{dos.library}, which
 attempts again to perform the requested function. Details on how a file
 system merges a path and a softlink is provided in
 section~\ref{sec:actionreadlink}. The additional round-trip is unfortunately
@@ -5367,10 +5371,10 @@ will try at most~15 times to resolve a soft-link until it finally fails.
 
 Finally, the RAM-Handler\key{RAM-Handler} supports a special type of
 hard link\key{Hard Link} that goes across volumes. These \emph{external
-  links}\mkey{External Link} copy the content of the link on a read-access into the RAM disk,
+  links}\mkey{External Link} copy the link target on a read-access into the RAM disk,
 i.e. the RAM-Handler implements a \emph{copy on access}. This
 feature is used for the {\tt ENV:} assign\key{Assign} containing all active system
-settings. This assign points to a directory in the RAM disk which
+settings. The assign points to a directory in the RAM disk which
 itself is externally linked to {\tt ENVARC:}. Thus, whenever a program
 attempts to access its settings --- such as the preferences programs
 --- the RAM-Handler automatically copies the data from {\tt
@@ -5601,50 +5605,57 @@ directory --- this would need to be added.
 \section{Notification Requests} \label{sec:notification}
 
 Notification requests allow programs to monitor file or directory
-changes. If so, either a signal or a message can be send to a specific
-task, informing it on the modification. If the notification request is
-issued on a file, any attempt to modify the contents of the file will
-trigger the notification request. However, in order to avoid too many
-request to be send out, the triggering the request is delayed until
-after the corresponding file is closed.
+changes. If a change is detected, either a signal or a message can be send
+to a specific task or port. Notification requests were added in version 36
+of AmigaDOS, and while the RAM-Handler\key{RAM-Handler} supported it right
+from the start, the Fast File System\key{Fast File System (FFS)} included
+support for it from version 37 onwards. However, please be aware that not
+all file systems are able to support this mechanism; network file systems,
+for example, need to operate on the basis of existing protocols that do not
+provide a mechanism to monitor file or directory changes on the server
+side.
 \smallskip{}
 
-If issued on a directory, attempts to add or remove files or links
-will trigger the request, as well as renaming files. Whether changes
-of metadata such as protection bits or comments are considered
-modifications is not clearly defined and not all versions of all
-AmigaDOS file systems handle it consistently. The most recent version
-of AmigaDOS will consider such modifications sufficient to trigger a
-notification.
+If issued on a file, the notification request is only triggered
+after the modified file is closed to avoid sending too many requests at
+once for each single change made.
 \smallskip{}
 
-A typical application of notification requests is the {\tt IPrefs}
-program which uses such requests to monitor changes of the preferences
-files. If it detects any changes of the preferences, it reloads the
-contents of the files and re-installs the preferences into the
-components it serves, most importantly {\tt intuition}.
+If issued on a directory, attempts to add or remove files or links will
+trigger the request. Renaming files within the monitored directory are also
+recognized and can therefore be monitored. Whether changes of metadata such
+as protection bits or comments are considered modifications is not clearly
+defined and not all versions of all AmigaDOS file systems handle such
+cases. The most recent version of AmigaDOS will consider them sufficient to
+trigger a notification.
+\smallskip{}
+
+A typical application of notification requests is the {\tt IPrefs} program
+which uses them to monitor changes of the preferences files. If it detects
+any changes of the preferences, it reloads the contents of the files and
+re-installs the preferences into the components it serves, most importantly
+the \emph{intuition.library}.
 
 \subsection{Request Notification on File or Directory Changes} \label{sec:startnotify}
 
 The {\tt StartNotify()}\mkey{StartNotify()} function starts monitoring
 a file or directory for changes, and if such modifications are found,
-a signal or a message is send to a task.
+a signal is send to a task or a message is placed in a port.
 
 \begin{verbatim}
-success = StartNotify(notifystructure)
+success = StartNotify(notifystructure) /* since V36 */
 D0                          D1
 
 BOOL StartNotify(struct NotifyRequest *)
 \end{verbatim}
 
 This function starts a notification request as described by the {\tt
-  notifystructure} argument. This structure shall be initialized by
-the caller, and is then enqueued in the file system until the
-notification request is terminated by {\tt
-  EndNotify()}\key{EndNotify()}. Once issued, the request shall not be
-touched anymore as the file system may access it any time. As
-some field require zero-initialization at this point, it is advisable
-to allocate it through exec with the {\tt MEMF\_CLEAR} flag set.
+  notifystructure} argument. This structure shall be initialized by the
+caller, and is then enqueued in the file system until the notification
+request is canceled by {\tt EndNotify()}\key{EndNotify()}. Once issued,
+the request shall not be touched anymore as the file system can access it
+any time. As some elements require zero-initialization, it is advisable to
+allocate it through exec with the {\tt MEMF\_CLEAR} flag set.
 \smallskip{}
 
 The {\tt NotifyRequest} structure is defined in {\tt dos/notify.h} and reads as follows:
@@ -5676,22 +5687,31 @@ struct NotifyRequest {
 The elements of this structure shall be initialized as follows:
 \smallskip{}
 
-{\tt nr\_Name}\mkey{nr\_Name}: The path to the object to be monitored, relative to
-the current directory. While it seems plausible that issuing a
-notification request on a not yet existing object will trigger a
-notification once such an object is created, this type of notification
-is currently not supported by AmigaDOS.
+{\tt nr\_Name}\mkey{nr\_Name}: The path to the object to be monitored,
+relative to the current directory. While it seems plausible to issue a
+notification request on an object that does not yet exist to get notified
+once it is created, this feature is currently not supported by AmigaDOS.
+\smallskip{}
+
+The file system will neither inform notification requests when assignments
+are made to a monitored directory, nor if the volume containing the object
+is removed, reinserted or access to it is inhibited (see section~\ref{sec:inhibit}).
+\smallskip{}
 
 {\tt nr\_FullName}\mkey{nr\_FullName} is initialized by the file system and shall be left alone
 by the caller. The \emph{dos.library} uses it to store the full path of the
-object to monitor.
+object to monitor. This element is supposed to be used by the file system
+only, see section~\ref{sec:packetaddnotify}.
+\smallskip{}
 
-{\tt nr\_UserData}\mkey{nr\_UserData} is free for use by the calling application. It may
+{\tt nr\_UserData}\mkey{nr\_UserData} is free for the calling application. It may
 be used to distinguish multiple notification requests that have been
-issued in parallel.
+issued in parallel. This is most useful for {NRF\_SEND\_MESSAGE} requests as
+the {\tt NotifyMessage} structure contains a pointer back to the request.
+\smallskip{}
 
 {\tt nr\_Flags}\mkey{nr\_Flags} identifies the activity that is performed when a
-change has been detected by a file system. Currently, the
+change on the monitored object has been detected by a file system. Currently, the
 following flags are defined in {\tt dos/notify.h}:
 
 \begin{rkrmtable}{Notification Flags} \label{table:notifyflags}
@@ -5709,23 +5729,24 @@ are free for the file system to use.
 The flags {\tt NRF\_SEND\_MESSAGE}\mkey{NRF\_SEND\_MESSAGE} and {\tt NRF\_SEND\_SIGNAL}\mkey{NRF\_SEND\_SIGNAL} are
 mutually exclusive. Exactly one of the two shall be included in the
 request to identify the activity that is performed when the monitored
-object changes.
+object changes. As the names suggest, in the first case a message is send to
+{\tt nr\_Port}, and in the second case a signal bit is set in the task {\tt nr\_Task}.
 \smallskip{}
 
-{\tt NRF\_WAIT\_REPLY}\mkey{NRF\_WAIT\_REPLY} indicates to the file system that it should not
-continue to send a notification message while it has already send one
-message before that has not yet been replied. Thus, setting this flag
-prevents notification requests to pile up at the recipient. However,
-if one or multiple changes were detected while the first request was
-triggered but not yet responded, replying to this first notification
-message will immediately trigger a \emph{single} subsequent request.
+{\tt NRF\_WAIT\_REPLY}\mkey{NRF\_WAIT\_REPLY} indicates to the file system
+that it should not continue to send a notification message until the last
+one send has been replied. Thus, setting this flag prevents
+notification requests to pile up at the recipient. However, if one or
+multiple changes were detected while the first request was triggered but not
+yet responded, replying to this first notification message will immediately
+trigger a \emph{single} subsequent request for the file system object monitored.
 \smallskip{}
 
-{\tt NRF\_NOTIFY\_INITIAL}\mkey{NRF\_NOTIFY\_INITIAL} will instruct the file system to trigger a
+{\tt NRF\_NOTIFY\_INITIAL}\mkey{NRF\_NOTIFY\_INITIAL} instructs the file system to trigger a
 notification message or signal immediately after the request has been
 received. This allows applications to roll both the initial action and
 the response of the notification into a single function --- for
-example, for reading or re-reading a preferences file.
+example, for loading an initial version or re-reading a preferences file.
 \medskip{}
 
 {\tt nr\_Port}\mkey{nr\_Port} is only used if the {\tt NRF\_SEND\_MESSAGE}\mkey{NRF\_SEND\_MESSAGE} flag is
@@ -5742,29 +5763,30 @@ bit mask. Clearly, {\tt NRF\_WAIT\_REPLY}\key{NRF\_WAIT\_REPLY} does not work in
 with signal bits.
 \smallskip{}
 
-{\tt nr\_Pad}\mkey{nr\_Pad} are only present for alignment and shall be left alone.
+{\tt nr\_Pad}\mkey{nr\_Pad} is only present for alignment and shall be left alone.
 \smallskip{}
 
-{\tt nr\_Reserved}\mkey{nr\_Reserved} shall be zero-initialized by the caller and are
-reserved for future extensions.
+{\tt nr\_Reserved}\mkey{nr\_Reserved} shall be zero-initialized; its
+elements are reserved for future extensions.
 \smallskip{}
 
-{\tt nr\_MsgCount}\mkey{nr\_MsgCount} shall not be touched by the caller and reserved
-purely for the purpose of the file system. It is there used to
-count the number of messages that have been send out to the client,
-but have not yet been responded. The client, i.e. the caller, shall
-not interpret or modify this member.
+{\tt nr\_MsgCount}\mkey{nr\_MsgCount} shall not be touched by the caller and
+is reserved purely for the purpose of the file system, see
+section~\ref{sec:packetaddnotify}. It is there used to count the number of
+messages that have been send out to the client, but have not yet been
+replied. The client, i.e. the caller, shall not interpret or modify this
+element.
 \smallskip{}
 
 {\tt nr\_Handler}\mkey{nr\_Handler} shall neither be touched by the caller; it is used
 by AmigaDOS to store the {\tt MsgPort} of the file system
-responsible for this notification request, and in particular, which to
+responsible for this notification request, and in particular, the file system to
 contact for ending a notification request.
 \medskip{}
 
 If {\tt NRF\_SEND\_MESSAGE}\key{NRF\_SEND\_MESSAGE} is set, then the file system sends
-a {\tt NotifyMessage} to {\tt nr\_Port} upon detection of a change;
-this structure is also defined in {\tt dos/notify.h} and looks as
+a {\tt NotifyMessage} to {\tt nr\_Port} upon detection of a change of the
+monitored object; this structure is also defined in {\tt dos/notify.h} and looks as
 follows:
 \mkey{NotifyMessage}
 \begin{verbatim}
@@ -5797,9 +5819,15 @@ source of the request and by that the object that has been changed.
 {\tt nm\_DoNotTouch}\mkey{nm\_DoNotTouch} and {\tt nm\_DoNotTouch2}\mkey{nm\_DoNotTouch2} are strictly for use by
 the file system and shall not be touched or interpreted by the
 caller or the client.
+\smallskip{}
+
+By design, the {\tt NotifyMessage} reassembles the layout of an {\tt
+  IntuiMessage} and thus allows reusing an IDCMP port (see~\cite{rkrmlib})
+of an intuition window for receiving messages --- as long as it can be
+ensured that the port remains available until the notification request is canceled.
 \medskip{}
 
-This function returns a boolean success indicator. It returns a
+{\tt StartNotify()} returns a boolean success indicator. It returns a
 non-zero result code on success and then sets {\tt
   IoErr()}\key{IoErr()} to~0. On error, the function returns~0 and
 sets {\tt IoErr()} to a non-zero error code.
@@ -5810,7 +5838,7 @@ The {\tt EndNotify()}\mkey{EndNotify()} function cancels an issued
 notification request.
 
 \begin{verbatim}
-EndNotify(notifystructure)
+EndNotify(notifystructure) /* since V36 */
                 D1
 
 void EndNotify(struct NotifyRequest *)
@@ -5818,10 +5846,15 @@ void EndNotify(struct NotifyRequest *)
 
 This function cancels the notification request identified by {\tt
   notifystructure}. This function shall only be called on notification
-requests that have been successfully issued by {\tt StartNotify()}. If
-caller did not yet reply all {\tt NotifyMessage}\key{NotifyMessage} messages and some are
-still piled up in the {\tt nr\_Port}\key{nr\_Port}, the file system will
-manually dequeue them from this port.
+requests that have been successfully issued by {\tt
+  StartNotify()}\footnote{The information in~\cite{Bantam} on this is
+incorrect, {\tt EndNotify()} is \emph{not} safe to call on requests that
+failed to start.}. If the issuer of a request did not yet reply all {\tt
+  NotifyMessage}\key{NotifyMessage} messages and some are still piled up in
+the {\tt nr\_Port}\key{nr\_Port}, the file system will manually dequeue them
+from {\tt nr\_Port}. However, callers should make sure that they have
+replied all {\tt NotifyMessage}s they already dequeued from their port
+themselves before terminating the request.
 \smallskip{}
 
 Afterwards, the {\tt notifystructure} is again available for the
@@ -16693,7 +16726,8 @@ terminating {\tt NUL}), and {\tt dp\_Res2} to~0.
 \smallskip{}
 
 The following example is a skeleton code implementing the above algorithm:
-% darn, this does not work correctly.
+% the RAM disk does not set path_before correctly by failing to initialize
+% path_pos. This defect is in finddir and not here...
 \begin{verbatim}
 /*
 ** Skeleton of an implementation of the readlink function
@@ -17144,7 +17178,7 @@ notification request has been registered, the file system informs a task
 through a signal or through a message send to a port. Notification requests
 are explained in section~\ref{sec:notification}.
 
-\subsection{Registering a Notification Request}
+\subsection{Registering a Notification Request} \label{sec:packetaddnotify}
 
 The {\tt ACTION\_ADD\_NOTIFY}\mkey{ACTION\_ADD\_NOTIFY} packet registers a
 notification request at a file system.
