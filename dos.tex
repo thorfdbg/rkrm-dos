@@ -5275,7 +5275,9 @@ link is a type of its own that contains the path of the referenced
 object. Unlike hard links\key{Hard Link}, soft links are resolved through an
 interaction of the file system and the \emph{dos.library}. Due to
 defects in the Fast File System\key{Fast File System (FFS)}, soft links did
-not work correctly prior to AmigaDOS version 45.
+not work correctly prior to AmigaDOS version 45, and soft links accessed
+through a multi-assigned directory still fail to work correctly even under
+the latest version of AmigaDOS.
 \smallskip{}
 
 The \emph{dos.library} supports soft links\key{Soft Link} through the
@@ -5510,6 +5512,91 @@ on success, or an error code otherwise.
 Section~\ref{sec:actionreadlink} provides further details on the file system
 side of the implementation of this function, in particular how it combines
 the {\tt path} with the target of the soft link\key{Soft Link}.
+\medskip{}
+
+The following source demonstrates how to use {\tt ReadLink()} to implement a
+{\tt Rename()} function that accepts sources containing soft links. Unlike
+the implementation in the \emph{dos.library}, this code also works correctly
+in case the soft link is accessed through a multi-assign:
+
+\begin{verbatim}
+#define BUFSIZE 256
+#define MAX_LINKS 15
+
+LONG RenameWithLinks(UBYTE *srcpath,UBYTE *dstpath)
+{
+  UBYTE *buf         = NULL;
+  struct DevProc *dp = NULL;
+  LONG levels        = MAX_LINKS;
+  LONG error         = 0;
+  LONG success;
+ 
+  while (!(success = Rename(srcpath,dstpath)) && 
+           IoErr() == ERROR_IS_SOFT_LINK) {
+    UBYTE *newbuf;
+    /* If too many levels passed, fail */
+    if (--levels < 0)
+      break;
+    /* Allocate a target buffer for the new name */
+    if (!(newbuf = AllocMem(BUFSIZE,MEMF_PUBLIC)))
+      break;
+    /* Find the device and lock                  */
+    do {
+      if ((dp = GetDeviceProc(srcpath,dp))) {
+        /* Ok, attempt to resolve the link */
+        if ((success = ReadLink(dp->dvp_Port,dp->dvp_Lock,
+                                srcpath,newbuf,BUFSIZE))) {
+          srcpath = newbuf;
+          newbuf  = buf;
+          buf     = srcpath;
+          error   = 0;
+          break;
+        } else {
+          error = IoErr(); /* get the error */
+          /* If the error was ERROR_OBJECT_WRONG_TYPE 
+          ** or ERROR_OBJECT_NOT_FOUND, then
+          ** the source is no link, or the source was
+          ** a multi-assign and the source
+          ** was not contained in the assign, so 
+          ** re-iterate potentially.
+          ** Unfortunately, RAM does not return the
+          ** right type of error.
+          */
+          if (error != ERROR_OBJECT_WRONG_TYPE &&
+              error != ERROR_OBJECT_NOT_FOUND)
+            break;
+          /* Make this a more sensible error */
+          error = ERROR_IS_SOFT_LINK;
+        }
+      } else {
+        /* Get the error why GetDeviceProc() failed */
+        error = IoErr();
+        break;
+      }
+      /* Retry if the path is a multi-assign */
+    } while(dp && dp->dvp_Flags & DVPF_ASSIGN);
+    /* Release the DeviceProc, NULL is fine  */
+    FreeDeviceProc(dp);
+    dp = NULL;
+    /* Release the old or the new buffer */
+    if (newbuf)
+      FreeMem(newbuf,BUFSIZE);
+    /* Fixup or reset the error          */
+    SetIoErr(error);
+    /* Abort if link resolution failed   */
+    if (!success)
+      break;
+  }
+
+  /* Release the temporary/last buffer */
+  if (buf)
+    FreeMem(buf,BUFSIZE);
+
+  return success;
+}
+\end{verbatim}
+The above code does not check whether the target goes into a soft linked
+directory --- this would need to be added.
 
 \section{Notification Requests} \label{sec:notification}
 
@@ -16593,8 +16680,11 @@ and the scanning algorithm aborted without finding one, this also
 consistutes an error that shall be reported by setting {\tt dp\_Res1}
 to~$-1$. This error is not handled consistently in AmigaDOS. The RAM-Handler\key{RAM-Handler}
 reports {\tt ERROR\_OBJECT\_WRONG\_TYPE}\key{ERROR\_OBJECT\_WRONG\_TYPE}, the FFS\key{Fast File System (FFS)} the error code
-{\tt ERROR\_OBJECT\_NOT\_FOUND}\key{ERROR\_OBJECT\_NOT\_FOUND}. The former
-error is probably more sensible.
+{\tt ERROR\_OBJECT\_NOT\_FOUND}\key{ERROR\_OBJECT\_NOT\_FOUND}. While the former
+error looks more sensible, the latter is the right choice --- it helps an
+algorithm for soft link resolution to identify the case that it has probably
+not yet found the right directory of a multi-assign that contains the soft
+link. See also the code in section~\ref{sec:readlink}.
 \smallskip{}
 
 On success, {\tt dp\_Res1} shall be set to the length of the constructed
@@ -16603,6 +16693,7 @@ terminating {\tt NUL}), and {\tt dp\_Res2} to~0.
 \smallskip{}
 
 The following example is a skeleton code implementing the above algorithm:
+% darn, this does not work correctly.
 \begin{verbatim}
 /*
 ** Skeleton of an implementation of the readlink function
