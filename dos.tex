@@ -1222,7 +1222,7 @@ the process\key{Process}. This special device name exists since AmigaDOS
 version 36. Unlike {\tt *}\key{* (file name)}, but like any other device name, it shall be
 followed by a colon. It also takes an optional name behind the colon that
 identifies a job, and allows the console to block the input and output of
-all but the active foregroup job. While the AmigaDOS ROM Console-Handler
+all but the active foregroup job. While the AmigaDOS ROM CON-Handler\key{CON-Handler}
 does not provide job control features, some third party consoles do.
 
 \punchline{Prefer the stars}{The difference between {\tt *} and {\tt
@@ -1259,7 +1259,7 @@ within volumes, or even across volumes.
 \medskip{}
 
 Assigns can be of three types: \emph{Regular assigns}, \emph{non-binding
-assigns}\mkey{Non-Binding Assign} and \emph{late assigns}\mkey{Late
+assigns}\mkey{Non-Binding Assign} and \emph{late binding assigns}\mkey{Late Binding
   Assign}. \emph{Regular assigns} bind to a particular directory or multiple
 directories on a particular volume. If the assign is accessed, and the
 original volume the bound directory is not available, the system will ask to
@@ -1291,9 +1291,9 @@ accessed again at a later time, another volume of the same name, but
 potentially different content will also satisfy the request.
 \smallskip{}
 
-\emph{Late assigns}\key{Late Assign} are a compromise between regular
+\emph{Late binding assigns}\key{Late Binding Assign} are a compromise between regular
 assigns and non-binding assigns. AmigaDOS initially only stores a symbolic
-path for such a late assign, but when the assign is accessed the first time, the
+path for such a late binding assign, but when the assign is accessed the first time, the
 assign is converted to a regular assign and then binds to the accessed
 volume and directory from this point on.
 \medskip{}
@@ -1302,7 +1302,7 @@ Table~\ref{table:romassigns} lists the assigns made by AmigaDOS
 automatically during bootstrap; except for the {\tt SYS} assign, they
 all go to a directory of the same name on the boot volume. They are
 all regular assigns, except for {\tt ENVARC}, which is
-late assign\key{Late Assign}. {\tt ENVARC} was added in release 36 of AmigaDOS.
+late binding assign\key{Late Binding Assign}. {\tt ENVARC} was added in release 36 of AmigaDOS.
 
 \begin{rkrmtable}{System defined assigns} \label{table:romassigns}
 {\bf Assign Name} & {\bf Description}\\ \hline \hline
@@ -1699,7 +1699,7 @@ This function cannot fail and does not alter {\tt IoErr()}.
 \smallskip{}
 
 The Port-Handler and the devices {\tt PRT}, {\tt SER} and {\tt PAR} managed
-by it generate interactive file handles, and so does the Console-Handler and
+by it generate interactive file handles, and so does the CON-Handler\key{CON-Handler} and
 the {\tt CON}, {\tt RAW} and {\tt AUX} devices it implements. The
 Queue-Handler and its {\tt PIPE} device is another example of a handler
 generating interactive files. The FFS\key{Fast File System (FFS)} and the
@@ -1835,8 +1835,8 @@ function. On failure, {\tt WaitForChar()}\key{WaitForChar()} returns {\tt
 \smallskip{}
 
 If {\tt WaitForChar()}\key{WaitForChar()} returns {\tt DOSTRUE}, then for
-some handlers, in particular for the Console-Handler, a secondary result
-code is provided through {\tt IoErr()}\key{IoErr()}. The Console-Handler
+some handlers, in particular for the CON-Handler\key{CON-Handler}, a secondary result
+code is provided through {\tt IoErr()}\key{IoErr()}. The CON-Handler
 provides here the number of lines available in the input buffer. In
 particular, one \emph{shall not} depend on {\tt IoErr()}\key{IoErr()}
 returning~0 on success.
@@ -3815,8 +3815,8 @@ AmigaDOS currently defines the following disk types in {\tt dos/dos.h}:
 {\tt ID\_NOT\_REALLY\_DOS} & While physically accessible, the disk structure is invalid\\ \hline
 {\tt ID\_KICKSTART\_DISK} & A disk containing an A1000 kickstart \\ \hline
 {\tt 'BUSY'} & The file system is currently inhibited \\ \hline
-{\tt 'CON\textbackslash0'} & Not a file system, but returned by the Console-Handler\key{CON-Handler} \\ \hline
-{\tt 'RAW\textbackslash0'} & Not a file system, but returned by the Console-Handler\key{CON-Handler} \\ \hline
+{\tt 'CON\textbackslash0'} & Not a file system, but returned by the CON-Handler\key{CON-Handler} \\ \hline
+{\tt 'RAW\textbackslash0'} & Not a file system, but returned by the CON-Handler\key{CON-Handler} \\ \hline
 All others & The first long word of the first block of the medium \\ \hline
 \end{longtable}
 \end{rkrmtabular}
@@ -3873,12 +3873,12 @@ section~\ref{sec:inhibit} blocks file system access to the physical layer
 and thus causes this disk type.
 \smallskip{}
 
-{\tt 'CON\textbackslash0'} and {\tt 'RAW\textbackslash0'} are indicators left by the Console-Handler\key{CON-Handler}
+{\tt 'CON\textbackslash0'} and {\tt 'RAW\textbackslash0'} are indicators left by the CON-Handler\key{CON-Handler}
 (or console-type handlers) which use the {\tt InfoData} structure for
 other purposes, see section~\ref{sec:console}. As they do not (in
 general) hand out locks\key{Lock}, the {\tt Info()} function will usually not
 return these two types, but direct handler communication with a packet
-type of {\tt ACTION\_DISK\_INFO} can. The Console-Handler populates the {\tt
+type of {\tt ACTION\_DISK\_INFO} can. The CON-Handler populates the {\tt
   InfoData} structure in a different way than file systems do, this is
 documented in section~\ref{sec:diskinfoconsole}.
 \smallskip{}
@@ -5971,7 +5971,7 @@ struct DosList {
 Confusingly, the same data is also accessible throught the {\tt
 DeviceList}\mkey{DeviceList} structure, which is nothing than a {\tt
 DosList} in disguise, but only represents volumes, with elements at the
-same byte offsets as different names. Thus, for example {\tt dl\_VolumeDate}
+same byte offsets under different names. Thus, for example {\tt dl\_VolumeDate}
 in the {\tt DeviceList} structure accesses the same elements as {\tt
   dol\_volume.dol\_VolumeDate} and the two may be used interchangeably for volumes.
 \smallskip{}
@@ -6006,10 +6006,12 @@ The elements of a {\tt DosList} now have the following interpretation:
 
 {\tt dol\_Next}\mkey{dol\_Next} is a BPTR to the next entry in the singly
 linked list of {\tt DosList}\key{DosList} structures forming the device
-list. The head of this list is in the {\tt DosInfo}\key{DosInfo} structure
-specified in section~\ref{sec:dosinfo}. However, this list should not be
-walked manually, but instead {\tt FindDosEntry()}\key{FindDosEntry()} should
-be used for iterating through this list.
+list, or {\tt ZERO} for the last entry on the list. The order of the entries
+has no particular meaning. The head of this list is in the {\tt
+  DosInfo}\key{DosInfo} structure specified in
+section~\ref{sec:dosinfo}. However, this list should not be walked manually,
+but instead {\tt FindDosEntry()}\key{FindDosEntry()} should be used for
+iterating through this list.
 \smallskip{}
 
 {\tt dol\_Type}\mkey{dol\_Type} identifies the type of the entry, and by that also the
@@ -6019,15 +6021,17 @@ used. The following types are defined in {\tt dos/dosextens.h}:
 \begin{rkrmtable}{\emph{DosList} Entry Types} \label{table:doslisttypes}
 {\tt \bf dol\_Type} & {\bf Description}\\ \hline \hline
 {\tt DLT\_DEVICE}\mkey{DLT\_DEVICE} & A file system or handler, see~\ref{sec:deviceoverview}\\ \hline
-{\tt DLT\_DIRECTORY}\mkey{DLT\_DIRECTORY} & A regular assign\key{Assign}, see~\ref{sec:assignlist}\\ \hline
+{\tt DLT\_DIRECTORY}\mkey{DLT\_DIRECTORY} & A regular\key{Assign} or multi-assign\key{Multi-Assign}, see~\ref{sec:assignlist}\\ \hline
 {\tt DLT\_VOLUME}\mkey{DLT\_VOLUME} & A volume, see~\ref{sec:volumelist}\\ \hline
-{\tt DLT\_LATE}\mkey{DLT\_LATE} & A late binding assign\key{Late Assign}, see~\ref{sec:assignlist}\\ \hline
+{\tt DLT\_LATE}\mkey{DLT\_LATE} & A late binding assign\key{Late Binding Assign}, see~\ref{sec:assignlist}\\ \hline
 {\tt DLT\_NONBINDING}\mkey{DLT\_NONBINDING} & A non-binding
 assign\key{Non-Binding Assign}, see~\ref{sec:assignlist}\\ \hline
+{\tt DLT\_PRIVATE}\mkey{DLT\_PRIVATE} & Used internally for resolving late binding assigns\\ \hline
 \end{rkrmtable}
 
 {\tt dol\_Task}\mkey{dol\_Task} is the {\tt MsgPort} of the handler to
-contact for the particular handler, assign\key{Assign} or volume. It may be
+contact for the particular handler, assign\key{Assign} or volume. If the
+{\tt DosList} represents a handler or file system, this element can be
 {\tt NULL} if the handler is not yet started, or a new handler process is
 supposed to be started for each file opened. This is, for example, the case
 for the console which requires a process for each window it handles. It is
@@ -6045,29 +6049,32 @@ to AmigaDOS.
 For regular assigns\key{Assign}, {\tt dol\_Task}\key{dol\_Task} is also the
 pointer to the port of the file system the assign binds to; in case the
 assign is a multi-assign\key{Multi-Assign}, this is the port of the first
-directory bound to. All additional ports are part of the {\tt
-  dol\_List}\key{dol\_List} discussed below. For late assigns\key{Late
-  Assign} this member is initially {\tt NULL}, but will be filled in as soon
-as the assign in bound to a particular directory, and then becomes the
-pointer to the port of the handler managing the volume the assign is located
-on. Finally, for non-binding assigns\key{Non-Binding Assign} this member
-always stays {\tt NULL}.
+directory bound to. All additional ports can be reached through the locks
+that are are part of the {\tt dol\_List}\key{dol\_List} discussed below. For
+late binding assigns\key{Late Binding Assign} this member is initially {\tt
+  NULL}, but will be filled in as soon as the assign in bound to a
+particular directory, and then becomes the pointer to the port of the
+handler managing the volume the assign is located on. Finally, for
+non-binding assigns\key{Non-Binding Assign} this member always stays {\tt
+  NULL}.
 \medskip{}
 
 {\tt dol\_Lock}\mkey{dol\_Lock} is only used for assigns\key{Assign}, and
 only if it is bound to a particular directory. It is then the lock\key{Lock}
-to the directory forming the assign. That is, the member remains {\tt ZERO}
+to the directory forming the assign, or for multi-assigns\key{Multi-Assign},
+the first directory within the assign. This element remains {\tt ZERO}
 for non-binding assigns\key{Non-Binding Assign} and is initially {\tt ZERO}
-for late assigns\key{Late Assign}. For all other types, this member stays
+for late binding assigns\key{Late Binding Assign}. For all other types, this member stays
 {\tt ZERO}.
 \smallskip{}
 
-{\tt dol\_Name}\mkey{dol\_Name} is a BPTR to a BSTR is
-the name under which the handler, volume or assign is accessed. That
-is, this string corresponds to the path component upfront the
-colon. As a courtesy to C and assembler functions, AmigaDOS ensures
-that this string is also {\tt NUL} terminated, i.e.\  {\tt dol\_Name+1} is
-a regular C string whose length is available in {\tt dol\_Name[0]}.
+{\tt dol\_Name}\mkey{dol\_Name} is a BPTR to a BSTR is the name under which
+the handler, volume or assign is accessed. That is, this string corresponds
+to the path component upfront the colon. In particular, it \emph{does not
+include} the colon. As a courtesy to C and assembler functions, AmigaDOS
+ensures that this string is also {\tt NUL} terminated, i.e.\ {\tt
+  dol\_Name+1} is a regular C string whose length is available in {\tt
+  dol\_Name[0]}.
 \medskip{}
 
 The members within {\tt dol\_handler}\mkey{dol\_handler} are used by
@@ -6076,19 +6083,26 @@ handlers and file systems, that is if {\tt dol\_Type}\key{dol\_Type} equals
 \smallskip{}
 
 {\tt dol\_Handler}\mkey{dol\_Handler} is a BPTR to a BSTR containing the
-file name from which the handler or file system is
-loaded. It corresponds to the {\tt Handler}, {\tt FileSystem} and
-{\tt EHandler} fields of the mount list, see section~\ref{sec:mountdoslist}.
+file name from which the handler or file system is loaded if {\tt
+  dol\_SegList} is {\tt ZERO}. As the file name is interpreted by the first
+process attempting to access an unloaded handler, and this path is thus
+relative to the current directory of this process, it should be an absolute
+path. Typically, handlers reside in the {\tt L} assign. Clearly, the path
+should not be on a file system described by its own {\tt DosList}
+structure. This element corresponds to the {\tt HANDLER}\key{HANDLER}, {\tt
+  FILESYSTEM}\key{FILESYSTEM} and {\tt EHANDLER}\key{EHANDLER} fields of the
+mountlist, see section~\ref{sec:mountdoslist}.
 \smallskip{}
 
-{\tt dol\_StackSize}\mkey{dol\_StackSize} specifies the size of the
-stack for creating the handler or file system process. Interestingly,
-the unit of the stack size depends on the {\tt dol\_GlobVec} entry. If
-{\tt dol\_GlobVec}\key{dol\_GlobVec} indicates a C or assembler
-handler, {\tt dol\_StackSize} is in bytes. Otherwise, that is, for
-BCPL handlers, it is in 32-bit long words. Table~\ref{table:gvvalues}
-indicates the type of the handler. This member corresponds to the
-{\tt Stacksize} entry of the mount list.
+{\tt dol\_StackSize}\mkey{dol\_StackSize} specifies the size of the stack
+for creating the handler or file system process. The unit of the stack size
+depends on the {\tt dol\_GlobVec} entry. If {\tt
+  dol\_GlobVec}\key{dol\_GlobVec} indicates a C or assembler handler, {\tt
+  dol\_StackSize} is in bytes. Otherwise, that is, for BCPL handlers, it is
+in long words\footnote{The information in~\cite{guru} is not accurate, the
+stack size is dependent on the GLOBVEC.}. Table~\ref{table:gvvalues}
+indicates the type of the handler. This element corresponds to the {\tt
+  STACKSIZE}\key{STACKSIZE} entry of the mountlist.
 \smallskip{}
 
 {\tt dol\_Priority}\mkey{dol\_Priority} is priority of the handler
@@ -6096,31 +6110,43 @@ process. Even though it is a {\tt LONG}, it shall be a number between
 $-128$ and $127$ because priorities of the exec task scheduler are
 {\tt BYTE}s. For all practical purposes, the priority should be a
 value between $0$ and $19$. It corresponds to the {\tt Priority} entry
-of the mount list.
+of the mountlist.
 \smallskip{}
 
-{\tt dol\_Startup}\mkey{dol\_Startup} is a handler-specific startup
-value that is used to commumicate a configuration to the handler
-during startup. While this value may be whatever the handler requires,
-the {\tt Mount} command either deposits here a pointer to the {\tt
-  FileSysStartupMsg} structure defined in {\tt dos/filehandler.h}, a
-BPTR to a BSTR, or a small integer. Section~\ref{sec:handlerstartup}
-provides more details on mounting handlers and how the startup
-mechanism works. Unfortunately, it is hard to interpret {\tt
-  dol\_Startup} correctly. One way to set this member is through {\tt
-  Startup} in the mount list, see~\ref{sec:filesysstartup} for
-details.
+{\tt dol\_Startup}\mkey{dol\_Startup} is a handler-specific startup value
+that is used to commumicate a configuration to the handler. For example, the
+CON-Handler\key{CON-Handler} uses this element to distinguish
+whether it is used as {\tt CON} or {\tt RAW} device. The Fast File
+System\key{Fast File System (FFS)} and most other file systems
+expect here a BPTR to a {\tt FileSysStartupMsg} structure. While this value
+may be whatever the handler requires, the {\tt Mount} command either
+deposits here a BPTR to the {\tt FileSysStartupMsg} structure, a BPTR to a
+BSTR, or a small integer. Section~\ref{sec:handlerstartup} provides more
+details on mounting handlers and how the startup mechanism
+works. Unfortunately, it is hard to interpret {\tt dol\_Startup} correctly
+as its interpretation is dependent on the file system, though
+section~\ref{sec:accessfssm} provides additional hints and a recommended
+algorithm for interpreting this element. One way to set it is through the
+{\tt STARTUP}\key{STARTUP} in the mountlist, see~\ref{sec:filesysstartup}
+for details.
 \smallskip{}
 
-{\tt dol\_SegList}\mkey{dol\_SegList} is a BPTR to the chained segment\key{Segment} list of the
-handler if it is loaded. For disk-based handlers, this member is
-initially {\tt ZERO}. When a program attempts to access a file on the
-handler, the \emph{dos.library} first checks whether this field is
-{\tt ZERO}, and if so, attempts to load a segment, i.e.\ a binary, for
-the handler. If the {\tt FORCELOAD} entry of the mount list is
-non-zero, the {\tt mount} command already performs this activity. The
-process for loading a handler depends on the nature of the handler and
-explained in more detail in section~\ref{sec:handlerstartup}.
+{\tt dol\_SegList}\mkey{dol\_SegList} is a BPTR to the chained
+segment\key{Segment} list of the handler if it is loaded, see
+chapter~\ref{sec:binary} for additional details how binaries are represented
+in memory. For disk-based handlers, this member is initially {\tt
+  ZERO}. When a program attempts to access an object identified by an
+absolute path starting with the device name {\tt dol\_Name}\key{dol\_Name}, the
+\emph{dos.library} first checks whether this field is {\tt ZERO}, and if so,
+attempts to load a binary from the path stored in {\tt
+  dol\_Handler}\key{dol\_Handler}. Upon success, its segment is stored
+here. If the {\tt FORCELOAD}\key{FORCELOAD} entry of the mountlist is
+non-zero, the {\tt Mount} command already attempts to load the handler or
+file system from disk, otherwise it first scans the {\tt
+  FileSystem.resource} for an entry whose {\tt DOSTYPE}\key{DOSTYPE}
+matches. If nothing is found there, loading the handler remains to the first
+process requiring it. Details depend on nature of the handler or file system
+and are provided in section~\ref{sec:handlerstartup}.
 \smallskip{}
 
 {\tt dol\_GlobVec}\mkey{dol\_GlobVec} identifies the nature of the handler
@@ -6141,7 +6167,7 @@ accesses to the list while preventing exclusive access to it.
 \smallskip{}
 
 The value in {\tt dol\_GlobVec}\key{dol\_GlobVec} corresponds to the {\tt GlobVec} entry
-in the mount list. It shall be one of the values in
+in the mountlist. It shall be one of the values in
 table~\ref{table:gvvalues}:
 
 \begin{rkrmtable}{GlobVec Values} \label{table:gvvalues}
@@ -6168,9 +6194,9 @@ the \emph{dos.library} somehow. For new code, BCPL linkage and binding
 should not be used anymore.
 \medskip{}
 
-Members of the {\tt dol\_volume}\mkey{dol\_volume} structure are used if {\tt dol\_Type}\key{dol\_Type}
-is {\tt DLT\_VOLUME}\key{DLT\_VOLUME}, identifying this entry as belonging to a known
-specific data carrier.
+Members of the {\tt dol\_volume}\mkey{dol\_volume} structure are used if
+{\tt dol\_Type}\key{dol\_Type} is {\tt DLT\_VOLUME}\key{DLT\_VOLUME},
+identifying this entry as belonging to a known specific data carrier.
 \smallskip{}
 
 {\tt dol\_VolumeDate}\mkey{dol\_VolumeDate} is the creation date of the volume. It is a
@@ -6185,40 +6211,50 @@ ejected, and contains all still active locks on this volume. It is stored
 here to allow a similar file system to pick up the locks once the volume is
 re-inserted, even if it is re-inserted into another device. The linkage is
 performed with BPTRs and the {\tt fl\_Link}\key{fl\_Link} member of the {\tt
-  FileLock}\key{FileLock} structure, see also section~\ref{sec:filelock}.
+  FileLock}\key{FileLock} structure, see also
+section~\ref{sec:filelock}. For inserted volumes, this element remains {\tt
+  ZERO}, and the information whether a volume is inserted or not comes from
+the {\tt dol\_Task}\key{dol\_Task} element being {\tt NULL} or a valid
+pointer, see there.
 \smallskip{}
 
-{\tt dol\_DiskType}\mkey{dol\_DiskType} is an identifier of the \emph{file
-system type} that operates (or operated, for ejected media) the volume and
-placed here such that an alternative process of the same file system is able
-to pick up or refuse the locks\key{Lock} stored here for non-available
-volumes. Table~\ref{table:ffsflavours} in section~\ref{sec:envec} lists the
-flavours the FFS\key{Fast File System (FFS)} supports, other file systems
-will deposit their own identifier here. This is \emph{not necessarily} the
-same identifier placed in {\tt id\_DiskType} of the {\tt InfoData} structure
-specified in section~\ref{sec:info}.
+{\tt dol\_DiskType}\mkey{dol\_DiskType} is indented to be an identifier of
+the file system type that operates (or operated, for ejected media) the
+volume. The value is placed here such that an alternative process of the same file
+system operating on a different exec device is able to pick up or refuse the
+locks\key{Lock} stored in {\tt dol\_LockList} if a medium is re-inserted
+into a different physical device. Unfortunately, even the latest version of
+the Fast File System\key{Fast File System (FFS)} do not fill this element
+such that it remains~0, though other file systems leave their traces here to
+identify their own volumes. Note that the value placed here is \emph{not}
+the identifier found in {\tt id\_DiskType} of the {\tt InfoData} structure
+as the latter rather identifies the availability of a file system but not
+its type\footnote{This is not accurately stated in~\cite{guru}.}, see section~\ref{sec:info}.
 \medskip{}
 
 Members of the {\tt dol\_assign}\mkey{dol\_assign} structure are used for all other
 types, i.e.\ all types of assigns\key{Assign}.
 \smallskip{}
 
-{\tt dol\_AssignName}\mkey{dol\_AssignName} is pointer to the target path of
-the assign for non-binding\key{Non-Binding Assign} and late assigns\key{Late
-  Assign}. The \emph{dos.library} uses this string to locate the target
-directory of the assign. For late assigns, this member is used only on the
-first attempt to access the assign\key{Assign} at which {\tt
-  dol\_Lock}\key{dol\_Lock} is populated.
+{\tt dol\_AssignName}\mkey{dol\_AssignName} is pointer (and not a BPTR) to a
+{\tt NUL}-terminated target path of non-binding\key{Non-Binding Assign}
+and late binding assigns\key{Late Binding Assign}. It remains {\tt NULL}
+otherwise. The \emph{dos.library} uses this string to locate the target
+directory of the assign. For late binding assigns, this member is used only
+on the first attempt to access the assign\key{Assign} at which {\tt
+  dol\_Lock}\key{dol\_Lock} is populated, and this element is released with
+{\tt FreeVec()} and then set to {\tt NULL}.
 \smallskip{}
 
 {\tt dol\_List}\key{dol\_List} contains additional locks\key{Lock} for
 multi-assigns\key{Multi-Assign} and is thus only used if {\tt
-  dol\_Type}\key{dol\_Type} equals {\tt
-  DLT\_DIRECTORY}\key{DLT\_DIRECTORY}. In such a case, {\tt
-  dol\_Lock}\key{dol\_Lock} is the lock to the first directory of the
-multi-assign\key{Multi-Assign}, while {\tt dol\_List} contains the locks of
-all subsquent directories in a singly-linked list of {\tt AssignList}
-structures, defined in~{\tt dos/dosextens.h}:
+dol\_Type}\key{dol\_Type} equals {\tt DLT\_DIRECTORY}\key{DLT\_DIRECTORY}.
+A regular assign\key{Assign} is a multi-assign\key{Multi-Assign} whose
+{\tt dol\_List} element is {\tt NULL} and thus consists of only a single directory.
+For multi-assigns, {\tt dol\_Lock}\key{dol\_Lock} is the lock to the first
+directory of the multi-assign\key{Multi-Assign}, while {\tt dol\_List}
+is a regular C pointer to a singly-linked list of the locks of all subsquent
+directories, represented as a {\tt AssignList} structures, defined in~{\tt dos/dosextens.h}:
 
 \mkey{AssignList}
 \begin{verbatim}
@@ -6229,11 +6265,19 @@ struct AssignList {
 \end{verbatim}
 
 {\tt al\_Next}\mkey{al\_Next} points to the next lock\key{Lock} that is part
-of the multi-assign. This is \emph{not} a BPTR.
+of the multi-assign. This is \emph{not} a BPTR. It is {\tt NULL} for the
+last directory in a multi-assign.
 \smallskip{}
 
 {\tt al\_Lock}\mkey{al\_Lock} is the lock to (another) directory
 participating in the multi-directory assign.
+\smallskip{}
+
+The {\tt AssignList}\key{AssignList} structures shall not be allocated or
+released directly; rather, they shall be created through {\tt
+  AssignAdd()}\key{AssignAdd()} and removed through {\tt
+  RemAssignList()}\key{RemAssignList()}, see sections~\ref{sec:assignadd}
+and~\ref{sec:remassignlist}.
 
 \section{The Device List and the Mountlist} \label{sec:mountlist}
 
@@ -6358,7 +6402,7 @@ struct DosEnvec {
 };
 \end{verbatim}
 The elements in this structure, except the first one, are also represented
-by keywords in the mount list.
+by keywords in the mountlist.
 \smallskip{}
 
 {\tt de\_TableSize}\mkey{de\_TableSize} defines how many elements in
@@ -6705,7 +6749,7 @@ parameter is 0, and reverse.
 \smallskip{}
 
 If the flag in {\tt de\_Interleave}\mkey{de\_Interleave} is set, and
-thus {\tt ENABLENSD}\mkey{ENABLENSD} is set to $0$ in the mount list,
+thus {\tt ENABLENSD}\mkey{ENABLENSD} is set to $0$ in the mountlist,
 the file system is instructed not to attempt to use {\tt NSD}-style
 commands to access data beyond the 4GB barrier. This may be necessary
 on some device drivers that ignore the most significant bits of the
@@ -6837,7 +6881,7 @@ need to be aware of this defect.
 
 Also, {\tt GetDeviceProc()} does not handle the path ``{\tt *}''\key{* (file name)} at all,
 even though it indicates the current console and the
-\emph{Console-Handler} is responsible for it.  This case also needs to
+CON-Handler\key{CON-Handler} is responsible for it.  This case also needs to
 be detected by the caller, and in such a case,
 {\tt GetConsoleTask()}\key{GetConsoleTask()} delivers the correct port.
 
@@ -7185,7 +7229,7 @@ not part of the device list, i.e.\ {\tt NIL}, {\tt CONSOLE},
 
 This function does not alter {\tt IoErr()}.
 
-\subsection{Accessing Mount Parameters}
+\subsection{Accessing Mount Parameters} \label{sec:accessfssm}
 
 Once a {\tt DosList}\key{DosList} structure has been identified, e.g.\ by {\tt
   FindDosEntry()}\key{FindDosEntry()}, it is tempting to understand whether the entry belongs to
@@ -7647,9 +7691,9 @@ initialization of the structure. For assigns\key{Assign}, specifically, the
 initialize and enqueue {\tt DosList}\key{DosList} structures representing assigns
 in a single call and are thus easier to use.
 
-\subsection{Create and Add a Regular Assign}
+\subsection{Create and Add a Regular Assign} \label{sec:assignlock}
 
-The {\tt AssignAdd()}\mkey{AssignAdd()} function creates a new assign\key{Assign}
+The {\tt AssignLock()}\mkey{AssignLock()} function creates a new assign\key{Assign}
 to a directory from a lock\key{Lock}, and then enqueues it into the
 device list.
 
@@ -7711,10 +7755,10 @@ error code identifying the cause of the failure. {\tt
 memory. If a {\tt DosList} of the same name (regardless of which type)
 already exists, the error code is {\tt ERROR\_OBJECT\_EXISTS}\key{ERROR\_OBJECT\_EXISTS}.
 
-\subsection{Create a Late Assign}
+\subsection{Create a Late Binding Assign}
 
 The {\tt AssignLate()}\mkey{AssignLate()} function creates a
-late assign\key{Late Assign} whose target is initially given by a path; but
+late binding assign\key{Late Binding Assign} whose target is initially given by a path; but
 after its first resolution, the assign reverts to a
 regular assigns\key{Assign} such that the target of the assign will
 point to the same directory of the volume from that point on. This has
@@ -7747,7 +7791,7 @@ the function run out of memory.  If a {\tt DosList}\key{DosList} of the same nam
 (regardless of which type) already exists, the error code is {\tt
   ERROR\_OBJECT\_EXISTS}\key{ERROR\_OBJECT\_EXISTS}.
 
-\subsection{Add a Directory to a Multi-Assign}
+\subsection{Add a Directory to a Multi-Assign} \label{sec:assignadd}
 
 The {\tt AssignAdd()}\mkey{AssignAdd()} function adds a directory,
 identified by a lock\key{Lock}, to an already existing regular or
@@ -7783,7 +7827,7 @@ what caused the error, i.e.\ whether the function run out of memory,
 whether no fitting device list entry was found, or whether the
 entry found was not a \emph{regular assign}.
 
-\subsection{Remove a Directory From a Multi-Assign}
+\subsection{Remove a Directory From a Multi-Assign} \label{sec:remassignlist}
 
 The {\tt RemAssignList()}\mkey{RemAssignList()} function removes a
 directory, represented by a lock\key{Lock}, from a multi-assign. If
@@ -7946,7 +7990,7 @@ The {\tt dostype} defines the flavour of file system created on the
 device if the file system allows multiple variations. The variations
 the Fast File System supports along with other file systems are listed in
 table~\ref{table:ffsflavours}. This corresponds to the {\tt DOSTYPE}
-in the mount list. File systems may also ignore this argument if they
+in the mountlist. File systems may also ignore this argument if they
 only support a single flavour.
 
 Unfortunately, AmigaDOS does not provide an easy way to access the
@@ -11825,7 +11869,7 @@ The stack of the program is then, potentially increased to the
 provided size. Note that AmigaDOS also scans alternative sources for a
 stack size: The {\tt Stack} setting in the icon information window of the
 Workbench, the {\tt Stack} command of the shell\key{Shell}, or the {\tt
-  STACKSIZE} entry in the mount list. The stack size indicated by the
+  STACKSIZE} entry in the mountlist. The stack size indicated by the
 above stack cookie does not override these settings, it can only
 \emph{increase} the stack size. This allows program authors to ensure
 that the stack of their program has a necessary minimal size, though
@@ -13008,7 +13052,7 @@ but a BSTR whose first element is the size of the string.
 
 This argument is for example taken from the first argument to {\tt
   Open()}\key{Open()}, just that it has been converted to a BSTR by
-the \emph{dos.library}. For the {\tt Console-Handler} for example, this is
+the \emph{dos.library}. For the CON-Handler\key{CON-Handler} for example, this is
 the window specification that instructs the handler on the position, size
 and title of the console.
 \smallskip{}
@@ -13016,7 +13060,7 @@ and title of the console.
 {\tt dp\_Arg2} is a copy of the {\tt dol\_Startup} element of the {\tt
   DosList} structure, see section~\ref{sec:devicelist}. It is used to
 configure the properties of the handler. The type that is placed here is
-depends on the mount list. While its use is handler, it is typically, but
+depends on the mountlist. While its use is handler, it is typically, but
 not necessarily, a BPTR to a {\tt FileSysStartupMsg}\key{FileSysStartupMsg}
 structure. Other possibilities for {\tt dol\_Startup} are a BPTR to a BSTR or
 an integer. What exactly the handler will receive depends on the {\tt
@@ -13052,7 +13096,7 @@ process for each file opened from the handler.
 While the \emph{dos.library} will also send a packet to open the file for
 which the handler was launched, the path of this second packet or any
 subsequent packet to open a file on the same process is not relevant to the
-{\tt Console-Handler} anymore as the window will be opened during startup,
+CON-Handler\key{CON-Handler} anymore as the window will be opened during startup,
 and not during opening a file. Even though the handler is started once for
 the initial open and does not fill in its port in {\tt dol\_Task}, multiple
 requests to open a file may arrive at the handler, e.g.\ when opening the
@@ -13216,12 +13260,12 @@ handles\key{FileHandle} exist. Section~\ref{sec:packetactiondie} contains furthe
 
 \section{The CON-Handler} \label{sec:console}
 
-The CON-Handler\mkey{CON-Handler} implements the console of AmigaDOS. It not
-only serves the graphical console, but also the serial console. The
-AUX-Handler\key{AUX-Handler} is only a minimal wrapper that locates the
-CON-Handler\key{CON-Handler} in the ROM and then initates the
-CON-Handler\key{CON-Handler} with a suitable startup packet. Therefore, it
-implements the {\tt CON:}, {\tt RAW:} and {\tt AUX:} device.
+The CON-Handler\mkey{CON-Handler} implements the console of
+AmigaDOS. It not only serves the graphical console, but also the serial
+console. The AUX-Handler\key{AUX-Handler} is only a minimal wrapper that
+locates the Csonole-Handler\key{CON-Handler} in the ROM and then
+initates it with a suitable startup packet. Therefore, it implements the
+{\tt CON:}, {\tt RAW:} and {\tt AUX:} device.
 \smallskip{}
 
 Quite similar to file systems, the CON-Handler\key{CON-Handler} does not implement all of its
@@ -13424,7 +13468,7 @@ can be reached with the mount parameter {\tt STARTUP=1}.
 {\tt UNIT}\mkey{UNIT} defines the unit of the device over which the connection shall be
 made if multiple units exist. The unit follows the keyword as decimal
 number, optionally separated by spaces, e.g.\ {\tt UNIT 1}. The unit can
-also be configured through the mount list {\tt UNIT} keyword.
+also be configured through the mountlist {\tt UNIT} keyword.
 \smallskip{}
 
 {\tt AUTO}\key{AUTO} indicates that the serial connection shall not be opened
@@ -13592,14 +13636,14 @@ console described in the previous section.
 The mount parameters for {\tt CON:} and {\tt RAW:} are hard-coded into the
 Kickstart ROM, though the mountlist\key{Mountlist} for {\tt AUX:} is available in the {\tt
   DEVS:DosDrivers} directory and can be altered there; however, users can
-create custom mount lists for additional devices with custom mount
+create custom mountlists for additional devices with custom mount
 parameters.
 \smallskip{}
 
 The handler startup mechanism is described in
 section~\ref{sec:handlerstartup}, and in particular, {\tt dp\_Arg2} of the
 startup packet is a copy of the {\tt dol\_Startup} entry of the {\tt
-  DosList}\key{DosList} created from the mount list; details on this mechanism are
+  DosList}\key{DosList} created from the mountlist; details on this mechanism are
 described in section~\ref{sec:filesysstartup}.
 \smallskip{}
 
@@ -13645,7 +13689,7 @@ mechanism to create a {\tt FileSysStartupMsg} to the
 CON-Handler\key{CON-Handler} which points to the \emph{serial.device}
 unit~$0$, but also accepts custom mount parameters to mount it on other
 devices through the {\tt EHANDLER}\key{EHANDLER} mount parameter. The {\tt
-  DEVICE}\key{DEVICE} parameter of the mount list is then extracted, and
+  DEVICE}\key{DEVICE} parameter of the mountlist is then extracted, and
 forwarded to the CON-Handler\key{CON-Handler} through a startup
 packet. Thus, a console can be generated on either type of device provided
 it supports {\tt CMD\_WRITE} to write data out and {\tt CMD\_READ} to
@@ -13659,7 +13703,7 @@ console is raw.
 \smallskip{}
 
 To make the {\tt Mount} command create a {\tt DosList}\key{DosList}
-corresponding to the latter case, the CON-Handler needs to be mounted as
+corresponding to the latter case, the CON-Handler\key{CON-Handler} needs to be mounted as
 {\tt EHANDLER}\key{EHANDLER}. The following is an example mountlist\key{Mountlist}
 providing a serial console on a custom serial hardware:
 
@@ -15383,7 +15427,7 @@ used by the {\tt Open()}\key{Open()} function if its second argument is set
 to {\tt MODE\_OLDFILE}\key{MODE\_OLDFILE}.
 \smallskip{}
 
-Handlers such that the Port-Handler or the Console-Handler may already open
+Handlers such that the Port-Handler or the CON-Handler\key{CON-Handler} may already open
 its resources as part of the startup-packet handling and thus may not
 perform a lot of activities here. Note that both handlers do not initialize
 {\tt dol\_Task}\key{dol\_Task} of the {\tt DosList}\key{DosList} structure
@@ -18649,7 +18693,7 @@ section~\ref{sec:terminatehandler}.
 
 Some handlers do not initialize the {\tt dol\_Task}\key{dol\_Task} element of its
 {\tt DosList}\key{DosList} entrie(s) with an address of their port(s); handlers
-that are not file systems such as the Console-Handler are typical
+that are not file systems such as the CON-Handler\key{CON-Handler} are typical
 examples. Such handlers shall terminate themselves without requiring
 an {\tt ACTION\_DIE}\key{ACTION\_DIE} when the last resource opened on them
 had been shut down, i.e.\ all file handles\key{FileHandle} have been closed, all locks\key{Lock} (if
@@ -18934,10 +18978,10 @@ between commands, but only at their end or at the end of the command line.
   the command line within which it appears in background. The command will
   receive a new logical console, and its output and error streams will be
   redirected to this console, unless of course redirected explicitly to
-  other files. Unfortunately, at this time, the ROM-based Console-Handler
+  other files. Unfortunately, at this time, the ROM-based CON-Handler\key{CON-Handler}
   does not take advantage of this information and will simply merge the
   output of the process run back with that of the regular shell\key{Shell}, though
-  extended Console-Handlers use this information for job control and hold
+  extended CON-Handlers use this information for job control and hold
   the output of the background process until made explicitly active.
 \item[+] The plus operator shall only appear at the end of a command line.
   If it is present, it injects a line-feed and the following line of the
@@ -21139,7 +21183,7 @@ initialization to this list. This includes elementary commands such as
 \smallskip{}
 
 Fourth, some segments are added to the list during initialization of AmigaDOS
-through System-Startup. These include the Console-Handler, the RAM-Handler\key{RAM-Handler},
+through System-Startup. These include the CON-Handler\key{CON-Handler}, the RAM-Handler\key{RAM-Handler},
 the FFS\key{Fast File System (FFS)} which is named ``FileHandler'' there, and --- finally -- the Shell.
 \smallskip{}
 
@@ -21201,7 +21245,7 @@ commands to the resident list during its initialization.
 
 Segments indicated by {\tt CMD\_SYSTEM}\mkey{CMD\_SYSTEM} are not commands that could be
 executed, but rather segments of system components. The RAM-Handler\key{RAM-Handler}, the
-Console-Handler and the FFS\key{Fast File System (FFS)} aka FileHandler are indicated as system
+CON-Handler\key{CON-Handler} and the FFS\key{Fast File System (FFS)} aka FileHandler are indicated as system
 segments. These segments cannot be executed and are not found by the Shell
 when scanning the resident list for commands.
 \smallskip{}
@@ -21356,7 +21400,7 @@ unfortunately \emph{also} sets {\tt IoErr()} to the same error code.}.
 AmigaDOS allows adding custom shells\key{Shell} to the system that may optionally
 also replace the AmigaDOS default shell, the ``boot shell''\mkey{Boot Shell}. A shell
 is a resident system segment, see section~\ref{sec:resident}, similar
-to the Console-Handler or the RAM-Handler\key{RAM-Handler} on the same list. When
+to the CON-Handler\key{CON-Handler} or the RAM-Handler\key{RAM-Handler} on the same list. When
 launching a shell\key{Shell} with the {\tt System()}\key{System()} function, a
 custom shell\key{Shell} may be requested by providing the name of its resident
 segment to the {\tt SYS\_CustomShell} tag. A custom shell may even
