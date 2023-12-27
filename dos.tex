@@ -7048,14 +7048,14 @@ for direct-packet I/O, see also chapter~\ref{sec:handlers} and in particular
 section~\ref{sec:dopkt}. The packets listed in chapter~\ref{sec:packettypes}
 typically take a lock/path combination to identify a file system object, and
 for them, the lock will be taken from {\tt dvp\_Lock}, and the path from the
-first component of {\tt name} behind the colon (``{\tt :}'') if there is
-one. The packet will then be send to {\tt dvp\_Port}. The interface
+components of {\tt name} behind the colon (``{\tt :}''), or the full {\tt name}
+without one. The target {\tt MsgPort} of the packet is taken from {\tt dvp\_Port}. The interface
 functions of the \emph{dos.library}, such as {\tt Open()}\key{Open()} and
-{\tt Lock()}\key{Lock()} call through {\tt GetDeviceProc()} and therefore
-perform all these steps already within the library. The following code
-example implements an (albeit limited, because it does not handle soft
+{\tt Lock()}\key{Lock()}, call through {\tt GetDeviceProc()} and therefore
+perform all these steps within the library. The following code
+example demonstrates this on an (albeit limited, because it does not handle soft
 links\key{Soft Link}) re-implementation of the {\tt Lock()}\key{Lock()}
-function of the \emph{dos.library} to demonstrate this:
+function of the \emph{dos.library}:
 
 \begin{verbatim}
 BPTR myLock(const UBYTE *path)
@@ -7095,11 +7095,43 @@ BPTR myLock(const UBYTE *path)
   return lock;
 }
 \end{verbatim}
-It uses again the {\tt D\_S} macro from section~\ref{sec:bptrs} to create a
+It uses the {\tt D\_S} macro from section~\ref{sec:bptrs} to create a
 long word aligned buffer on the stack, here for the converted name of the
 object to be locked. Unlike what official documentation has to say, it is
-not necessary to check the {\tt DVPF\_ASSIGN} flag to re-iterate.
+not necessary to check the {\tt DVPF\_ASSIGN} flag.
+{\tt GetDeviceProc()}\key{GetDeviceProc()} may be called again even with this
+flag cleared, though then always returns {\tt NULL}.
+\medskip{}
+
+The {\tt GetDeviceProc()}\key{GetDeviceProc()} function has a couple of side
+effects: First, if the corresponding handler is not yet loaded, i.e. {\tt
+dol\_SegList}\key{dol\_SegList} in the {\tt DosList}\key{DosList} is {\tt
+ZERO}, it will be loaded from the path in {\tt dol\_Handler}\key{dol\_Handler}
+in the context of the calling process. The
+{\tt Mount}\key{Mount} command uses this side effect to implement the
+{\tt ACTIVATE}\key{ACTIVATE} keyword in mountlists\key{Mountlist}.
 \smallskip{}
+
+If {\tt dol\_Task}\key{dol\_Task} is {\tt NULL}, then an instance of the
+file system or handler is also started, with the {\tt name} converted to a
+BSTR in the startup packet, see section~\ref{sec:handlerstartup}. This
+mostly affects handlers such as the CON-Handler\key{CON-Handler} which leave
+{\tt dol\_Task} at {\tt NULL} and use the path in the startup packet to
+configure itself. The CON-Handler versions 37 and before already opened the
+window from this path without ever (or before) receiving a packet requesting
+a file (see sections~\ref{sec:actionfindinput} and following), causing the side
+effect of creating a stray window or even an error on an invalid window
+specification. This was fixed in version 39. Still, without sending any
+further packet to the handler, its process remains active.
+\smallskip{}
+
+Thus, as a fairly general recommendation, {\tt GetDeviceProc()} should only
+be called to find the target {\tt MsgPort} for a subsequent packet
+transmission, see also chapter~\ref{sec:handlers}. Handlers such as the
+CON-Handler\key{CON-Handler} will process this packet, and if after
+processing this packet, no file handle is open, will terminate itself again,
+see also section~\ref{sec:handlerstartup}.
+\medskip{}
 
 If {\tt GetDeviceProc()}\key{GetDeviceProc()} returns {\tt NULL}, then {\tt IoErr()}\key{IoErr()}
 provides additional information on the failure. If the error code is
@@ -7111,7 +7143,7 @@ allocate sufficient memory for its operation.
 \smallskip{}
 
 Unfortunately, the function does not set {\tt IoErr()} consistently if {\tt
-  GetDeviceProc()} is called again on an existing {\tt DevProc} structure as
+  GetDeviceProc()} is called again with an existing {\tt DevProc} structure as
 second argument with the {\tt DVPB\_ASSIGN}\mkey{DVPB\_ASSIGN} bit
 cleared. {\tt IoErr()} remains in this case unaltered and it is therefore
 advisable to clear it upfront.
@@ -7123,11 +7155,12 @@ The function also returns {\tt NULL} if {\tt name} corresponds to the {\tt
 code is not fully correct, and callers need to be aware of this defect.
 \smallskip{}
 
-If the path indicates the console, i.e. starts with {\tt CONSOLE:}, then
-this function reports the correct port and a {\tt ZERO} lock, but sets 
-{\tt IoErr()} (incorrectly) to an error code. The same happens for paths
-relative to {\tt PROGDIR:}, the home directory of the calling process. Thus,
-{\tt IoErr()} shall not be interpreted in case of success.
+If the path starts with {\tt CONSOLE:}, then this function reports the port
+of the current console, see~\ref{sec:getconsoletask}, and a {\tt ZERO} lock,
+but sets {\tt IoErr()} (incorrectly) to an error code even if process is
+equipped with a console. The same happens for paths relative to {\tt
+  PROGDIR:}, the home directory of the calling process. Thus, {\tt IoErr()}
+shall not be interpreted in case of success.
 \smallskip{}
 
 Also, {\tt GetDeviceProc()} does not handle the path ``{\tt *}''\key{* (file name)} at all,
@@ -7143,13 +7176,13 @@ specified in section~\ref{sec:getconsoletask}.
   indicating the current console, and {\tt NIL:} for the {\tt NIL}
   pseudo-device are not handled here.}
 
-Unfortunately, the {\tt GetDeviceProc()}\key{GetDeviceProc()} multi-assign
-handling includes a race condition, namely that directories can be added or
-removed to such assigns under its feed, i.e.\ while one process is iterating
-over the directories of a multi-assign, a second process is able to remove
-the directory being visited by {\tt RemAssignList()}\key{RemAssignList()}, see
-section~\ref{sec:remassignlist}. A use-counter identfying that a lock has
-currently been passed out to a client is missing.
+Unfortunately, the {\tt GetDeviceProc()}\key{GetDeviceProc()} handling of assigns
+includes a race condition, namely that assigns can be added or
+removed under its feed, i.e.\ while one process received {\tt dvp\_Lock} from an
+assign\key{Assign}, a second process is able to remove the directory being
+visited by {\tt RemAssignList()}\key{RemAssignList()}, see
+section~\ref{sec:remassignlist}. A use-count identfying how often a lock has
+been passed out to a client is still missing.
 \smallskip{}
 
 Another defect of this function is that it cannot handle device, volume or
@@ -7177,7 +7210,7 @@ resources from an iteration through one or multiple {\tt
   GetDeviceProc()}\key{GetDeviceProc()} calls. It shall be called only to
 abort an iteration over devices, not within each iteration, see
 section~\ref{sec:getdeviceproc} for an example. In particular, if calling
-{\tt GetDeviceProc()} had returned {\tt NULL} itself it released such
+{\tt GetDeviceProc()} had returned {\tt NULL} it released such
 resources itself already and {\tt FreeDeviceProc()} shall not be called.
 \smallskip{}
 
@@ -7205,7 +7238,7 @@ particular value may be assumed. It may or may not alter its value.
 
 The {\tt DeviceProc()}\mkey{DeviceProc()} function is a legacy variant
 of {\tt GetDeviceProc()}\key{GetDeviceProc()} that should not be used
-anymore. It is not able to reliably provide locks\key{Lock} to assigns\key{Assign}
+anymore. It is not able to handle non-binding assigns\key{Non-Binding Assign}
 and will not work through all directories of a multi-assign\key{Multi-Assign}.
 
 \begin{verbatim}
@@ -7215,13 +7248,13 @@ process = DeviceProc( name )
 struct MsgPort *DeviceProc(STRPTR)
 \end{verbatim}
 
-This function returns a pointer to a port of a handler or
-file suitable to resolve the path {\tt name}. It returns
-{\tt NULL} on error in which case it sets {\tt IoErr()}\key{IoErr()}.
+This function returns a pointer to a port of a handler responsible for
+the path {\tt name}. It returns {\tt NULL} on error in which case it sets
+{\tt IoErr()}\key{IoErr()}.
 \smallskip{}
 
-If the passed in {\tt name} is part of an assign\key{Assign}, the handler
-port of the directory the assign binds to is returned, and {\tt
+If the passed in {\tt name} indicates an assign\key{Assign}, the handler
+port responsible for the directory the assign binds to is returned, and {\tt
   IoErr()}\key{IoErr()} is set to the lock\key{Lock} of the assign. Similar
 to {\tt GetDeviceProc()}\key{GetDeviceProc()}, this lock is owned by the
 \emph{dos.library} and shall be duplicated before it is used to iterate over
@@ -7232,7 +7265,7 @@ a directory.
   the port and lock\key{Lock} to the first directory participating in the
   assign. It also returns {\tt NULL} for non-binding assigns\key{Non-Binding Assign} as there
   is no way to release a temporary lock obtained on the target of the
-  assign. Same as {\tt GetDeviceProc()}, it does not properly handle
+  assign. Similar to {\tt GetDeviceProc()}, it does not properly handle
   {\tt NIL:} and ``{\tt *}''\key{* (file name)}.}
 
 As this function is based on {\tt GetDeviceProc()}\key{GetDeviceProc()}, it
