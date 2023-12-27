@@ -7047,12 +7047,59 @@ A typical use case for this function is to identify a handler or file system
 for direct-packet I/O, see also chapter~\ref{sec:handlers} and in particular
 section~\ref{sec:dopkt}. The packets listed in chapter~\ref{sec:packettypes}
 typically take a lock/path combination to identify a file system object, and
-for them, the lock will be taken from {\tt dvp\_Lock}, and the path from
-{\tt name}. The packet will then be send to {\tt dvp\_Port}. The interface
+for them, the lock will be taken from {\tt dvp\_Lock}, and the path from the
+first component of {\tt name} behind the colon (``{\tt :}'') if there is
+one. The packet will then be send to {\tt dvp\_Port}. The interface
 functions of the \emph{dos.library}, such as {\tt Open()}\key{Open()} and
 {\tt Lock()}\key{Lock()} call through {\tt GetDeviceProc()} and therefore
-perform all these steps already within the library.
-\medskip{}
+perform all these steps already within the library. The following code
+example implements an (albeit limited, because it does not handle soft
+links\key{Soft Link}) re-implementation of the {\tt Lock()}\key{Lock()}
+function of the \emph{dos.library} to demonstrate this:
+
+\begin{verbatim}
+BPTR myLock(const UBYTE *path)
+{
+  struct DevProc *dp = 0;
+  BPTR lock          = 0;
+  LONG error         = 0;
+  const UBYTE *name;
+  struct Buffer {
+    UBYTE buf[256];
+  };
+  D_S(struct Buffer,buf);
+  /*
+  ** Convert to BSTR on the stack - no size check performed! 
+  */
+  name = strchr(path,':');
+  if (name == NULL) {
+    name = path;
+  } else ++name;
+  buf->buf[0] = strlen(name);
+  memcpy(&buf->buf[1],name,buf->buf[0]);
+  while(dp = GetDeviceProc(path,dp)) {
+    lock = DoPkt(dp->dvp_Port,ACTION_LOCATE_OBJECT,dp->dvp_Lock,
+                 MKBADDR(buf->buf),SHARED_LOCK,0,0);
+    if (lock)
+      break;
+    error = IoErr();
+    if (error != ERROR_OBJECT_NOT_FOUND)
+      break;
+  }
+
+  if (dp)
+    FreeDeviceProc(dp);
+
+  SetIoErr(error);
+
+  return lock;
+}
+\end{verbatim}
+It uses again the {\tt D\_S} macro from section~\ref{sec:bptrs} to create a
+long word aligned buffer on the stack, here for the converted name of the
+object to be locked. Unlike what official documentation has to say, it is
+not necessary to check the {\tt DVPF\_ASSIGN} flag to re-iterate.
+\smallskip{}
 
 If {\tt GetDeviceProc()}\key{GetDeviceProc()} returns {\tt NULL}, then {\tt IoErr()}\key{IoErr()}
 provides additional information on the failure. If the error code is
@@ -7127,9 +7174,11 @@ void FreeDeviceProc(struct DevProc *)
 
 This function releases the {\tt DevProc}\key{DevProc} structure and all its
 resources from an iteration through one or multiple {\tt
-  GetDeviceProc()}\key{GetDeviceProc()} calls. If calling {\tt GetDeviceProc()} had
-returned {\tt NULL} itself it had already released such resources
-itself and no further activity is necessary.
+  GetDeviceProc()}\key{GetDeviceProc()} calls. It shall be called only to
+abort an iteration over devices, not within each iteration, see
+section~\ref{sec:getdeviceproc} for an example. In particular, if calling
+{\tt GetDeviceProc()} had returned {\tt NULL} itself it released such
+resources itself already and {\tt FreeDeviceProc()} shall not be called.
 \smallskip{}
 
 The {\tt dvp\_Port}\key{dvp\_Port} or {\tt dvp\_Lock}\key{dvp\_Lock} within the {\tt DevProc}
@@ -7141,7 +7190,8 @@ file system is needed afterwards, a resource of this handler
 shall be obtained, e.g.\ by opening a file or obtaining a lock on
 it. Both the {\tt FileHandle}\key{FileHandle} and the {\tt
   FileLock}\key{FileLock} structures contain a pointer to the port of
-the corresponding handler.
+the corresponding handler, see sections~\ref{sec:filehandle}
+and~\ref{sec:filelock}.
 \smallskip{}
 
 It is safe to call {\tt FreeDeviceProc()} with a {\tt NULL} argument;
@@ -7166,21 +7216,18 @@ struct MsgPort *DeviceProc(STRPTR)
 \end{verbatim}
 
 This function returns a pointer to a port of a handler or
-file systemable to handle the path {\tt name}. It returns
+file suitable to resolve the path {\tt name}. It returns
 {\tt NULL} on error in which case it sets {\tt IoErr()}\key{IoErr()}.
 \smallskip{}
 
 If the passed in {\tt name} is part of an assign\key{Assign}, the handler
 port of the directory the assign binds to is returned, and {\tt
-  IoErr()}\key{IoErr()} is set to the lock\key{Lock} of the assign. Unfortunately, one
-cannot safely make use of this lock as the device list
-may be altered any time, including the time between the return from
-this function and its first use by the caller. Thus, {\tt
-  GetDeviceProc()}\key{GetDeviceProc()} shall be used instead which locks resources such as
-the device list; they are released through {\tt
-  FreeDeviceProc()}\key{FreeDeviceProc()}.
+  IoErr()}\key{IoErr()} is set to the lock\key{Lock} of the assign. Similar
+to {\tt GetDeviceProc()}\key{GetDeviceProc()}, this lock is owned by the
+\emph{dos.library} and shall be duplicated before it is used to iterate over
+a directory.
 
-\punchline{Obsolete and not fully functional}{{\tt DeviceProc()} function
+\punchline{Obsolete and not fully functional}{The {\tt DeviceProc()} function
   does not operate properly on multi-assigns\key{Multi-Assign} where it only provides
   the port and lock\key{Lock} to the first directory participating in the
   assign. It also returns {\tt NULL} for non-binding assigns\key{Non-Binding Assign} as there
@@ -7189,9 +7236,10 @@ the device list; they are released through {\tt
   {\tt NIL:} and ``{\tt *}''\key{* (file name)}.}
 
 As this function is based on {\tt GetDeviceProc()}\key{GetDeviceProc()}, it
-suffers from the same limitations. It does not handle ``{\tt *}''\key{* (file name)} correctly,
-and it cannot handle device, volume or assign\key{Assign} names longer than 30
-characters.
+suffers from the same race conditions and limitations. It cannot handle
+device, volume or assign\key{Assign} names longer than 30 characters and
+does not handle situations gracefully within which an assign\key{Assign} is
+removed after a lock on its target directory has been passed out.
 
 \subsection{Obtaining the Current Console Handler} \label{sec:getconsoletask}
 
@@ -16072,8 +16120,8 @@ such as comments or protection bits associated to the identified object.
 {\bf DosPacket Element}   & {\bf Value}\\ \hline \hline
 \tt dp\_Type  & \tt ACTION\_LOCATE\_OBJECT (8) \\ \hline
 \tt dp\_Arg1  & BPTR to {\tt FileLock} \\ \hline
-\tt dp\_Arg2  & Mode of the lock \\ \hline
-\tt dp\_Arg3  & BPTR to BSTR of the object name \\ \hline \hline
+\tt dp\_Arg2  & BPTR to BSTR of the object name \\ \hline \hline
+\tt dp\_Arg3  & Mode of the lock \\ \hline
 \tt dp\_Res1  & BPTR to {\tt FileLock} \\ \hline
 \tt dp\_Res2  & Error code \\ \hline
 \end{rkrmtable}
