@@ -5,6 +5,7 @@
 \usepackage{multirow}
 \usepackage{forest}
 \usepackage{arydshln}
+\usepackage{extdash}
 %\usepackage{parskip}
 %
 \setlength{\oddsidemargin}{0cm}
@@ -7277,12 +7278,12 @@ removed after a lock on its target directory has been passed out.
 \subsection{Obtaining the Current Console Handler} \label{sec:getconsoletask}
 
 The {\tt GetConsoleTask()}\mkey{GetConsoleTask()} function returns the
-\emph{MsgPort} of the handler responsible for the console of the
+{\tt MsgPort} of the handler responsible for the console of the
 calling process, that is, the process that takes care of the file name
 ``{\tt *}''\key{* (file name)} or paths relative to {\tt CONSOLE:}.
 
 \begin{verbatim}
-port = GetConsoleTask()
+port = GetConsoleTask() /* since V36 */
 D0
 
 struct MsgPort *GetConsoleTask(void)
@@ -7290,13 +7291,13 @@ struct MsgPort *GetConsoleTask(void)
 
 This function returns a port to the handler of the console of the
 calling process, or {\tt NULL} in case there is no console associated
-to the caller. The latter holds for example for programs started from
+to the calling process. The latter holds for example for programs started from
 the Workbench. It does not alter {\tt IoErr()}\key{IoErr()}.
 
 \subsection{Obtaining the Default File System} \label{sec:getfilesystask}
 
 The {\tt GetFileSysTask()}\mkey{GetFileSysTask()} function returns the
-\emph{MsgPort} of the default file system of the caller. The
+{\tt MsgPort} of the default file system of the caller. The
 default file system is used as fall-back if a
 file system is required for a path relative to the {\tt ZERO} lock\key{ZERO lock}, and
 the path itself does not contain an indication of the responsible
@@ -7308,7 +7309,7 @@ the file system of the {\tt SYS:} assign\key{Assign}, though it can be
 changed with {\tt SetFileSysTask()} at any point.
 
 \begin{verbatim}
-port = GetFileSysTask()
+port = GetFileSysTask() /* since V36 */
  D0
 
 struct MsgPort *GetFileSysTask(void)
@@ -7326,7 +7327,7 @@ assign\key{Assign}, they can be different.
 \section{Iterating and Accessing the Device List} \label{sec:devlistaccess}
 
 While {\tt GetDeviceProc()}\key{GetDeviceProc()} uses the device
-  list to locate a particular \emph{MsgPort} and lock\key{Lock}, all
+  list to locate a particular {\tt MsgPort} and lock\key{Lock}, all
 other members of the {\tt DosList}\key{DosList} structure remain unavailable. For
 them, the device list containing these structures need to be
 scanned manually. The \emph{dos.library} provides functions to grant
@@ -7337,20 +7338,22 @@ access, search and release access to this list.
 The {\tt LockDosList()}\mkey{LockDosList()} function requests shared
 or exclusive access to a subset of entries of the device list
 containing all handlers, volumes and assigns\key{Assign} and
-blocks until access is granted. It requires as input multiple sets
-that specify which parts of the list to access:
+blocks until access is granted. It requires as input a flag that defines
+which parts of the list are requested:
 
 \begin{verbatim}
-dlist = LockDosList(flags)
+dlist = LockDosList(flags) /* since V36 */
  D0                   D1
 
 struct DosList *LockDosList(ULONG)
 \end{verbatim}
 
-This function grants access to a subset of entries of the device
-  list indicated by {\tt flags}, and returns an opaque handle through
-which elements of the list can be accessed. For this, see
-{\tt FindDosEntry()}\key{FindDosEntry()}.
+This function grants read (shared) or write (exclusive) access to a subset of entries of the device
+list indicated by {\tt flags}, and returns an opaque handle through
+which elements of the list can be accessed. Unlike what the function
+prototype implies, the returned value \emph{is not} a pointer to a {\tt
+DosList} structure. For locating a particular entry on the device list, see
+{\tt FindDosEntry()}\key{FindDosEntry()} in section~\ref{sec:finddosentry}.
 \smallskip{}
 
 The {\tt flags} value shall be combination of the following values, all
@@ -7360,25 +7363,29 @@ defined in {\tt dos/dosextens.h}:
 {\tt Flags} & {\bf Description}\\ \hline \hline
 {\tt LDF\_DEVICES}\mkey{LDF\_DEVICES} & Access handlers and file system entries, see~\ref{sec:deviceoverview} \\ \hline
 {\tt LDF\_VOLUMES}\mkey{LDF\_VOLUMES} & Access volumnes, see~\ref{sec:volumelist} \\ \hline
-{\tt LDF\_ASSIGNS}\mkey{LDF\_ASSIGNS} & Access assigns\key{Assign}, see~\ref{sec:assignlist} \\ \hline \hline
-{\tt LDF\_ENTRY}\mkey{LDF\_ENTRY}  & Lock access to a {\tt DosList}\key{DosList} entries \\ \hline
+{\tt LDF\_ASSIGNS}\mkey{LDF\_ASSIGNS} & Access assigns\key{Assign}, see~\ref{sec:assignlist} \\ \hline
+{\tt LDF\_ALL}\mkey{LDF\_ALL} & Combination of all of the above \\ \hline \hline
+{\tt LDF\_ENTRY}\mkey{LDF\_ENTRY}  & Handler startup access the device list \\ \hline
 {\tt LDF\_DELETE}\mkey{LDF\_DELETE} & Lock device list for deletion \\ \hline \hline
 {\tt LDF\_READ}\mkey{LDF\_READ} & Shared access to the device list \\ \hline
 {\tt LDF\_WRITE}\mkey{LDF\_WRITE} & Exclusive access to the device list \\ \hline
 \end{rkrmtable}
 
 At least {\tt LDF\_READ}\key{LDF\_READ} or {\tt LDF\_WRITE}\key{LDF\_WRITE} shall be included in the
-flags, they shall not be set both. The three first flags may also be
-combined to access multiple types.
+flags, they shall not be set both. For example, {\tt GetDeviceProc()}\key{GetDeviceProc()} performs a read
+access on the list while looking for a particular device, while adding
+assigns through {\tt AssignLock()}\key{AssignLock()} (see
+section~\ref{sec:assignlock}) requires write access with {\tt LDF\_ASSIGNS}. The three first flags may also be
+combined to access multiple types, e.g. as {\tt LDF\_ALL} to request all entries.
 \smallskip{}
 
-{\tt LDF\_ENTRY}\key{LDF\_ENTRY} and {\tt LDF\_DELETE}\key{LDF\_DELETE} are additional flags that
-moderate access to entries of the device list. If {\tt
-  LDF\_ENTRY} is set, then exclusive access to the selected entries is
-requested and entries shall not be altered or removed. The {\tt
-  LDF\_ENTRY} flag shall not be combined with {\tt LDF\_READ}. If
-{\tt LDF\_DELETE} is set, then access is granted for removing entries
-from the list.
+{\tt LDF\_ENTRY}\key{LDF\_ENTRY} and {\tt LDF\_DELETE}\key{LDF\_DELETE} are
+additional flags that moderate access to entries of the device list. {\tt
+  LDF\_ENTRY} locks the list while loading and starting new
+handlers and file systems. If {\tt LDF\_DELETE} is set, then access is
+granted for removing entries.  Both flags are only set internally by the
+\emph{dos.library} and shall not be used by applications, handlers or file
+systems.
 \medskip{}
 
 The result code {\tt dlist} is \emph{not} a pointer to a {\tt DosList}\key{DosList}
@@ -7389,28 +7396,53 @@ then locking failed because the combination of {\tt flags} passed in
 was invalid.
 \smallskip{}
 
+Application programs \emph{should not} keep the device list locked while
+sending a packet to a handler or file system. This is because
+handlers or file systems need access to the device list themselves under
+certain conditions, for example to add a {\tt DosList} entry representing a
+volume inserted into the drive maintained by the file system. Unfortunately,
+even some system programs \emph{do} keep a lock (despite the above warning),
+and attempting to retrieve a lock from within the file system would then
+cause a deadlock. Instead, handler and file system implementations should
+rather call {\tt AttemptLockDosList()}\key{AttemptLockDosList()} specified
+in section~\ref{sec:attemptlockdoslist} and defer the intended operation
+until after the list becomes accessible.
+\smallskip{}
+
+For backwards compatibilty to AmigaDOS versions 34 and earlier, this
+function also calls {\tt Forbid()}, implementing the access protocol of such
+earlier versions.
+\smallskip{}
+
 This function does not alter {\tt IoErr()}\key{IoErr()}.
 
-\subsection{Requesting Access to the Device List}
+\subsection{Requesting Access to the Device List} \label{sec:attemptlockdoslist}
 
 The {\tt AttemptLockDosList()}\mkey{AttemptLockDosList()} requests
 access to the device list or a subset of its entries, and, in
 case it cannot gain access, returns {\tt NULL}. Unlike
-{\tt LockDosList()}\key{LockDosList()}, it does not block.
+{\tt LockDosList()}\key{LockDosList()}, it does not block, but fails if the
+list is not accessible.
 
 \begin{verbatim}
-dlist = AttemptLockDosList(flags)
+dlist = AttemptLockDosList(flags) /* since V36 */
 D0                          D1
 
 struct DosList *AttemptLockDosList(ULONG)
 \end{verbatim}
 
-The {\tt flags} argument specifies which elements of the \emph{device
-  list} are requested for access, and which type of access is
+The {\tt flags} argument specifies which elements of the device
+list are requested for access, and which type of access is
 required. The flags are a combination of the flags listed in
 table~\ref{table:lockdoslistflags}, and the semantics of the flags are
 exactly as specified for {\tt LockDosList()}\key{LockDosList()}, see
 there for details.
+\smallskip{}
+
+This function should be used within handlers to check whether access to a
+(subset) of the device list is possible as blocking access through {\tt
+  LockDosList()}\key{LockDosList()} may lead to a deadlock, see also
+section~\ref{sec:lockdoslist}.
 \smallskip{}
 
 On success, the result code is a non-{\tt NULL} handle that may be
@@ -7423,83 +7455,123 @@ cannot be granted without blocking, or flags are invalid. These two
 cases of failure cannot be distinguished unfortunately.
 \smallskip{}
 
+Up to AmigaDOS versions 39, this function could return either {\tt NULL} or
+{\tt (struct DosList *)1} on failure, and thus -- if compatibility to such versions is
+intended --- both return codes would need to be checked. This was fixed in
+release 40 at least.
+\smallskip{}
+
 This function does not alter {\tt IoErr()}\key{IoErr()}.
 
 \subsection{Release Access to the Device List}
 
 The {\tt UnLockDosList()}\mkey{UnLockDosList()} function releases
-access to the device list as obtained by {\tt LockDosList()}\key{LockDosList()}.
+access to the device list obtained by {\tt LockDosList()}\key{LockDosList()}
+or {\tt AttemptLockDosList()}\key{AttemptLockDosList()}.
 
 \begin{verbatim}
-UnLockDosList(flags)
-                D1
+UnLockDosList(flags) /* since V36 */
+               D1
 
 void UnLockDosList(ULONG)
 \end{verbatim}
 
 This function releases access to the device list again. The
-{\tt flags} argument shall be identical to the {\tt flags}argument
-provided to {\tt LockDosList()}\key{LockDosList()}.
+{\tt flags} argument shall be identical to the {\tt flags} argument
+provided to {\tt LockDosList()}\key{LockDosList()} or {\tt
+  AttemptLockDosList()}\key{AttemptLockDosList()}.
+\smallskip{}
 
-\subsection{Iterate through the Device List}
+As a compatibility kludge to AmigaDOS versions 34 and before, this function
+also calls {\tt Permit()}, implementing the legacy access protocol to the
+device list.
+
+\subsection{Iterate through the Device List} \label{sec:nextdosentry}
 
 The {\tt NextDosEntry()}\mkey{NextDosEntry()} iterates to the next
 entry in the device list given the current entry or the handle
-returned by {\tt LockDosList()}.
+returned by {\tt LockDosList()}\key{LockDosList()} or {\tt AttemptLockDosList()}\key{AttemptLockDosList()}.
 
 \begin{verbatim}
-newdlist = NextDosEntry(dlist,flags)
+newdlist = NextDosEntry(dlist,flags) /* since V36 */
  D0                       D1    D2
 
 struct DosList *NextDosEntry(struct DosList *,ULONG)
 \end{verbatim}
 
-This function returns the next {\tt DosList}\key{DosList} structure of the
-device list which shall have been locked with {\tt LockDosList()}. The
-{\tt dlist} argument shall be either the return code of a previous
+This function returns the {\tt DosList}\key{DosList} structure following the
+{\tt dlist} handle on the device list. The device list shall be locked
+either by {\tt LockDosList()} or {\tt AttemptLockDosList()}. The
+{\tt dlist} argument shall be either the return value of a previous
 {\tt NextDosEntry()} or {\tt FindDosEntry()}\key{FindDosEntry()}
-call, or the handle returned by {\tt LockDosEntry()}.
+call, or the handle returned by {\tt LockDosEntry()} or {\tt AttemptLockDosList()}.
 \smallskip{}
 
-The {\tt flags} argument shall be a subset of the {\tt flags} argument
-into {\tt LockDosList()} and specifies the type of {\tt DosList}
-structures that shall be found. Only the first 3 elements of
-Table~\ref{table:lockdoslistflags} are relevant here, all other flags
-are ignored but may be included.
+{\tt flags} shall be a subset of the flags requested from
+{\tt LockDosList()} or {\tt AttemptLockDosList()} and specifies the type of
+{\tt DosList} structures that shall be iterated over. Only the first~3 elements
+of Table~\ref{table:lockdoslistflags} are relevant here, all other flags are
+ignored but may be included.
 \smallskip{}
 
-The {\tt newdlist} result is either a pointer to a {\tt DosList}
-structure of the requested type, or {\tt NULL} if the end of list has
-been reached. This function does not alter {\tt IoErr()}.
+The {\tt newdlist} result is either a pointer to a subsequent {\tt DosList}
+structure of the requested type, or {\tt NULL} if the end of list has been
+reached. This function does not alter {\tt IoErr()}.
+\smallskip{}
 
-\subsection{Find a Device List Entry by Name}
+The following example code demonstrates how to iterate over all device list
+entries:
+
+\begin{verbatim}
+void IterateDosList(void)
+{
+  struct DosList *dl;
+
+  dl = LockDosList(LDF_ALL|LDF_READ);
+  while((dl = NextDosEntry(dl,LDF_ALL))) {
+    const UBYTE *name = ((UBYTE *)BADDR(dl->dol_Name)) + 1;
+    ...
+  }
+  UnLockDosList(LDF_ALL|LDF_READ);
+}
+\end{verbatim}
+Note that the {\tt name} is stored as a BSTR that is, conveniently,
+always {\tt NUL} terminated. The {\tt name} \emph{cannot} be safely printed
+in the loop as printing implies the transfer of a packet to the console while
+the device list is at this point locked. See also the notes in
+section~\ref{sec:lockdoslist}. If the names are required, they shall be
+copied within the loop and then printed later.
+
+\subsection{Find a Device List Entry by Name} \label{sec:finddosentry}
 
 The {\tt FindDosEntry()}\mkey{FindDosEntry()} function finds a
 {\tt DosList}\key{DosList} structure of a particular type and particular
 name, from a particular entry on, or the handle returned by
-{\tt LockDosList()}\key{LockDosList()}.
+{\tt LockDosList()}\key{LockDosList()} or {\tt AttemptLockDosList()}\key{AttemptLockDosList()}.
 
 \begin{verbatim}
-newdlist = FindDosEntry(dlist,name,flags)
+newdlist = FindDosEntry(dlist,name,flags) /* since V36 */
 D0                       D1    D2   D3
 
 struct DosList *FindDosEntry(struct DosList *,STRPTR,ULONG)
 \end{verbatim}
 
-This function scans through the device list starting at the
-entry {\tt dlist}, or the handle returned by {\tt LockDosList()}, and
-returns the next {\tt DosList}\key{DosList} structure that is of the type indicated
-by {\tt flags} and has the name {\tt name}.
+This function scans through the device list starting at the entry {\tt
+dlist}, or the handle returned by {\tt LockDosList()} or {\tt
+AttemptLockDosList()}\key{AttemptLockDosList()}, and returns the next {\tt
+DosList}\key{DosList} structure, potentially \emph{including} the one
+pointed to by {\tt dlist}, that is of the type indicated by {\tt flags} and
+has the name {\tt name}.
 \smallskip{}
 
-The {\tt flags} shall be a subset of the {\tt flags} argument passed
-into {\tt LockDosList()}\key{LockDosList()}. Only the first 3 elements of
-Table~\ref{table:lockdoslistflags} are relevant here, all other flags
-are ignored but may be included.
+{\tt flags} shall be a subset of the flags requested from
+{\tt LockDosList()}\key{LockDosList()} or {\tt AttemptLockDosList()}\key{AttemptLockDosList()}.
+Only the first 3 elements of Table~\ref{table:lockdoslistflags} are relevant
+here, all other flags are ignored but may be included.
 \smallskip{}
 
-The {\tt name} argument is the (case-insensitive) name of the assign\key{Assign},
-handler, file system or volume the function should look for. The name
+The {\tt name} argument is the (case-insensitive) name of the
+assign\key{Assign}, handler, file system or volume to be found. The name
 \emph{shall not} include the colon ('{\tt :}') that separates the name from
 the remaining components of a path, see section~\ref{sec:paths}. It may be
 {\tt NULL} in which case every entry of the requested type matches.
@@ -7510,19 +7582,22 @@ that matches the name (if provided) and flags passed in, or {\tt NULL}
 in case no match could be found and the entire list has been
 scanned. Note that the returned {\tt DosList} may be identical to the
 {\tt dlist} passed in if it already fits the requirements. Thus
-potentially, {\tt NextDosList()}\key{NextDosList()} may be called upfront to scan from
-the subsequent entry.
+potentially, {\tt NextDosList()}\key{NextDosList()} may be called upfront to
+continue the scan from the previous entry found.
 \smallskip{}
 
 Passing {\tt NULL} as {\tt dlist} is safe and returns {\tt NULL},
-i.e.\ the end of the list. Note that the (pseudo-) devices from
-tables~\ref{table:specialdevices} and \ref{table:specialassigns} are
+i.e.\ the end of the list. Note that the (pseudo\Hyphdash*) devices from
+table~\ref{table:specialdevices} in section~\ref{sec:deviceoverview} and
+assigns from table~\ref{table:specialassigns} in section~\ref{sec:assignlist} are
 not part of the device list, i.e.\ {\tt NIL}, {\tt CONSOLE},
-{\tt *}\key{* (file name)} and {\tt PROGDIR}\key{PROGDIR} cannot be found and are special cases of
-{\tt GetDeviceProc()}\key{GetDeviceProc()}.
+{\tt *}\key{* (file name)} and {\tt PROGDIR}\key{PROGDIR} cannot be found
+and are special cases handled within
+{\tt GetDeviceProc()}\key{GetDeviceProc()} and other functions of the
+\emph{dos.library}.
 \smallskip{}
 
-This function does not alter {\tt IoErr()}.
+{\tt FindDosEntry()} does not alter {\tt IoErr()}.
 
 \subsection{Accessing Mount Parameters} \label{sec:accessfssm}
 
@@ -9120,7 +9195,9 @@ the console within which this process is run, if such a console
 exists. This handler is contacted when opening ``{\tt *}''\key{* (file name)} or a path
 relative to {\tt CONSOLE:}. Processes started from the Workbench do
 not have a console, unless one is installed with {\tt
-  SetConsoleTask()}\key{SetConsoleTask()}.
+  SetConsoleTask()}\key{SetConsoleTask()}. The pointer stored in this
+element should better be obtained by {\tt
+  GetConsoleTask()}\key{GetConsoleTask()}, see section~\ref{sec:getconsoletask}.
 \smallskip{}
 
 {\tt pr\_FileSystemTask}\mkey{pr\_FileSystemTask} is the {\tt MsgPort}
@@ -9129,7 +9206,8 @@ resolved relative to the {\tt ZERO} lock\key{ZERO lock}. This member is initiali
 to the {\tt MsgPort} of the file system the system was booted from,
 but can be changed by {\tt
   SetFileSysTask()}\key{SetFileSysTask()}. This member is also
-returned by {\tt GetFileSysTask()}\key{SetFileSysTask()}.
+returned by {\tt GetFileSysTask()}\key{SetFileSysTask()} specified in
+section~\ref{sec:getfilesystask}, and this function should be preferred.
 \smallskip{}
 
 {\tt pr\_CLI}\mkey{pr\_CLI} is a BPTR to the {\tt CommandLineInterface}
