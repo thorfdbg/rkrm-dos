@@ -7601,140 +7601,122 @@ and are special cases handled within
 
 \subsection{Accessing Mount Parameters} \label{sec:accessfssm}
 
-Once a {\tt DosList}\key{DosList} structure has been identified, e.g.\ by {\tt
-  FindDosEntry()}\key{FindDosEntry()}, it is tempting to understand whether the entry belongs to
-an assign\key{Assign} or a volume, or a handler or file system, and in the latter two
-cases, to find the mount parameters of the handler or file system.
+Once a {\tt DosList}\key{DosList} structure has been identified, e.g.\ by
+{\tt FindDosEntry()}\key{FindDosEntry()}, it is tempting to understand
+whether the entry belongs to an assign\key{Assign}, a volume, a handler or
+file system, and in the latter two cases, to find their mount parameters to
+regenerate a mountlist entry from the mounted partition or volume.
 \smallskip{}
 
-The first level of identification is easy and works through the {\tt
-  dol\_Type} element of the {\tt DosList}\key{DosList} structure; table
+The type of the entry is easily found in the {\tt dol\_Type} element of the
+{\tt DosList}\key{DosList} structure; table
 \ref{table:doslisttypes} in section~\ref{sec:devicelist} lists the possible
-entry types. As seen there, however, handlers and file systems
-share the same type, namely {\tt DLT\_DEVICE}\key{DLT\_DEVICE}.
+entry types. The type {\tt DLT\_DEVICE}\key{DLT\_DEVICE} indicates both file
+systems and handlers.
 \smallskip{}
 
-Information on how a file system or a handler should be
-configured is found in the {\tt dol\_Startup}\key{dol\_Startup} field; it is, however, up to
-the handler to interpret it, and AmigaDOS does not define what exactly it
-can contain. The {\tt Mount}\key{Mount (command)} command can place three different types of
-objects here: An integer value, a BPTR to a BSTR, or a BPTR to a
-{\tt FileSysStartupMsg}\key{FileSysStartupMsg}.
+The mount information, or to be more precise, the configuration of the
+handler or file system is found in the {\tt dol\_Startup}\key{dol\_Startup}
+field; it is, however, up to the handler to interpret it, and AmigaDOS does
+not define its syntax. The {\tt Mount}\key{Mount (command)} command can
+place three different types of objects here: An integer value, a BPTR to a
+BSTR, or a BPTR to a {\tt FileSysStartupMsg}\key{FileSysStartupMsg}, though
+even other types could be deposited here by handler-specific tools.
 \smallskip{}
 
-Unfortunately, there is no totally safe way how to distinguish these types,
-and AmigaDOS does not provide any further source of information to learn
-which type a handler expects here --- thus a heuristics is needed to tell
-them apart.
+Unfortunately, there is no completely safe way how to distinguish these
+types, and AmigaDOS does not provide any further source of information to
+learn what a handler expects here --- thus a heuristics is needed to tell
+them apart and access mount information.
 \smallskip{}
 
-In the first step, one should check whether the {\tt dol\_Startup}\key{dol\_Startup} field is
-actually a BPTR pointing to valid memory. This is even the case for
-file systems mounted by the ROM, e.g.\ the {\tt df0:} device:
+The following algorithm attempts to detect the nature of the information
+provided in {\tt dol\_Startup} given a pointer to a {\tt DosList}, for
+example as provided by {\tt FindDosEntry()}\key{FindDosEntry()}:
 
 \begin{verbatim}
 void AnalyzeDosList(struct DosList *dl)
 {
-LONG *startup;
-
-  s=(LONG *)(dl->dol_Startup);
-  if (s && TypeOfMem(BADDR(s)) && (LONG)s!=-1L && (LONG)s>0x100 
-        && ((LONG)s & 0xc0000000)==0) {
-        /* Looks like a plausible BPTR */
-        AnalyzeStartup((LONG *)(BADDR(s)));
-  } else {
-        /* Likely some sort of handler, and s is
-        ** probably some integer
-        */
-        ....
-  }
-}
-\end{verbatim}
-
-The above algorithm uses {\tt TypeOfMem()} to test whether a pointer goes
-into valid memory, and also checks the topmost two bits of the
-BPTR. As BPTRs are created by right-shifting a pointer by 2 bits, the two MSBs should thus be zero.
-\smallskip{}
-
-In the second step, the heuristics attempts to understand whether the
-BPTR in {\tt dol\_Startup}\key{dol\_Startup} actually points to a {\tt
-  FileSysStartupMsg}\key{FileSysStartupMsg} or to a BSTR. For that, it attempts to learn
-whether the {\tt fssm\_Device}\key{fssm\_Device} element is a valid BSTR and whether
-the {\tt fssm\_Environ}\key{fssm\_Environ} element is also a valid BPTR.
-
-\begin{verbatim}
-void AnalyzeStartup(LONG *startupmsg)
-{
-BOOL isfsstart=TRUE;
+LONG *s;
 UBYTE *text;
 
-  /* This checks whether fssm_Device 
-  ** is meaningful in order to derive
-  ** 
-  if (startupmsg[1] & 0xc0000000) {
-     /* Certainly not a BPTR to
-     ** a device name, bail out
+ s=(LONG *)(dl->dol_misc.dol_handler.dol_Startup);
+ if (((LONG)s & 0xc0000000)==0 && TypeOfMem(BADDR(s))) {
+   LONG *startupmsg = BADDR(s);
+   /* Looks like a plausible BPTR */
+   /* This checks whether fssm_Device 
+   ** is meaningful in order to derive
+   */
+   if ((startupmsg[1] & 0xc0000000) == 0) {
+     /* Hopefully, a BPTR to a BSTR,
+     ** namely the device name.
      */
-     isfsstart = FALSE;
-  } else {
-     /* Hopefully, a BPTR to a BSTR */
      text=((char *)BADDR(startupmsg[1]))+1;
-     if (!TypeOfMem(text)) {
-       /* No, that does not work. */
-       isfsstart = FALSE;
-     } else {
+     if (TypeOfMem(text)) {
        /* Now check the want-to-be fssm_Envion */
-       if (startupmsg[2] & 0xc0000000) {
-         isfsstart = FALSE;
-       } else if (startupmsg[2]!=NULL && 
-                (!TypeOfMem(BADDR(startupmsg[2])))) {
-         isfsstart = FALSE;
+       if ((startupmsg[2] & 0xc0000000) == 0 && 
+           TypeOfMem(BADDR(startupmsg[2]))) {
+         struct FileSysStartupMsg *fssm;
+         struct DosEnvec *env;
+         fssm = (struct FileSysStartupMsg *)startupmsg;
+         env  = (struct DosEnvec *)BADDR(fssm->fssm_Environ);
+         /*
+         ** Access fssm->fssm_Device,fssm_Unit,fssm_Flags
+         */
+         /* Hopefully an environment */
+         if (env->de_TableSize >= 11) {
+           UBYTE *device = (UBYTE *)(BADDR(fssm->fssm_Device)) + 1;
+           ULONG  unit   = fssm->fssm_Unit;
+           /* Ok, this is probably good enough... use the
+           ** elements of the environment up to the
+           ** one indicated by env->de_TableSize
+           */
+           ...
+         }
        }
      }
-   }
-   
-   /*
-   ** But could possibly be a string
-   */
-   if (isfsstart==FALSE) {
-    if (TypeOfMem(startupmsg)) {
+   } else {
      /* This is probably a string.
      ** "mount" puts NUL-terminated strings in 
      ** here.
      */
      text = ((UBYTE *)startupmsg)+1;
      ...
-    } else {
-     struct FileSysStartupMsg *fssm;
-     fssm = (struct FileSysStartupMsg *)startupmsg;
-     /*
-     ** Access fssm->fssm_Device,fssm_Unit,fssm_Flags
-     */
-     ...
-     if ((fssm->fssm_Environ & 0xc0000000) == 0) {
-      LONG *ptr = BADDR(fssm->fssm_Environ);
-      if (ptr && (TypeOfMem(ptr))) {
-       struct DosEnvec *env;
-       env = (struct DosEnvec *)ptr;
-       /* Hopefully an environment */
-       if (env->de_TableSize > 0) {
-         /* Ok, this is probably good enough... use the
-         ** elements of the environment up to the
-         ** one indicated by env->de_TableSize
-         */
-       }
-     }
    }
+ } else {
+   /* Likely some sort of handler, and s is
+   ** probably some integer
+   */
+   ...
  }
 }
 \end{verbatim}
+
+In the first step, the algorithm above attempts to find out whether
+{\tt dol\_Startup}\key{dol\_Startup} is an integer or a BPTR. It uses
+{\tt TypeOfMem()} to test whether a pointer goes into valid memory, and also
+checks the topmost two bits of the BPTR. As BPTRs are created by
+right-shifting a pointer by 2 bits, the two MSBs should be zero. Even for
+ROM-mounted devices like the floppies, the {\tt DosList} structure and all
+structures and strings associated to it are located in RAM and thus the
+above test also works for them.
+\smallskip{}
+
+In the second step, the heuristics attempts to understand whether the
+BPTR in {\tt dol\_Startup}\key{dol\_Startup} actually points to a
+{\tt FileSysStartupMsg}\key{FileSysStartupMsg} or to a BSTR. For that, it attempts to learn
+whether the {\tt fssm\_Device}\key{fssm\_Device} element is a valid BSTR and whether
+the {\tt fssm\_Environ}\key{fssm\_Environ} element is also a valid BPTR.
+\smallskip{}
 
 Even if this function is able to identify an {\tt DosEnvec}\key{DosEnvec} structure
 with high probability, the environment vector found in this way does
 not need to be complete and contain all the elements listed in
 section~\ref{sec:envec}, instead, only the first {\tt de\_TableSize}\key{de\_TableSize}
 elements are present, and everything beyond this point shall not be
-interpreted or modified.
+interpreted or modified. AmigaDOS 32 and above allocate at least 11 entries
+here, for every additional entry a test of
+{\tt de\_TableSize}\key{de\_TableSize} shall be performed.
 \smallskip{}
 
 While the above is just a heuristic and is therefore not guaranteed to work,
@@ -7743,12 +7725,14 @@ extract environment information from all handlers or file systems that came
 into his hand.
 \smallskip{}
 
-Nevertheless, getting hands on the {\tt FileSysStartupMsg}\key{FileSysStartupMsg} from an unknown
-handler is not completely waterproof at this moment, and to this end the
-author of~\cite{guru} proposed to introduce a {\tt DosPacket}\key{DosPacket} (see
-section~\ref{sec:dospacket}) by which a handler can be requested to reveal
-its startup message. Unfortunately, to date this packet has not found wide
-adoption, and the above heuristics may be used as an interim solution.
+Nevertheless, getting hands on the {\tt
+  FileSysStartupMsg}\key{FileSysStartupMsg} from an unknown handler is not
+completely waterproof at this moment, and to this end the author
+of~\cite{guru} proposed to introduce a {\tt DosPacket}\key{DosPacket} (see
+table~\ref{table:thirdpartypackets} in section~\ref{sec:thirdpartypackets})
+by which a handler could be requested to reveal its startup
+message. Unfortunately, to date this packet has not found wide adoption, and
+the above heuristics may be used as an interim solution.
 \smallskip{}
 
 Authors of handlers and file systems have less to worry about. When
@@ -19172,7 +19156,7 @@ replied. The FFS\key{Fast File System (FFS)} uses this packet to turn off the dr
 read or write operation, and interactive handlers such as the console use it
 to implement {\tt ACTION\_WAIT\_CHAR}\key{ACTION\_WAIT\_CHAR}.
 
-\section{Obsolete and Third-Party Packets}
+\section{Obsolete and Third-Party Packets} \label{sec:thirdpartypackets}
 
 The following packets are not implemented nor defined by AmigaDOS but
 are either obsolete or currently in use by some third-party
