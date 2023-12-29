@@ -7749,29 +7749,38 @@ fooled by an incorrect mountlist\key{Mountlist} and by that crash the system.
 
 \section{Adding or Removing Entries to the Device List}
 
-The \emph{dos.library} provides two service functions to add or remove
-{\tt DosList}\key{DosList} structures from the device list. They secure the
-\emph{dos.library} internal state from inconsistencies as other
-processes may attempt to access the device list simultaneously,
-and they also ensure proper linkage of the structures.
+The \emph{dos.library} provides two service functions to add or remove {\tt
+  DosList}\key{DosList} structures from the device list. They secure the
+\emph{dos.library} internal state from inconsistencies as other processes
+may attempt to access the device list simultaneously, and they also ensure
+proper linkage of the structures. They cannot prevent, however, that an
+entry is removed whose resources, such as locks of an assign, are currently
+in use by a another process. Locks recorded in a {\tt DosEntry} therefore
+cannot be safely released without causing a race condition.
 \smallskip{}
 
-\punchline{Locking the device list in file systems}{There is one
-  particular race condition file system authors should be aware
-  of. When opening a file, or obtaining a lock\key{Lock}, the \emph{dos.library}
-  calls through {\tt GetDeviceProc()}\key{LockDosList()} to identify a
-  handler responsible for the requested path. As this function
-  requires access to the device list, it will secure access to it
-  through {\tt LockDosList()}\key{LockDosList()}, then possibly start
-  up the handler, and then unlock the list. Thus, at the time the
-  handler is initiated, it may find the device list
-  unaccessible. Attempting to lock it would result in a deadlock
-  situation as the \emph{dos.library} waits for the handler to reply
-  its startup packet, and the handler waits for the dos.library to
-  grant access to the device list. The following sections provide
-  workarounds how to avoid this situation, see also
-  section~\ref{sec:handlers} for details on the handler and file
-  system startup mechanism.}
+A second potential race condition exists upon launching handlers. At this
+time, {\tt GetDeviceProc()}\key{GetDeviceProc()} requires access to the
+device list and secures it through {\tt LockDosList()}\key{LockDosList()}.
+The list will be unlocked only after the handler process has been
+started. Thus, at the time the handler is initiated, it may find the device
+list unaccessible. Attempting to lock it with {\tt LockDosList()} would
+result in a deadlock situation as the \emph{dos.library} waits for the
+handler to reply its startup packet, and the handler waits for the
+\emph{dos.library} to get access to the device list. The following sections
+provide workarounds how to avoid this situation, see also
+section~\ref{sec:handlerstartup} for details on the handler and file system
+startup mechanism.
+
+\punchline{Locking the device list in file systems}{Handlers shall not
+  attempt to lock the device list through {\tt
+    LockDosList()}\key{LockDosList()} as this function may block and cause a
+  deadlock if the \emph{dos.library} or an application program is accessing
+  the list simultaneously to reach out for the same handler. Instead, {\tt
+    AttemptLockDosList()}\key{AttemptLockDosList()} shall be used, and if
+  getting access to the list fails, the operation requiring the lock,
+  e.g.\ adding a volume to the device list. shall be delayed until after
+  the list becomes accessible.}
 
 \subsection{Adding an Entry to the Device List}
 
@@ -7779,7 +7788,7 @@ The {\tt AddDosEntry()}\mkey{AddDosEntry()} adds an initialized {\tt
   DosList} structure to the device list.
 
 \begin{verbatim}
-success = AddDosEntry(dlist)
+success = AddDosEntry(dlist) /* since V36 */
 D0                     D1
 
 LONG AddDosEntry(struct DosList *)
@@ -7808,7 +7817,7 @@ volume representing an inserted medium. As the list may be
 locked by the \emph{dos.library} to secure the list from modifications
 within a {\tt GetDeviceProc()}\key{GetDeviceProc()} function, a
 deadlock may result where file system and \emph{dos.library}
-mutually block access. To prevent this from happening handlers should
+mutually block access. To prevent this from happening handlers shall
 check upfront whether the device list is available for
 modifications by {\tt AttemptLockDosList()}\key{AttemptLockDosList()}, e.g.\
 
@@ -7823,11 +7832,11 @@ attempting to get write access failed, the handler should check for
 incoming requests, handle them, and attempt adding the entry later.
 \smallskip{}
 
-The function fails if an entry is to be added and an entry of the same
-name, regardless its type, is already present on the list. The only
-exception is that the list may contain two volumes of the same
-name, provided provided their creation date {\tt dol\_VolumeDate}
-differs, see section~\ref{sec:devicelist}.
+The function fails if an attempt is made to add an entry of name to the list
+that is already present, regardless whether the types are identical or not.
+The only exception is that the list may contain two volumes of the same
+name, provided provided their creation date {\tt dol\_VolumeDate} differs,
+see chapter~\ref{sec:devicelist}.
 \smallskip{}
 
 If successful, the function returns non-zero, but then does not alter
@@ -7851,39 +7860,42 @@ BOOL RemDosEntry(struct DosList *)
 
 This function attempts to find the {\tt DosList}\key{DosList} structure pointed to
 by {\tt dlist} in the device list and, if present, removes
-it. Unlike what some other documentation says, this function locks the
-device list properly before attempting to remove an entry,
-locking it upfront is not necessary.
+it. The device list shall be locked upfront depending on the type of the entry that
+is to be removed, e.g.\ if the entry is a volume, an
+{\tt LDF\_VOLUMES | LDF\_WRITE} lock on the device list is required,
+either through {\tt LockDosList()} or through {\tt AttemptLockDosList()},
+see also the example below.
 \smallskip{}
 
-The function does \emph{not} attempt to release the memory allocated
-for the {\tt DosList}\key{DosList} passed in, or any of its members, it just
-removes the {\tt DosList} from the device list. While
-file systems may know how they allocated the {\tt DosList}\key{DosList}
-structures represening their volumes and hence should be aware
-how to release the memory taken by them, there is no good solution on
-how to recycle memory for {\tt DosList}\key{DosList} structures representing
-handlers, file systems or assigns\key{Assign}. Some manual
-footwork is currently required, see also {\tt
-  FreeDosNode()}\key{FreeDosNode()}. In particular, as entries
-representing handlers and file systems may have been
-created in multiple ways, their memory cannot be safely recycled.
+The function does \emph{not} attempt to release the memory allocated for the
+{\tt DosList}\key{DosList} passed in, or any of its resources such as locks,
+it just removes the {\tt DosList} from the device list. While file systems
+may know how they allocated the {\tt DosList}\key{DosList} structures
+represening their volumes and hence should be aware how to release the
+memory taken by them, there is no good solution on how to recycle memory for
+{\tt DosList}\key{DosList} structures representing handlers, file systems or
+assigns\key{Assign}. Some manual footwork is currently required, see also
+{\tt FreeDosNode()}\key{FreeDosNode()}. In particular, as entries
+representing handlers and file systems may have been created in multiple
+ways, their memory cannot be safely recycled. Assigns \emph{shall not} be
+manipulated through this function, but rather through the functions in
+section~\ref{sec:assigns}.
 \smallskip{}
 
 Particular care needs to be taken if this function is called from
 within a handler or file system, e.g.\ to remove a
 volume representing a removed medium. As the list may be
 locked by the \emph{dos.library} to secure the list from modifications
-within a {\tt GetDeviceProc()}\key{GetDeviceProc()} function, a
+within the {\tt GetDeviceProc()}\key{GetDeviceProc()} function, a
 deadlock may result where file system and \emph{dos.library}
-mutually block access. To prevent this from happening handlers should
+mutually block access. To prevent this from happening handlers shall
 check upfront whether the device list is available for
 modifications by {\tt AttemptLockDosList()}\key{AttemptLockDosList()}, e.g.\
 
 \begin{verbatim}
-if (AttemptLockDosList(LDF_DELETE|LDF_ENTRY|LDF_WRITE)) {
+if (AttemptLockDosList(LDF_VOLUMES|LDF_DELETE|LDF_ENTRY|LDF_WRITE)) {
   rc = RemDosEntry(volumenode);
-  UnLockDosList(LDF_DELETE|LDF_ENTRY|LDF_WRITE);
+  UnLockDosList(LDF_VOLUMES|LDF_DELETE|LDF_ENTRY|LDF_WRITE);
 }
 \end{verbatim}
 when removing a {\tt DosList}\key{DosList} entry. If attempting to get write access
