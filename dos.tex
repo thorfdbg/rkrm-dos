@@ -8052,130 +8052,212 @@ While {\tt MakeDosEntry()}\key{MakeDosEntry()} creates a {\tt DosList}\key{DosLi
 entry for the device list\key{Device List}, it only performs minimal
 initialization of the structure. For assigns\key{Assign}, specifically, the
 \emph{dos.library} provides specialized functions that allocate,
-initialize and enqueue {\tt DosList}\key{DosList} structures representing assigns
+initialize and enqueue and remove {\tt DosList}\key{DosList} structures representing assigns
 in a single call and are thus easier to use.
+\smallskip{}
 
-\subsection{Create and Add a Regular Assign} \label{sec:assignlock}
+Unfortunately, all the functions provided in this section have a race
+condition in handling locks\key{Lock} representing the target directory (or
+directories) of an assign. As such locks are passed out by
+{\tt GetDeviceProc()}\key{GetDeviceProc()} (see section~\ref{sec:getdeviceproc})
+or {\tt DeviceProc()}\key{DeviceProc()} without any internal reference counting, it can happen
+that they are still in use when they are released by canceling,
+updating or converting an assign to another type.
+\smallskip{}
 
-The {\tt AssignLock()}\mkey{AssignLock()} function creates a new assign\key{Assign}
-to a directory from a lock\key{Lock}, and then enqueues it into the
-device list\key{Device List}.
+Multi-Assigns\key{Multi-Assign} are created by starting from a regular assign
+to one target directory with {\tt AssignLock()}\key{AssignLock()},
+see section~\ref{sec:assignlock}, and then iteratively adding directory
+after directory to the assign with the {\tt AssignAdd()}\key{AssignAdd()}
+function specified in section~\ref{sec:assignadd}.
+
+\subsection{Create, Update or Remove an Assign} \label{sec:assignlock}
+
+The {\tt AssignLock()}\mkey{AssignLock()} function scans the device
+list\key{Device List} for an assign of a given name. If this assign is not
+yet present, it adds a regular assign to the directory as represented by a
+lock\key{Lock}. If the assign is already present, the assign is converted to
+a regular assign to the target directory, or the assign is canceled.
 
 \begin{verbatim}
-success = AssignLock(name,lock)
+success = AssignLock(name,lock) /* since V36 */
 D0                    D1   D2
 
 BOOL AssignLock(STRPTR,BPTR)
 \end{verbatim}
-This function creates a (regular) assign\key{Assign} onto the directory
-identified by {\tt lock}. The assign created under the name as
-given by {\tt name}. The name shall not include a trailing colon
-(``{\tt :}'') that separates the assign name from the rest of
-the path. The lock shall be a shared lock.
+This function creates, updates or canceles the assign identified by
+{\tt name} which shall not include a trailing colon (``{\tt :}'') separating
+the assign name from the rest of the path. The {\tt lock} argument
+shall be either {\tt ZERO} or a shared lock\key{Lock} to a directory.
+\smallskip{}
+
+If no {\tt DosList} of the given {\tt name} exists, and {\tt lock} is not
+{\tt ZERO}, the function creates a new regular assign under the given name
+that points to the target directory given by {\tt lock}.
+\smallskip{}
+
+If an assign {\tt name} already exist and {\tt lock} is not {\tt ZERO}, then
+the assign, regardless of its type, is converted into a regular assign
+pointing to the target directory given by {\tt lock}. Any resources
+associated to multi-assigns\key{Multi-Assign} or late-\key{Late Binding
+  Assign} or non-binding\key{Non-Binding Assign} assigns are released.
+\smallskip{}
+
+If the assign {\tt name} already exists and {\tt lock} is {\tt ZERO}, then
+any type of assign is canceled, that is, all its resources --- including
+locks --- are released and the assign is removed from the device
+list\key{Device List}.
+\smallskip{}
+
+Unfortunately, even in the most present release of AmigaDOS, this function
+has a race condition if an attempt is made to cancel an assign whose lock is
+currently in use by an application program, for example because it has been
+passed out through {\tt GetDeviceProc()}\key{GetDeviceProc()}, see
+section~\ref{sec:getdeviceproc}.
+\smallskip{}
 
 If the function is successful, it returns a non-zero result code. The
-{\tt lock} is then absorbed into the assign\key{Assign} and should no longer
-be used by the calling program. On success, {\tt IoErr()} is not altered.
+{\tt lock}, if non-{\tt ZERO}, is then absorbed into the assign\key{Assign} and
+should no longer be used by the calling program. On success, {\tt IoErr()}
+is not consistently set and its value cannot be relied upon.
+\smallskip{}
 
 On error, the function returns $0$ and the {\tt lock} remains
 available to the caller. {\tt IoErr()}\key{IoErr()} is set to an error code
 identifying the cause of the failure.
 {\tt ERROR\_NO\_FREE\_STORE}\key{ERROR\_NO\_FREE\_STORE} is
-returned if the function run out of memory. If a {\tt DosList}\key{DosList} of the
-same name (regardless of which type) already exists, the error code is
+returned if the function run out of memory, and
+{\tt ERROR\_INVALID\_COMPONENT\_NAME}\key{ERROR\_INVALID\_COMPONENT\_NAME}
+if the assign name is longer than~30 characters. If a volume, handler or file system of the
+same name already exists, the error code is
 {\tt ERROR\_OBJECT\_EXISTS}\key{ERROR\_OBJECT\_EXISTS}.
 
-\subsection{Create a Non-Binding Assign}
+\subsection{Create or Update a Non-Binding Assign}
 
-The {\tt AssignPath()}\mkey{AssignPath()} function creates a
-non-binding assign\key{Non-Binding Assign} and adds it to the device list\key{Device List}. This
-type of assign\key{Assign} binds to a path independent of the volume the path is
-located on; that is, the assign resolves to whatever
-volume, handler or even other assign matches the
-path.
+The {\tt AssignPath()}\mkey{AssignPath()} function creates or updates a
+non-binding assign\key{Non-Binding Assign} and adds it to the device
+list\key{Device List} if it is not yet present. This type of
+assign\key{Assign} binds to a path independent of the volume the path is
+located on; that is, the assign resolves to whatever volume, handler or even
+other assign matches the path.
 
 \begin{verbatim}
-success = AssignLate(name,path)
+success = AssignLate(name,path) /* since V36 */
 D0                    D1   D2
 
 BOOL AssignLate(STRPTR,STRPTR)
 \end{verbatim}
-This function creates a non-binding assign\key{Non-Binding Assign} whose name is given
-by the first argument, and which resolves to the path given as second
-argument, and then adds the assign to the device
-  list\key{Device List}. The {\tt name} shall not contain a trailing colon (``{\tt
-  :}''). While not a formal requirement of the function or
+This function scans the device list\key{Device List} for an assign given by 
+{\tt name}. The {\tt name} shall not contain a trailing colon (``{\tt :}'').
+If such an assign does not yet exit, it creates a non-binding
+assign\key{Non-Binding Assign} to {\tt path}. While not a formal requirement of the function or
 non-binding assigns\key{Non-Binding Assign}, the {\tt path} should better be an
 absolute path as otherwise resolution of the created assign can
 be very confusing --- it is then resolved relative to the current
 directory of the calling process.
+\smallskip{}
+
+If an assign {\tt name} already exists, it is canceled, all of its
+resources, including one or multiple locks are released, and it is converted
+into a non-binding assign\key{Non-Binding Assign} to {\tt path}.
+\smallskip{}
+
+Unfortunately, even in the most present release of AmigaDOS, this function
+has a race condition if locks of a previous assign are released and these
+locks are still in use by an application program.
+\smallskip{}
 
 If the function is successful, it returns a non-zero result code. On
-success, {\tt IoErr()}\key{IoErr()} is not altered.
+success, {\tt IoErr()}\key{IoErr()} is not set consistently and cannot be
+relied upon. The string {\tt path} then has been copied into a buffer
+allocated by the function, and {\tt path} remains available to the caller.
+\smallskip{}
 
-On error, the function returns $0$ and {\tt IoErr()}\key{IoErr()} is set to an
-error code identifying the cause of the failure. {\tt
-  ERROR\_NO\_FREE\_STORE}\key{ERROR\_NO\_FREE\_STORE} is returned if the function run out of
-memory. If a {\tt DosList} of the same name (regardless of which type)
-already exists, the error code is {\tt ERROR\_OBJECT\_EXISTS}\key{ERROR\_OBJECT\_EXISTS}.
+On error, the function returns~$0$ and {\tt IoErr()}\key{IoErr()} is set to
+an error code identifying the cause of the failure. {\tt ERROR\_NO\_FREE\_STORE}\key{ERROR\_NO\_FREE\_STORE}
+is returned if the function run out of memory. If the assign name is longer
+than~30 characters, the error code is set to
+{\tt ERROR\_INVALID\_COMPONENT\_NAME}\key{ERROR\_INVALID\_COMPONENT\_NAME}.
+If a {\tt DosList} entry
+representing a handler, file system or volume of the same name already
+exists, the error code is {\tt ERROR\_OBJECT\_EXISTS}\key{ERROR\_OBJECT\_EXISTS}.
 
 \subsection{Create a Late Binding Assign}
 
-The {\tt AssignLate()}\mkey{AssignLate()} function creates a
-late binding assign\key{Late Binding Assign} whose target is initially given by a path; but
-after its first resolution, the assign reverts to a
-regular assigns\key{Assign} such that the target of the assign will
-point to the same directory of the volume from that point on. This has
-the advantage that the target of the assign does not need to be
-available at creation time of the assign, yet remains unchanged after
-its first usage.
+The {\tt AssignLate()}\mkey{AssignLate()} function creates or converts an
+assign into late binding assign\key{Late Binding Assign} whose target is
+initially given by a path. After its first access, the assign reverts to a
+regular assign\key{Assign} to the directory {\tt path} refers to at this
+time. From that point on, the assign binds to the same target directory on
+the same volume, even if the volume is ejected or re-inserted into another
+drive. This has the advantage that the target of the assign does not need to
+be available at creation time of the assign, yet remains unchanged after its
+first usage.
 
 \begin{verbatim}
-success = AssignLate(name,path)
+success = AssignLate(name,path) /* since V36 */
 D0                    D1   D2
 
 BOOL AssignLate(STRPTR,STRPTR)
 \end{verbatim}
-This function creates a late binding assign of the name {\tt
-  name} pointing to {\tt path} as its destination and adds it to the
-device list\key{Device List}. The {\tt name} shall not contain a trailing colon
-(``{\tt :}''). While not explicitly required by this function, the
-{\tt path} should better be an absolute path as otherwise
-resolving the assign can be very confusing. The {\tt path}
-is then relative to the current directory of the process using
-the \emph{assign} the first time.
+This function scans the device list\key{Device List} for an assign given by
+{\tt name}. The {\tt name} shall not contain a trailing colon (``{\tt :}'').
+If such an assign does not yet exit, it creates a late-binding
+assign\key{Late-Binding Assign} to {\tt path}. While not required by this
+function, the {\tt path} should better be an absolute path as otherwise
+resolution of the created assign can be very confusing --- it is then
+relative to the current directory of the first process using the assign.
+\smallskip{}
+
+If an assign {\tt name} already exists, it is canceled, all of its
+resources, including one or multiple locks are released, and it is converted
+into a late-binding assign\key{Late-Binding Assign} to {\tt path}.
+\smallskip{}
+
+Unfortunately, even in the most present release of AmigaDOS, this function
+has a race condition if locks of a previous assign are released and these
+locks are still in use by an application program.
+\smallskip{}
 
 If the function is successful, it returns a non-zero result code. On
-success, {\tt IoErr()}\key{IoErr()} is not altered.
+success, {\tt IoErr()}\key{IoErr()} is not set consistently and cannot be
+relied upon. The string {\tt path} then has been copied into a buffer
+allocated by the function, and {\tt path} remains available to the caller.
+\smallskip{}
 
-On error, the function returns $0$ and {\tt IoErr()}\key{IoErr()} is
-set to an error code identifying the cause of the failure. {\tt
-  ERROR\_NO\_FREE\_STORE}\key{ERROR\_NO\_FREE\_STORE} is returned if
-the function run out of memory.  If a {\tt DosList}\key{DosList} of the same name
-(regardless of which type) already exists, the error code is {\tt
-  ERROR\_OBJECT\_EXISTS}\key{ERROR\_OBJECT\_EXISTS}.
+On error, the function returns~$0$ and {\tt IoErr()}\key{IoErr()} is set to
+an error code identifying the cause of the failure. {\tt ERROR\_NO\_FREE\_STORE}\key{ERROR\_NO\_FREE\_STORE}
+is returned if the function run out of memory. If the assign name is longer
+than~30 characters, the error code is set to
+{\tt ERROR\_INVALID\_COMPONENT\_NAME}\key{ERROR\_INVALID\_COMPONENT\_NAME}.
+If a {\tt DosList} entry
+representing a handler, file system or volume of the same name already
+exists, the error code is {\tt ERROR\_OBJECT\_EXISTS}\key{ERROR\_OBJECT\_EXISTS}.
 
 \subsection{Add a Directory to a Multi-Assign} \label{sec:assignadd}
 
 The {\tt AssignAdd()}\mkey{AssignAdd()} function adds a directory,
 identified by a lock\key{Lock}, to an already existing regular or
-multi-assign\key{Multi-Assign}. On success, a regular assign is then
+multi-assign\key{Multi-Assign}. On success, a regular assign is
 converted into a multi-assign.
 
 \begin{verbatim}
-success = AssignAdd(name,lock)
+success = AssignAdd(name,lock) /* since V36 */
 D0                   D1   D2
 
 BOOL AssignAdd(STRPTR,BPTR)
 \end{verbatim}
 This function adds the {\tt lock} at the end of the target directory
 list of the assign identified by {\tt name}. The {\tt name}
-does not contain a trailing colon (``{\tt :}'').
+shall not contain a trailing colon (``{\tt :}''), and the lock shall be a
+shared lock to a directory.
+\smallskip{}
 
-A {\tt DosList}\key{DosList} of the given {\tt name} shall already
-when entering this function, and this {\tt DosList} shall be a regular
-assign. Attempting to add a directory to a handler, file system,
+A {\tt DosList}\key{DosList} of the given {\tt name} shall already when
+entering this function, and this {\tt DosList} shall be a regular or a
+multi-assign. Attempting to add a directory to a handler, file system,
 volume or any other type of assign fails.
+\smallskip{}
 
 On success, the function returns a non-zero result code. In such a
 case, the {\tt lock} is absorbed into the assign and should no
@@ -8189,7 +8271,7 @@ available to the caller. Unfortunately, this function does not set
 {\tt IoErr()}\key{IoErr()} consistently, i.e.\ it is unclear on failure
 what caused the error, i.e.\ whether the function run out of memory,
 whether no fitting device list\key{Device List} entry was found, or whether the
-entry found was not a \emph{regular assign}.
+entry found was an unsuitable type of assign.
 
 \subsection{Remove a Directory From a Multi-Assign} \label{sec:remassignlist}
 
@@ -8202,7 +8284,7 @@ assign itself is removed from the device list\key{Device List} and
 released, destroying it and releasing all resources.
 
 \begin{verbatim}
-success = RemAssignList(name,lock)
+success = RemAssignList(name,lock) /* since V36 */
 D0                       D1   D2
 
 BOOL RemAssignList(STRPTR,BPTR)
@@ -8212,15 +8294,24 @@ regular or multi-assign identified by {\tt name}. The
 name shall not contain a trailing colon (``{\tt :}''). If only a
 single directory remains in the assign, it is converted to a
 regular assign. If no directory remains at all, the
-assign is deleted and removed from the device list\key{Device List}. The
-lock\key{Lock} remains available to the caller, regardless of the
-result code. Note that the {\tt lock} passed in does not need to be
-identical to the lock\key{Lock} contained in the assign, but it
-needs to be a lock on the same directory. This function uses
-{\tt SameLock()}\key{SameLock()} function to compare the two locks.
+assign is deleted along with all remaining resources and removed from the device list\key{Device List}.
+\smallskip{}
+
+The {\tt lock} remains available to the caller, regardless of the return
+code, its only purpose is to identify the directory to be removed; it does
+not need to be identical to the lock\key{Lock} contained in the assign, but
+it shall be a lock on the same directory. This function uses the {\tt SameLock()}\key{SameLock()}
+function to compare {\tt lock} and the candidate locks within the assign.
+\smallskip{}
+
+Identified locks to be removed from the assign are released with
+{\tt UnLock()}\key{UnLock()}, which causes, even in the most recent version of
+AmigaDOS, a race condition if these locks are still in use by an application
+program, e.g.\ because it received them through {\tt GetDeviceProc()}\key{GetDeviceProc()}.
+\smallskip{}
 
 On success, the function returns a non-zero result code in {\tt
-  success}.  On error, the function returns $0$. Unfortunately, it
+  success}. On error, the function returns~$0$. Unfortunately, it
 does not set {\tt IoErr()}\key{IoErr()} consistently in all cases, and thus, the
 cause of an error cannot be determined upon return. Possible causes
 of error are that {\tt name} does not exist, or that it is not a
