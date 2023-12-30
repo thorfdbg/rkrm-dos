@@ -3225,7 +3225,7 @@ does not expose this lock to the caller.
 
 As long as at least a single lock\key{Lock} is held of an object on a particular
 volume, the file system will keep the volume within the
-device list of the \emph{dos.library}, see section~\ref{sec:devicelist}.
+device list\key{Device list} of the \emph{dos.library}, see section~\ref{sec:devicelist}.
 This has, for example, the consequence that the Workbench will
 continue to show an icon representing the volume in its window.
 \smallskip{}
@@ -5880,7 +5880,7 @@ Each volume, assign, handler or file system is therefore represented by a
 an absolute path, e.g.\ {\tt S}, and the {\tt MsgPort} responsible for
 it. All {\tt DosList} structures are queued in a global list within the
 \emph{dos.library} (see also section~\ref{sec:dosinfo}) named the
-\emph{device list}. If the library requires to contact a handler through its
+\emph{device list}\mkey{Device List}. If the library requires to contact a handler through its
 device name, it calls internally the {\tt
   GetDeviceProc()}\key{GetDeviceProc()} function which searches this list
 for a matching name and provides a suitable port for the caller. Thus, the
@@ -5908,14 +5908,14 @@ process when booting.
 \smallskip{}
 
 File systems itself also announce their volumes, i.e.\ the media, data carriers
-and partitions they handle, through entries in the device list. {\tt
+and partitions they handle, through entries in the device list\key{Device List}. {\tt
   DosList} structures representing volumes are added and removed on demand
 as media are inserted or removed.
 \smallskip{}
 
 Finally, auto-booting hardware expansions also mount their boot partitions
-here through the \emph{expansion.library} and its {\tt MakeDosNode()} and
-{\tt AddBootNode()} functions. The System-Startup process picks them up from
+here through the \emph{expansion.library} and its {\tt MakeDosNode()}\key{MakeDosNode()} and
+{\tt AddBootNode()}\key{AddBootNode} functions. The System-Startup process picks them up from
 the \emph{expansion.library} and adds them to \emph{dos.library} when
 booting the system. This mechanism is explained in more detail
 in~\cite{rkrmdev}.
@@ -5993,7 +5993,7 @@ equivalent elements, just available under different names.
 
 In the following, these alternative structures will not be discussed as they
 offer no new functionality and just add confusion. It is suggested to just
-leave them alone and access entries of the device list consistently through
+leave them alone and access entries of the device list\key{Device List} consistently through
 the {\tt DosList} structure. If necessary, pointers to these structures can
 be casted to each other without loss of information\footnote{The reason for
 this confusion lies likely again in the history of AmigaDOS actually being a
@@ -6007,7 +6007,7 @@ The elements of a {\tt DosList} now have the following interpretation:
 
 {\tt dol\_Next}\mkey{dol\_Next} is a BPTR to the next entry in the singly
 linked list of {\tt DosList}\key{DosList} structures forming the device
-list, or {\tt ZERO} for the last entry on the list. The order of the entries
+list\key{Device List}, or {\tt ZERO} for the last entry on the list. The order of the entries
 has no particular meaning. The head of this list is in the {\tt
   DosInfo}\key{DosInfo} structure specified in
 section~\ref{sec:dosinfo}. However, this list should not be walked manually,
@@ -6152,7 +6152,7 @@ and are provided in section~\ref{sec:handlerstartup}.
 
 {\tt dol\_GlobVec}\mkey{dol\_GlobVec} identifies the nature of the handler
 as AmigaDOS (still) supports BPCL and C/assembler handlers and defines how
-access to the device list is secured during handler loading and startup.
+access to the device list\key{Device List} is secured during handler loading and startup.
 BCPL handlers use a somewhat more complex loading and linking mechanism as
 the BCPL-specific \emph{global vector}\key{Global Vector} needs to be populated. This is
 not required for C or assembler handlers where a simpler mechanism is
@@ -6173,15 +6173,15 @@ table~\ref{table:gvvalues}:
 
 \begin{rkrmtable}{GlobVec Values} \label{table:gvvalues}
 {\tt \bf dol\_Type} & {\bf Description}\\ \hline \hline
-{\tt -1} & C/assembler handler, exclusive access to the device list \\ \hline
-{\tt -2} & C/assembler handler, shared access to the device list \\ \hline
-{\tt  0} & BCPL handler using system GV, exclusive access to the device list \\ \hline
-{\tt -3} & BCPL handler using system GV, shared access to the device list \\ \hline
-{\tt >0} & BPCL handler with custom GV, exclusive access to the device list \\ \hline
+{\tt -1} & C/assembler handler, exclusive access to the device list\key{Device List} \\ \hline
+{\tt -2} & C/assembler handler, shared access to the device list\key{Device List} \\ \hline
+{\tt  0} & BCPL handler using system GV, exclusive access to the device list\key{Device List} \\ \hline
+{\tt -3} & BCPL handler using system GV, shared access to the device list\key{Device List} \\ \hline
+{\tt >0} & BPCL handler with custom GV, exclusive access to the device list\key{Device List} \\ \hline
 \end{rkrmtable}
 
 The values $0$, $-3$ and $>0$ all setup a BCPL handler, but differ in
-the access type to the device list and how the BCPL
+the access type to the device list\key{Device List} and how the BCPL
 global vector\key{Global Vector} is populated. This vector contains all global
 objects and all globally reachable functions of a BCPL program,
 including functions of the \emph{dos.library}. The values~$0$ and~$-3$
@@ -6283,7 +6283,7 @@ and~\ref{sec:remassignlist}.
 \section{The Device List and the Mountlist} \label{sec:mountlist}
 
 One way to create entries of the type {\tt DLT\_DEVICE}\key{DLT\_DEVICE} on
-the device list is through a {\tt mountlist}\mkey{Mountlist} and the {\tt
+the device list\key{Device List} is through a {\tt mountlist}\mkey{Mountlist} and the {\tt
   Mount}\mkey{Mount (command)} command. Many keywords in the mountlist map directly to
 entries in the {\tt DosList}\key{DosList} structure, others to entries in
 the {\tt FileSysStartupMsg}\key{FileSysStartupMsg} and the {\tt
@@ -6946,7 +6946,7 @@ neither impact the {\tt DosEnvec} structure.
 
 The following functions find the {\tt MsgPort} of a handler
 or file system that is responsible for a given path. The
-functions search the device list, check whether the handler is
+functions search the device list\key{Device List}, check whether the handler is
 already loaded or load it if necessary, then check whether the handler
 is already running, and if not, launch an instance of it. If
 multi-assigns\key{Multi-Assign} are involved, it can become necessary to contact
@@ -7321,22 +7321,22 @@ an assign\key{Assign} and paths starting with {\tt SYS:} do therefore not
 require resolution through this function, though the default
 file system and the file system handling {\tt SYS:} are
 typically identical. However, as the former is returned by {\tt
-  GetFileSysTask()}\key{GetFileSysTask()} and the latter is part of the device list
+  GetFileSysTask()}\key{GetFileSysTask()} and the latter is part of the device list\key{Device List}
 assign\key{Assign}, they can be different.
 
 \section{Iterating and Accessing the Device List} \label{sec:devlistaccess}
 
 While {\tt GetDeviceProc()}\key{GetDeviceProc()} uses the device
-  list to locate a particular {\tt MsgPort} and lock\key{Lock}, all
+  list\key{Device List} to locate a particular {\tt MsgPort} and lock\key{Lock}, all
 other members of the {\tt DosList}\key{DosList} structure remain unavailable. For
-them, the device list containing these structures need to be
+them, the device list\key{Device List} containing these structures need to be
 scanned manually. The \emph{dos.library} provides functions to grant
 access, search and release access to this list.
 
 \subsection{Gaining Access to the Device List} \label{sec:lockdoslist}
 
 The {\tt LockDosList()}\mkey{LockDosList()} function requests shared
-or exclusive access to a subset of entries of the device list
+or exclusive access to a subset of entries of the device list\key{Device List}
 containing all handlers, volumes and assigns\key{Assign} and
 blocks until access is granted. It requires as input a flag that defines
 which parts of the list are requested:
@@ -7349,7 +7349,7 @@ struct DosList *LockDosList(ULONG)
 \end{verbatim}
 
 This function grants read (shared) or write (exclusive) access to a subset of entries of the device
-list indicated by {\tt flags}, and returns an opaque handle through
+list\key{Device List} indicated by {\tt flags}, and returns an opaque handle through
 which elements of the list can be accessed. Unlike what the function
 prototype implies, the returned value \emph{is not} a pointer to a {\tt
 DosList} structure. For locating a particular entry on the device list, see
@@ -7365,10 +7365,10 @@ defined in {\tt dos/dosextens.h}:
 {\tt LDF\_VOLUMES}\mkey{LDF\_VOLUMES} & Access volumnes, see~\ref{sec:volumelist} \\ \hline
 {\tt LDF\_ASSIGNS}\mkey{LDF\_ASSIGNS} & Access assigns\key{Assign}, see~\ref{sec:assignlist} \\ \hline
 {\tt LDF\_ALL}\mkey{LDF\_ALL} & Combination of all of the above \\ \hline \hline
-{\tt LDF\_ENTRY}\mkey{LDF\_ENTRY}  & Handler startup access the device list \\ \hline
-{\tt LDF\_DELETE}\mkey{LDF\_DELETE} & Lock device list for deletion \\ \hline \hline
-{\tt LDF\_READ}\mkey{LDF\_READ} & Shared access to the device list \\ \hline
-{\tt LDF\_WRITE}\mkey{LDF\_WRITE} & Exclusive access to the device list \\ \hline
+{\tt LDF\_ENTRY}\mkey{LDF\_ENTRY}  & Handler startup access the device list\key{Device List} \\ \hline
+{\tt LDF\_DELETE}\mkey{LDF\_DELETE} & Lock device list\key{Device List} for deletion \\ \hline \hline
+{\tt LDF\_READ}\mkey{LDF\_READ} & Shared access to the device list\key{Device List} \\ \hline
+{\tt LDF\_WRITE}\mkey{LDF\_WRITE} & Exclusive access to the device list\key{Device List} \\ \hline
 \end{rkrmtable}
 
 At least {\tt LDF\_READ}\key{LDF\_READ} or {\tt LDF\_WRITE}\key{LDF\_WRITE} shall be included in the
@@ -7380,7 +7380,7 @@ combined to access multiple types, e.g. as {\tt LDF\_ALL} to request all entries
 \smallskip{}
 
 {\tt LDF\_ENTRY}\key{LDF\_ENTRY} and {\tt LDF\_DELETE}\key{LDF\_DELETE} are
-additional flags that moderate access to entries of the device list. {\tt
+additional flags that moderate access to entries of the device list\key{Device List}. {\tt
   LDF\_ENTRY} locks the list while loading and starting new
 handlers and file systems. If {\tt LDF\_DELETE} is set, then access is
 granted for removing entries.  Both flags are only set internally by the
@@ -7396,9 +7396,9 @@ then locking failed because the combination of {\tt flags} passed in
 was invalid.
 \smallskip{}
 
-Application programs \emph{should not} keep the device list locked while
+Application programs \emph{should not} keep the device list\key{Device List} locked while
 sending a packet to a handler or file system. This is because
-handlers or file systems need access to the device list themselves under
+handlers or file systems need access to the device list\key{Device List} themselves under
 certain conditions, for example to add a {\tt DosList} entry representing a
 volume inserted into the drive maintained by the file system. Unfortunately,
 even some system programs \emph{do} keep a lock (despite the above warning),
@@ -7432,7 +7432,7 @@ struct DosList *AttemptLockDosList(ULONG)
 \end{verbatim}
 
 The {\tt flags} argument specifies which elements of the device
-list are requested for access, and which type of access is
+list\key{Device List} are requested for access, and which type of access is
 required. The flags are a combination of the flags listed in
 table~\ref{table:lockdoslistflags}, and the semantics of the flags are
 exactly as specified for {\tt LockDosList()}\key{LockDosList()}, see
@@ -7440,7 +7440,7 @@ there for details.
 \smallskip{}
 
 This function should be used within handlers to check whether access to a
-(subset) of the device list is possible as blocking access through {\tt
+(subset) of the device list\key{Device List} is possible as blocking access through {\tt
   LockDosList()}\key{LockDosList()} may lead to a deadlock, see also
 section~\ref{sec:lockdoslist}.
 \smallskip{}
@@ -7449,7 +7449,7 @@ On success, the result code is a non-{\tt NULL} handle that may be
 passed into the {\tt FindDosEntry()}\key{FindDosEntry()} function for
 finding a handler, file system, volume or assign\key{Assign} matching a name, or
 into the {\tt NextDosEntry()}\key{NextDosEntry()} function for
-iterating the device list manually. On error, the result code is {\tt
+iterating the device list\key{Device List} manually. On error, the result code is {\tt
   NULL}, either because the list is currently locked and access
 cannot be granted without blocking, or flags are invalid. These two
 cases of failure cannot be distinguished unfortunately.
@@ -7466,7 +7466,7 @@ This function does not alter {\tt IoErr()}\key{IoErr()}.
 \subsection{Release Access to the Device List}
 
 The {\tt UnLockDosList()}\mkey{UnLockDosList()} function releases
-access to the device list obtained by {\tt LockDosList()}\key{LockDosList()}
+access to the device list\key{Device List} obtained by {\tt LockDosList()}\key{LockDosList()}
 or {\tt AttemptLockDosList()}\key{AttemptLockDosList()}.
 
 \begin{verbatim}
@@ -7476,7 +7476,7 @@ UnLockDosList(flags) /* since V36 */
 void UnLockDosList(ULONG)
 \end{verbatim}
 
-This function releases access to the device list again. The
+This function releases access to the device list\key{Device List} again. The
 {\tt flags} argument shall be identical to the {\tt flags} argument
 provided to {\tt LockDosList()}\key{LockDosList()} or {\tt
   AttemptLockDosList()}\key{AttemptLockDosList()}.
@@ -7484,12 +7484,12 @@ provided to {\tt LockDosList()}\key{LockDosList()} or {\tt
 
 As a compatibility kludge to AmigaDOS versions 34 and before, this function
 also calls {\tt Permit()}, implementing the legacy access protocol to the
-device list.
+device list\key{Device List}.
 
 \subsection{Iterate through the Device List} \label{sec:nextdosentry}
 
 The {\tt NextDosEntry()}\mkey{NextDosEntry()} iterates to the next
-entry in the device list given the current entry or the handle
+entry in the device list\key{Device List} given the current entry or the handle
 returned by {\tt LockDosList()}\key{LockDosList()} or {\tt AttemptLockDosList()}\key{AttemptLockDosList()}.
 
 \begin{verbatim}
@@ -7500,7 +7500,7 @@ struct DosList *NextDosEntry(struct DosList *,ULONG)
 \end{verbatim}
 
 This function returns the {\tt DosList}\key{DosList} structure following the
-{\tt dlist} handle on the device list. The device list shall be locked
+{\tt dlist} handle on the device list\key{Device List}. The device list shall be locked
 either by {\tt LockDosList()} or {\tt AttemptLockDosList()}. The
 {\tt dlist} argument shall be either the return value of a previous
 {\tt NextDosEntry()} or {\tt FindDosEntry()}\key{FindDosEntry()}
@@ -7519,7 +7519,7 @@ structure of the requested type, or {\tt NULL} if the end of list has been
 reached. This function does not alter {\tt IoErr()}.
 \smallskip{}
 
-The following example code demonstrates how to iterate over all device list
+The following example code demonstrates how to iterate over all device list\key{Device List}
 entries:
 
 \begin{verbatim}
@@ -7538,7 +7538,7 @@ void IterateDosList(void)
 Note that the {\tt name} is stored as a BSTR that is, conveniently,
 always {\tt NUL} terminated. The {\tt name} \emph{cannot} be safely printed
 in the loop as printing implies the transfer of a packet to the console while
-the device list is at this point locked. See also the notes in
+the device list\key{Device List} is at this point locked. See also the notes in
 section~\ref{sec:lockdoslist}. If the names are required, they shall be
 copied within the loop and then printed later.
 
@@ -7556,7 +7556,7 @@ D0                       D1    D2   D3
 struct DosList *FindDosEntry(struct DosList *,STRPTR,ULONG)
 \end{verbatim}
 
-This function scans through the device list starting at the entry {\tt
+This function scans through the device list\key{Device List} starting at the entry {\tt
 dlist}, or the handle returned by {\tt LockDosList()} or {\tt
 AttemptLockDosList()}\key{AttemptLockDosList()}, and returns the next {\tt
 DosList}\key{DosList} structure, potentially \emph{including} the one
@@ -7590,7 +7590,7 @@ Passing {\tt NULL} as {\tt dlist} is safe and returns {\tt NULL},
 i.e.\ the end of the list. Note that the (pseudo\Hyphdash*) devices from
 table~\ref{table:specialdevices} in section~\ref{sec:deviceoverview} and
 assigns from table~\ref{table:specialassigns} in section~\ref{sec:assignlist} are
-not part of the device list, i.e.\ {\tt NIL}, {\tt CONSOLE},
+not part of the device list\key{Device List}, i.e.\ {\tt NIL}, {\tt CONSOLE},
 {\tt *}\key{* (file name)} and {\tt PROGDIR}\key{PROGDIR} cannot be found
 and are special cases handled within
 {\tt GetDeviceProc()}\key{GetDeviceProc()} and other functions of the
@@ -7750,7 +7750,7 @@ fooled by an incorrect mountlist\key{Mountlist} and by that crash the system.
 \section{Adding or Removing Entries to the Device List}
 
 The \emph{dos.library} provides two service functions to add or remove {\tt
-  DosList}\key{DosList} structures from the device list. They secure the
+  DosList}\key{DosList} structures from the device list\key{Device List}. They secure the
 \emph{dos.library} internal state from inconsistencies as other processes
 may attempt to access the device list simultaneously, and they also ensure
 proper linkage of the structures. They cannot prevent, however, that an
@@ -7761,7 +7761,7 @@ cannot be safely released without causing a race condition.
 
 A second potential race condition exists upon launching handlers. At this
 time, {\tt GetDeviceProc()}\key{GetDeviceProc()} requires access to the
-device list and secures it through {\tt LockDosList()}\key{LockDosList()}.
+device list\key{Device List} and secures it through {\tt LockDosList()}\key{LockDosList()}.
 The list will be unlocked only after the handler process has been
 started. Thus, at the time the handler is initiated, it may find the device
 list unaccessible. Attempting to lock it with {\tt LockDosList()} would
@@ -7773,7 +7773,7 @@ section~\ref{sec:handlerstartup} for details on the handler and file system
 startup mechanism.
 
 \punchline{Locking the device list in file systems}{Handlers shall not
-  attempt to lock the device list through {\tt
+  attempt to lock the device list\key{Device List} through {\tt
     LockDosList()}\key{LockDosList()} as this function may block and cause a
   deadlock if the \emph{dos.library} or an application program is accessing
   the list simultaneously to reach out for the same handler. Instead, {\tt
@@ -7785,7 +7785,7 @@ startup mechanism.
 \subsection{Adding an Entry to the Device List}
 
 The {\tt AddDosEntry()}\mkey{AddDosEntry()} adds an initialized {\tt
-  DosList} structure to the device list.
+  DosList} structure to the device list\key{Device List}.
 
 \begin{verbatim}
 success = AddDosEntry(dlist) /* since V36 */
@@ -7795,7 +7795,7 @@ LONG AddDosEntry(struct DosList *)
 \end{verbatim}
 
 This function takes an initialized {\tt DosList}\key{DosList} entry pointed to by
-{\tt dlist} and attempts to add it to the device list. For
+{\tt dlist} and attempts to add it to the device list\key{Device List}. For
 this, it requests write access to the list, i.e.\ locking of the
 device list through the caller is not necessary.
 The {\tt DosList}\key{DosList} may be either created manually, by
@@ -7805,7 +7805,7 @@ While there the structure is called a {\tt DeviceNode}\mkey{DeviceNode}, it is s
 particular incarnation of a {\tt DosList} and may be safely used here.
 \medskip{}
 
-Assigns \emph{shall not} be added to the device list
+Assigns \emph{shall not} be added to the device list\key{Device List}
 through this function, but rather through the functions in
 section~\ref{sec:assigns}. This avoids memory management problems when
 releasing or changing assigns\key{Assign}.
@@ -7818,7 +7818,7 @@ locked by the \emph{dos.library} to secure the list from modifications
 within a {\tt GetDeviceProc()}\key{GetDeviceProc()} function, a
 deadlock may result where file system and \emph{dos.library}
 mutually block access. To prevent this from happening handlers shall
-check upfront whether the device list is available for
+check upfront whether the device list\key{Device List} is available for
 modifications by {\tt AttemptLockDosList()}\key{AttemptLockDosList()}, e.g.\
 
 \begin{verbatim}
@@ -7846,20 +7846,20 @@ longer be altered or released by the caller. On failure, the function
 returns $0$ and {\tt IoErr()}\key{IoErr()} is set
 to {\tt ERROR\_OBJECT\_EXISTS}\key{ERROR\_OBJECT\_EXISTS}.
 
-\subsection{Removing an Entry from the Device List}
+\subsection{Removing an Entry from the Device List} \label{sec:remdosentry}
 
 The {\tt RemDosEntry()}\mkey{RemDosEntry()} removes a {\tt DosList}\key{DosList}
-entry from the device list, making it unacessible for AmigaDOS.
+entry from the device list\key{Device List}, making it unacessible for AmigaDOS.
 
 \begin{verbatim}
-success = RemDosEntry(dlist)
+success = RemDosEntry(dlist) /* since V36 */
 D0                     D1
 
 BOOL RemDosEntry(struct DosList *)
 \end{verbatim}
 
 This function attempts to find the {\tt DosList}\key{DosList} structure pointed to
-by {\tt dlist} in the device list and, if present, removes
+by {\tt dlist} in the device list\key{Device List} and, if present, removes
 it. The device list shall be locked upfront depending on the type of the entry that
 is to be removed, e.g.\ if the entry is a volume, an
 {\tt LDF\_VOLUMES | LDF\_WRITE} lock on the device list is required,
@@ -7869,7 +7869,7 @@ see also the example below.
 
 The function does \emph{not} attempt to release the memory allocated for the
 {\tt DosList}\key{DosList} passed in, or any of its resources such as locks,
-it just removes the {\tt DosList} from the device list. While file systems
+it just removes the {\tt DosList} from the device list\key{Device List}. While file systems
 may know how they allocated the {\tt DosList}\key{DosList} structures
 represening their volumes and hence should be aware how to release the
 memory taken by them, there is no good solution on how to recycle memory for
@@ -7889,7 +7889,7 @@ locked by the \emph{dos.library} to secure the list from modifications
 within the {\tt GetDeviceProc()}\key{GetDeviceProc()} function, a
 deadlock may result where file system and \emph{dos.library}
 mutually block access. To prevent this from happening handlers shall
-check upfront whether the device list is available for
+check upfront whether the device list\key{Device List} is available for
 modifications by {\tt AttemptLockDosList()}\key{AttemptLockDosList()}, e.g.\
 
 \begin{verbatim}
@@ -7906,7 +7906,7 @@ and attempt adding the entry later.
 This function returns a success indicator; it returns non-zero if the
 function succeeds, and $0$ in case it fails. The only reason for
 failure is that {\tt dlist} is not a member of the
-device list. This function does not touch {\tt IoErr()}\key{IoErr()}.
+device list\key{Device List}. This function does not touch {\tt IoErr()}\key{IoErr()}.
 
 \section{Creating and Deleting Device List Entries}
 
@@ -7918,39 +7918,42 @@ section~\ref{sec:assigns} shall be used as they include complete
 initialization of the {\tt DosList}\key{DosList}, and for handlers and
 file systems, the \emph{expansion.library} function {\tt
   MakeDosNode()}\key{MakeDosNode()} is a proper alternative.
-Releasing {\tt DosList}s along with all its resources is unfortunately
-much harder. For assigns, the algorithm in
-section~\ref{sec:releaseentry} provides a workable function based on
-{\tt FreeDosEntry()}\key{FreeDosEntry()}.
+\medskip{}
+
+Releasing {\tt DosList}s along with all its resources is unfortunately much
+harder. For assigns\key{Assign}, regardless of their type, {\tt
+  AssignLock()}\key{AssignLock()} from section~\ref{sec:assignlock} with a
+{\tt ZERO} lock is a better solution.
 \smallskip{}
 
-{\tt DosList}s representing volumes are build and released by
+{\tt DosList} structures representing volumes are build and released by
 file systems; it depends on them which resources need to be
-released along with the {\tt DosList}\key{DosList} structure itself. While it is
+released along with the {\tt DosList}\key{DosList} structure. While it is
 recommended that file systems should go through
 {\tt MakeDosEntry()}\key{MakeDosEntry()} and {\tt FreeDosEntry()}\key{FreeDosEntry()}, it
 is not a requirement.
 \smallskip{}
 
-Releasing a {\tt DosList}\key{DosList} representing a handler or file
-system is currently not possible in a completely robust way. It is
-suggested just to unlink such nodes if absolutely necessary, but
-tolerate the memory leak.
+Releasing a {\tt DosList}\key{DosList} representing a handler or file system
+is currently not possible in a completely robust way. It is suggested to
+only unlink such nodes from the device list\key{Device List} if absolutely
+necessary, but tolerate the memory leak.
 
 \subsection{Creating a Device List Entry}
 
-The {\tt MakeDosEntry()}\mkey{MakeDosEntry()} creates an empty
-{\tt DosList} structure of the given type, and makes all elementary
-initializations. It does not acquire any additional resources, and neither
-inserts it into the device list.
+The {\tt MakeDosEntry()}\mkey{MakeDosEntry()} creates an empty {\tt DosList}
+structure of the given type, and performs elementary initializations. It
+does not acquire any additional resources despite the {\tt DosList}
+structure and the name, and neither inserts the created structure into the
+device list\key{Device List}.
 \smallskip{}
 
 If an assign\key{Assign} is to be created, the functions in
 section~\ref{sec:assigns} are better alternatives and should be
-preferred as they perform a more sophisticated initialization.
+preferred as they perform a more complete initialization.
 
 \begin{verbatim}
-newdlist = MakeDosEntry(name, type)
+newdlist = MakeDosEntry(name, type) /* since V36 */
 D0                       D1    D2
 
 struct DosList *MakeDosEntry(STRPTR, LONG)
@@ -7959,50 +7962,57 @@ struct DosList *MakeDosEntry(STRPTR, LONG)
 This function allocates a {\tt DosList}\key{DosList} structure and
 initializes its {\tt dol\_Type} to {\tt type}. The {\tt type} argument
 shall be one of the values from table~\ref{table:doslisttypes} in
-section~\ref{sec:devicelist}. The function also makes a copy of {\tt
-  name} and initializes the {\tt dol\_Name} to a BSTR copy of
-{\tt name}, which is a {\tt NUL} terminated C string.
+chapter~\ref{sec:devicelist}. The function also initializes the
+{\tt dol\_Name} element to a {\tt NUL}-terminated BSTR, copied from
+the (regular C string) argument {\tt name}.
 \smallskip{}
 
 Note that this function performs only minimal initialization of the
-{\tt DosList} structure. All other members except {\tt dol\_Type} and
-{\tt dol\_Name} are initialized to $0$.
+{\tt DosList} structure. All members except {\tt dol\_Type} and
+{\tt dol\_Name} are initialized to~$0$, and additional initialization is
+necessary by the caller.
 \smallskip{}
-
-This function either returns the allocated structure, or {\tt NULL}
-for failure. In the latter case, {\tt IoErr()} is set to {\tt
-  ERROR\_NO\_FREE\_STORE}. On success, {\tt IoErr()} remains
-unaltered.
 
 \punchline{Limit to 30 Characters}{While this function does not impose a
   limit on the size on the {\tt name}, multiple other components of AmigaDOS
   are not able to handle device, volume or assign\key{Assign} names longer than 30
   characters. Thus, the length of {\tt name} shall be limited to this size.}
 
+This function either returns the allocated structure, or {\tt NULL}
+for failure. In the latter case, {\tt IoErr()} is set to
+{\tt ERROR\_NO\_FREE\_STORE}. On success, {\tt IoErr()} remains
+unaltered.
+
 \subsection{Releasing a Device List Entry} \label{sec:releaseentry}
 
 The {\tt FreeDosEntry()}\mkey{FreeDosEntry()} function releases
 a {\tt DosList} structure allocated by {\tt MakeDosEntry()}\key{MakeDosEntry()}.
-The {\tt DosList} shall be already removed from the device list by
-\emph{RemDosEntry()}. While this call releases the memory holding the
-name of the entry, and also the {\tt DosList} structure itself, it
-does not release any other resources. They shall be released by the
-caller of this function. Furthermore, this function shall not be
-called if the {\tt DosList}\key{DosList} structure was allocated by any other means
-than {\tt MakeDosEntry()}\key{MakeDosEntry()}.
+The {\tt DosList} shall be already removed from the device list\key{Device List} by
+{\tt RemDosEntry()}\key{RemDosEntry()} specified in
+section~\ref{sec:remdosentry}.
+While {\tt FreeDosEntry()} releases the memory holding the name of the entry
+and the {\tt DosList} structure itself, it does not release any other
+resources. They shall be released by the caller of this function
+upfront. Furthermore, this function shall not be called if the {\tt
+  DosList}\key{DosList} structure was allocated by any other means than {\tt
+  MakeDosEntry()}\key{MakeDosEntry()}.
 
 \begin{verbatim}
-FreeDosEntry(dlist)
+FreeDosEntry(dlist) /* since V36 */
                D1
 
 void FreeDosEntry(struct DosList *)
 \end{verbatim}
 
 This function releases the {\tt DosList}\key{DosList} structure pointed to by
-{\tt dlist} and its name, but only these two resources, and no other
-resources.
+{\tt dlist} and its name, but only these two and no other resources.
 \smallskip{}
 
+Unfortunately, the \emph{expansion.library} function
+{\tt MakeDosNode()}\key{MakeDosNode()} uses a memory allocation policy that is
+different from {\tt MakeDosEntry()}\key{MakeDosEntry()} and thus {\tt DosList} structures
+created by the \emph{expansion.library} cannot be safely released by
+{\tt FreeDosEntry()}\key{FreeDosEntry()}.
 If {\tt dol\_Type}\key{dol\_Type} is {\tt DLT\_DEVICE}\key{DLT\_DEVICE}, corresponding to
 handlers or file systems, this function should better
 not be called at all as the means of how the {\tt DosList}\key{DosList} was
@@ -8010,48 +8020,36 @@ allocated is unclear. In such a case, a memory leak is the least
 dangerous side effect.
 \smallskip{}
 
-If {\tt dol\_Type}\key{dol\_Type} is {\tt
-  DLT\_DIRECTORY}\key{DLT\_DIRECTORY} or {\tt
-  DLT\_LATE}\key{DLT\_LATE}, then {\tt dol\_Lock}\key{dol\_Lock}
-should be unlocked by the caller. If {\tt dol\_List}\key{dol\_List} is
-non-{\tt NULL}, then each entry of the {\tt AssignList} structure
-shall be released by the caller, along with the lock kept within. For
-{\tt DLT\_LATE}\key{DLT\_LATE} and {\tt
-  DLT\_NONBINDING}\key{DLT\_NONBINDING}, the {\tt
-  dol\_AssignName}\key{dol\_AssignName} function shall also be
-released by the caller. The following code segment releases all
-resources for assigns\key{Assign}:
-
-\begin{verbatim}
-    struct AssignList *al,*next;
-    UnLock(dol->dol_Lock);
-    al = dol->dol_misc.dol_assign.dol_List;
-    while(al) {
-        next = al->al_Next;
-        UnLock(al->al_Lock);
-        FreeVec(al);
-        al = next;
-    }
-    FreeVec(dol->dol_misc.dol_assign.dol_AssignName);
-    FreeDosEntry(dol);
-\end{verbatim}
-
-The above code reflects the way how resources were originally
-allocated by the \emph{dos.library}.
+If {\tt dol\_Type}\key{dol\_Type} is {\tt DLT\_DIRECTORY}\key{DLT\_DIRECTORY},
+{\tt DLT\_NONBINDING}\key{DLT\_NONBINDING} or {\tt DLT\_LATE}\key{DLT\_LATE}, this function should not be
+used. Instead, the functions from section~\ref{sec:assigns} are more
+appropriate; in specific, {\tt AssignLock()} with the name of the assign to
+remove and the {\tt lock} argument set to {\tt ZERO} will remove the
+assign from the device list\key{Device List} and release all resources
+associated to it, including the name and all locks.
 \smallskip{}
 
 If the type is {\tt DLT\_VOLUME}\key{DLT\_VOLUME}, it is up to the file system
-to release any resources it allocated along with the {\tt DosList}\key{DosList}. It is file
-system dependent which resources can or should be released. {\tt
-  DosList} entries of this type should only be touched by the
+to release any resources it allocated along with the
+{\tt DosList}\key{DosList} entry representing the volume. It is file
+system dependent which resources can or should be released. {\tt DosList}
+entries of this type should only be allocated and relased by the
 file system that created them.
-\smallskip{}
 
-This function cannot fail, and it does not touch {\tt IoErr()}\key{IoErr()}.
+\punchline{Only for Internal Use}{The {\tt FreeDosEntry()}\key{FreeDosEntry()}
+function has limited uses. It should not be called on handler or file system
+entries as (at least) two incompatible functions exist that create such
+{\tt DosList} structures. For assigns\key{Assign}, the functions from
+section~\ref{sec:assigns} are more appropriate, and for volumes, only the
+file system managing the volume may call it. That leaves no practical use
+for this function by application programs. This function is, however,
+called internally from other functions of the \emph{dos.library}.}
+
+{\tt FreeDosEntry()}\key{FreeDosEntry()} cannot fail, and it does not touch {\tt IoErr()}\key{IoErr()}.
 
 \section{Creating and Updating Assigns} \label{sec:assigns}
 While {\tt MakeDosEntry()}\key{MakeDosEntry()} creates a {\tt DosList}\key{DosList}
-entry for the device list, it only performs minimal
+entry for the device list\key{Device List}, it only performs minimal
 initialization of the structure. For assigns\key{Assign}, specifically, the
 \emph{dos.library} provides specialized functions that allocate,
 initialize and enqueue {\tt DosList}\key{DosList} structures representing assigns
@@ -8061,7 +8059,7 @@ in a single call and are thus easier to use.
 
 The {\tt AssignLock()}\mkey{AssignLock()} function creates a new assign\key{Assign}
 to a directory from a lock\key{Lock}, and then enqueues it into the
-device list.
+device list\key{Device List}.
 
 \begin{verbatim}
 success = AssignLock(name,lock)
@@ -8090,7 +8088,7 @@ same name (regardless of which type) already exists, the error code is
 \subsection{Create a Non-Binding Assign}
 
 The {\tt AssignPath()}\mkey{AssignPath()} function creates a
-non-binding assign\key{Non-Binding Assign} and adds it to the device list. This
+non-binding assign\key{Non-Binding Assign} and adds it to the device list\key{Device List}. This
 type of assign\key{Assign} binds to a path independent of the volume the path is
 located on; that is, the assign resolves to whatever
 volume, handler or even other assign matches the
@@ -8105,7 +8103,7 @@ BOOL AssignLate(STRPTR,STRPTR)
 This function creates a non-binding assign\key{Non-Binding Assign} whose name is given
 by the first argument, and which resolves to the path given as second
 argument, and then adds the assign to the device
-  list. The {\tt name} shall not contain a trailing colon (``{\tt
+  list\key{Device List}. The {\tt name} shall not contain a trailing colon (``{\tt
   :}''). While not a formal requirement of the function or
 non-binding assigns\key{Non-Binding Assign}, the {\tt path} should better be an
 absolute path as otherwise resolution of the created assign can
@@ -8140,7 +8138,7 @@ BOOL AssignLate(STRPTR,STRPTR)
 \end{verbatim}
 This function creates a late binding assign of the name {\tt
   name} pointing to {\tt path} as its destination and adds it to the
-device list. The {\tt name} shall not contain a trailing colon
+device list\key{Device List}. The {\tt name} shall not contain a trailing colon
 (``{\tt :}''). While not explicitly required by this function, the
 {\tt path} should better be an absolute path as otherwise
 resolving the assign can be very confusing. The {\tt path}
@@ -8190,7 +8188,7 @@ On error, the function returns $0$ and the {\tt lock} remains
 available to the caller. Unfortunately, this function does not set
 {\tt IoErr()}\key{IoErr()} consistently, i.e.\ it is unclear on failure
 what caused the error, i.e.\ whether the function run out of memory,
-whether no fitting device list entry was found, or whether the
+whether no fitting device list\key{Device List} entry was found, or whether the
 entry found was not a \emph{regular assign}.
 
 \subsection{Remove a Directory From a Multi-Assign} \label{sec:remassignlist}
@@ -8200,7 +8198,7 @@ directory, represented by a lock\key{Lock}, from a multi-assign. If
 only a single directory remains in the multi-assign\key{Multi-Assign}, it is
 converted into a regular assign. If the assign was a
 regular assign, and the only directory is removed from it, the
-assign itself is removed from the device list and
+assign itself is removed from the device list\key{Device List} and
 released, destroying it and releasing all resources.
 
 \begin{verbatim}
@@ -8214,7 +8212,7 @@ regular or multi-assign identified by {\tt name}. The
 name shall not contain a trailing colon (``{\tt :}''). If only a
 single directory remains in the assign, it is converted to a
 regular assign. If no directory remains at all, the
-assign is deleted and removed from the device list. The
+assign is deleted and removed from the device list\key{Device List}. The
 lock\key{Lock} remains available to the caller, regardless of the
 result code. Note that the {\tt lock} passed in does not need to be
 identical to the lock\key{Lock} contained in the assign, but it
@@ -13003,7 +13001,7 @@ file systems also support directories and thus a hierarchical
 organization of files.
 \smallskip{}
 
-Handlers are recognized by an entry in the device list whose
+Handlers are recognized by an entry in the device list\key{Device List} whose
 {\tt dol\_Task} element provides a pointer to a message port through which the
 \emph{dos.library} communicates with the handler,
 section~\ref{sec:devicelist} provides further details on this structure.
@@ -13022,7 +13020,7 @@ with the file system concerning the lock\key{Lock} is routed. Unlike {\tt
   FileHandle} structures, the {\tt FileLock} structure is created by
 the file system itself which initializes its {\tt fl\_Task}. This is
 again in many cases identical to the {\tt dol\_Task}\key{dol\_Task} message port
-within the device list.
+within the device list\key{Device List}.
 \medskip{}
 
 \section{The DosPacket Structure} \label{sec:dospacket}
@@ -13116,7 +13114,7 @@ sources. If low-level file I/O is to be performed, the best source for the
 port is the {\tt fh\_Type}\key{fh\_Type} pointer in the {\tt FileHandle}\key{FileHandle} structure. If the
 communication is related to a lock\key{Lock}, the {\tt fl\_Task}\key{fl\_Task} member of the
 {\tt FileLock}\key{FileLock} is the right source. For activities unrelated to locks or
-files, the {\tt dol\_Task}\key{dol\_Task} member of the device list is another
+files, the {\tt dol\_Task}\key{dol\_Task} member of the device list\key{Device List} is another
 source.
 \smallskip{}
 
@@ -13310,9 +13308,9 @@ provide to its clients.
 
 When a user of the \emph{dos.library} attempts to access an absolute path,
 i.e.\ a path including a device name, the \emph{dos.library} walks the
-device list (see section~\ref{sec:devicelist}) to find the handler
+device list\key{Device List} (see section~\ref{sec:devicelist}) to find the handler
 responsible for it by comparing the device name in the path with the {\tt
-  dol\_Name} element of the device list. Once a suitable entry has
+  dol\_Name} element of the device list\key{Device List}. Once a suitable entry has
 been found, the \emph{dos.library} checks whether a handler is already
 running by checking the {\tt dol\_Task}\key{dol\_Task} field of the {\tt DosList}. If
 so, a packet corresponding to the called \emph{dos.library} function is send
@@ -13332,7 +13330,7 @@ to this packet.
 \smallskip{}
 
 How the startup packet is delivered depends on the {\tt dol\_GlobVec}\key{dol\_GlobVec}
-element of the device list entry, see Table~\ref{table:gvvalues}. For
+element of the device list\key{Device List} entry, see Table~\ref{table:gvvalues}. For
 C or assembler handlers with a {\tt dol\_GlobVec} value of $-1$ or $-2$, the
 startup packet is delivered to the {\tt pr\_MsgPort}\key{pr\_MsgPort} of the handler
 process. For all other values of {\tt dol\_GlobVec}, the startup packet
@@ -13485,7 +13483,7 @@ If startup succeeded, the primary result code for the packet shall be
 then proceed by waiting for incoming packets, and processing them one by another.
 \medskip{}
 
-The \emph{dos.library} keeps the device list locked while the handler
+The \emph{dos.library} keeps the device list\key{Device List} locked while the handler
 is starting up. This means in particular that an attempt to gain access to
 the device list with {\tt LockDosList()}\key{LockDosList()}, see
 section~\ref{sec:lockdoslist}, can deadlock. Even if such a call is not made
@@ -13496,7 +13494,7 @@ be avoided, not only during startup.
 
 If {\tt dol\_GlobVec}\key{dol\_GlobVec} is $-2$ or $-3$, the \emph{dos.library} will only
 acquire a shared lock, and thus will allow the handler to retrieve a shared
-lock on the device list as well.
+lock on the device list\key{Device List} as well.
 \medskip{}
 
 Once started up, handlers or file systems should wait for incoming
@@ -13516,7 +13514,7 @@ lock\key{Lock} stored there is used to contact the handler.
 \smallskip{}
 
 If the handler is contacted through an absolute path, the \emph{dos.library}
-scans the device list to locate a {\tt DosList} structure whose {\tt
+scans the device list\key{Device List} to locate a {\tt DosList} structure whose {\tt
   dol\_Name}\key{dol\_Name} element matches the device name in the path. The {\tt
   dol\_Task}\key{dol\_Task} field, if non-{\tt NULL}, is then used as destination of a
 packet. If it is {\tt NULL}, a new process of the handler is created. From
@@ -17856,7 +17854,7 @@ currently inserted volume, or {\tt ZERO} if no volume is inserted, shall be
 returned. Unfortunately, as the volume may be ejected any time, it is
 unclear whether the {\tt DosList}\key{DosList} entry provided in {\tt dp\_Res1} is still
 valid at the time it is interpreted by the issuer of of this packet. In such
-a case, the issuer of the packet should lock\key{Lock} the device list upfront,
+a case, the issuer of the packet should lock\key{Lock} the device list\key{Device List} upfront,
 and should copy the name before the list is unlocked again, i.e.\
 
 \begin{verbatim}
@@ -17977,7 +17975,7 @@ volume name of a medium.
 This packet implements the {\tt Relabel()}\key{Relabel()} function of the
 \emph{dos.library} and changes the volume name of a medium. As such, it
 shall also change the name of the {\tt DosList} representing the volume in
-the device list, i.e.\ adjust the {\tt dol\_Name}\key{dol\_Name} element of the {\tt
+the device list\key{Device List}, i.e.\ adjust the {\tt dol\_Name}\key{dol\_Name} element of the {\tt
   DosList}\key{DosList} structure. Unfortunately, there is no guarantee that the volume
 that is inserted in the drive or partition managed by the file system when
 this packet is issued by the client is identical to the volume in the drive
@@ -18892,7 +18890,7 @@ changeed the file system structure, the volume name or the date, or may have
 even written a completely new file system structure to it. This check thus
 implies checking the flavour of the file system, e.g.\ the {\tt DosType} for
 the FFS, and potentially creating and inserting a {\tt DosList} entry into
-the device list representing the volume. Thus, first inhbiting and
+the device list\key{Device List} representing the volume. Thus, first inhbiting and
 uninhibiting a file system is equivalent to simulating a medium change; in
 fact, the {\tt DiskChange} command enforces a medium change by first
 inhibiting and then unhibiting the file system.
@@ -18999,7 +18997,7 @@ This packet is not exposed through the \emph{dos.library}; rather, the
 packet needs to be send through the packet interface, i.e.\ through {\tt
   DoPkt()}\key{DoPkt()}. This packet requests the file system to release all resources,
 set the {\tt dol\_Task}\key{dol\_Task} elements of the {\tt DosList}\key{DosList} structures in the
-device list to {\tt NULL}, and then terminate the process.
+device list\key{Device List} to {\tt NULL}, and then terminate the process.
 \smallskip{}
 
 A file system may not exit as long as client programs cache copies of
@@ -19017,7 +19015,7 @@ ejected, see also section~\ref{sec:devicelist}.
 \smallskip{}
 
 As next step, references to the file system port(s) shall be removed from the
-device list. To gain access to the device list, use {\tt
+device list\key{Device List}. To gain access to the device list, use {\tt
   AttemptLockDosList()}\key{AttemptLockDosList()} as a blocking semaphore
 may cause a deadlock. If the list is not accessible at this time, the file
 system cannot safely shut down and {\tt ACTION\_DIE} shall fail. If the
@@ -19043,7 +19041,7 @@ time the request is made, this packet shall fail by setting {\tt
   dp\_Res1} to {\tt DOSFALSE} and {\tt dp\_Res2} to an error code,
 e.g.\ {\tt ERROR\_OBJECT\_IN\_USE}\key{ERROR\_OBJECT\_IN\_USE}. In case termination is seemingly
 possible, the file system shall check for any pointers to its {\tt
-  MsgPort}(s) in the device list and replace them by {\tt NULL}, thus
+  MsgPort}(s) in the device list\key{Device List} and replace them by {\tt NULL}, thus
 requesting from the \emph{dos.library} to create a new instance of the
 file system if needed. Then, this packet shall be replied by setting
 {\tt dp\_Res1} to {\tt DOSTRUE} and {\tt dp\_Res2} to~0.
@@ -22640,8 +22638,8 @@ recommended \emph{not} to set this flag.
 \section{The DosInfo Structure} \label{sec:dosinfo}
 
 The {\tt DosInfo}\mkey{DosInfo} structure is pointed to by the {\tt
-  rn\_Info} element of the RootNode. It contains the \emph{device
-  list} structure discussed in section~\ref{sec:devicelist} and the
+  rn\_Info} element of the RootNode. It contains the device
+  list\key{Device List} structure discussed in section~\ref{sec:devicelist} and the
 resident segments from section~\ref{sec:resident}.
 
 \mkey{DosInfo}
@@ -22663,7 +22661,7 @@ Unlike what the official includes suggest, {\tt di\_McName} is
 \smallskip{}
 
 The {\tt di\_DevInfo}\mkey{di\_DevInfo} element is a BPTR to the first entry of the
-device list introduced in section~\ref{sec:devicelist}. This is
+device list\key{Device List} introduced in section~\ref{sec:devicelist}. This is
 a BPTR to a {\tt DosList}\key{DosList} structure which form a singly linked list
 whose head is here. However, client programs should not access this
 BPTR directly, but rather go through the functions provided in
