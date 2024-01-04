@@ -3869,7 +3869,7 @@ stopped. Thus, any attempt to access this file system is currently
 suspended, probably because some program attempts to operate on the
 medium on a lower level. Disk editors or disk salvage programs will
 typically make use of this practise to avoid file systems from
-touching the medium while they work on it. The {\tt Inhibit()} function of
+touching the medium while they work on it. The {\tt Inhibit()}\key{Inhibit()} function of
 section~\ref{sec:inhibit} blocks file system access to the physical layer
 and thus causes this disk type.
 \smallskip{}
@@ -8329,34 +8329,45 @@ The {\tt AddBuffers()}\mkey{AddBuffers()} function increases or
 reduces the number of buffers of a file system.
 
 \begin{verbatim}
-success = AddBuffers(filesystem, number)
+success = AddBuffers(filesystem, number) /* since V36 */
 D0                       D1          D2
 
 BOOL AddBuffers(STRPTR, LONG)
 \end{verbatim}
 
-This function adds {\tt number} buffers to the file system whose name
-is given by {\tt filesystem}. This name consists of a filename,
-volume, or assign on the file system whose buffer count shall
-be modified, see also {\tt GetDeviceProc()}\key{GetDeviceProc()} in
-section~\ref{sec:getdeviceproc} how a file system is located.
+This function adds {\tt number} buffers to the file system responsible for
+the path given by {\tt filesystem}. This should be an absolute path,
+e.g.\ the name of the device followed by a colon (``{\tt :}''), such as
+``{\tt df0:}''.  In case a relative path is provided, the file system
+responsible for the current directory of the calling process is
+modified. The file system object identified by this argument does not
+actually matter and does not even need to exist, and providing a complete
+path is not an error either. See also
+{\tt GetDeviceProc()}\key{GetDeviceProc()} in section~\ref{sec:getdeviceproc}
+how a file system is determined from a path.
 \smallskip{}
 
 The {\tt number} argument may be both positive --- for adding buffers
 to the file system --- or negative, to reduce the number of buffers.
 The purpose of these buffers is file-system dependent. The Fast File
-System in ROM uses it to buffer administrative information such as
-directory contents, but also blocks that describe the location of file
+System\key{Fast File System (FFS)} in ROM uses it to buffer administrative information such as
+directory contents, and also blocks that describe the location of file
 content on the disk; thus adding more buffers can help to improve the
 performance of random-access into the file with {\tt Seek()}\key{Seek()}.
 \smallskip{}
 
-A third purpose of the buffers is to store input and output data of
-{\tt Read()}\key{Read()} or {\tt Write()}\key{Write()} if the
-operation is not aligned to block boundaries or if the source or
-target buffer is considered unsuitable for direct transfer to the
+A third purpose of the buffers is to store input and output data of the {\tt
+  Read()}\key{Read()} or {\tt Write()}\key{Write()} functions if the source
+or target memory block is not aligned to block boundaries or if the source
+or target buffer is considered unsuitable for direct transfer to the
 underlying hardware exec device.
 \medskip{}
+
+Even though this function only exists from AmigaDOS version 36 onwards, the
+underlying packet, see section~\ref{sec:packetmorecache}, is also supported
+in all earlier versions of AmigaDOS, it is just not exposed as a function of
+the \emph{dos.library}.
+\smallskip{}
 
 This function returns a non-zero result on success and~0 on
 failure. In first case, it sets {\tt IoErr()}\key{IoErr()} to~0, otherwise it is
@@ -8370,39 +8381,56 @@ The {\tt Relabel()}\mkey{Relabel()} function changes the name of a volume a file
 system operates on.
 
 \begin{verbatim}
-success = Relabel(volumename,name)
+success = Relabel(volumename,name) /* since V36 */
 D0                    D1      D2
 
 BOOL Relabel(STRPTR,STRPTR)
 \end{verbatim}
 
-This function relables the volume that resides on the file
-system corresponding to the {\tt volumename} path. This path is
-resolved through {\tt GetDeviceProc()}\key{GetDeviceProc()} and thus
-may be a relative or absolute path, the device or the volume name. As
-{\tt volumename} is interpreted as a path, a device or volume name
-passed in shall include a colon (``{\tt :}'') as it would be otherwise
-interpreted as a path relative to the current directory.
+This function relables the volume that resides on the file system
+corresponding to the {\tt volumename} path. This path is resolved through
+{\tt GetDeviceProc()}\key{GetDeviceProc()} and thus may be a relative or
+absolute path, the device or the volume name. As {\tt volumename} is
+interpreted as a path, a device or volume name passed in shall include a
+colon (``{\tt :}'') as it would be otherwise interpreted as a path relative
+to the current directory. The file system object identified by the path does
+not matter and does not even need to exist.
+\smallskip{}
+
+Beware, multiple volumes of the same name, but differing creation dates,
+can be known to the system. In case a volume name is
+provided, this function (and in general, {\tt GetDeviceProc()} on which this
+function is based) affects the \emph{first} volume of the given name on the
+device list\key{Device List}. Thus, in case of doubt, a path based on a
+file system or handler name (e.g. ``{\tt df0:}'') should be preferred.
 \smallskip{}
 
 The volume name of the medium or partition is then changed to {\tt
-  name}. Unlike the first argument, {\tt name} shall \emph{not}
-contain a colon (``{\tt :}'') nor a slash (``{\tt /}'').
+  name}. Unlike the first argument, {\tt name} is \emph{not} a path and
+therefore shall \emph{not} contain a colon (``{\tt :}'') nor a slash (``{\tt
+  /}'') (or the component separator, in general).  Note that not all file systems
+support volume names; for file systems that do not, this function fails.
+\smallskip{}
+
+Even though this function only exists from AmigaDOS version 36 onwards, the
+underlying packet, see section~\ref{sec:packetrenamedisk}, is also supported
+in all earlier versions of AmigaDOS, it is just not exposed through a function of
+the \emph{dos.library}.
 \smallskip{}
 
 This function returns a non-zero result code for success or~0 for an
 error. In the first case, it sets {\tt IoErr()}\key{IoErr()} to~0, in
 the latter case to an error code.
 
-\subsection{Initializing a File System}
+\subsection{Initializing a File System} \label{sec:format}
 
-The {\tt Format()}\mkey{Format()} function initializes a complete file system,
-writing administration information on the file system that corresponds
-to an empty medium. Thus, this function erases all information stored
-in it.
+The {\tt Format()}\mkey{Format()} function initializes a complete file
+system. The initialized medium or partition appears afterwards as completely empty, even
+though not all blocks are overwritten and only the previous adminstration
+information (if any) is lost.
 
 \begin{verbatim}
-success = Format(filesystem, volumename, dostype)
+success = Format(filesystem, volumename, dostype) /* since V36 */
 D0                   D1          D2         D3
 
 BOOL Format(STRPTR, STRPTR, ULONG)
@@ -8411,15 +8439,23 @@ BOOL Format(STRPTR, STRPTR, ULONG)
 This function erases all information on the medium or partition
 identified by {\tt filesystem}, which is interpreted as a path. Thus,
 it may be a device or volume name, which shall then be terminated by a
-colon (``{\tt :}''). However, all other path names also work; however,
+colon (``{\tt :}''). However, all other paths also work; however,
 if they do not include a colon, the argument is interpreted as a path
 name relative to the current directory, and thus will initialize the
-file system corresponding to it. This is probably not desirable.
+file system containing it.
+\smallskip{}
+
+Beware, multiple volumes of the same name, but differing creation dates, can
+be known to the system. In case a volume name is
+provided, this function (and in general, {\tt GetDeviceProc()} on which this
+function is based) affects the \emph{first} volume of the given name on the
+device list\key{Device List}. Thus, in case of doubt, a path based on a
+file system or handler name (e.g. ``{\tt df0:}'') should be preferred.
 \smallskip{}
 
 To block processes from accessing information on the file system while
 it is initializing, it should be inhibited upfront, e.g by {\tt
-  Inhibit(filesystem,DOSTRUE)} or lower level direct communication to
+  Inhibit(filesystem,DOSTRUE)} or by lower level packet communication to
 the handler, see section~\ref{sec:packetinhibit}. Initializing is
 the only operation file systems are able to perform while being
 inhibited.
@@ -8427,46 +8463,55 @@ inhibited.
 
 The {\tt Format()}\key{Format()} function \emph{does not} attempt a low-level
 initialization of the corresponding medium; that is, it does not
-attempt to low-level format it on the physical layer as required when
-a floppy disk shall be prepared for initial use. This step needs to be
+attempt to low-level format it at the physical layer as required when
+a floppy disk is prepared for initial use. This step needs to be
 performed manually by first blocking access of the file system to the
 floppy through {\tt Inhibit()}\key{Inhibit()}, then initializing the physical
-layer through the exec device driver upfront, e.g.\ by the command {\tt
+layer through the exec device driver, e.g.\ by the command {\tt
   TD\_FORMAT}, and then finally by calling this function.
 \medskip{}
 
 The volume name of the medium or partition is initialized to {\tt
-  volumename}, which \emph{shall not} contain a colon (``{\tt :}'')
-nor a slash (``{\tt /}''). Note that not all file systems support
-volume names. In such cases, this argument is ignored.
+  volumename}, which \emph{shall not} contain a colon (``{\tt :}'') nor a
+slash (``{\tt /}'') (or the component separator, in general). Note that not
+all file systems support volume names. In such cases, this argument is
+ignored.
 \smallskip{}
 
-The {\tt dostype} defines the flavour of file system created on the
-device if the file system allows multiple variations. The variations
-the Fast File System supports along with other file systems are listed in
-table~\ref{table:ffsflavours}. This corresponds to the {\tt DOSTYPE}
-in the mountlist\key{Mountlist}. File systems may also ignore this argument if they
-only support a single flavour.
+The {\tt dostype} defines the flavour of file system created on the device
+if the file system allows multiple variations. The flavours the Fast File
+System\key{Fast File System (FFS)} supports along with other file systems are listed in
+table~\ref{table:ffsflavours} in section~\ref{sec:envec}. This corresponds
+to the {\tt DOSTYPE} in the mountlist\key{Mountlist}. File systems may also
+ignore this argument if they only support a single flavour.
+\smallskip{}
 
-Unfortunately, AmigaDOS does not provide an easy way to access the
-flavours supported by a file system. The {\tt Format} command of the
-Workbench offers the types listed in the first half of
-table~\ref{table:ffsflavours} if the mount entry of the file system
-indicates that it is the FFS, and otherwise does not offer any choices
-and just copies the {\tt dostype} from the {\tt
-  de\_DosType}\key{de\_DosType} of the {\tt DosEnvec}\key{DosEnvec}
-structure, see also section~\ref{sec:mountlist}.
+Unfortunately, AmigaDOS does not provide an easy way to access the flavours
+supported by a file system. The {\tt Format} command of the Workbench offers
+the types listed in the first half of table~\ref{table:ffsflavours} if the
+mount entry of the file system indicates that it is the FFS\key{Fast File
+  System (FFS)}, and otherwise does not offer any choices and just copies
+the {\tt dostype} from the {\tt de\_DosType}\key{de\_DosType} of the {\tt
+  DosEnvec}\key{DosEnvec} structure, see also section~\ref{sec:mountlist}.
 \smallskip{}
 
 After initializing the file system, use {\tt
   Inhibit(filesystem,DOSFALSE)}\key{Inhibit()} or the corresponding packet {\tt
   ACTION\_INHIBIT}\key{ACTION\_INHIBIT} to grant the file system access to the partition or
-medium again. As the volume name can be different and locks\key{Lock} or
-file handles\key{FileHandle} on the original file system clearly became
-invalid, it is advisable to pass the device name of the
-file system to {\tt Inhibit()}\key{Inhibit()} if this call is used, see also
-sections~\ref{sec:deviceoverview} and~\ref{sec:inhibit}.
+medium again.
+\smallskip{}
+
+After making the volume accessible again, it is possible that write access
+is not permitted immediately afterwards as the file system has to go through
+an initial validation phase. This usually takes only seconds as the FFS, for
+example, creates the bitmap only after the volume becomes available.
 \medskip{}
+
+The {\tt Format()}\key{Format()} function and its underlying packet did not
+exist in AmigaDOS versions below 36. In such versions, the layout of the FFS
+and OFS was hard-coded into the {\tt Format} command which wrote the root
+block manually, depending on file-system internals.
+\smallskip{}
 
 This function returns a boolean success indicator that is non-zero on
 success or~0 on error. In either case, {\tt IoErr()}\key{IoErr()} is set to~0 on
@@ -8474,57 +8519,72 @@ success or an error code on failure.
 
 \subsection{Inhibiting a File System} \label{sec:inhibit}
 
-The {\tt Inhibit()}\mkey{Inhibit()} function disables or enables
-access of the file system to the underlying exec device
-driver. Typical application for this function are disk editors or file
-system salvage tools that require exclusive access to the file system
-structure.
+The {\tt Inhibit()}\mkey{Inhibit()} function disables or enables access of
+the file system to the underlying exec device driver. Typical application
+for this function are disk editors or file system salvage tools
+that require exclusive access to the file system structure, but initializing
+a file system also requires this function, see section~\ref{sec:format}.
 
 \begin{verbatim}
-success = Inhibit(filesystem, flag)
+success = Inhibit(filesystem, flag) /* since V36 */
 D0                    D1       D2
 
 BOOL Inhibit(STRPTR,LONG)
 \end{verbatim}
 
-This call controls whether the file system identified by the path name
-given as {\tt filesystem} is allowed to access the medium or partition
-it usually operates on. The {\tt filesystem} argument is interpreted
-through {\tt GetDeviceProc()}\key{GetDeviceProc()} to find the process
-responsible for the medium. That is, the function resolves relative
-and absolute paths, device and volume names, and even assigns\key{Assign}. As {\tt
-  filesystem} is interpreted as a path, a device or volume name passed
-in shall include a colon (``{\tt :}'') as it would be otherwise
-interpreted as a path relative to the current directory.
+This call controls whether the file system identified by the path name given
+as {\tt filesystem} is allowed to access the medium or partition it operates
+on. The {\tt filesystem} argument is interpreted as a path through {\tt
+  GetDeviceProc()}\key{GetDeviceProc()}. That is, the function resolves
+relative and absolute paths, device and volume names, and even
+assigns\key{Assign}. As {\tt filesystem} is interpreted as a path, a device
+or volume name passed in shall include a colon (``{\tt :}'') as it would be
+otherwise interpreted as a path relative to the current
+directory.
 \smallskip{}
 
-The {\tt flag} argument controls whether access to the medium is
-allowed or disallowed. If {\tt flag} is set to {\tt DOSTRUE}, access
-is inhibited and the file system stops accessing the partition
-or volume. It also sets {\tt id\_DiskType}\key{id\_DiskType} to the four-character code
-{\tt 'BUSY'}, which will be interpreted by the Workbench to ghost the
-corresponding drive icon. Application programs are then allowed to
-access the exec device driver directly to access or modify blocks
-within the partition managed by the inhibited file system.
+Beware, multiple volumes of the same name, but differing creation dates, can
+be known to the system. In case a volume name is
+provided, this function (and in general, {\tt GetDeviceProc()} on which this
+function is based) affects the \emph{first} volume of the given name on the
+device list\key{Device List}. Thus, in case of doubt, a path based on a
+file system or handler name (e.g. ``{\tt df0:}'') should be preferred.
 \smallskip{}
 
-If {\tt flag} is set to {\tt DOSFALSE}, access to the medium is
-allowed again. The file system then performs a consistency
-check of the file system structure of the disk, i.e.\ validates it.
+The {\tt flag} argument controls whether access to the medium is allowed or
+disallowed. If {\tt flag} is set to {\tt DOSTRUE}, access is inhibited and
+the file system stops accessing the partition or volume. It also sets {\tt
+  id\_DiskType}\key{id\_DiskType} to the four-character code {\tt 'BUSY'},
+see also section~\ref{sec:info}. Once a file system is inhibited,
+application programs may access the exec device driver directly to access or
+modify blocks within the partition managed by the inhibited file system.
+\smallskip{}
+
+If {\tt flag} is set to {\tt DOSFALSE}, the file system is allowed to access
+to the medium again. The file system then performs a consistency
+check of the file system structure of the disk, i.e.\ validates it. This
+will require a couple of seconds within which write access to the medium is
+not possible.
+\smallskip{}
+
+Even though this function only exists from AmigaDOS version 36 onwards, the
+underlying packet, see section~\ref{sec:packetinhibit}, is also supported
+in all earlier versions of AmigaDOS, it is just not exposed as a function of
+the \emph{dos.library}.
 \smallskip{}
 
 This function returns a non-zero result code for success and then sets
 {\tt IoErr()}\key{IoErr()} to~0. On error, it returns~0 and provides an
 error code in {\tt IoErr()}.
 
-\subsection{Receive Information when a Volume is Request}
+\subsection{Receive Information when a Volume is Requested}
 
-qThe {\tt VolumeRequestHook()}\mkey{VolumeRequestHook()} function is
+The {\tt VolumeRequestHook()}\mkey{VolumeRequestHook()} function is
 called by the \emph{dos.library} whenever it attempts to request the
 user to insert a volume.
 
 \begin{verbatim}
-res = VolumeRequestHook(volume)
+res = VolumeRequestHook(volume) /* since V47 */
 D0                        D1
 
 LONG VolumeRequestHook(UBYTE *volume)
@@ -8537,11 +8597,17 @@ show a requester to ask for a specific volume.
 \smallskip{}
 
 The argument this function receives is the name of the volume AmigaDOS
-is about to ask for. without a trailing colon (``{\tt :}''). If this
+is about to ask for, without a trailing colon (``{\tt :}''). If this
 function returns {\tt DOSTRUE}, then the \emph{dos.library} progresses
 to show a requester to ask the user to insert {\tt volume}. If this
 function returns {\tt DOSFALSE}, the requester is suppressed as if the
 user pressed ``Cancel'' on it, thus refusing to insert the volume.
+\smallskip{}
+
+The purpose of this function is to provide assign-wedge functionality that
+allows users to create an assign to a directory at the first time it is
+accessed by a program, or to suppress requesters to a volume
+that is never going to be inserted.
 
 \chapter{Pattern Matching} \label{sec:patternmatch}
 Unlike other operating systems, it is neither the file system nor the shell\key{Shell}
@@ -18050,7 +18116,7 @@ indicator. On success, it shall be set to {\tt DOSTRUE} and {\tt dp\_Res2} shall
 be set to~0. On failure, {\tt dp\_Res1} shall be set to {\tt DOSFALSE} and
 {\tt dp\_Res2} to an error code.
 
-\subsection{Relabeling a Volume}
+\subsection{Relabeling a Volume} \label{sec:packetrenamedisk}
 
 The {\tt ACTION\_RENAME\_DISK}\mkey{ACTION\_RENAME\_DISK} packet changes the
 volume name of a medium.
@@ -18905,7 +18971,7 @@ error code.
 The packets in this section impacts file systems and handlers at
 global. They do not apply to a particular volume.
 
-\subsection{Adjusting the File System Cache}
+\subsection{Adjusting the File System Cache} \label{sec:packetmorecache}
 
 The {\tt ACTION\_MORE\_CACHE}\mkey{ACTION\_MORE\_CACHE} packet increases or
 decreases the number of file system buffers.
