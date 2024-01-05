@@ -8610,15 +8610,18 @@ accessed by a program, or to suppress requesters to a volume
 that is never going to be inserted.
 
 \chapter{Pattern Matching} \label{sec:patternmatch}
-Unlike other operating systems, it is neither the file system nor the shell\key{Shell}
-that expands wild cards, or patterns. Instead, separate functions exist
-that, given a wildcard, scan a directory or an entire directory tree and
-deliver all files, links and directories that match a given pattern.
+Unlike other operating systems, it is neither the file system nor the
+shell\key{Shell} that expands wild cards, or patterns as they are also
+called. Instead, separate functions exist that, given a wildcard, scan a
+directory or an entire directory tree and deliver all files, links and
+directories that match a given pattern. The pattern matcher can also be
+used to check whether a given string matches a pattern and thus can also be
+used to search for patterns within a text file.
 \smallskip{}
 
 The pattern matcher syntax is build on special characters or \emph{tokens}
 that define which names to match. The following tokens are currently
-defined:
+defined, see also {\tt dos/dosasl.h}:
 \begin{itemize}
   \item[{\tt ?}] The question mark matches a single, arbitrary character
     within a component. When using the pattern matcher for scanning
@@ -8626,14 +8629,14 @@ defined:
     i.e.\ the slash (``{\tt /}) and the colon (``{\tt :}'') that separates
     the path from the device name. Note in particular that the question mark
     also matches the dot (``{\tt .}'') which is not a special character
-    under AmigaDOS.
+    for AmigaDOS.
   \item[{\tt \#}] The hash mark matches zero or more repeats of the token
     immediately following it. In particular, the combination ``{\tt \#?}''
     matches zero or more arbitrary characters. If a group of more than one
     token is required to describe which combination needs to match, this
-    group needs to be enclosed in brackets.
+    group needs to be enclosed in brackets, see the next item.
   \item[{\tt ()}] The brackets bind tokens together forming a single
-    token. This is particularly useful for the hash mark {\tt \#} as it
+    token. This is particularly useful for the hash mark ``{\tt \#}'' as it
     allows to formulate repeats of longer character or token groups. For
     example, {\tt \#(ab)} indicates zero or more repeats of the character
     sequence {\tt ab}, such as {\tt ab}, {\tt abab} or {\tt ababab}.
@@ -8654,11 +8657,7 @@ defined:
     i.e.\ {\tt 0x7f} match, but none of the extended ISO Latin 1 characters
     match. If the closing square bracket (``{\tt ]}'') is to matched, it
     shall be escaped by an apostroph (``{\tt '}''), i.e.\ {\tt [[-']]}
-    matches the opening and the closing bracket. If the pattern matcher is
-    used for scanning directories, the above example does not match the
-    slash (``{\tt /}'') even though its code point lies between the
-    opening and closing bracket because the slash cannot be part of a
-    component name and rather separates components. If the first character
+    matches the backslash (``\textbackslash{}''), the opening and the closing bracket. If the first character
     of the range is an ASCII tilde (``{\tt \textasciitilde{}}''), then the
     character class matches all characters \emph{not} in the class,
     i.e.\ {\tt [\textasciitilde{}a-z]} matches all characters except
@@ -8667,9 +8666,16 @@ defined:
     pattern matcher and indicates that the next character is not a token of
     the matcher, but rather stands for itself. Thus, {\tt '?} matches the
     question mark, and only the question mark, and no other character.
+    The apostroph only escapes the tokens in this list, if a non-wildcard
+    character follows the apostroph, it stands for itself. That is, the
+    pattern {\tt 'a} stands for itself, i.e.\ a two-character sequence
+    starting with the apostroph.
   \item[{\tt \%}] The percent sign (``{\tt \%}'') matches the empty string.
+    This is most useful with the vertical bar (see below) formulating
+    alternatives. For example, {\tt Tool(\%|.info)} matches the file {\tt Tool} and
+    its icon.
   \item[{\tt |}] The vertical bar (``{\tt |}'') defines alternatives and
-    matches the token to its left or the token to its right. The
+    matches the tokens to its left or the tokens to its right. The
     alternatives along with the vertical bar shall be enclosed in round
     brackets to bind them, i.e.\ {\tt (a|b)} is either the character {\tt a}
     or {\tt b} and therefore matches the same strings {\tt [ab]} matches. A
@@ -8679,71 +8685,82 @@ defined:
 \end{itemize}   
 
 \punchline{The Asterisk {\tt *} is not a Wildcard}{Unlike many other
-operating systems, the asterisk (``{\tt *}'') has a (two) other meanings
-under AmigaDOS. It rather refers to the current console as file name\key{* (file name)}, or
-is the escape character for quotation and control sequences; those are
-properties AmigaDOS inherits from the BCPL syntax and Tripos. While there
-is a flag in the \emph{dos.library} that makes the asterisk \emph{also}
-available as a wildcard, such usage is discouraged because it can lead to
-situations where the asterisk is interpreted differently than intended ---
-as it has already two other meanings.}
+  operating systems, the asterisk (``{\tt *}'') has a (two) other meanings
+  under AmigaDOS. It rather refers to the current console as file name\key{*
+    (file name)}, or is the escape character for quotation and control
+  sequences of the Shell; those are properties AmigaDOS inherits from the BCPL syntax and
+  Tripos. While there is a flag in the \emph{dos.library} that makes the
+  asterisk \emph{also} available as a wildcard, such usage is discouraged
+  because it can lead to situations where the the asterisk would be
+  interpreted differently than potentially intended --- as it has already
+  two other meanings.}
 
 Pattern matching works in in two steps: In the first step, the pattern is
 tokenized into an internal representation, which is then later on used to
-perform the actual match of a string against a wildcard. The directory
-scanning function {\tt MatchFirst()}\key{MatchFirst()} performs this
-conversion internally, and thus no additional preparation is required by the
-caller in this case. However, if the pattern matcher is used to search for
-strings or wildcards within a text file, the pattern tokenizers {\tt
+match a string against a wildcard. The directory scanning function {\tt
+  MatchFirst()}\key{MatchFirst()} performs this conversion internally, and
+thus no additional preparation is required by the caller in this
+case. However, if the pattern matcher is used to search for strings or
+wildcards within a text file, the pattern tokenizers {\tt
   ParsePattern()}\key{ParsePattern()} or its case-insensitive counterpart
-{\tt ParsePatternNoCase()}\key{ParsePatternNoCase()} shall be called first.
+{\tt ParsePatternNoCase()}\key{ParsePatternNoCase()} shall be called first
+to preprocess the pattern.
 
 \punchline{Only ISO-Latin Codepoints}{The pre-parsing step that prepares
   from the input pattern its tokenized version uses the code points {\tt
     0x80} to {\tt 0x9f} for tokenized versions of wild-cards and other
   instructions for the pattern matcher. This is identical to the extended
-  ISO-Latin control sequence region, and does not represent printable
-  characters.  While file names on AmigaDOS file systems may in
+  ISO-Latin control sequence region. The code points in this range do not represent printable
+  characters. While file names on AmigaDOS file systems may in
   principle include such code-points, patterns of the pattern matcher
   \emph{shall not} contain unprintable code points from the region {\tt
     0x00} to {\tt 0x1f} or from {\tt 0x80} to {\tt 0x9f}. These regions are
-  reserved for the pattern matcher.}
+  reserved for the pattern matcher, thus restricting its input to printable
+  ISO-Latin codepoints.}
 
 \section{Scanning Directories}
 
-The prime purpose of the pattern matcher is to scan a directory, or even a
-tree of directories, identifying all file system objects such as
-files, links or directories that match a given pattern. The pattern matcher
-can even descend recursively into sub-directories if instructed to do
-so. This service is used by many shell\key{Shell} commands stored in the {\tt C:}
-\emph{assign}. The directory scanner requires the following steps:
+The prime purpose of the pattern matcher is to scan a directory, identifying
+all file system objects such as files, links or directories that match a
+given pattern. The pattern matcher can even descend recursively into
+sub-directories if instructed to do so. This service is used by many
+shell\key{Shell} commands stored in the {\tt C:} assign. Scanning a
+directory requires the following steps:
 \smallskip{}
 
-First, the user shall provide an {\tt AnchorPath}\key{AnchorPath} structure. This structure
-contains the state of the directory matcher, including the {\tt
-  FileInfoBlock}\key{FileInfoBlock} structure of the matched object. This
-structure is defined in section~\ref{sec:fib}. Optionally, the {\tt
-  AnchorPath}\key{AnchorPath} structure may also contain the complete (relative) path of the
-matched object. This structure shall then be initialized, setting all flags
-required, see below for their definition.
+First, the user shall initialize an {\tt AnchorPath}\key{AnchorPath}
+structure. Only the elements {\tt ap\_Flags}, {\tt ap\_Strlen}, {\tt
+  ap\_BreakBits} and {\tt ap\_FoundBreak} require initialization by the
+caller; the element {\tt ap\_Reserved} shall also be set to zero for
+forewards compatibility. All remaining elements are initialized by the
+\emph{dos.library} itself. In the simplest case, the structure is allocated
+from the exec memory pool with the {\tt MEMF\_CLEAR} flag.
+\smallskip{}
 
-\punchline{Must be Long-Word Aligned}{As the {\tt AnchorPath}\key{AnchorPath} structure
+This structure contains the state of the directory scanner, including a {\tt
+  FileInfoBlock}\key{FileInfoBlock} structure (see section~\ref{sec:fib})
+describing the matched object. Optionally, the {\tt
+  AnchorPath}\key{AnchorPath} structure can also be configured to contain its complete
+(relative) path. The following paragraphs describe this structure in more
+detail.
+
+\punchline{Shall be Long-Word Aligned}{As the {\tt AnchorPath}\key{AnchorPath} structure
   embeds a {\tt FileInfoBlock}\key{FileInfoBlock} structure that requires long-word alignment,
   the {\tt AnchorPath} structure shall be aligned to long-word boundaries as
   well. The simplest way to ensure this is to allocate it with either {\tt
     AllocMem()} or {\tt AllocVec()}, see also section~\ref{sec:bptrs}.}
 
-Then, with the initialized {\tt AnchorPath}\key{AnchorPath} structure, {\tt MatchFirst()}
-shall be called, returning the first match of the pattern if there is
-any. The {\tt AnchorPath} structure then contains all information on the
-found match.
+Then {\tt MatchFirst()} shall be called, retrieving an {\tt AnchorPath}
+structure as second argument, see section~\ref{sec:matchfirst}. It returns
+the first match of the pattern if there is any. Upon return, the
+{\tt AnchorPath} structure contains information on the found object.
 \smallskip{}
 
 If there is any match, and the match is a directory the caller wants
 to enter recursively, the {\tt APF\_DODIR}\key{APF\_DODIR} flag of the
 {\tt AnchorPath}\key{AnchorPath} structure may be set. Then, {\tt
   MatchNext()}\key{MatchNext()} may be called to continue the scan,
-potentially entering this directory. Once the end of a recursively
+entering this directory if the flag is set, see section~\ref{sec:matchnext}. Once the end of a recursively
 entered directory has been reached, {\tt MatchNext()}\key{MatchNext()}
 sets the {\tt APF\_DIDDIR}\key{APF\_DIDDIR} flag, then reverts back to
 the parent directory continuing the scan there. As {\tt
@@ -8757,7 +8774,7 @@ may continue, either until the user or the running program requests
 termination, or until {\tt MatchNext()}\key{MatchNext()} returns an
 error. Then, finally, the scan is aborted and all resources but the
 {\tt AnchorPath}\key{AnchorPath} structure shall be released by calling {\tt
-  MatchNext()}\key{MatchNext)}.
+  MatchEnd()}\key{MatchEnd()} described in section~\ref{sec:matchend}.
 \medskip{}
 
 The {\tt AnchorPath} structure is defined in {\tt dos/dosasl.h} and looks as
@@ -8766,21 +8783,21 @@ follows:
 \mkey{AnchorPath}
 \begin{verbatim}
 struct AnchorPath {
-        struct AChain   *ap_Base;
-#define ap_First ap_Base
-        struct AChain   *ap_Last;
-#define ap_Current ap_Last
-        LONG    ap_BreakBits;
-        LONG    ap_FoundBreak;
-        BYTE    ap_Flags;
-        BYTE    ap_Reserved;
-        WORD    ap_Strlen;
+        struct AChain        *ap_Base;
+#define ap_First              ap_Base
+        struct AChain        *ap_Last;
+#define ap_Current            ap_Last
+        LONG                  ap_BreakBits;
+        LONG                  ap_FoundBreak;
+        BYTE                  ap_Flags;
+        BYTE                  ap_Reserved;
+        WORD                  ap_Strlen;
         struct  FileInfoBlock ap_Info;
-        UBYTE   ap_Buf[1];
+        UBYTE                 ap_Buf[1];
 };
 \end{verbatim}
 
-The members of this structure are as follows:
+The semantic of the elements of this structure are as follows:
 \smallskip{}
 
 {\tt ap\_Base}\mkey{ap\_Base} and {\tt ap\_Last}\mkey{ap\_Last} are
@@ -8788,8 +8805,8 @@ pointers to an {\tt AChain}\key{AChain} structure that is also defined
 in {\tt dos/dosasl.h}. This structure is allocated and released by the
 \emph{dos.library}, transparently to the caller. The {\tt
   AChain}\key{AChain} structure describes a directory in the
-potentially recursive scan through a directory tree. {\tt
-  ap\_Base}\key{ap\_Base} describes the topmost directory at which the
+potentially recursive scan through a directory tree. The {\tt
+  ap\_Base}\key{ap\_Base} element describes the topmost directory at which the
 scan started, whereas {\tt ap\_Last}\key{ap\_Last} describes the
 directory which is currently being scanned.
 \smallskip{}
@@ -8801,10 +8818,10 @@ The {\tt AChain} structure is also defined in {\tt dos/dosasl.h}:
 struct AChain {
   struct AChain       *an_Child;
   struct AChain       *an_Parent;
-  BPTR                       an_Lock;
+  BPTR                 an_Lock;
   struct FileInfoBlock an_Info;
-  BYTE                       an_Flags;
-  UBYTE                       an_String[1];
+  BYTE                 an_Flags;
+  UBYTE                an_String[1];
 };
 \end{verbatim}
 
@@ -8823,20 +8840,20 @@ they are not unlocked manually.
 
 {\tt an\_Info}\mkey{an\_Info} is only used internally and is the {\tt
   FileInfoBlock}\key{FileInfoBlock} of the directory being describes by the
-{\tt AChain}\key{AChain} structure, see section~\ref{sec:fib}.
+{\tt AChain}\key{AChain} structure, see section~\ref{sec:fib} for its definition.
 \smallskip{}
 
 {\tt an\_Flags}\mkey{an\_Flags} is only used internally, and {\tt
-  an\_String}\mkey{an\_String} can contain potentially the path to the
-directory; both shall not be modified or interreted by the caller.
+  an\_String}\mkey{an\_String} contains potentially the path to the
+directory; both shall not be modified or interpreted by the caller.
 \medskip{}
 
-{\tt ap\_BreakBits}\mkey{ap\_BreakBits} of the {\tt AnchorPath}\key{AnchorPath} structure shall be
-initialized to a signal mask upon their detection the {\tt
-  MatchNext()}\key{MatchNext()} function aborts a directory scan. This
-is typically a combination of signal masks defined in the {\tt
-  dos/dos.h} include file, e.g.\ {\tt SIGBREAKF\_CTRL\_C}\key{SIGBREAKF\_CTRL\_C} to abort on a
-{\tt Ctrl-C} in the console.
+{\tt ap\_BreakBits}\mkey{ap\_BreakBits} of the {\tt
+  AnchorPath}\key{AnchorPath} structure shall be initialized to a signal
+mask that defines which signal bits abort a directory scan. This is
+typically a combination of signal masks defined in the {\tt dos/dos.h}
+include file, e.g.\ {\tt SIGBREAKF\_CTRL\_C}\key{SIGBREAKF\_CTRL\_C} to
+abort on the {\tt Ctrl-C} key combination in the console.
 \smallskip{}
 
 {\tt ap\_FoundBreak}\mkey{ap\_FoundBreak} contains, if {\tt MatchNext()}\key{MatchNext()} aborts with
@@ -8845,7 +8862,7 @@ is typically a combination of signal masks defined in the {\tt
 
 {\tt ap\_Flags}\mkey{ap\_Flags} contains multiple flags that can be
 set or inspected by the caller while scanning a directory. In
-particular:
+particular, the following flags are defined in {\tt dos/dosasl.h}:
 \smallskip{}
 
 {\tt APF\_DOWILD}\mkey{APF\_DOWILD} while documented, is not used nor
@@ -8854,9 +8871,9 @@ set at all by the pattern matcher.
 
 {\tt APF\_ITSWILD}\mkey{APF\_ITSWILD} is set by {\tt
   MatchFirst()}\key{MatchFirst()} if the pattern includes a wildcard
-and more than a single file system object may match. Otherwise, no
+and more than a single file system object can match. Otherwise, no
 directory scan is performed. The user may also set this flag to
-enforce a scan. This may resolve situations in which matching an
+enforce a scan. This resolves situations in which matching an
 explicit path without a wildcard is not possible because the object is
 locked exclusively.
 \smallskip{}
@@ -8864,72 +8881,78 @@ locked exclusively.
 {\tt APF\_DODIR}\mkey{APF\_DODIR} may be set or reset by the caller of
 {\tt MatchNext()} to enforce entering a directory recursively, or
 avoid entering a directory. This flag is cleared by {\tt MatchNext()}\key{MatchNext()}
-when entering a directory, and it shall only be set by the caller if a
-match describes a directory.
+when entering a directory, and it shall only be set by the caller if {\tt
+  ap\_Info} indicates that a directory was found.
 \smallskip{}
 
 {\tt APF\_DIDDIR}\mkey{APF\_DIDDIR} is set by {\tt
   MatchNext()}\key{MatchNext()} if the end of a recursively entered
 directory has been reached, and thus the parent directory is
-re-entered. As this flag is never cleared by the pattern matcher, it
-should be cleared by the caller.
+re-entered. As this flag is never cleared by the pattern matcher itself, it
+shall be cleared by the caller.
 \smallskip{}
 
-{\tt APF\_NOMEMERR}\mkey{APF\_NOMEMERR} is an internal flag that
-should not be interpreted; it is set if an error is encountered while
-scanning a directory. It is not necessarily restricted to memory
+{\tt APF\_NOMEMERR}\mkey{APF\_NOMEMERR} is an internal flag that shall not
+be interpreted; it is set if an error is encountered while scanning a
+directory. Errors indicated by this flag are not restricted to memory
 allocation errors.
 \smallskip{}
 
-{\tt APF\_DODOT}\mkey{APF\_DODOT} is, even though documented, not actually used.
+{\tt APF\_DODOT}\mkey{APF\_DODOT} is, even though documented, not actually
+used. Its intended purpose was probably to emulate the Unix-style directory
+entries ``{\tt .}'' and ``{\tt ..}'' indicating the current and the parent directory.
 \smallskip{}
 
-{\tt APF\_DirChanged}\mkey{APF\_DirChanged} is a flag that is set by
-{\tt MatchNext()}\key{MatchNext()} if the scanned directory changes,
-either by entering a directory recursively, or by leaving a
-directory. It is also cleared if the directory is the same as in the
-previous call.
+{\tt APF\_DirChanged}\mkey{APF\_DirChanged} is a flag that is set by {\tt
+  MatchNext()}\key{MatchNext()} if the scanned directory changed, either by
+entering a directory recursively via {\tt APF\_DODIR}, or by leaving a
+recursively entered directory. It is also cleared if the directory is the
+same as in the previous iteration.
 \smallskip{}
 
-{\tt APF\_FollowHLinks}\mkey{APF\_FollowHLinks} may be set by the
-caller to indicate that hard links\key{Hard Link} to directories shall be followed,
-and such directories shall be recursively entered if {\tt APF\_DODIR}\key{APF\_DODIR}
-is set as well. Otherwise, hard links to directories are not
-entered. Softlinks are never entered, this this cannot be changed by
-any flag. A potential danger of links is that they may cause endless
-recursion if a link within a directory points to a parent
+{\tt APF\_FollowHLinks}\mkey{APF\_FollowHLinks} may be set by the caller to
+indicate that hard links\key{Hard Link} to directories shall be recognized
+as regular directories and may be recursively entered by setting {\tt
+  APF\_DODIR}\key{APF\_DODIR}. Otherwise, hard links to directories are never
+entered. Note that not all file systems are able to distinguish between
+hard links\key{Hard Link} and regular entries, so this functionality does not work reliable
+for all file systems.
+\smallskip{}
+
+Soft links\key{Soft Link} to directories are never entered, this this cannot
+be enforced by any flag. A potential danger of links is that they may cause
+endless recursion if a link within a directory points to a parent
 directory. Thus, callers should be aware of such situations and store
-directories that have already been analyzed. Otherwise, it is safer to
-keep this flag cleared.
+directories that have already been analyzed. Otherwise, it is safer to keep
+this flag cleared.
 \medskip{}
 
 {\tt ap\_Strlen}\mkey{ap\_Strlen} is the size of the buffer {\tt
-  ap\_Buf}\key{ap\_Buf} that contains the full path of the matched
-entry. This buffer shall be allocated by the user at the end of the
-{\tt AnchorPath} structure. Unlike what the name suggests, this is not
+  ap\_Buf}\key{ap\_Buf} that is optionally filled with the complete path of the matched
+entry, see below for a more detailed description. Unlike what the name suggests, this is not
 a string length, but the byte size of the buffer, including the
-terminating {\tt NUL} byte of a string. If the full path of the match
+terminating {\tt NUL} byte of a string. If the complete path of the match
 does not fit into this buffer, it is truncated \emph{without} proper
 string termination and the error code {\tt ERROR\_BUFFER\_OVERFLOW}\key{ERROR\_BUFFER\_OVERFLOW} is
-returned. If the full path is not required, this member shall be set
+returned. If the complete path is not required, this member shall be set
 to~$0$.
 \smallskip{}
 
 {\tt ap\_Info}\mkey{ap\_Info} contains the {\tt FileInfoBlock}\key{FileInfoBlock} of the
-matched entry, including all metadata the file system has available for
+matched file system object, including all metadata the file system has available for
 it. Note that {\tt fib\_FileName}\key{fib\_FileName} only contains the name of the object, not
-its full path.
+its complete path.
 \smallskip{}
 
-{\tt ap\_Buf}\mkey{ap\_Buf} is filled with the full path to the matched object if {\tt
+{\tt ap\_Buf}\mkey{ap\_Buf} is filled with the complete path to the matched object if {\tt
   ap\_Strlen}\key{ap\_Strlen} is non-zero. This buffer shall be allocated by the caller at
 the end of the {\tt AnchorPath}\key{AnchorPath} structure, i.e.\ for a buffer of $l$ bytes,
 in total {\tt sizeof(AnchorPath)+l-1} bytes are required to store the
 structure and the buffer. The byte size of this additional buffer shall be
-placed in {\tt ap\_Strlen}. If this buffer is not required, {\tt ap\_Strlen}\key{ap\_Strlen}
+placed in {\tt ap\_Strlen}. If this buffer is not present, {\tt ap\_Strlen}\key{ap\_Strlen}
 shall be set to~$0$.
 
-\subsection{Starting a Directory Scan}
+\subsection{Starting a Directory Scan} \label{sec:matchfirst}
 
 The {\tt MatchFirst()}\mkey{MatchFirst()} function starts a directory scan,
 locating all objects matching a pattern and potentially entering directories
@@ -8984,7 +9007,7 @@ ap->ap\_Info.fib\_DirEntryType} is positive and not equal to {\tt
 ST\_SOFTLINK}\key{ST\_SOFTLINK}, the caller may request to enter it by setting {\tt
 APF\_DODIR}\key{APF\_DODIR} in {\tt ap\_Flags}\key{ap\_Flags}.
 
-\subsection{Continuing a Directory Scan}
+\subsection{Continuing a Directory Scan} \label{sec:matchnext}
 
 The {\tt MatchNext()}\mkey{MatchNext()} function continues a directory scan
 initiated by {\tt MatchFirst()}\key{MatchNext()}, returning the next
@@ -9013,7 +9036,7 @@ object. As for {\tt MatchFirst()}, {\tt APF\_DODIR}\key{APF\_DODIR} may be set t
 directories recursively, and {\tt ap\_Buf}\key{ap\_Buf} will be filled with the
 full path of the found object if {\tt ap\_Strlen}\key{ap\_Strlen} is non-zero.
 
-\subsection{Terminating a Directory Scan}
+\subsection{Terminating a Directory Scan} \label{sec:matchend}
 
 The {\tt MatchEnd()}\mkey{MatchEnd()} function terminates a running scan,
 and releases all resources associated with the scan. It does not release the
