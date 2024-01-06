@@ -9130,6 +9130,26 @@ does not contain a wildcard, see section~\ref{sec:matchfirst} for a
 workaround. It neither attempts to detect endless recursions on file systems
 that cannot identify hard links to directories. Note that each directory
 will be visited twice: Once when entering it, and once when leaving it.
+\smallskip{}
+
+The {\tt MatchFirst()}\key{MatchFirst()} and {\tt
+  MatchNext()}\key{MatchNext()} functions compare file names with the
+pattern in a case-insensitive way, thus upper and lower case are considered
+identical. For that, characters of the file name and the pattern are
+converted to upper case by means of the {\tt ToUpper()} function of the
+\emph{utility.library} which is potentially localized by the
+\emph{locale.library} if loaded. Note that this is potentially
+\emph{different} from how the Fast File System\key{Fast File System (FFS)}
+converts characters to upper case, namely by the algorithm that is used in
+computing the hash key, see section~\ref{sec:rootblock}. Thus, the pattern
+matcher can potentially identify file system objects as matching the pattern
+the file system itself would consider non-matching, and vice versa. This is
+most critical for the non-international versions of the FFS and OFS, i.e.\ the
+first two (legacy) entries of table~\ref{table:ffsflavours} in
+section~\ref{sec:envec} which consider upper and lower characters from the
+ISO-Latin-1 supplement block as non-identical. For the remaining flavours, the FFS
+interpretation of case-insensitive comparison is, most likely, the correct
+one assuming the locale is also based on ISO-Latin-1.
 
 \subsection{Terminating a Directory Scan} \label{sec:matchend}
 
@@ -9139,7 +9159,7 @@ releases all resources associated with the scan. It does not release the
 {\tt AnchorPath}\key{AnchorPath} structure.
 
 \begin{verbatim}
-MatchEnd(AnchorPath)
+MatchEnd(AnchorPath) /* since V36 */
              D1
 
 VOID MatchEnd(struct AnchorPath *)
@@ -9165,7 +9185,12 @@ for example to scan for a pattern within a text document. This requires two
 steps: In the first step, the wildcard is preparsed, generating a tokenized
 version of the pattern. The second step checks whether a given input string
 matches the pattern. You would typically tokenize the pattern once, and then
-use it to match multiple strings to the pattern.
+use it to match multiple strings against the pattern. The encoding of the
+tokens is actually not specified, and can change from version to version,
+however see also the warning at the end of section~\ref{sec:patternmatch},
+namely that they use the ISO-Latin extended control character range, and
+thus, patterns are restricted to the ISO-Latin character set. The tokens the
+tokenizer understands are those from section~\ref{sec:patternmatch}.
 \smallskip{}
 
 Two versions of the tokenizer and pattern matcher exist: One pair that is
@@ -9194,8 +9219,8 @@ LONG ParsePattern(STRPTR, STRPTR, LONG)
 
 This function tokenizes a wildcard pattern in {\tt Source}, generating a
 tokenized version of the pattern in {\tt Dest}. The size (capacity) of the
-target buffer is {\tt DestLength} bytes. This size shall be at least
-{\tt 2 + (n << 1)} bytes large, where {\tt n} is the length of the input
+target buffer is {\tt DestLength} bytes. The buffer shall be at least
+{\tt 2 + (n <{}< 1)} bytes large, where {\tt n} is the length of the input
 pattern. However, as future implementations can require larger buffers, the
 result code shall be checked nevertheless for error conditions. The result
 code {\tt IsWild} is one of the following:
@@ -9210,8 +9235,12 @@ though a simple string comparison would also work.
 \smallskip{}
 
 {\tt -1} is returned in case of an error, either because the input pattern
-is ill-formed, or because {\tt DestLength} is too short. In such a case,
-{\tt IoErr()}\key{IoErr()} should be used to obtain the reason of the failure.
+is ill-formed, or because {\tt DestLength} is too short. Then,
+{\tt IoErr()}\key{IoErr()} provides an error code. Possible errors include
+{\tt ERROR\_LINE\_TOO\_LONG}\key{ERROR\_LINE\_TOO\_LONG} if the target
+buffer is not large enough to keep the parsed pattern, and {\tt
+  ERROR\_BAD\_TEMPLATE}\key{ERROR\_BAD\_TEMPLATE} if the template is
+ill-formed, for example if the ``{\tt |}'' token is not enclosed in brackets.
 
 \subsection{Tokenizing a Case-Insensitive Pattern} \label{sec:parsepatternnocase}
 
@@ -9230,8 +9259,8 @@ LONG ParsePatternNoCase(STRPTR, STRPTR, LONG)
 
 This function tokenizes a wildcard pattern in {\tt Source}, generating a
 tokenized version of the pattern in {\tt Dest}. The size (capacity) of the
-target buffer is {\tt DestLength} bytes. This size shall be at least
-{\tt 2 + (n << 1)} bytes large, where {\tt n} is the length of the input
+target buffer is {\tt DestLength} bytes. The buffer shall be at least
+{\tt 2 + (n <{}< 1)} bytes large, where {\tt n} is the length of the input
 pattern. However, as future implementations can require larger buffers, the
 result code shall be checked nevertheless for error conditions. The result
 code {\tt IsWild} is one of the following:
@@ -9246,13 +9275,18 @@ though a simple case-insensitive string comparison would also work.
 \smallskip{}
 
 {\tt -1} is returned in case of an error, either because the input pattern
-is ill-formed, or because {\tt DestLength} is too short. In such a case,
-{\tt IoErr()}\key{IoErr()} should be used to obtain the reason of the failure.
+is ill-formed, or because {\tt DestLength} is too short. Then,
+{\tt IoErr()}\key{IoErr()} provides an error code. Possible errors include
+{\tt ERROR\_LINE\_TOO\_LONG}\key{ERROR\_LINE\_TOO\_LONG} if the target
+buffer is not large enough to keep the parsed pattern, and {\tt
+  ERROR\_BAD\_TEMPLATE}\key{ERROR\_BAD\_TEMPLATE} if the template is
+ill-formed, for example if the ``{\tt |}'' token is not enclosed in brackets.
 
 \subsection{Match a String against a Pattern}
 
-The {\tt MatchPattern()}\mkey{MatchPattern()} function matches an input
-string against a tokenized pattern, in a case sensitive way.
+{\tt MatchPattern()}\mkey{MatchPattern()} matches a string against a tokenized pattern prepared by {\tt
+  ParsePattern()}\key{ParsePattern()}, taking the case of the
+string and the pattern into consideration.
 
 \begin{verbatim}
 match = MatchPattern(pat, str)
@@ -9283,7 +9317,9 @@ conditions.
 \subsection{Match a String against a Pattern ignoring Case}
 
 The {\tt MatchPatternNoCase()}\mkey{MatchPatternNoCase()} function matches
-an input string against a tokenized pattern ignoring the case.
+an input string against a tokenized pattern prepared by
+{\tt ParsePatternNoCase()}\key{ParsePatternNoCase()}, ignoring the case of the
+string and the pattern.
 
 \begin{verbatim}
 match = MatchPatternNoCase(pat, str)
@@ -9296,6 +9332,12 @@ This function matches the string {\tt str} against the tokenized pattern
 {\tt pat}, returning an indicator whether the string matches the
 pattern. This function is case-insensitive. The pattern {\tt pat} shall have
 been tokenized by {\tt ParsePatternNoCase()}\key{ParsePatternNoCase()}.
+\smallskip{}
+
+Case-insensitive comparison is defined by converting characters of the
+string and the pattern to upper case by the {\tt ToUpper()} function of the
+\emph{utility.library} which is potentially localized by the
+\emph{locale.library} if loaded.
 \smallskip{}
 
 The result code {\tt match} is non-zero in case the string matches, or~$0$
