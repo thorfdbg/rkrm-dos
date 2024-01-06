@@ -4449,7 +4449,7 @@ LONG ScanDirectory(BPTR lock)
 
   if (Examine(lock,fib)) {
     while(ExNext(lock,fib)) {
-      printf("%s\n",fib->fib_FileName);
+      Printf("%s\n",fib->fib_FileName);
     }
     if (IoErr() == ERROR_NO_MORE_ENTRIES)
       return DOSTRUE;
@@ -4698,7 +4698,7 @@ LONG ExamineDirectory(BPTR lock)
         cont   = ExAll(lock,ead,buffersize,ED_NAME,eac);
         result = IoErr();
         while(eac->eac_Entries) {
-          printf("%s\n",ed->ed_Name);
+          Printf("%s\n",ed->ed_Name);
           ed = ed->ed_Next;
           eac->eac_Entries--;
         }
@@ -8955,20 +8955,20 @@ shall be set to~$0$.
 \subsection{Starting a Directory Scan} \label{sec:matchfirst}
 
 The {\tt MatchFirst()}\mkey{MatchFirst()} function starts a directory scan,
-locating all objects matching a pattern and potentially entering directories
-recursively.
+locating the first object in a directory matching a pattern.
 
 \begin{verbatim}
-error = MatchFirst(pat, AnchorPath)
+error = MatchFirst(pat, AnchorPath) /* since V36 */
 D0                 D1       D2
 
 LONG MatchFirst(STRPTR, struct AnchorPath *)
 \end{verbatim}
 
-This function starts a directory scan, locating all objects matching the
+This function starts a directory scan, locating the first object matching the
 pattern {\tt pat}. This pattern does \emph{not} require pre-parsing
-(e.g.\ the functions in section~\ref{sec:stringpat}), {\tt MatchFirst()}\key{MatchFirst()}
-performs the parsing.
+(e.g.\ the functions in section~\ref{sec:stringpat}), i.e.\ {\tt MatchFirst()}\key{MatchFirst()}
+performs the initial step of preparsing the pattern and converting it to
+something suitable for the lower level pattern matcher.
 \smallskip{}
 
 {\tt AnchorPath}\key{AnchorPath} shall be a pointer to an {\tt AnchorPath} structure
@@ -8979,42 +8979,92 @@ to~$0$, and {\tt ap\_Strlen}\key{ap\_Strlen} to the size of the buffer {\tt ap\_
 which is filled by the path name of the matching objects. If this path
 name is not required, {\tt ap\_Strlen}\key{ap\_Strlen} shall be set to~$0$. {\tt
   ap\_Flags}\key{ap\_Flags} shall be set to the flags you need, see the parent
-section.
+section. For forward compatibility, {\tt ap\_Reserved} shall also be set to zero.
 \smallskip{}
 
-Unlike many other functions, {\tt MatchFirst()}\key{MatchFirst()} returns an error code
-directly, and not a success/failure indicator. That is,~$0$ indicates
-success. In particular, if {\tt ERROR\_BREAK}\key{ERROR\_BREAK} is returned in case any of the
-signal bits in {\tt ap->ap\_BreakBits} have been received during the scan.
-\smallskip{}
+Unlike many other functions, {\tt MatchFirst()}\key{MatchFirst()} returns an
+error code directly, and not a success/failure indicator. That is,~$0$
+indicates success, and everything else an error code {\tt
+  IoErr()}\key{IoErr()} would provide for many other functions of the
+\emph{dos.library}. In particular, if {\tt ERROR\_BREAK}\key{ERROR\_BREAK}
+is returned in case any of the signal bits in {\tt ap->ap\_BreakBits} have
+been received during the scan. If {\tt pat} is a wildcard that could match
+multiple objects and not a single match is found, the error code will be
+{\tt ERROR\_NO\_MORE\_ENTRIES}\key{ERROR\_NO\_MORE\_ENTRIES}. If {\tt pat}
+does not contain a wildcard, the function will attempt to {\tt Lock()}\key{Lock()} the
+provided object name {\tt pat} directly, and {\tt ERROR\_OBJECT\_NOT\_FOUND} will be returned instead
+in this situation. Unfortunately, this has the side effect that a dangling
+soft link\key{Soft Link}, i.e.\ a link whose target is not available, will
+also trigger a return code of  {\tt ERROR\_OBJECT\_NOT\_FOUND}. In some cases, this is undesirable, e.g.\ if
+a scan is made to delete such a link. To work around this issue, the input
+should be forcefully turned into a pattern and the access should be retried:
+
+\begin{verbatim}
+#define ENVMAX 112
+LONG MyMatchFirst(const UBYTE *name,struct AnchorPath *ac) 
+{
+    LONG error,trc;
+    UBYTE path[ENVMAX];
+
+    error = MatchFirst(name,ac);
+    if (error == ERROR_OBJECT_NOT_FOUND && 
+        (trc = strlen(name)) + 4 < ENVMAX) {
+      strcpy(path,name);
+      strcpy(path + trc,"(|)");
+      MatchEnd(ac);
+      error = MatchFirst(path,ac);
+    }
+
+    return error;
+}
+\end{verbatim}
+The above code checks the return code for the first attempt to match, and if
+an error code is generated that indicates that a single object could not be
+found, ``{\tt (|)}'' is attached to the pattern. This matches the same
+object as the original name, but is a wildcard the pattern matcher will
+resolve by scanning a directory instead of locking the object itself.
+\medskip{}
 
 On success, {\tt ap->ap\_Info.fib\_FileName} contains the name of the first
-matched object, the directory represented as a lock\key{Lock} containing the
-object is available in {\tt ap->ap\_Current->an\_Lock}. You would typically set
+matched object; the directory represented as a lock\key{Lock} containing the
+found object is available in {\tt ap->ap\_Current->an\_Lock}. You would typically set
 the current directory to this lock, then access this object, then revert the
-lock. This lock \emph{shall not} be released; this is performed by the
-pattern matcher itself as needed.
+directory. This lock \emph{shall not} be released; they are implicitly
+released by the functions of this section.
 \smallskip{}
 
 If the full path of the matching object is needed, an additional buffer
 shall be allocated at the end of the {\tt AnchorPath}\key{AnchorPath}, and the size of the
 buffer shall be placed into {\tt ap\_Strlen}\key{ap\_Strlen}. The function then fills in the
-path into {\tt ap\_Buf}\key{ap\_Buf}.
+path into {\tt ap\_Buf}\key{ap\_Buf}. Note that {\tt ap\_Strlen} is the byte size of
+the buffer, i.e.\ an additional {\tt NUL} for string termination shall be
+accounted for.
 \smallskip{}
 
-If the matching object is a directory, i.e.\  {\tt
-ap->ap\_Info.fib\_DirEntryType} is positive and not equal to {\tt
-ST\_SOFTLINK}\key{ST\_SOFTLINK}, the caller may request to enter it by setting {\tt
-APF\_DODIR}\key{APF\_DODIR} in {\tt ap\_Flags}\key{ap\_Flags}.
+If the matching object is a directory, i.e.\ {\tt ap->ap\_Info.fib\_DirEntryType} is
+positive and not equal to
+{\tt ST\_SOFTLINK}\key{ST\_SOFTLINK} identifying it as a soft
+link\key{Soft Link}, the caller may request to enter it by setting
+{\tt APF\_DODIR}\key{APF\_DODIR} in {\tt ap\_Flags}\key{ap\_Flags}.
+If the matching object can be identified as a hard link to a directory, that its
+type is {\tt ST\_LINKDIR}\key{ST\_LINKDIR}, and {\tt APF\_FollowHLinks}\key{APF\_FollowHLinks}
+is set, then {\tt APF\_DODIR} will also enter such linked directories.
+\smallskip{}
+
+Beware, however, that first not all file systems are able to distinguish
+between regular directories and links to directories, i.e. the {\tt ext2}
+and related systems from the Unix world will not; furthermore, entering hard
+links can cause an endless recursion if the hard link goes to a parent
+directory of the current directory.
 
 \subsection{Continuing a Directory Scan} \label{sec:matchnext}
 
 The {\tt MatchNext()}\mkey{MatchNext()} function continues a directory scan
 initiated by {\tt MatchFirst()}\key{MatchNext()}, returning the next
-matching object, or an error.
+matching object, if any, or an error.
 
 \begin{verbatim}
-error = MatchNext(AnchorPath)
+error = MatchNext(AnchorPath) /* since V36 */
 D0                    D1
 
 LONG MatchNext(struct AnchorPath *)
@@ -9035,11 +9085,57 @@ information on the found object, in particular its file name, and
 object. As for {\tt MatchFirst()}, {\tt APF\_DODIR}\key{APF\_DODIR} may be set to enter
 directories recursively, and {\tt ap\_Buf}\key{ap\_Buf} will be filled with the
 full path of the found object if {\tt ap\_Strlen}\key{ap\_Strlen} is non-zero.
+\smallskip{}
+
+The following code provides a simple example for a directory scan. It uses
+the {\tt D\_S} macro from section~\ref{sec:bptrs} to place the
+{\tt AnchorPath} structure on the stack and align it properly.
+\begin{verbatim}
+LONG ScanDirectories(const UBYTE *pat)
+{
+  LONG error;
+  D_S(struct AnchorPath,ac);
+
+  /* Minimal initialization */
+  ac->ap_BreakBits  = SIGBREAKF_CTRL_C;
+  ac->ap_FoundBreak = 0;
+  ac->ap_Flags      = 0;
+  ac->ap_Reserved   = 0;
+  ac->ap_Strlen     = 0;
+
+  for(error = MatchFirst(pat,ac);error == 0;error = MatchNext(ac)) {
+    if (ac->ap_Flags & APF_DIDDIR) {
+      Printf("leaving %s\n",ac->ap_Info.fib_FileName);
+      ac->ap_Flags &= ~APF_DIDDIR;
+    } else if (ac->ap_Info.fib_DirEntryType > 0 &&
+	       ac->ap_Info.fib_DirEntryType != ST_SOFTLINK &&
+	       ac->ap_Info.fib_DirEntryType != ST_LINKDIR) {
+      Printf("entering %s\n",ac->ap_Info.fib_FileName);
+      ac->ap_Flags |= APF_DODIR;
+    } else {
+      BPTR lock = CurrentDir(ac->ap_Current->an_Lock);
+      Printf("%s\n",ac->ap_Info.fib_FileName);
+      /* Do something on ac->ap_Info.fib_FileName */
+      CurrentDir(lock);
+    }
+  }
+  MatchEnd(ac);
+
+  return error;
+}
+\end{verbatim}
+This function returns the error code that lead to abortion of the scan, it
+does not attempt to detect a dangling soft link\key{Soft Link} if {\tt pat}
+does not contain a wildcard, see section~\ref{sec:matchfirst} for a
+workaround. It neither attempts to detect endless recursions on file systems
+that cannot identify hard links to directories. Note that each directory
+will be visited twice: Once when entering it, and once when leaving it.
 
 \subsection{Terminating a Directory Scan} \label{sec:matchend}
 
-The {\tt MatchEnd()}\mkey{MatchEnd()} function terminates a running scan,
-and releases all resources associated with the scan. It does not release the
+The {\tt MatchEnd()}\mkey{MatchEnd()} function terminates a running
+directory scan started with {\tt MatchFirst()}\key{MatchFirst()}, and
+releases all resources associated with the scan. It does not release the
 {\tt AnchorPath}\key{AnchorPath} structure.
 
 \begin{verbatim}
@@ -9053,8 +9149,13 @@ This function ends a directory scan started by
 {\tt MatchFirst()}\key{MatchFirst()} and releases all resources associated
 to the scan. This function shall be called regardless whether the scan is
 aborted due to exhaustion (i.e.\ {\tt ERROR\_NO\_MORE\_ENTRIES}\key{ERROR\_NO\_MORE\_ENTRIES},
-by error, or by choice of the scanning program (i.e.\ the desired object has
-been detected and no further matches are required).
+by error, or by choice of the scanning program (e.g.\ the desired object has
+been detected and no further matches are required, or the scan has been
+aborted by {\tt Ctrl-C}).
+\smallskip{}
+
+This function does not release the {\tt AnchorPath} structure, and it may be
+reused after re-initializing it as described in section~\ref{sec:matchfirst}.
 
 \section{Matching Strings against Patterns} \label{sec:stringpat}
 
@@ -9075,7 +9176,7 @@ second pair.
 \smallskip{}
 
 The buffer for the tokenized version of the pattern shall be allocated by
-the caller. It requires a buffer that is at least {\tt 2 + (n << 1)} bytes
+the caller. It requires a buffer that is at least {\tt 2 + (n <{}< 1)} bytes
 large, where $n$ is the length of the input wildcard. 
 
 \subsection{Tokenizing a Case-Sensitive Pattern}
