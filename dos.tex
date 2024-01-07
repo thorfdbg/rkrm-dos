@@ -1319,7 +1319,7 @@ late binding assign\key{Late Binding Assign}. {\tt ENVARC} was added in release 
 
 In addition to the above table, the following (pseudo-)assign is handled by
 the \emph{dos.library} internally and is not part of the \emph{device
-list}\key{Device List}, (see section \ref{sec:devicelist}), it was also
+list}\key{Device List}, (see chapter~\ref{sec:devicelist}), it was also
 added in release 36 of AmigaDOS:
 
 \begin{rkrmtable}{System defined assigns} \label{table:specialassigns}
@@ -3225,7 +3225,7 @@ does not expose this lock to the caller.
 
 As long as at least a single lock\key{Lock} is held of an object on a particular
 volume, the file system will keep the volume within the
-device list\key{Device list} of the \emph{dos.library}, see section~\ref{sec:devicelist}.
+device list\key{Device list} of the \emph{dos.library}, see chapter~\ref{sec:devicelist}.
 This has, for example, the consequence that the Workbench will
 continue to show an icon representing the volume in its window.
 \smallskip{}
@@ -9355,11 +9355,11 @@ conditions.
 
 \chapter{Processes} \label{sec:process}
 
-\emph{Processes}\key{Process} are extensions of exec \emph{tasks}, and as
-such scheduled by exec. The most important extensions are that processes
-include a message port in the form of a \emph{MsgPort} structure for
-inter-process communication to handlers, a current directory to
-resolve relative paths, and the last input/output error as returned by the
+\emph{Processes}\key{Process} are extensions of exec \emph{tasks}. The most
+important extensions are that processes include a message port in the form
+of a {\tt MsgPort} structure for inter-process communication to handlers, a
+current directory to resolve relative paths, the standard input, output and
+error streams and the last input/output error as returned by the
 {\tt IoErr()}\key{IoErr()} function.
 \smallskip{}
 
@@ -9387,7 +9387,7 @@ struct Process {
     APTR    pr_PktWait;        
     APTR    pr_WindowPtr;
 
-    /* following definitions are new with 2.0 */
+    /* following definitions are new in V36 */
     BPTR    pr_HomeDir;
     LONG    pr_Flags;
     void    (*pr_ExitCode)();
@@ -9399,11 +9399,11 @@ struct Process {
 };  /* Process */
 \end{verbatim}
 
-The members of this structure are as follows:
+The elements of this structure are as follows:
 \smallskip{}
 
 {\tt pr\_Task}\mkey{pr\_Task} is the exec task structure defined in
-{\tt exec/tasks.h}. It is required by the exec scheduler. The only
+{\tt exec/tasks.h} and discussed in more detail in~\cite{rkrmlib}. The only
 difference between an exec \emph{Task} and a \emph{Process} is that
 {\tt pr\_Task.tc\_Node.ln\_Type} is set to {\tt NT\_PROCESS} instead
 to {\tt NT\_TASK}. Prior starting the process, the \emph{dos.library}
@@ -9413,157 +9413,231 @@ bytes. Some binaries, in particular those compiled with the Aztec
 (Manx) compiler depend on this value.
 \smallskip{}
 
+The \emph{dos.library} also installs a custom exception handler into the {\tt
+  tc\_TrapCode} element of the {\tt Task} structure which is called upon CPU exceptions caught by the exec
+kernel. It shows the ``Software Failure'' requester, allowing users to
+suspend the process or reboot the system. When selecting suspension, the code
+runs into a {\tt Wait(0)} which waits forever. Otherwise, the exception handler runs into the
+{\tt Alert()} function of exec which will show the usual red software failure,
+with the option to enter the ROM debugger.
+\medskip{}
+
 {\tt pr\_MsgPort}\mkey{pr\_MsgPort} is a message port structure as defined in {\tt
   exec/ports.h}. This port is used by many functions of the
 \emph{dos.library} to communicate with handlers and \emph{file
 systems}. Details of the communication protocol are given in
-section~\ref{sec:handlers}.
+chapter~\ref{sec:handlers}.
 \smallskip{}
 
 {\tt pr\_Pad}\mkey{pr\_Pad} is unused and only included in the structure to ensure that
-all following members are aligned to 32-bit boundaries.
-\smallskip{}
+all following members are aligned to long word boundaries.
+\medskip{}
 
 {\tt pr\_SegList}\mkey{pr\_SegList} contains an array of
-segments\key{Segment} containing AmigaDOS functions. The first
-entry in this array is a 32-bit integer indicating the number of valid
-elements, the remaining entries are BPTRs to segments of AmigaDOS and
-the loaded binary. Some entries may be {\tt ZERO} indicating that the
-corresponding entry is currently not used. Segments are explained in
-more detail in section~\ref{sec:binary}. Typically, entries $1$ and
-$2$ are system segments containing AmigaDOS functions, entry $3$ is
-used for the loaded binary, and entry $4$ the segment of the
-shell\key{Shell}. This, however, only reflects the current usage of segments, and
-later versions of AmigaDOS may populate this vector differently. The
-segments contained in this vector are used by the AmigaDOS runtime
-binder to build the \emph{Global Vector}\key{Global Vector} of
-processes using BCPL linkage. As BPCL is phased out, this vector is of
-no particular importance today anymore, and can be ignored for almost
-all purposes. The only exception is the \emph{Shell} which shall
-prepare this vector to ensure that commands written in BCPL function
-properly. More on this in section~\ref{sec:shell}.
-
-{\tt pr\_StackSize}\mkey{pr\_StackSize} is the size of the process stack in bytes. It is always
-a multiple of 4 bytes long.
+segments\key{Segment} which are used to populate the BCPL Global
+Vector\key{Global Vector} by the BCPL runtime binder, see also
+section~\ref{sec:bcplbinding}. The usage of the segment list and the
+Global Vector is questionable as version 47 removed the last BCPL compiled
+handler from the system. In consists of an array of BCPL words, thus 32 bit
+entries representing either {\tt LONG}s or {\tt BPTR}s, understanding the
+equivalence of both types in BCPL. Its contents will be briefly described in
+the following for historical purposes:
 \smallskip{}
 
-{\tt pr\_GlobVec}\mkey{pr\_GlobVec} is another BCPL legacy. It
-contains the \emph{Global Vector} of the process. For binaries using
-the BCPL linkages, this is a custom-build array of global data and
-function entry points from {\tt pr\_SegList}\key{pr\_SegList}. For C
-and assembler binaries, the \emph{Global Vector}\key{Global Vector} is
-the system shared vector; it contains \emph{dos.library} global data
-required by some of its functions, such as base pointers to system
-libraries. As no particular advantage can be taken from this vector
-(anymore) as all functions available in it are also available as
-\emph{dos.library} entry points, it should be left alone.
+The first entry in this array is a 32-bit integer indicating the number of
+elements the BPCL runtime binder scans for populating the Global Vector, the
+remaining entries are BPTRs to segments containing AmigaDOS and program
+globals. Some entries may be {\tt ZERO} indicating that the corresponding
+entry is currently not used. Segments are explained in more detail in
+chapter~\ref{sec:binary}. Entries~$1$ and~$2$ are system segments
+containing AmigaDOS functions, namely the BCPL ``kernel library''
+\emph{klib} and the BCPL support library \emph{blib}. Functions in these two
+segments are either trivial (e.g.\ long multiplication) or available as
+functions the \emph{dos.library} as well. They are always included in the
+count at offset~0 of the segment list.
 \smallskip{}
 
-{\tt pr\_TaskNum}\mkey{pr\_TaskNum} is an integer allocated by the system for processes that
-execute a shell\key{Shell}, or are binaries that have been launched by the shell. The
-number here corresponds to the integer printed by the {\tt Status}
-command. Note that AmigaDOS does not use task numbers consistently,
-i.e.\ processes that are started from the Workbench or have been created by
-some other means are not identified by a task number. In such a case, this
-member remains~$0$.
+Entry~3 is populated by the segment of the loaded binary. It is only
+included in the count if the started process requested BCPL binding, thus
+for handlers with a {\tt GLOBVEC}\key{GLOBVEC} entry in their mountlist
+of~$0$ or~$-3$, see table~\ref{table:gvvalues} in
+chapter~\ref{sec:devicelist}. For BCPL code, the program segments are also
+used to populate the Global Vector, see section~\ref{sec:bcplbinding} for
+details, and thus the count value is then~3. Segments of C and assembler
+programs lack BCPL runtime binding information, they are excluded in the
+count and thus ignored by the binder. The count for them is therefore~2.
 \smallskip{}
 
-{\tt pr\_StackBase}\mkey{pr\_StackBase} is a BPTR to the address of
-the lower end of the stack, i.e.\ the end of the C or assembler
-stack. As the BCPL stack grows in opposide direction, it is the start
-of the BCPL stack. While it is initialized, it is not used by the
-\emph{dos.library} at all.
+Entry~4 contains the segment of the shell\key{Shell} if the process
+represents a shell, or is currently executing a command line program
+overlaying the shell process. The shell startup code moves its own segment
+from entry~3 to~4, see also section~\ref{sec:usershells}, leaving room for
+the segment of command line programs in entry~3.
 \smallskip{}
 
-{\tt pr\_Result2}\mkey{pr\_Result2} is the secondary result code set
-by many functions of the \emph{dos.library}. The value stored here is
-delivered by {\tt IoErr()}\key{IoErr()}.
+The above only reflects the current (version 47) usage of the segment list, and
+later versions of AmigaDOS can populate this vector differently or abandon
+it completely as it does not contain much relevant information and the BCPL
+runtime binding mechanism will likely be phased out at some point.
+\medskip{}
+
+{\tt pr\_StackSize}\mkey{pr\_StackSize} is the size of the process stack in
+bytes which is always a multiple of 4. In case the process is executing a
+command line program, the stack size recorded here is the stack size of the
+shell, and not the stack size of the command line tool executing in the
+context of the shell. Thus, this element is unsuitable to retrieve the stack
+size of the currently running process in general. Instead, the elements {\tt
+  tc\_SPLower} and {\tt tc\_SPUpper} of the task structure shall be used,
+which are even updated properly when {\tt RunCommand()} is used to execute
+commands in the context of the shell and provides a custom stack for
+them. The latter, namely the stack size for command execution, is adjustable
+by means of the {\tt Stack} command.
+\smallskip{}
+
+{\tt pr\_GlobVec}\mkey{pr\_GlobVec} is another BCPL legacy. It contains the
+\emph{Global Vector} of the process. For binaries using the BCPL linkage,
+this is a custom-build array of global data and function entry points
+populated from the {\tt pr\_SegList}\key{pr\_SegList} array through the BCPL
+runtime binder. For C and assembler binaries, the Global Vector\key{Global
+  Vector} is the system shared vector; it contains \emph{dos.library} global
+(BCPL) functions and data required by the \emph{dos.library}, such as base
+pointers to system libraries. As no particular advantage can be taken from
+this vector (anymore), it should be left alone and its entries are not
+documented here.
+\smallskip{}
+
+{\tt pr\_TaskNum}\mkey{pr\_TaskNum} is an integer allocated by the system
+for processes that execute a shell\key{Shell}, or command line programs
+executed in the context of a shell. The number here corresponds to the
+integer printed by the {\tt Status} command. It is the closest AmigaDOS
+analog of a process ID. The {\tt FindCliProc()}\key{FindCliProc()}
+function can be used to retrieve the process corresponding to a task number,
+it is specified in section~\ref{sec:findcliproc}. Note that AmigaDOS does
+not use task numbers consistently, i.e.\ processes that are started from the
+Workbench, handlers, file systems or processes that have been created by
+{\tt CreateNewProc()}\key{CreateNewProc()} or {\tt CreateProc()}\key{CreateProc()} are not
+identified by a task number. In such a case, this element remains~$0$.
+\smallskip{}
+
+{\tt pr\_StackBase}\mkey{pr\_StackBase} is a BPTR to the address of the
+lower end of the stack, i.e.\ the end of the C or assembler stack. As the
+BCPL stack grows in opposide direction, it is the start of the BCPL
+stack. While it is initialized, it is not used by the \emph{dos.library} at
+all. It neither reflects the lower end of the stack of a command line
+program executing in the context of a shell process. In such a case, {\tt
+  pr\_StackBase} is the lower end of the stack of the shell. The lower end
+of the stack of the process may instead be found in the {\tt tc\_SPLower}
+element of {\tt pr\_Task}, which is always correct, regardless of whether
+the process is run from the Workbench, or executing a command overlaying the
+shell process. {\tt pr\_StackBase} should thus be better left alone.
+\smallskip{}
+
+{\tt pr\_Result2}\mkey{pr\_Result2} is the secondary result code set by many
+functions of the \emph{dos.library}. The value stored here is delivered by
+{\tt IoErr()}\key{IoErr()} specified in section~\ref{sec:ioerr}, and it can
+be altered by {\tt SetIoErr()}\key{SetIoErr()}, see
+section~\ref{sec:setioerr}. The above two accessor functions should be
+preferred to accessing this element directly.
 \smallskip{}
 
 {\tt pr\_CurrentDir}\mkey{pr\_CurrentDir} is the lock\key{Lock} representing the current directory
-of the process. All relative paths are resolved from this lock,
+of the process. All relative paths are resolved throug this lock,
 i.e.\ they are relative to {\tt pr\_CurrentDir}. If this member is {\tt ZERO},
-the current directory is the root directory of the file system stored in
-{\tt pr\_FileSystemTask}. As the latter is (unless altered) the file system
+the current directory is the root directory of the file system whose {\tt
+  MsgPort} pointer is stored in {\tt pr\_FileSystemTask}. As the latter is (unless altered) the file system
 of the boot volume, this is usually identical to the directory identified by
-the {\tt SYS} assign.
+the {\tt SYS} assign\key{Assign}. As for the above, this element should not
+be read or modified directly, instead the accessor functions
+{\tt GetCurrentDir()}\key{GetCurrentDir()} from
+section~\ref{sec:getcurrentdir} and {\tt CurrentDir()}\key{CurrentDir()}
+from section~\ref{sec:currentdir} should be preferred.
 \smallskip{}
 
-{\tt pr\_CIS}\mkey{pr\_CIS} is file handle\key{FileHandle} of the standard input stream of the
-process. It is also returned by {\tt Input()}\key{Input()}. It can be {\tt
-  ZERO} in case the process does not have a standard input stream. This is
-\emph{not} equivalenqt to a {\tt NIL:} input handle --- in fact, any attempt
-to read from a non-existing input stream will crash. Processes\key{Process} started from
-the Workbench do not have an input stream, unless one is installed here with
-{\tt SelectInput()}\key{SelectInput()}.
+{\tt pr\_CIS}\mkey{pr\_CIS} is file handle\key{FileHandle} of the standard
+input stream of the process. It should preferably accessed through the {\tt
+  Input()}\key{Input()} function specified in section~\ref{sec:input}. The
+input file handle can be {\tt ZERO} in case the process does not have a
+standard input stream. This is \emph{not} equivalent to a {\tt NIL:} input
+handle --- in fact, any attempt to read from a non-existing input stream
+will crash. Processes\key{Process} started from the Workbench do not have an
+input stream, unless one is installed here with {\tt SelectInput()}\key{SelectInput()},
+see section~\ref{sec:selectinput}.
 \smallskip{}
 
 {\tt pr\_COS}\mkey{pr\_COS} is the file handle\key{FileHandle} of the standard output stream of the
-process. It is also returned by the {\tt Output()}\key{Output()} function of
-the \emph{dos.library}. It can be {\tt ZERO} in case the process does not
-have a standard output stream, which is not equivalent to a {\tt NIL:} file
+process. It should preferably be obtained through the {\tt Output()}\key{Output()} function of
+the \emph{dos.library} specified in section~\ref{sec:output}. The output
+file handle can be {\tt ZERO} in case the process does not
+have a standard output stream, which is \emph{not} equivalent to a {\tt NIL:} file
 handle. Any attempt to output to {\tt ZERO} will crash the system. Processes\key{Process}
 started from the Workbench do not have an output stream, unless one is
-installed with {\tt SelectOutput()}\key{SelectOutput()}.
+installed with {\tt SelectOutput()}\key{SelectOutput()}, see section~\ref{sec:selectoutput}.
 \smallskip{}
 
 {\tt pr\_ConsoleTask}\mkey{pr\_ConsoleTask} is the {\tt MsgPort} of
 the console within which this process is run, if such a console
 exists. This handler is contacted when opening ``{\tt *}''\key{* (file name)} or a path
 relative to {\tt CONSOLE:}. Processes\key{Process} started from the Workbench do
-not have a console, unless one is installed with {\tt
-  SetConsoleTask()}\key{SetConsoleTask()}. The pointer stored in this
-element should better be obtained by {\tt
-  GetConsoleTask()}\key{GetConsoleTask()}, see section~\ref{sec:getconsoletask}.
+not have a console, unless one is installed with {\tt SetConsoleTask()}\key{SetConsoleTask()} from
+section~\ref{sec:setconsoletask}. The pointer stored in this element should
+better be obtained by {\tt GetConsoleTask()}\key{GetConsoleTask()},
+see section~\ref{sec:getconsoletask}.
 \smallskip{}
 
 {\tt pr\_FileSystemTask}\mkey{pr\_FileSystemTask} is the {\tt MsgPort}
-of the file system that is contacted in case a relative path is to be
-resolved relative to the {\tt ZERO} lock\key{ZERO lock}. This member is initialized
-to the {\tt MsgPort} of the file system the system was booted from,
-but can be changed by {\tt
-  SetFileSysTask()}\key{SetFileSysTask()}. This member is also
+of the file system that is contacted in case a path relative to
+the {\tt ZERO} lock\key{ZERO lock} is to be resolved, i.e.\ if
+{\tt pr\_CurrentDir} is {\tt ZERO}. 
+This member is initialized to the {\tt MsgPort} of the file system the system was booted from,
+but can be changed by {\tt SetFileSysTask()}\key{SetFileSysTask()}, see
+section~\ref{sec:setfilesystask}. This member is also
 returned by {\tt GetFileSysTask()}\key{SetFileSysTask()} specified in
-section~\ref{sec:getfilesystask}, and this function should be preferred.
+section~\ref{sec:getfilesystask}, and access through this function should be preferred.
 \smallskip{}
 
 {\tt pr\_CLI}\mkey{pr\_CLI} is a BPTR to the {\tt CommandLineInterface}
-\key{CommandLineInterface} structure containing information on the Shell
-this process is running in. If this process is not part of a Shell, this
+\key{CommandLineInterface} structure containing information on the shell
+this process is running in. If this process is not part of a shell, this
 member is {\tt ZERO}. This is for example the case for programs started from
-the Workbench, or handler or file system.
+the Workbench, or handler or file system. This structure is specified in
+more detail in section~\ref{sec:getcli}, and the structure should be
+preferably obtained through the {\tt Cli()}\key{Cli()} function of the same
+section. There is no corresponding setter function, indicating that this
+element shall not be modified by user code at all.
 \smallskip{}
 
 {\tt pr\_ReturnAddr}\mkey{pr\_ReturnAddr} is another BCPL legacy and should not be used by
 new implementations. It points to the BCPL stack frame of the process or the
-command overloading the process, and used there to restore the previous
-stack frame for the {\tt Exit()}\key{Exit()} function. This is typically the
-process cleanup code for processes initialized by {\tt
-  CreateProc()}\key{CreateProc()} or {\tt
-  CreateNewProc()}\key{CreateNewProc()}, or the shell\key{Shell} command shutdown code
-placed there by {\tt RunCommand()}. This cleanup process does not, however,
-release any other resources obtained by user code. BCPL code or custom
-startup code could deposit here pointer to a BCPL stack frame for a custom
-shutdown mechanism.
+command overlaying the process, and used there to restore the previous
+stack frame by the {\tt Exit()}\key{Exit()} function from section~\ref{sec:exit}. This is typically the
+process cleanup code for processes initialized by {\tt CreateProc()}\key{CreateProc()} or
+{\tt CreateNewProc()}\key{CreateNewProc()}, or the shell\key{Shell} command shutdown code
+placed there by {\tt RunCommand()}\key{RunCommand()}. This cleanup code does not, however,
+release any resources obtained by user code, and for C programs the C
+standard library function {\tt exit()} (with a small-case ``{\tt e}'') is in
+almost all cases the better (and correct) choice. BCPL code or custom
+startup code could deposit here a pointer to a BCPL stack frame for a custom
+shutdown mechanism, but as the entire BCPL activation and shutdown mechanism
+is a legacy construction, this element should be better left alone.
 \smallskip{}
 
 The BCPL stack frame is described by the following (undocumented) structure:
 \mkey{BCPL stack frame}
 \begin{verbatim}
 struct BCPLStackFrame {
-       ULONG bpsf_StackSize;
+       ULONG bpsf_StackSize; /* in bytes */
        APTR  bpsf_PreviousStack;
 };
 \end{verbatim}
-where {\tt bpsf\_StackSize}\mkey{bpsf\_StackSize} is the stack size of the current (active) stack,
-and {\tt bpsf\_PreviousStack}\mkey{bpsf\_PreviousStack} the stack of the caller; to restore the
-previous stack, this value is placed in the CPU register {\tt A7}.
+where {\tt bpsf\_StackSize}\mkey{bpsf\_StackSize} is the stack size 
+of the current (active) stack, and {\tt bpsf\_PreviousStack}\mkey{bpsf\_PreviousStack} the stack of the caller; to restore the
+previous stack, the latter value is placed in the CPU register {\tt A7}.
 \medskip{}
 
-{\tt pr\_PktWait}\mkey{pr\_PktWait} is a function that is called when waiting for
-inter-process communication, in particular when waiting for a returning
-packet set out to a handler. If this is {\tt NULL}, the system default
-function is used.  The signature of this function is
+{\tt pr\_PktWait}\mkey{pr\_PktWait} is a function that is called by the
+\emph{dos.library} when waiting for a packet to return from a handler or
+file system. If this is {\tt NULL}, the system default function is used. The
+signature of this function is
 \begin{verbatim}
 msg = (*pr_PktWait)(void)
 D0
@@ -9571,39 +9645,124 @@ D0
 struct Message *(*pr_PktWait)(void)
 \end{verbatim}
 
-that is, no particular arguments are delivered, the process must be obtained
-from {\tt exec}, and the message received shall be delivered back into
+that is, no particular arguments are delivered, the process structure of the
+calling process must be obtained
+from the \emph{exec.library}, and the message received shall be delivered back into
 register {\tt D0}. The returned pointer shall not be {\tt NULL}, rather,
-this function shall block until a message has been received. For details,
-see the {\tt DoPkt()}\key{DoPkt()} function and section~\ref{sec:handlers}.
+this function shall block until a message has been retrieved. For details on
+packets and inter-process communication through packets, see the {\tt DoPkt()}\key{DoPkt()} function in
+section~\ref{sec:dopkt} and chapter~\ref{sec:handlers} in general.
 \smallskip{}
 
-{\tt pr\_WindowPtr}\mkey{pr\_WindowPtr} is a
-pointer to an \emph{intuition} {\tt Window} structure, see {\tt
-  intuition/intuition.h} which will borrow its title and its screen to error
-requesters. If this is {\tt NULL}, error requesters appear on the default public screen, usually
-the Workbench screen, and if this is set to {\tt (APTR)(-1L)}, error
-requesters will be suppressed at all, and the implied response to them is to
-cancel the operation. This error requester is specified in more detail with
-the {\tt ErrorReport()}\key{ErrorReport()} function.
+{\tt pr\_WindowPtr}\mkey{pr\_WindowPtr} is a pointer to an \emph{intuition}
+{\tt Window} structure, see {\tt intuition/intuition.h}, which will borrow
+its title and its screen to error requesters. If this is {\tt NULL}, error
+requesters appear on the default public screen, usually the Workbench
+screen; if this is set to {\tt (APTR)(-1L)}, error requesters will be
+suppressed at all, and the implied response to them is to cancel the
+operation. All other values will redirect the requester to the same
+screen the window pointed to by this element is located on. The workings of error
+requesters is specified in more detail in the description of the {\tt
+  ErrorReport()}\key{ErrorReport()} function in section~\ref{sec:errorreport}.
 \smallskip{}
 
-{\tt pr\_HomeDir}\mkey{pr\_HomeDir} is the lock\key{Lock} to the directory containing the binary
-that is currently executed as this process, if such a directory exists. It
-is {\tt ZERO} if the binary is resident. This lock\key{Lock} is filled in by
-the Shell or the Workbench when loading and starting a process. It is used
+Particular care shall be taken when replacing {\tt pr\_WindowPtr} within
+command line executables as commands only overlay the shell process, and
+thus share the same process with the shell and all other commands executing
+within the same shell. If, upon termination of a command, the window pointed to
+by this element is closed, the next command could find an invalid {\tt
+  pr\_WindowPtr} in its process. The generation of an error requester would then crash the
+machine. Shell commands shall therefore store the initial value of this
+pointer prior to modification, and restore it back when exiting.
+\smallskip{}
+
+Also, redirection of error requesters only works for requesters that are
+generated in the context of the calling process. Requesters the file system
+itself displays, for example if a particular block on a medium is corrupt
+and unreadable, cannot be redirected by means of {\tt pr\_WindowPtr}.
+\smallskip{}
+
+At present, there are no accessor functions for this pointer, it can only be
+read and modified by accessing the process structure itself.
+\medskip{}
+
+All subsequent elements were added in AmigaDOS version 36 and are not
+available for earlier releases:
+\smallskip{}
+
+{\tt pr\_HomeDir}\mkey{pr\_HomeDir} is the lock\key{Lock} to the directory
+containing the command or binary that is currently executing as this process, if such a directory exists. It
+is {\tt ZERO} if the command was taken from the list of resident commands,
+see section~\ref{sec:resident}, or is a shell built-in command. This lock\key{Lock} is filled in by
+the shell or the Workbench when loading an executable program. It is used
 to resolve paths relative to the {\tt PROGDIR}\key{PROGDIR} pseudo-assign, see
-section~\ref{table:specialassigns}. If this lock is {\tt ZERO}, any attempt
-to resolve a path within {\tt PROGDIR:} will create a request to inserted a
-volume {\tt PROGDIR:}, which is probably not a very useful reaction of
-AmigaDOS.
+chapter~\ref{table:specialassigns}. If this lock is {\tt ZERO}, any attempt
+to resolve a path within {\tt PROGDIR:} will create a request to insert a
+volume named {\tt PROGDIR:}\footnote{This is probably unintended and a defect of {\tt GetDeviceProc()}.}.
 \smallskip{}
 
-{\tt pr\_Flags}\mkey{pr\_Flags} are system-use only flags that shall not be used or
-interpreted. They are used by the system process shutdown code to identify
+{\tt pr\_Flags}\mkey{pr\_Flags} are system-use only flags that shall not be
+accessed, modified or interpreted. They are used by the system process shutdown code to identify
 which resources need to be released, but future systems may find additional
-uses for this member.
+uses for this member or extend the flags stored
+here. Table~\ref{table:processflags} lists the currently used flags defined in {\tt dos/dosextens.h}:
+
+\begin{rkrmtable}{Process Flags} \label{table:processflags}
+{\bf Flag} & {\bf Meaning}\\ \hline \hline
+PRF\_FREESEGLIST & Unload the segment {\tt pr\_SegList[3]} \\ \hline
+PRF\_FREECURRDIR & Unlock the current directory {\tt pr\_CurrentDir} \\ \hline
+PRF\_FREECLI     & Unlink the CLI structure {\tt pr\_CLI} \\ \hline
+PRF\_CLOSEINPUT  & Close the standard input stream {\tt pr\_CIS}\\ \hline
+PRF\_CLOSEOUTPUT & Close the standard output stream {\tt pr\_COS}\\ \hline
+PRF\_FREEARGS    & Release CLI arguments {\tt pr\_Arguments} \\ \hline
+PRF\_CLOSEERROR  & Close the standard error output {\tt pr\_CES} \\ \hline
+\end{rkrmtable}
+
+The {\tt PRF\_FREESEGLIST}\mkey{PRF\_FREESEGLIST} flag requests that the program segment is
+released with {\tt UnLoadSeg()}\key{UnLoadSeg()} when the process
+terminates. This segment is taken from {\tt pr\_SegList[3]}, see
+above. This flag corresponds to the {\tt NP\_FreeSeglist}\key{NP\_FreeSeglist} tag of the
+{\tt CreateNewProc()}\key{CreateNewProc()} function from
+section~\ref{sec:createnewproc}.
 \smallskip{}
+
+The {\tt PRF\_FREECURRDIR}\mkey{PRF\_FREECURRDIR} flag releases {\tt pr\_CurrentDir} via {\tt
+  UnLock()}\key{UnLock()} upon termination of the process. This flag is
+implied when creating processes by
+{\tt CreateNewProc()}\key{CreateNewProc()} and a non-{\tt ZERO} lock is made
+the current directory of the created process. The only way how to clear this
+flag is to install a {\tt ZERO} lock by the {\tt NP\_CurrentDir} tag, see
+also section~\ref{sec:createnewproc} and the description of this tag.
+\smallskip{}
+
+The {\tt PRF\_FREECLI}\mkey{PRF\_FREECLI} flag requests to release the {\tt
+  CommandLineInterface}\key{CommandLineInterface} structure and all
+structures referenced by it upon termination of the process. This flag is set if
+building a CLI structure is requested by the {\tt NP\_Cli}\key{NP\_Cli} tag.
+\smallskip{}
+
+The {\tt PRF\_CLOSEINPUT}\mkey{PRF\_CLOSEINPUT} flag closes the {\tt pr\_CIS} standard input
+stream upon termination of the process. This flag corresponds to the {\tt
+  NP\_CloseInput}\key{NP\_CloseInput} tag of {\tt
+  CreateNewProc()}\key{CreateNewProc()}.
+\smallskip{}
+
+The {\tt PRF\_CLOSEOUTPUT}\mkey{PRF\_CLOSEOUTPUT} flag closes the {\tt pr\_COS} standard output
+stream upon termination of the process. It corresponds to the {\tt
+  NP\_CloseOutput}\key{NP\_CloseOutput} tag of {\tt CreateNewProc()}\key{CreateNewProc()}.
+\smallskip{}
+
+The {\tt PRF\_FREEARGS}\mkey{PRF\_FREEARGS} flag requests to release the
+command line arguments stored in {\tt pr\_Arguments} upon process
+termination. This flag is set implicitly by providing arguments
+through the {\tt NP\_Arguments}\key{NP\_Arguments} tag of {\tt CreateNewProc()}\key{CreateNewProc()}.
+\smallskip{}
+
+The {\tt PRF\_CLOSEERROR}\mkey{PRF\_CLOSEERROR} flag closes the {\tt pr\_CES} standard error
+stream upon termination of the process. This flag was introduced in AmigaDOS
+version 47. It corresponds to the {\tt NP\_CloseError}\key{NP\_CloseError}
+tag of {\tt CreateNewProc()}\key{CreateNewProc()}.
+\medskip{}
 
 {\tt pr\_ExitCode()}\mkey{pr\_ExitCode()} is a pointer to a function that is called by AmigaDOS
 as part of the process shutdown code, and as such quite more useful that
@@ -9616,31 +9775,52 @@ D0                    D0 D1
 LONG ExitFunc(LONG,LONG)
 \end{verbatim}
 
-The value of {\tt rc} is the return code process, i.e.\ the value left in
-register {\tt D0} when the code drops off the final {\tt RTS}, and {\tt
-  exitdata} is taken from {\tt pr\_ExitData}\key{pr\_ExitData}. The {\tt returncode} is a
-modified version of the process return code that is, however, ignored.
+The value of {\tt rc} is the process return code, i.e.\ the value left in
+register {\tt D0} when the code drops off the final {\tt RTS}. {\tt
+  exitdata} is taken from {\tt pr\_ExitData}\key{pr\_ExitData}. The {\tt
+  returncode} allows the exit function to modify the process return value;
+however, currently this value has no use as the \emph{dos.library}
+shutdown code directly runs into {\tt RemTask()} of the \emph{exec.library}
+which discards all register values of the terminating task. The process exit
+function is defined by the {\tt NP\_ExitCode}\key{NP\_ExitCode} tag of the
+{\tt CreateNewProc()}\key{CreateNewProc()} function, see
+section~\ref{sec:createnewproc}.
 \smallskip{}
 
 {\tt pr\_ExitData}\mkey{pr\_ExitData} is used as argument for the {\tt pr\_ExitCode()}\key{pr\_ExitCode()}
-function, see above.
+function, see above. It is defined by the
+{\tt NP\_ExitData}\key{NP\_ExitData} tag of {\tt CreateNewProc()}\key{CreateNewProc()}.
 \smallskip{}
 
 {\tt pr\_Arguments}\mkey{pr\_Arguments} is a pointer to the command line arguments of the
-process if it corresponds to a command started from the Shell. This is a
-{\tt NUL} terminated string. This argument string can also be found in
-register {\tt A0} for programs started from the Shell, or in the buffer of
-{\tt pr\_CIS}. The {\tt ReadArgs()}\key{ReadArgs()} function takes it from
-the latter source, and not from {\tt pr\_Arguments}\key{pr\_Arguments}. Otherwise, this member
-remains {\tt NULL}.
+process if it corresponds to a command started from the shell. It is a
+{\tt NUL} terminated string \emph{not} including the command name
+itself. The latter can be retrieved from {\tt cli\_CommandName}, see
+section~\ref{sec:getcli}. The argument string can also be found in
+register {\tt A0}, or in the buffer of
+{\tt pr\_CIS} file handle\key{File Handle}. The {\tt ReadArgs()}\key{ReadArgs()} function takes it from
+the latter source, and not from {\tt pr\_Arguments}\key{pr\_Arguments}. If
+the process does not execute a command from the shell, this member
+remains {\tt NULL}. The command line arguments can also be retrieved through
+{\tt GetArgString()}\key{GetArgString()} specified in
+section~\ref{sec:getargstr}. Even though this is possibly a bit pointless,
+the argument string can also be set by {\tt
+  SetArgString()}\key{SetArgString()} from section~\ref{sec:setargstring},
+though arguments installed by this function will not reach {\tt
+  ReadArgs()}\key{ReadArgs()}.
 \smallskip{}
 
-{\tt pr\_LocalVars}\mkey{pr\_LocalVars} is a {\tt MinList} structure, as defined in {\tt
-  exec/lists.h}, that contains local variables specific to the
-shell\key{Shell Variable} within
-which the process is executed, if any. The structure of such variables is
-defined in {\tt dos/var.h}. This structure is specified in
-section~\ref{sec:shell}.
+{\tt pr\_LocalVars}\mkey{pr\_LocalVars} is a {\tt MinList} structure, as
+defined in {\tt exec/lists.h}, that contains all local variables and alias
+definitions specific to the shell\key{Shell Variable} and commands executed
+by it in the context of this process, see section~\ref{sec:variableexpansion} and following.
+The structure of a node in this list is specified in
+section~\ref{sec:findvar} and defined in {\tt dos/var.h}. Access to this
+list is not protected by a semaphore, and thus, it shall not be accessed
+from any other process but the one represented by the containing {\tt
+  Process} structure. Even more, the list and its contents should not be
+accessed directly at all, but through the accessor functions listed in
+section~\ref{sec:shellvariables}.
 \smallskip{}
 
 {\tt pr\_ShellPrivate}\mkey{pr\_ShellPrivate} is reserved for the
@@ -9649,12 +9829,16 @@ currently unused, but can be used by future releases.
 \smallskip{}
 
 {\tt pr\_CES}\mkey{pr\_CES} is the file handle\key{FileHandle} to be used for error output. This
-stream gues usually to the console the process runs in, if such a console
-exists. This handle can be changed by {\tt SelectError()}\key{SelectError()}.
-If {\tt pr\_CES}\key{pr\_CES} is {\tt NULL}, processes should fall back to {\tt pr\_COS}\key{pr\_COS}
-for printing errors. Preferably, processes should use the
-{ErrorOutput()}\key{ErrorOutput()} function to obtain an error stream,
-though.
+stream goes usually to the console the process runs in, if such a console
+exists. This handle can be changed by {\tt SelectError()}\key{SelectError()}
+specified in section~\ref{sec:selecterror}.
+If {\tt pr\_CES}\key{pr\_CES} is {\tt ZERO}, processes should print errors through {\tt pr\_COS}\key{pr\_COS}
+instead; preferably, processes should use the
+{\tt ErrorOutput()}\key{ErrorOutput()} function defined in
+section~\ref{sec:erroroutput} to get access to the standard error stream. This function
+will also implement the fall-back to the standard output stream in case no
+standard error stream is available. Even though this element already existed
+in AmigaDOS version 36, it only came in use from AmigaDOS version 47 onwards.
 
 \section{Creating and Terminating Processes}
 
@@ -9947,7 +10131,7 @@ On failure, the function returns {\tt NULL}. Unfortunately, it does not set
 {\tt IoErr()} consistently in case of failure, thus the cause of the problem
 cannot be easily identified.
 
-\subsection{Terminating a Process}
+\subsection{Terminating a Process} \label{sec:exit}
 
 The {\tt Exit()}\mkey{Exit()} function terminates the calling process or the
 calling command line executable. In the latter case, control is returned to
@@ -9997,7 +10181,7 @@ preferred way of getting access to the {\tt Process}\key{Process} structure. The
 functions listed in this section do not touch {\tt IoErr()}\key{IoErr()} except
 explicitly stated.
 
-\subsection{Retrieve the Process Input File Handle}
+\subsection{Retrieve the Process Input File Handle} \label{sec:input}
 
 The {\tt Input()}\mkey{Input()} function returns the input file handle\key{FileHandle} of
 the calling process if one is installed. If no input file handle is provided,
@@ -10018,7 +10202,7 @@ handle\key{FileHandle} can be closed by the process shutdown code or the calling
 and thus should in general not be closed explicitly. It can be changed
 through {\tt SelectInput()}\key{SelectInput()}.
 
-\subsection{Replace the Input File Handle}
+\subsection{Replace the Input File Handle} \label{sec:selectinput}
 
 The {\tt SelectInput()}\mkey{SelectInput()} function replaces the input
 file handle\key{FileHandle} of the calling process with its argument and returns the
@@ -10035,7 +10219,7 @@ This call replaces the input file handle\key{FileHandle} of the calling process 
 the file handle given by {\tt fh} and returns the previously used input
 file handle. It sets {\tt pr\_CIS}\key{pr\_CIS} of the calling process.
 
-\subsection{Retrieve the Output File Handle}
+\subsection{Retrieve the Output File Handle} \label{sec:output}
 
 The {\tt Output()}\mkey{Output()} function returns the output file handle\key{FileHandle} of
 the calling process if one is installed. If no output file handle is provided,
@@ -10056,7 +10240,7 @@ handle can be closed by the process shutdown code or the calling shell\key{Shell
 and thus should in general not be closed explicitly. It can be changed
 through {\tt SelectOutput()}\key{SelectOutput()}.
 
-\subsection{Replace the Output File Handle}
+\subsection{Replace the Output File Handle} \label{sec:selectoutput}
 
 The {\tt SelectOutput()}\mkey{SelectOutput()} function replaces the output
 file handle\key{FileHandle} of the calling process with its argument and returns the
@@ -10073,7 +10257,7 @@ This call replaces the output file handle\key{FileHandle} of the calling process
 the file handle given by {\tt fh} and returns the previously used output
 file handle. It sets {\tt pr\_COS}\key{pr\_COS} of the calling process.
 
-\subsection{Retrieve the Error File Handle}
+\subsection{Retrieve the Error File Handle} \label{sec:erroroutput}
 
 The {\tt ErrorOutput()}\mkey{ErrorOutput()} function returns the file
 handle\key{FileHandle} through which diagnostic or error outputs should be printed. It
@@ -10098,7 +10282,7 @@ handle can be closed by the process shutdown code or the calling shell\key{Shell
 thus should in general not be closed explicitly. It can be changed through
 {\tt SelectError()}\key{SelectError()}.
 
-\subsection{Replace the Error File Handle}
+\subsection{Replace the Error File Handle} \label{sec:selecterror}
 
 The {\tt SelectError()}\mkey{SelectError()} function replaces the error
 file handle\key{FileHandle} of the calling process with its argument and returns the
@@ -10115,7 +10299,7 @@ This call replaces the error file handle\key{FileHandle} of the calling process 
 the file handle given by {\tt fh} and returns the previously used error
 file handle. It sets {\tt pr\_CES} of the calling process.
 
-\subsection{Retrieve the Current Directory}
+\subsection{Retrieve the Current Directory} \label{sec:getcurrentdir}
 
 The {\tt GetCurrentDir()}\mkey{GetCurrentDir()} function returns the current
 directory of the directory, indicated by a lock\key{Lock} on this object. This
@@ -10519,7 +10703,7 @@ icon from a file whose {FIBB\_EXECUTE} is set, indicating that the
 file is not executable. Why the Workbench does not use the same error
 code as the \emph{Shell} remains unclear.
 
-\subsection{Setting IoErr}
+\subsection{Setting IoErr} \label{sec:setioerr}
 
 The {\tt SetIoErr()}\mkey{SetIoErr()} function sets the value returned by
 the next call to {\tt IoErr()}\key{IoErr()} and thus initializes or resets
@@ -10544,7 +10728,7 @@ leave~a $0$ in {\tt IoErr()}\key{IoErr()} on success.
 This function returns the previous value of {\tt IoErr()}, and thus the same
 value {\tt IoErr()}\key{IoErr()} would return.
 
-\subsection{Select the Console Handler}
+\subsection{Select the Console Handler} \label{sec:setconsoletask}
 
 The {\tt SetConsoleTask()}\mkey{SetConsoleTask()} function selects the
 handler responsible for the ``{\tt *}''\key{* (file name)} file name and {\tt CONSOLE:}
@@ -10660,7 +10844,7 @@ of the {\tt Input()} file handle\key{FileHandle}. This function returns {\tt NUL
 the program was run from the Workbench; it is equivalent to reading
 the {\tt pr\_Arguments} member of the {\tt Process}\key{Process} structure.
 
-\subsection{Set the Command Line Arguments}
+\subsection{Set the Command Line Arguments} \label{sec:setargstring}
 
 The {\tt SetArgStr()}\mkey{SetArgStr()} function sets the string
 returned by {\tt GetArgStr()}\key{GetArgStr()}. It cannot set the
@@ -21126,7 +21310,7 @@ section~\ref{sec:doshellmethod}.
 
 This function does not change {\tt IoErr()}\key{IoErr()}.
 
-\section{Accessing Shell Variables}
+\section{Accessing Shell Variables} \label{sec:shellvariables}
 
 The functions in this section provide access to local and global
 shell\key{Shell Variable} variables, get and set them, or check whether a
@@ -21294,7 +21478,7 @@ error code. If a variable\key{Shell Variable} is to be deleted by setting {\tt b
   NULL}, and this variable does not exist, this function will set {\tt
   IoErr()} to {\tt ERROR\_OBJECT\_NOT\_FOUND}\key{ERROR\_OBJECT\_NOT\_FOUND}.
 
-\subsection{Finding a Shell Variable}
+\subsection{Finding a Shell Variable} \label{sec:findvar}
 
 The {\tt FindVar()}\mkey{FindVar()} locates a local shell\key{Shell
   Variable} variable or alias\key{Alias} of the calling process.
@@ -22562,7 +22746,7 @@ very helpful. The \emph{dos.library} provides multiple functions to
 generate human readable error messages, either to be printed on the
 console, or by creating a requester with a message on a screen.
   
-\subsection{Display an Error Requester}
+\subsection{Display an Error Requester} \label{sec:errorreport}
 
 The {\tt ErrorReport}\mkey{ErrorReport()} function creates an error
 requester based on an error code and a file system object such as a
