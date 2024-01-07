@@ -9355,7 +9355,7 @@ conditions.
 
 \chapter{Processes} \label{sec:process}
 
-\emph{Processes} are extensions of exec \emph{tasks}, and as
+\emph{Processes}\key{Process} are extensions of exec \emph{tasks}, and as
 such scheduled by exec. The most important extensions are that processes
 include a message port in the form of a \emph{MsgPort} structure for
 inter-process communication to handlers, a current directory to
@@ -9493,7 +9493,7 @@ the {\tt SYS} assign.
 process. It is also returned by {\tt Input()}\key{Input()}. It can be {\tt
   ZERO} in case the process does not have a standard input stream. This is
 \emph{not} equivalenqt to a {\tt NIL:} input handle --- in fact, any attempt
-to read from a non-existing input stream will crash. Processes started from
+to read from a non-existing input stream will crash. Processes\key{Process} started from
 the Workbench do not have an input stream, unless one is installed here with
 {\tt SelectInput()}\key{SelectInput()}.
 \smallskip{}
@@ -9502,7 +9502,7 @@ the Workbench do not have an input stream, unless one is installed here with
 process. It is also returned by the {\tt Output()}\key{Output()} function of
 the \emph{dos.library}. It can be {\tt ZERO} in case the process does not
 have a standard output stream, which is not equivalent to a {\tt NIL:} file
-handle. Any attempt to output to {\tt ZERO} will crash the system. Processes
+handle. Any attempt to output to {\tt ZERO} will crash the system. Processes\key{Process}
 started from the Workbench do not have an output stream, unless one is
 installed with {\tt SelectOutput()}\key{SelectOutput()}.
 \smallskip{}
@@ -9510,7 +9510,7 @@ installed with {\tt SelectOutput()}\key{SelectOutput()}.
 {\tt pr\_ConsoleTask}\mkey{pr\_ConsoleTask} is the {\tt MsgPort} of
 the console within which this process is run, if such a console
 exists. This handler is contacted when opening ``{\tt *}''\key{* (file name)} or a path
-relative to {\tt CONSOLE:}. Processes started from the Workbench do
+relative to {\tt CONSOLE:}. Processes\key{Process} started from the Workbench do
 not have a console, unless one is installed with {\tt
   SetConsoleTask()}\key{SetConsoleTask()}. The pointer stored in this
 element should better be obtained by {\tt
@@ -9578,10 +9578,10 @@ this function shall block until a message has been received. For details,
 see the {\tt DoPkt()}\key{DoPkt()} function and section~\ref{sec:handlers}.
 \smallskip{}
 
-{\tt pr\_WindowPtr}\mkey{pr\_WindowPtr} is, unlike what the name suggests, a
-pointer to an \emph{intuition} {\tt Screen} structure, see {\tt
-  intuition/screens.h}, on which error requesters will appear. If this is
-{\tt NULL}, error requesters appear on the default public screen, usually
+{\tt pr\_WindowPtr}\mkey{pr\_WindowPtr} is a
+pointer to an \emph{intuition} {\tt Window} structure, see {\tt
+  intuition/intuition.h} which will borrow its title and its screen to error
+requesters. If this is {\tt NULL}, error requesters appear on the default public screen, usually
 the Workbench screen, and if this is set to {\tt (APTR)(-1L)}, error
 requesters will be suppressed at all, and the implied response to them is to
 cancel the operation. This error requester is specified in more detail with
@@ -9668,7 +9668,7 @@ are not discussed here, but in section~\ref{sec:shell}. Therefore, {\tt
   System()} shares a couple of options with {\tt CreateNewProc()}\key{CreateNewProc()}.
 \smallskip{}
 
-There is surprisingly not a single function to delete processes. Processes
+There is surprisingly not a single function to delete processes. Processes\key{Process}
 die whenever their execution drops off at the end of the {\tt main()}
 function, or whenever execution reaches the final {\tt RTS} instruction of
 the main program function. The {\tt Exit()}\key{Exit()} function also
@@ -9799,19 +9799,20 @@ the \emph{dos.library}. This file system is contacted to resolve paths
 relative to the {\tt ZERO} lock\key{ZERO lock}.
 \smallskip{}
 
-{\tt NP\_WindowPtr}\mkey{NP\_WindowPtr} specifies a pointer to a {\tt Screen} on which
-error requesters will be displayed. If this pointer is $0$, requesters
-will be shown on the Workbench, and if it is $-1$, error requesters
-are suppressed. This value will be installed in the {\tt pr\_WindowPtr}\key{pr\_WindowPtr} of
-the process to be created. The default is to copy the pointer from the
-calling process if the window pointer of the parent is $0$ or
-$-1$. The tag does not copy any other value of {\tt pr\_WindowPtr}\key{pr\_WindowPtr}
-from the parent. To set the {\tt pr\_WindowPtr} of the created process
-to the value of the calling process, the tag must be explicitly
-provided. If called from a task and not a process, the default is {\tt
-  NULL}. The reason why {\tt pr\_WindowPtr} is not explicitly copied
-is that the caller shall ensure that the screen is not closed while
-any pointers are still pointing to its structure.
+{\tt NP\_WindowPtr}\mkey{NP\_WindowPtr} specifies a pointer to a {\tt
+  Window} that determines the title and the screen on which error requesters
+will be displayed. If this pointer is $0$, requesters will be shown on the
+default public screen --- that is, typically the Workbench --- and if it is
+$-1$, error requesters are suppressed. This value will be installed in the
+{\tt pr\_WindowPtr}\key{pr\_WindowPtr} of the process to be created. The
+default is to copy the pointer from the calling process if the window
+pointer of the parent is $0$ or $-1$. The tag does not copy any other value
+of {\tt pr\_WindowPtr}\key{pr\_WindowPtr} from the parent. To set the {\tt
+  pr\_WindowPtr} of the created process to the value of the calling process,
+the tag must be explicitly provided. If called from a task and not a
+process, the default is {\tt NULL}. The reason why {\tt pr\_WindowPtr} is
+not explicitly copied is that the caller shall ensure that the screen is not
+closed while any pointers are still pointing to its structure.
 \smallskip{}
 
 {\tt NP\_HomeDir}\mkey{NP\_HomeDir} sets the {\tt pr\_HomeDir}\key{pr\_HomeDir}
@@ -9897,7 +9898,7 @@ ignored and do not perform any function.
 \medskip{}
 
 The {\tt CreateNewProc()}\key{CreateNewProc()} function returns on
-success a pointer to the {\tt Process} structure just created. At this
+success a pointer to the {\tt Process}\key{Process} structure just created. At this
 stage, the process has already been launched and, depending on its
 priority, may already be running. On failure, the function returns
 {\tt NULL}. Unfortunately, it does not set {\tt IoErr()}\key{IoErr()} consistently
@@ -10613,7 +10614,7 @@ BPTR GetProgramDir(void)
 \end{verbatim}
 
 The lock returned by this function corresponds to the {\tt PROGDIR}\key{PROGDIR}
-(pseudo)-assign and the {\tt pr\_HomeDir} member of the {\tt Process}
+(pseudo)-assign and the {\tt pr\_HomeDir} member of the {\tt Process}\key{Process}
 structure, with the only exception that {\tt ZERO} does not correspond
 to the root directory of the boot volume, but rather indicates that no
 home directory exists.
@@ -10633,7 +10634,7 @@ BPTR SetProgramDir(BPTR)
 \end{verbatim}
 
 This function installs {\tt lock}\key{Lock} into {\tt pr\_HomeDir} of the {\tt
-  Process} structure. This {\tt lock} is supposed to belong to the
+  Process}\key{Process} structure. This {\tt lock} is supposed to belong to the
 directory the currently executing program was loaded from and is used
 to resolve the {\tt PROGDIR}\key{PROGDIR} pseudo-assign. If {\tt ZERO} is
 installed, the current process will be unable to resolve this
@@ -10657,7 +10658,7 @@ This function returns the command line arguments as {\tt
 register {\tt a0} on startup, or that is placed into the file buffer
 of the {\tt Input()} file handle\key{FileHandle}. This function returns {\tt NULL} if
 the program was run from the Workbench; it is equivalent to reading
-the {\tt pr\_Arguments} member of the {\tt Process} structure.
+the {\tt pr\_Arguments} member of the {\tt Process}\key{Process} structure.
 
 \subsection{Set the Command Line Arguments}
 
@@ -11320,7 +11321,7 @@ example, either launched as a new process through {\tt
   CreateNewProc()}\key{CreateNewProc()} explained in
 section~\ref{sec:createnewproc} or run as command within the current
 process via {\tt RunCommand}\key{RunCommand()} introduced in
-section~\ref{sec:runcommand}. Processes and commands using the C or
+section~\ref{sec:runcommand}. Processes\key{Process} and commands using the C or
 assembler binding are started from offset 0 of the first hunk
 loaded. Segments loaded as BCPL handlers through a particular {\tt
   GLOBVEC}\key{GLOBVEC} entry, see table~\ref{table:gvvalues}
@@ -13389,7 +13390,7 @@ initialized to point to the {\tt DosPacket} itself.
 packet shall be send back after the handler has completed the requested
 activity. This is typically, but not necessary {\tt pr\_MsgPort} of the
 process sending the packet. See section~\ref{sec:process} for the definition
-of the {\tt Process} structure.
+of the {\tt Process}\key{Process} structure.
 \smallskip{}
 
 {\tt dp\_Type}\mkey{dp\_Type} identifies the action requested from the handler. It shall be
@@ -13561,7 +13562,7 @@ handler; it is also implicitly called by {\tt DoPkt()}\key{DoPkt()} after
 sending the messages to the handler.
 \smallskip{}
 
-If the {\tt pr\_PktWait}\key{pr\_PktWait} pointer in the {\tt Process} structure is set, {\tt
+If the {\tt pr\_PktWait}\key{pr\_PktWait} pointer in the {\tt Process}\key{Process} structure is set, {\tt
   WaitPkt()} calls through this function to wait for the arrival of a
 message. Otherwise, the {\tt WaitPkt()} calls {\tt WaitPort()} to wait for a
 arrival of a message on {\tt pr\_MsgPort}\key{pr\_MsgPort} of the calling process, and then
@@ -22576,7 +22577,7 @@ BOOL ErrorReport(LONG, LONG, ULONG, struct MsgPort *)
 \end{verbatim}
 
 This function creates an error requester either on the Workbench
-screen, or on a screen that is given by the {\tt pr\_WindowPtr}\key{pr\_WindowPtr} of the
+screen, or on the same screen as the window given by the {\tt pr\_WindowPtr}\key{pr\_WindowPtr} of the
 calling process. If {\tt pr\_WindowPtr} is~$-1$, then no requester is
 shown and the function returns immediately with a non-zero return
 code, indicating that cancelation of the activity is desired. This
@@ -22849,7 +22850,7 @@ table, and is part of the complete table reachable through {\tt
   FindCliProc()}\key{FindCliProc()} function specified in
 section~\ref{sec:findcliproc} shall be used. This first array consists
 of a long-word that indicates the size of the first part of the table,
-all remaining entries are pointers to {\tt Process} structures (see
+all remaining entries are pointers to {\tt Process}\key{Process} structures (see
 section~\ref{sec:process}) or {\tt NULL}. This array is indexed by the
 CLI number, though only processes that are associated to a shell\key{Shell} are
 listed here.
