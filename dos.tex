@@ -1210,8 +1210,9 @@ process\key{Process}, if such a console\key{console} exists. Any data output
 to the file named {\tt *} will be printed on the console. Reading from {\tt
   *} will wait for the user to input data on the console, and will return
 such data. If no console exists, for example for processes run from the
-Workbench, then AmigaDOS versions 36 and later fall back to {\tt NIL},
-aborbing any output. Earlier versions failed to open {\tt *} in such a case.
+Workbench, then AmigaDOS versions 36 and later fall back to opening
+{\tt NIL:} which absorbs any output. Earlier versions failed to
+open {\tt *} in such a case.
 
 \punchline{Not a wildcard!}{Unlike other operating systems, the
   asterisk {\tt *} is \emph{not} a wildcard under AmigaDOS. It rather
@@ -9853,43 +9854,42 @@ in AmigaDOS version 36, it only came in use from AmigaDOS version 47 onwards.
 
 \section{Creating and Terminating Processes}
 
-AmigaDOS provides several functions to create functions: {\tt
-  CreateNewProc()}\key{CreateNewProc()} is the revised and most flexible
-function for launching a process, taking many parameters in the form of a
-tag list. The legacy function{\tt CreateProc()}\key{CreateProc()} supports
-less options, but available under all Os versions. Shells as created by the
-{\tt System()}\key{System()} function implicitly also create processes, but
-are not discussed here, but in section~\ref{sec:shell}. Therefore, {\tt
+AmigaDOS provides several functions to create processes: {\tt
+  CreateNewProc()}\key{CreateNewProc()} is the extended and most flexible
+function for launching a process, taking parameters in the form of a
+tag list. The legacy function {\tt CreateProc()}\key{CreateProc()} supports
+less options, but available under all AmigaDOS versions. Shells as created by the
+{\tt System()}\key{System()} function implicitly also create a process, but
+are not discussed here, but in section~\ref{sec:shell}. For that reason, {\tt
   System()} shares a couple of options with {\tt CreateNewProc()}\key{CreateNewProc()}.
 \smallskip{}
 
-There is surprisingly not a single function to delete processes. Processes\key{Process}
+There is not a single function to delete a process. Processes\key{Process}
 die whenever their execution drops off at the end of the {\tt main()}
 function, or whenever execution reaches the final {\tt RTS} instruction of
 the main program function. The {\tt Exit()}\key{Exit()} function also
-terminates a process, but shall be called from within the process, and is
+terminates a process, but shall only be called from within the process, and is
 typically not suitable as it does not release resources acquired by the
-program itself, but only those allocated by the system itself.
+program itself, but only those allocated by the system.
 
 \subsection{Creating a New Process from a TagList} \label{sec:createnewproc}
 
 The {\tt CreateNewProc()}\mkey{CreateNewProc()} function takes a {\tt
   TagItem} array as defined in {\tt utility/tagitem.h} and launches a new
-process from this list. The tags this function takes are defined in {\tt
-  dos/dostags.h}.
+process taking parameters from this list. 
 
 \begin{verbatim}
-process = CreateNewProc(tags)
+process = CreateNewProc(tags) /* since V36 */
 D0                       D1
 
 struct Process *CreateNewProc(struct TagItem *)
 
-process = CreateNewProcTagList(tags)
+process = CreateNewProcTagList(tags) /* since V36 */
 D0                              D1
 
 struct Process *CreateNewProcTagList(struct TagItem *)
 
-process = CreateNewProcTags(Tag1, ...)
+process = CreateNewProcTags(Tag1, ...) /* since V36 */
 
 struct Process *CreateNewProcTags(ULONG, ...)
 \end{verbatim}
@@ -9898,7 +9898,11 @@ The above functions go all through the same entry points of the
 \emph{dos.library}, only the calling conventions are different.
 For {\tt CreateNewProcTags()}, the {\tt TagList} is created by the
 compiler on the stack and a pointer is then implicitly passed into the
-function. The following tags are recognized by the function:
+function. The first two functions are identical and differ only by name.
+\medskip{}
+
+The following tags are recognized by the function and are defined in
+{\tt dos/dostags.h}:
 \smallskip{}
 
 {\tt NP\_Seglist}\mkey{NP\_Seglist} takes a BPTR to a segment list as returned by {\tt
@@ -9907,71 +9911,88 @@ of the list.
 \smallskip{}
 
 {\tt NP\_FreeSeglist}\mkey{NP\_FreeSegList} is a boolean indicator that defines whether the
-segment provided to {\tt NP\_Seglist}\key{NP\_Seglist} is released when the process
+provided segment list is released via {\tt UnLoadSeg()}\key{UnLoadSeg()} when the process
 terminates. Unlike what the official documentation claims, the default value
-of this tag is {\tt DOSFALSE}, i.e.\ the segment is \emph{not} released.
+of this tag is {\tt DOSFALSE}, i.e.\ the segment list is \emph{not}
+released by default. The segment list is never released if creating the process failed,
+regardless of this tag.
 \smallskip{}
 
 {\tt NP\_Entry}\mkey{NP\_Entry} is mutually exclusive to {\tt NP\_Seglist}\key{NP\_Seglist} and defines an
 absolute address (and not a segment) as entry point of the process to be
-created. If this tag is provided, then {\tt NP\_FreeSeglist} shall
-\emph{not} be set a non-zero value. Either {\tt NP\_Entry} or {\tt
-  NP\_Seglist} shall be included in the tag list.
+created. Either {\tt NP\_Entry} or {\tt NP\_Seglist} shall be included in
+the tags. If {\tt NP\_Entry} tag is present, then {\tt NP\_FreeSeglist} shall
+\emph{not} be included, or shall be set to {\tt DOSFALSE}.
 \smallskip{}
      
 {\tt NP\_Input}\mkey{NP\_Input} sets the input file handle\key{FileHandle}, i.e.\ {\tt
-  pr\_CIS}\key{pr\_CIS} of the process to be created. This tag takes a
-BPTR to a {\tt FileHandle} structure. The default is \emph{not} to set
-the input file handle, e.g.\ to leave it {\tt ZERO}.
+  pr\_CIS}\key{pr\_CIS}, of the process to be created. This tag takes a
+BPTR to a {\tt FileHandle} structure. The default is to open a file handle to
+{\tt NIL:}.
 \smallskip{}
 
-{\tt NP\_CloseInput}\mkey{NP\_CloseInput} selects whether the input file handle\key{FileHandle}, if provided,
+{\tt NP\_CloseInput}\mkey{NP\_CloseInput} selects whether the input file handle\key{FileHandle}
 will be closed when the process terminates. If non-zero, the input file handle\key{FileHandle}
 will be closed, otherwise it remains opened. The default is to close the
-input file handle.
+input file handle, no matter which handle the process left in
+{\tt pr\_CIS} when terminating. If creating the process failed, a handle
+provided by {\tt NP\_INPUT} remains available to the caller and will not be
+closed. The handle to {\tt NIL:} that is used as default will, however, be
+cleaned up on error.
 \smallskip{}
 
 {\tt NP\_Output}\mkey{NP\_Output} sets the output file handle\key{FileHandle},
-i.e.\ {\tt pr\_COS}\key{pr\_COS} of the process to be created. This tag
-takes a BPTR to a {\tt FileHandle} structure. The default is to
-leave the output at {\tt ZERO}.
+i.e.\ {\tt pr\_COS}\key{pr\_COS}, of the process to be created. This tag
+takes a BPTR to a {\tt FileHandle} structure. The default is to open a file
+handle to {\tt NIL:}.
 \smallskip{}
 
-{\tt NP\_CloseOutput}\mkey{NP\_CloseOutput} selects whether the output file handle\key{FileHandle}, if
-provided, will be closed when the process terminates. If non-zero, the
-output file handle will be closed, otherwise it remains open. The default is
-to close the output file handle.
+{\tt NP\_CloseOutput}\mkey{NP\_CloseOutput} selects whether the output file
+handle\key{FileHandle} will be closed when the process terminates. If
+non-zero, the output file handle will be closed, otherwise it remains
+open. The default is to close the output file handle in {\tt pr\_COS} when
+the created process terminates, even if it is not the file handle passed
+into {\tt NP\_Output}. If creating the process failed, a file handle
+provided through {\tt NP\_Output} remains open and available to the
+caller. The file handle to {\tt NIL:} that is used as default will, however,
+be cleaned up on error.
 \smallskip{}
 
-{\tt NP\_Error}\mkey{NP\_Error} sets the error file handle\key{FileHandle}, i.e.\ {\tt
-  pr\_CES}\key{pr\_CES} of the process to be created. This tag also
-takes a BPTR to a {\tt FileHandle} structure. The default is to leave
-the error output handle at {\tt ZERO}.
+{\tt NP\_Error}\mkey{NP\_Error} sets the error file handle\key{FileHandle}, i.e.\
+{\tt pr\_CES}\key{pr\_CES}, of the process to be created. This tag also
+takes a BPTR to a {\tt FileHandle} structure. The default is to set
+the error output handle to {\tt ZERO}. This tag was not implemented prior
+to AmigaDOS version~47.
 \smallskip{}
 
-{\tt NP\_CloseError}\mkey{NP\_CloseError} selects whether the error file handle\key{FileHandle}, if provided, will
-be closed when the process terminates. If non-zero, the error file handle
-will be closed, otherwise it remains open. The default is \emph{not} to
-close the error file handle. This (different) default is to ensure backwards
-compatibility.
+{\tt NP\_CloseError}\mkey{NP\_CloseError} selects whether the error file
+handle\key{FileHandle} will be closed when the process terminates, no matter
+whether it was set by a tag or by the process itself during its
+life-time. If non-zero, the error file handle will be closed, otherwise it
+remains open. The default is \emph{not} to close the error file handle. This
+(different) default is to ensure backwards compatibility. This tag was
+also introduced in AmigaDOS version~47.
 \smallskip{}
 
 {\tt NP\_CurrentDir}\mkey{NP\_CurrentDir} sets the current directory of the process to be
-created. The argument is a lock\key{Lock}. The default is to duplicate the
+created. The argument is a lock\key{Lock} which is absorbed into the created
+process, and will also be released by it. The default is to duplicate the
 current directory of the caller with {\tt DupLock()}\key{DupLock()} if the
-caller is a process, or leave the current directory at {\tt ZERO}.
+caller is a process, or set it to {\tt ZERO} if the caller is only a task.
 The current directory of the process, i.e.\ {\tt pr\_CurrentDir}, is released
-when the process terminates, unless {\tt NP\_CurrentDir} is set to {\tt ZERO}. 
+when the process terminates, unless the initial current directory is {\tt ZERO}.
+The provided lock is also released if creating the new process failed.
 \smallskip{}
 
 {\tt NP\_StackSize}\mkey{NP\_StackSize} sets the stack size of the process to be created in
 bytes. The default is a stack size of $4000$ bytes.
 \smallskip{}
 
-{\tt NP\_Name}\mkey{NP\_Name} is a pointer to a {\tt NUL} terminated string to which the
-task name of the process to be created is set. This string is copied before
+{\tt NP\_Name}\mkey{NP\_Name} is a pointer to a {\tt NUL} terminated string
+determining the name of the new process. This string is copied before
 the process is launched, and the copy is released automatically when the
-process terminates. The default process name is ``{\tt New Process}''.
+process terminates; thus, the original string remains available to the
+caller. The default process name is ``{\tt New Process}''.
 \smallskip{}
 
 {\tt NP\_Priority}\mkey{NP\_Priority} sets the priority of the process to be created. The tag
@@ -9981,109 +10002,121 @@ are in the range of~$0$ to~$20$. The default is~$0$.
 
 {\tt NP\_ConsoleTask}\mkey{NP\_ConsoleTask} specifies a pointer to a {\tt MsgPort} to the handler
 that is responsible for the console of the process to be created. That is,
-if the created process opens ``{\tt *}''\key{* (file name)} or a path relative to {\tt
-  CONSOLE:}, it will use the specified handler. The default is to use the
-console handler if the caller is a process, or {\tt NULL} if the caller is 
+if the created process opens ``{\tt *}''\key{* (file name)} or a path
+relative to {\tt CONSOLE:}, it will use the specified handler. The default is to use the
+console handler of the caller if it is process, or {\tt NULL} if the caller is 
 only a task.
 \smallskip{}
 
-While not explicitly available as a tag, {\tt pr\_FileSystemTask}\key{pr\_FileSystemTask} of
+While not explicitly available as a tag, the {\tt pr\_FileSystemTask}\key{pr\_FileSystemTask} of
 the created process is set to the default file system of the calling
-process if the caller is a process, or to the default file system from
-the \emph{dos.library}. This file system is contacted to resolve paths
-relative to the {\tt ZERO} lock\key{ZERO lock}.
+process, or to the default file system from
+the \emph{dos.library} if the caller is a task. This file system is contacted to resolve paths
+relative to the {\tt ZERO} lock\key{ZERO lock}, and is typically also the
+file system responsible for the {\tt SYS} assign\key{Assign}.
 \smallskip{}
 
 {\tt NP\_WindowPtr}\mkey{NP\_WindowPtr} specifies a pointer to a {\tt
-  Window} that determines the title and the screen on which error requesters
-will be displayed. If this pointer is $0$, requesters will be shown on the
-default public screen --- that is, typically the Workbench --- and if it is
-$-1$, error requesters are suppressed. This value will be installed in the
-{\tt pr\_WindowPtr}\key{pr\_WindowPtr} of the process to be created. The
-default is to copy the pointer from the calling process if the window
-pointer of the parent is $0$ or $-1$. The tag does not copy any other value
-of {\tt pr\_WindowPtr}\key{pr\_WindowPtr} from the parent. To set the {\tt
-  pr\_WindowPtr} of the created process to the value of the calling process,
-the tag must be explicitly provided. If called from a task and not a
+  Window} structure that determines the title of and the screen on which error requesters
+will be displayed, see also section~\ref{sec:errorreport}. If this pointer is~{\tt NULL}, requesters will be shown on the
+default public screen --- that is, typically the Workbench --- and if it
+is~$-1$, error requesters are suppressed and the \emph{dos.library} reacts
+as if the user canceled the requester. The argument of the tag will be installed in the
+{\tt pr\_WindowPtr}\key{pr\_WindowPtr} of the new process. If no
+tag is provided, the default is to copy the value from the calling process if its window
+pointer is {\tt NULL} or $-1$, or set to {\tt NULL}
+otherwise. To set the {\tt pr\_WindowPtr} of the created process to that of
+the caller, the tag and the window pointer shall be explicitly provided. If called from a task and not a
 process, the default is {\tt NULL}. The reason why {\tt pr\_WindowPtr} is
-not explicitly copied is that the caller shall ensure that the screen is not
-closed while any pointers are still pointing to its structure.
+not explicitly copied is that otherwise the calling process need to ensure
+that the provided window remains at least as long open as the created
+process keeps running.
 \smallskip{}
 
 {\tt NP\_HomeDir}\mkey{NP\_HomeDir} sets the {\tt pr\_HomeDir}\key{pr\_HomeDir}
 lock\key{Lock} which is used to resolve paths relative to the {\tt PROGDIR}\key{PROGDIR} pseudo-assign.
-The default is to copy {\tt pr\_HomeDir} of the calling process, or {\tt ZERO} in
+The default is to duplicate {\tt pr\_HomeDir} of the calling process, or {\tt ZERO} in
 case the caller is a task. This lock\key{Lock} is released when the process
-terminates, i.e.\ the lock provided as argument here remains available
-to the caller, and shall be released by the caller in one way or
-another.
+terminates, even if it is the lock of the caller. Should the
+caller still require the lock, it needs to be copied by
+{\tt DupLock()}\key{DupLock()} upfront. The provided lock is released even
+if creating the new process fails.
 \smallskip{}
 
 {\tt NP\_CopyVars}\mkey{NP\_CopyVars} determines if the local
-shell\key{Shell Variable} variables in
-{\tt pr\_LocalVars}\key{pr\_LocalVars} of the calling process are copied into the variables of the
-process to be created. If set to non-zero, a copy of the variables of the
+shell\key{Shell Variable} variables and alias definitions in
+{\tt pr\_LocalVars}\key{pr\_LocalVars} of the calling process are copied
+into the new process. If set to non-zero, a deep copy of the variables of the
 calling process are made, otherwise the new process does not receive any
-shell variables by itself. The latter also happens if the caller is a task
+shell variables and alias definitions. The latter also happens if the caller is a task
 and not a process. The variables are automatically released when the new
-process terminates.
+process terminates, and once the new process is running, two independent
+sets of variables and alias definitions exist.
 \smallskip{}
 
 {\tt NP\_Cli}\mkey{NP\_Cli} determines whether the new process will receive a new shell\key{Shell}
 environment in the form of a {\tt CommandLineInterface}\key{CommandLineInterface} structure. If
 non-zero, a new CLI structure will be created and a BPTR to this
-structure will be filled into the {\tt pr\_CLI}\key{pr\_CLI} member of the process to be
-created. The new shell environment will be a copy of the shell environment
+structure will be filled into the {\tt pr\_CLI}\key{pr\_CLI} element.
+The new shell environment will be a copy of the shell environment
 of the caller if one is present, or a shell environment initialized with all
 defaults. This means that the prompt, the path, and the command name will be
-copied over. If~$0$, no such environment will be created. The latter is also the
-default.
+copied over if possible. If the tag value is~$0$, no CLI structure will be
+created. The latter is also the default.
 \smallskip{}
 
-{\tt NP\_Path}\mkey{NP\_Path} provides a chained list of locks\key{Lock} within which commands
-are searched. This is the same list the {\tt Path} command adjusts, see
+{\tt NP\_Path}\mkey{NP\_Path} provides a chained list of locks\key{Lock}
+within which commands for shell execution are searched. This is the same list the {\tt Path} command adjusts, see
 section~\ref{sec:getcli} for details on this structure. This tag only applies
-if {\tt NP\_Cli}\key{NP\_Cli} is non-zero to create a shell\key{Shell} environment. This chained
-list is \emph{not} copied, and will be released when the created process
+if {\tt NP\_Cli}\key{NP\_Cli} is non-zero to request a shell environment. This chained
+list is \emph{not} copied, only referenced, and will be released when the created process
 terminates; hence, the locks provided here are \emph{no longer} available to
 the caller if {\tt CreateNewProc()}\key{CreateNewProc()} succeeds. If {\tt CreateNewProc()}
 fails, the entire lock list remains a property of the caller and thus needs
 to be potentially released there. The default, if this tag is not provided, is
-to copy the paths of the caller if the calling process has a non-zero
-{\tt pr\_CLI}\key{pr\_CLI} structure.
+to copy the paths of the caller if the calling process is equipped with a
+CLI structure. This copy is, of course, released on error.
 \smallskip{}
 
 {\tt NP\_CommandName}\mkey{NP\_CommandName} provides the name of the command being executed within
 the shell\key{Shell} environment if {\tt NP\_Cli}\key{NP\_Cli} indicates that one is to be
-created. The default is to copy the command name of the shell environment of
-the calling process if one exists, or to leave the command name empty if
-none is provided. The command name is copied into the shell environment of
-the process being created and thus remains available to the caller. More on
-the shell environment is found in section~\ref{sec:shell}.
+created. This tag does not actually \emph{load} any command, it only
+provides an identification within the shell which command is running, see also
+section~\ref{sec:getcli}. The default is to copy the command name of the shell environment of
+the calling process if one exists, or to leave the command name empty if the
+caller is not part of a shell or is a task. The string is copied, and the
+original thus remains available to the caller. More on
+the shell environment is found in section~\ref{sec:getcli}.
 \smallskip{}
 
-{\tt NP\_Arguments}\mkey{NP\_Arguments} provides command line arguments for the process to be
-created. This is a {\tt NUL} terminated string that is copied into the
-process to be created, and will also be released there. If provided, the
-arguments are copied in {\tt pr\_Arguments}\key{pr\_Arguments} of the process to be created,
-and will also be loaded into registers {\tt A0} and its length into
-{\tt D0}. If {\tt NP\_Arguments} are non-zero, a non-{\tt ZERO} {\tt
-  NP\_Input} file handle\key{FileHandle} shall also provided. This is because the arguments
-are also copied into the buffer associated to the input file handle
-to make them available to {\tt ReadArgs()}\key{ReadArgs()}, or any other
-function that performs buffered read from {\tt pr\_CIS}\key{pr\_CIS}, see
-section~\ref{sec:bufferedio} for details.
+{\tt NP\_Arguments}\mkey{NP\_Arguments} provides command line arguments for
+the process to be created. This is a {\tt NUL} terminated string containing
+all arguments to be received by the created process, \emph{excluding} the
+command name itself which is set by the above tag. If provided, the
+arguments are copied into {\tt pr\_Arguments}\key{pr\_Arguments} of the new
+process, and the string and its lengths will be loaded into registers {\tt
+  A0} and {\tt D0} before execution of the process begins.  If {\tt
+  NP\_Arguments} are non-{\tt NULL}, the tag value of {\tt NP\_Input}, if it is
+included, shall not be {\tt ZERO}. This is because the arguments are
+additionally copied into the buffer of the input file handle to make them
+available to {\tt ReadArgs()}\key{ReadArgs()}, or any other function that
+reads from {\tt pr\_CIS}\key{pr\_CIS} using buffered I/O functions, see
+section~\ref{sec:bufferedio} for details. The arguments are always copied by
+this function and the string thus remains available to the caller, the copy
+will released when the created process terminates or when creation of the
+process failed.
 \smallskip{}
 
 {\tt NP\_ExitCode}\mkey{NP\_ExitCode} determines a pointer to function that is called
 when the created process terminates. It is installed into {\tt
-  pr\_ExitCode}. See section~\ref{sec:process} for the description and
+  pr\_ExitCode}. See chapter~\ref{sec:process} for the description and
 the signature of this function.
 \smallskip{}
 
 {\tt NP\_ExitData}\mkey{NP\_ExitData} provides an argument that will
 be passed into the {\tt NP\_ExitCode}\key{NP\_ExitCode} function in
-register {\tt D1} when the process terminates.
+register {\tt D1} when the process terminates. Details are again at the
+beginning of chapter~\ref{sec:process}.
 \smallskip{}
 
 While {\tt dos/dostags.h} also defines the tags {\tt
@@ -10098,6 +10131,12 @@ stage, the process has already been launched and, depending on its
 priority, may already be running. On failure, the function returns
 {\tt NULL}. Unfortunately, it does not set {\tt IoErr()}\key{IoErr()} consistently
 on failure.
+
+\punchline{What's Released on Error?}{Unfortunately, {\tt
+    CreateNewProc()}\key{CreateNewProc()} is not very consistent on which
+  resources it releases in case it cannot create a process. The locks
+  representing the current directory and the home directory are released in
+  such a case, all other resources remain available to the caller.}
 
 \subsection{Create a Process (Legacy)}
 
