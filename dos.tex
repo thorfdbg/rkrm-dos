@@ -9488,10 +9488,11 @@ shell, and not the stack size of the command line tool executing in the
 context of the shell. Thus, this element is unsuitable to retrieve the stack
 size of the currently running process in general. Instead, the elements {\tt
   tc\_SPLower} and {\tt tc\_SPUpper} of the task structure shall be used,
-which are even updated properly when {\tt RunCommand()} is used to execute
-commands in the context of the shell and provides a custom stack for
-them. The latter, namely the stack size for command execution, is adjustable
-by means of the {\tt Stack} command.
+which are updated properly when providing a new stack by {\tt StackSwap()},
+or {\tt RunCommand()} is used to execute commands in the context of the
+shell and provides a custom stack for them. The latter, namely the stack
+size for command execution, is adjustable by means of the {\tt Stack}
+command.
 \smallskip{}
 
 {\tt pr\_GlobVec}\mkey{pr\_GlobVec} is another BCPL legacy. It contains the
@@ -9839,6 +9840,16 @@ section~\ref{sec:erroroutput} to get access to the standard error stream. This f
 will also implement the fall-back to the standard output stream in case no
 standard error stream is available. Even though this element already existed
 in AmigaDOS version 36, it only came in use from AmigaDOS version 47 onwards.
+
+\punchline{Prefer Accessor Functions}{The elements of the {\tt Process}
+  structure should not be accessed directly if an accessor function is
+  available. Thus, prefer {\tt Input()} to {\tt pr\_CIS} and {\tt Cli()} to
+  {\tt pr\_CLI}, etc. There are only very few elements in this structure which
+  should be accessed directly: {\tt pr\_WindowPtr} controls the generation
+  of error requesters, and {\tt pr\_TaskNum} provides the task ID of a shell
+  process. All remaining elements are either accessible through functions of
+  the \emph{dos.library} or are BCPL legacies that serve little practical
+  purpose today.}
 
 \section{Creating and Terminating Processes}
 
