@@ -9870,7 +9870,11 @@ function, or whenever execution reaches the final {\tt RTS} instruction of
 the main program function. The {\tt Exit()}\key{Exit()} function also
 terminates a process, but shall only be called from within the process, and is
 typically not suitable as it does not release resources acquired by the
-program itself, but only those allocated by the system.
+program itself, but only those allocated by the {\tt CreateProc()} or {\tt
+  CreateNewProc()}. In no event should processes be terminated by the
+\emph{exec.library} function {\tt RemTask()} as this function will miss to
+release most resources allocated by the \emph{dos.library} when creating 
+processes.
 
 \subsection{Creating a New Process from a TagList} \label{sec:createnewproc}
 
@@ -10141,9 +10145,8 @@ on failure.
 \subsection{Create a Process (Legacy)}
 
 The {\tt CreateProc()}\mkey{CreateProc()} function creates a process from a
-segment list, a name, a priority and a stack size. It is a legacy call that
-is not as flexible as {\tt CreateNewProc()}\key{CreateNewProc()}, and only
-exists for backwards compatibility reasons.
+segment list, a name, a priority and a stack size. It is a legacy function that
+is not as flexible as {\tt CreateNewProc()}\key{CreateNewProc()}.
 
 \begin{verbatim}
 process = CreateProc( name, pri, seglist, stackSize )
@@ -10158,12 +10161,15 @@ segment list passed in as {\tt seglist}, and a stack size of {\tt stackSize}
 bytes will be allocated for the process.
 \smallskip{}
 
-The process is initialized as follows: {\tt pr\_ConsoleTask}\key{pr\_ConsoleTask} and
+The process is initialized as follows: The task name is set to a copy of
+{\tt name}, and this copy is released when the process terminates. {\tt pr\_ConsoleTask}\key{pr\_ConsoleTask} and
 {\tt pr\_WindowPtr}\key{pr\_WindowPtr} are copied from the calling process, or are set
 to {\tt NULL} respective~$0$ if called from the task. The member
 {\tt pr\_FileSystemTask}\key{pr\_FileSystemTask} is also copied from the calling process, or
 is initialized from the default file system from the
-\emph{dos.library} if called from a task.
+\emph{dos.library} if called from a task. The latter is only possible from
+AmigaDOS versions 36 onwards, earlier versions would crash if
+{\tt CreateTask()} would be called from a task.
 \smallskip{}
 
 Input, output and error file handles\key{FileHandle} are set to {\tt ZERO}, and no shell\key{Shell}
@@ -10172,9 +10178,20 @@ also left at {\tt ZERO}. No arguments are provided to the called function,
 and no shell variables\key{Shell Variable} are copied.
 \smallskip{}
 
-If the call succeeds, the returned value {\tt process} is a pointer to the
-\emph{MsgPort} of the created process. It is \emph{not} a pointer to a
-process itself.
+The passed in {\tt seglist} is \emph{not} released upon termination. This
+should be done manually, though {\tt CreateProc()} does not offer a protocol
+to learn when the created process terminates and the segment list
+may be released again. The Workbench establishes a protocol by which a
+startup message is send to the process, and the created process is expected
+to {\tt Forbid()} task switching and reply the message before it
+terminates. The creator of such a process then learns from the returned
+message that the segment list can be released again. Unless compatibility to
+AmigaDOS 34 and below is required, {\tt CreateNewProc()}\key{CreateNewProc()} offers a more practical solution. 
+\smallskip{}
+
+If {\tt CreateProc()}\key{CreateProc()} succeeds, the returned value
+{\tt process} is a pointer to the \emph{MsgPort} of the created process. It is
+\emph{not} a pointer to a process itself.
 \smallskip{}
 
 On failure, the function returns {\tt NULL}. Unfortunately, it does not set
