@@ -10222,20 +10222,22 @@ cannot be easily identified.
 \subsection{Terminating a Process} \label{sec:exit}
 
 The {\tt Exit()}\mkey{Exit()} function terminates the calling process or the
-calling command line executable. In the latter case, control is returned to
-the calling shell\key{Shell}, in the former case, the process is removed from the exec
+calling command line program. In the latter case, control is returned to
+the shell\key{Shell}, in the former case, the process is removed from the exec
 scheduler.
 \smallskip{}
 
-However, this function does not release any resources except those implicitly
-allocated when creating the process through {\tt
+However, this function does not release any resources except those
+implicitly allocated when creating the process through {\tt
   CreateNewProc()}\key{CreateNewProc()}, {\tt
-  CreateProc()}\key{CreateProc()} or {\tt RunCommand()}\key{RunCommand()}
-and the calling shell\key{Shell}. As it misses to release resources allocated by you or
-the compiler startup code, this function \emph{should not be used} and
-rather a compiler or language specific shutdown function should be
-preferred. The C standard library provides {\tt exit()} which releases
-resources allocated through this library.
+  CreateProc()}\key{CreateProc()} or starting the program from the shell
+through {\tt RunCommand()}\key{RunCommand()}. As it misses to release
+resources allocated by the program itself or the compiler startup code, this
+function \emph{should not be used} and rather a compiler or language
+specific shutdown function should be preferred. Ideally, programs should
+simply return from their main function to the operating system. The C
+standard library provides {\tt exit()} (with smaller case ``{\tt e}'') which
+releases resources obtained through the ANSI C environment.
 
 \begin{verbatim}
 Exit( returnCode )
@@ -10245,20 +10247,25 @@ void Exit(LONG)
 \end{verbatim}
 
 This call either terminates the calling process, in which case the argument
-is ignored, or returns to the calling shell\key{Shell}, then delivering {\tt
-  returnCode} as result code. It uses the BCPL stack frame pointed to by
-{\tt pr\_ReturnAddr}\key{pr\_ReturnAddr}, removes this stack frame, initializes the new stack
-from the stack frame there and then returns to whatever created the
-stack frame. This is typically either the process shutdown code of AmigaDOS, or
+is ignored, or returns to the shell\key{Shell}, then delivering {\tt
+  returnCode} as result code. It locates the BCPL stack frame at
+{\tt pr\_ReturnAddr}\key{pr\_ReturnAddr}, removes it,
+initializes the previous stack linked there and then returns to
+whatever function created the previous stack frame. See the beginning of
+chapter~\ref{sec:process} how the stack frame looks like. The function
+returned to is typically either the process shutdown code of AmigaDOS, or
 the shell command shutdown code installed by {\tt RunCommand()}. In the
-former code, {\tt pr\_ExitCode()}\key{pr\_ExitCode()} may be used to implement additional
-cleanup activities.
+former case, {\tt pr\_ExitCode()}\key{pr\_ExitCode()} may be used to
+implement additional cleanup activities.
 \smallskip{}
 
 This function is a BCPL legacy function that is also part of the
-\emph{Global Vector}\key{Global Vector}; BCPL programs would typically
-overload its entry in this vector to implement a custom shutdown
-mechanism.
+Global Vector\key{Global Vector} and historically exported from
+therre to the \emph{dos.library} interface; BCPL programs would typically
+overload its entry to customize their shutdown
+activities. ANSI-C offers with the {\tt atexit()} function a similar
+mechanism. {\tt Exit()} is therefore less relevant (if relevant at all) to C
+or assembler programs.
 
 \section{Process Properties Accessor Functions}
 
