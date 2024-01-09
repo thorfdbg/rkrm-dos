@@ -10269,11 +10269,11 @@ or assembler programs.
 
 \section{Process Properties Accessor Functions}
 
-The most important members of the process structure described in
+Many elements of the {\tt Process} structure described in
 section~\ref{sec:process} are accessible through getter and setter
 functions. They implicitly relate to the calling process, and are the
-preferred way of getting access to the {\tt Process}\key{Process} structure. The
-functions listed in this section do not touch {\tt IoErr()}\key{IoErr()} except
+preferred way of getting access to its properties and state.  The functions
+listed in this section do not touch {\tt IoErr()}\key{IoErr()} unless
 explicitly stated.
 
 \subsection{Retrieve the Process Input File Handle} \label{sec:input}
@@ -10289,13 +10289,22 @@ D0
 BPTR Input(void)
 \end{verbatim}
 
-This function returns a BPTR to the input file handle\key{FileHandle} of the calling
-process, or {\tt ZERO} if none is defined. It returns {\tt
-  pr\_CIS}\key{pr\_CIS} of the calling process, which is approximately
-the {\tt stdin} of ANSI-C. Depending on process creation, this file
-handle\key{FileHandle} can be closed by the process shutdown code or the calling shell\key{Shell}
-and thus should in general not be closed explicitly. It can be changed
-through {\tt SelectInput()}\key{SelectInput()}.
+This function returns a BPTR to the input file handle\key{FileHandle} of the
+calling process, or {\tt ZERO} if none is defined. It returns {\tt
+  pr\_CIS}\key{pr\_CIS} of the calling process, which is approximately the
+{\tt stdin} of ANSI-C. Depending on process creation, this file
+handle\key{FileHandle} will be closed by the process shutdown code or the
+calling shell\key{Shell} and thus should not be closed explicitly by the
+caller. The standard input stream may be changed through {\tt SelectInput()}\key{SelectInput()}.
+\smallskip{}
+
+For command line programs started from the shell, this file handle is
+connected to the console, unless it has been redirected by the ``{\tt <}'', ``{\tt <{}<}''
+or ``{\tt <>}'' operators, see section~\ref{sec:redirection}. Programs started from the
+workbench do not receive an input file handle at all, {\tt pr\_CIS} remains
+{\tt ZERO} unless explicitly set\footnote{The information in~\cite{guru}
+that programs run from the workbench receive a {\tt NIL:} handle is
+incorrect.}.
 
 \subsection{Replace the Input File Handle} \label{sec:selectinput}
 
@@ -10304,7 +10313,7 @@ file handle\key{FileHandle} of the calling process with its argument and returns
 previously used input handle.
 
 \begin{verbatim}
-old_fh = SelectInput(fh)
+old_fh = SelectInput(fh) /* since V36 */
 D0                   D1
 
 BPTR SelectInput(BPTR)
@@ -10312,7 +10321,9 @@ BPTR SelectInput(BPTR)
 
 This call replaces the input file handle\key{FileHandle} of the calling process with
 the file handle given by {\tt fh} and returns the previously used input
-file handle. It sets {\tt pr\_CIS}\key{pr\_CIS} of the calling process.
+file handle. It sets {\tt pr\_CIS}\key{pr\_CIS} of the calling process. It
+is advisable to replace the input file handle to its original value before
+terminating a running program.
 
 \subsection{Retrieve the Output File Handle} \label{sec:output}
 
@@ -10331,9 +10342,18 @@ This function returns a BPTR to the output file handle\key{FileHandle} of the
 calling process, or {\tt ZERO} if none is defined. It returns {\tt
   pr\_COS}\key{pr\_COS} of the calling process, which is approximately
 the {\tt stdout} of ANSI-C. Depending on process creation, this file
-handle can be closed by the process shutdown code or the calling shell\key{Shell}
-and thus should in general not be closed explicitly. It can be changed
-through {\tt SelectOutput()}\key{SelectOutput()}.
+handle\key{FileHandle} will be closed by the process shutdown code or the calling shell\key{Shell}
+and thus should not be closed explicitly by the caller. The standard output
+stream may be changed through {\tt SelectOutput()}\key{SelectOutput()}.
+\smallskip{}
+
+For command line programs started from the shell, this file handle is
+connected to the console, unless it has been redirected by the ``{\tt >}'',
+``{\tt >{}>}'' or ``{\tt <>}'' operators, see section~\ref{sec:redirection}. Programs started from the
+workbench do not receive an output file handle at all, {\tt pr\_COS} remains
+{\tt ZERO} unless explicitly set\footnote{The information in~\cite{guru}
+that programs run from the workbench receive a {\tt NIL:} handle is
+incorrect.}.
 
 \subsection{Replace the Output File Handle} \label{sec:selectoutput}
 
@@ -10342,7 +10362,7 @@ file handle\key{FileHandle} of the calling process with its argument and returns
 previously used output handle.
 
 \begin{verbatim}
-old_fh = SelectOutput(fh)
+old_fh = SelectOutput(fh) /* since V36 */
 D0                    D1
 
 BPTR SelectOutput(BPTR)
@@ -10350,19 +10370,20 @@ BPTR SelectOutput(BPTR)
 
 This call replaces the output file handle\key{FileHandle} of the calling process with
 the file handle given by {\tt fh} and returns the previously used output
-file handle. It sets {\tt pr\_COS}\key{pr\_COS} of the calling process.
+file handle. It sets {\tt pr\_COS}\key{pr\_COS} of the calling process. It
+is advisable to replace the output file handle to its original value before
+terminating a running program.
 
 \subsection{Retrieve the Error File Handle} \label{sec:erroroutput}
 
 The {\tt ErrorOutput()}\mkey{ErrorOutput()} function returns the file
 handle\key{FileHandle} through which diagnostic or error outputs should be printed. It
-uses either {\tt pr\_CES}\key{pr\_CES} if this handle is non-{\tt
-  ZERO}, or {\tt pr\_COS}\key{pr\_COS} if the former is {\tt ZERO}. If
-neither an error output nor a regular output is provided, this
-function returns {\tt ZERO}.
+returns either {\tt pr\_CES}\key{pr\_CES} if this handle is non-{\tt
+  ZERO}, or {\tt pr\_COS}\key{pr\_COS} otherwise. If neither an error output
+nor a regular output is available, this function returns {\tt ZERO}.
 
 \begin{verbatim}
-file = ErrorOutput()
+file = ErrorOutput() /* since V47 */
 D0
 
 BPTR ErrorOutput(void)
@@ -10371,11 +10392,22 @@ BPTR ErrorOutput(void)
 This function returns a BPTR to the error file handle\key{FileHandle} of the
 calling process, or falls back to the BPTR of the output file
 handle if the former is not available. This is the file handle through
-which diagnostic output should be printed and is therefore approximately
-the {\tt stderr} of ANSI-C. Depending on process creation, this file
+which diagnostic output should be printed and corresponds therefore to
+{\tt stderr} of ANSI-C. Depending on process creation, this file
 handle can be closed by the process shutdown code or the calling shell\key{Shell} and
-thus should in general not be closed explicitly. It can be changed through
+thus should not be closed explicitly. The standard error stream may be changed through
 {\tt SelectError()}\key{SelectError()}.
+
+For command line programs started from the shell, this file handle is
+connected to the console. It is by the workings of {\tt
+  ErrorOutput()}\key{ErrorOutput()} redirected along with the output file
+handle as typically a standard error stream is not supplied --- note that
+this is different from how shells under Unix type operating systems work.
+The standard error stream of command line executables can be explicitly
+redirected to a different file by means of the ``{\tt *>}'', ``{\tt *<>}''
+or ``{\tt *>{}>}'' operators, see section~\ref{sec:redirection}. Programs
+started from the workbench do not receive an error file, {\tt pr\_CES}
+remains {\tt ZERO} unless explicitly set.
 
 \subsection{Replace the Error File Handle} \label{sec:selecterror}
 
@@ -10384,25 +10416,27 @@ file handle\key{FileHandle} of the calling process with its argument and returns
 previously used error handle.
 
 \begin{verbatim}
-old_fh = SelectError(fh)
+old_fh = SelectError(fh) /* since V47 */
 D0                   D1
 
 BPTR SelectError(BPTR)
 \end{verbatim}
 
-This call replaces the error file handle\key{FileHandle} of the calling process with
-the file handle given by {\tt fh} and returns the previously used error
-file handle. It sets {\tt pr\_CES} of the calling process.
+This call replaces the error file handle\key{FileHandle} of the calling
+process with the file handle given by {\tt fh} and returns the previously
+used error file handle. It sets {\tt pr\_CES} of the calling process. It is
+advisable to replace the error file handle to its original value before
+terminating a running program.
 
 \subsection{Retrieve the Current Directory} \label{sec:getcurrentdir}
 
 The {\tt GetCurrentDir()}\mkey{GetCurrentDir()} function returns the current
-directory of the directory, indicated by a lock\key{Lock} on this object. This
+directory of the calling process, represented by a lock\key{Lock}. This
 lock\key{Lock}, and the file system that created the lock are used to
 resolve relative paths, see also section~\ref{sec:paths}.
 
 \begin{verbatim}
-lock = GetCurrentDir(void)
+lock = GetCurrentDir(void) /* since V47 */
 D0
 
 BPTR GetCurrentDir()
@@ -10410,16 +10444,17 @@ BPTR GetCurrentDir()
 
 This function returns the lock\key{Lock} to the current directory, unlike the
 {\tt CurrentDir()}\key{CurrentDir()} function which also changes
-it. It returns {\tt pr\_CurrentDir}\key{pr\_CurrentDir} of the calling
-process.
+it. It returns the {\tt pr\_CurrentDir}\key{pr\_CurrentDir} element of the calling
+process. The original current directory supplied to a program should not be
+released in general, see also the warnings in section~\ref{sec:currentdir}.
 
 \subsection{Replace the Current Directory} \label{sec:currentdir}
 
-The {\tt CurrentDir()}\mkey{CurrentDir()} selects and retrieves the current
-directory of the calling process. The directory is indicated by a
-lock\key{Lock} to this object. This lock, and the file system
-that created the lock are used to resolve relative paths, see also
-section~\ref{sec:paths}.
+The {\tt CurrentDir()}\mkey{CurrentDir()} function updates the current
+directory of the calling process and returns the previously installed
+current directory. The directory is represented by a lock\key{Lock}. This
+lock, and the file system that created the lock are used to resolve relative
+paths, see also section~\ref{sec:paths}.
 
 \begin{verbatim}
 oldLock = CurrentDir( lock )
@@ -10427,27 +10462,31 @@ D0                    D1
 
 BPTR CurrentDir(BPTR)
 \end{verbatim}
-This function sets the current directory to {\tt lock} and returns in
-{\tt oldLock} the previously installed current directory. The passed in
-{\tt lock} then becomes part of the process and shall not be released by
-{\tt UnLock()}\key{UnLock()} until another lock\key{Lock} is installed as current
-directory.
+This function sets the current directory to {\tt lock} and returns in {\tt
+  oldLock} the previously installed current directory. It updates the {\tt
+  pr\_CurrentDir}\key{pr\_CurrentDir} element of the {\tt Process}
+structure. The passed in {\tt lock} then becomes part of the process and
+shall not be released by {\tt UnLock()}\key{UnLock()} until another
+lock\key{Lock} is installed as current directory. For programs started from
+the shell, the original current directory shall be restored back before the
+program terminates as otherwise the shell would be confused, i.e.\ the
+current directory shown by the prompt would then be no longer corresponding to the current
+directory the shell operates in. The only exception is the {\tt CD} command
+and related commands such as {\tt PushCD}, {\tt PopCD} and {\tt SwapCD}
+which modify the current directory on purpose, but also update the prompt,
+see sections~\ref{sec:getcurrentdirname} and following for further details.
 \smallskip{}
 
 If the current directory is {\tt ZERO}, paths are relative to the root
-directory of the file system set in the {\tt pr\_FileSystemTask}
-member of the calling process. It may be changed by {\tt
-  SetFileSysTask()}\key{SetFileSysTask()} described in
-section~\ref{sec:setfilesystask}. AmigaDOS installs there the
-\emph{file system} of the boot volume, unless a user installs a
-different default file system. This function sets {\tt
-  pr\_CurrentDir}\key{pr\_CurrentDir} of the calling process.
+directory of the file system accessible through the {\tt pr\_FileSystemTask}
+element of the calling process. AmigaDOS installs there the file system of
+the boot volume, unless changed by a user.
 
-\subsection{Return the Latest Error Code} \label{sec:ioerr}
+\subsection{Return the Error Code of the Previous Operation} \label{sec:ioerr}
 
 The {\tt IoErr()}\mkey{IoErr()} function returns the secondary result code
 of the most recent AmigaDOS operation. This code is, in case of failure,
-typically an error code indicating the nature of the failure.
+an error code indicating the nature of the failure.
 
 \begin{verbatim}
 error = IoErr()
@@ -10455,33 +10494,32 @@ D0
 
 LONG IoErr(void)
 \end{verbatim}
-This function returns the secondary result code of the last call to the
-\emph{dos.library} that provides such result. Unfortunately, not all
-functions set {\tt IoErr()} consistently; all unbuffered operations in
-section~\ref{sec:unbuffered} provide an error code in case of failure, or
-deliver~$0$ as secondary result in case of success. The buffered functions
-in section~\ref{sec:bufferedio} generally only set a secondary result code
-in case an I/O operation is required, but do not touch {\tt IoErr()} if the
-call can be satisfied from the caller. Whether a function of the
-\emph{dos.library} touches {\tt IoErr()} is stated in the description of the
-corresponding function --- unfortunately, the \emph{dos.library} does not
-handle {\tt IoErr()} consistently.
+This function returns the secondary result code from the last call to the
+\emph{dos.library}. Unfortunately, not all functions set {\tt IoErr()}, and
+some only set it in particular cases and leave it untouched otherwise. All
+unbuffered operations in section~\ref{sec:unbuffered} provide an error code
+in case of failure, or deliver~$0$ as secondary result in case of
+success. The buffered functions in section~\ref{sec:bufferedio} generally
+only set a secondary result code in case an I/O operation is required, but
+do not touch {\tt IoErr()} if the call can be satisfied from the buffer of
+the file handle. Whether a function of the \emph{dos.library} touches {\tt
+  IoErr()} is stated in the description of the corresponding function.
 \smallskip{}
 
-Some functions provide a secondary result code different from an error code,
-and thus make such additional return value available through
-{\tt IoErr()}. Such additional return values are also explicitly mentioned in
-the description of the corresponding function. A particular example is
-{\tt DeviceProc()}\key{DeviceProc()}, which returns the (first) lock\key{Lock} of a
-regular assign in {\tt IoErr()}, but additional functions exist.
+Some rare functions of the \emph{dos.library} also provide a secondary result
+code differing from an error code in case of success. Such unconventional
+use of {\tt IoErr()} is explicitly mentioned in the description of the
+corresponding function. A particular example is {\tt
+  DeviceProc()}\key{DeviceProc()}, which returns the (first) lock\key{Lock}
+of a regular assign\key{Assign} through {\tt IoErr()}.
 \medskip{}
 
 Most error codes are defined in {\tt dos/dos.h}, with some additional error
-codes only used by the pattern matcher (see section~\ref{sec:patternmatch})
+codes only used by the pattern matcher (see chapter~\ref{sec:patternmatch})
 in {\tt dos/dosasl.h}. Generally, handlers and file systems
 can select error codes as they seem fit, the list below provides a general
 indication how the codes are used by the \emph{dos.library} itself, or what
-their suggested usage is:
+its suggested usage is:
 \smallskip{}
 
 {\tt ERROR\_NO\_FREE\_STORE}\mkey{ERROR\_NO\_FREE\_STORE}: This error
@@ -19835,7 +19873,7 @@ stems from the Tripos system, AmigaDOS added over the years features such as
 variable\key{Shell Variable} substitution, compound commands including pipes, backtick expansion
 and additional redirection operators. 
 
-\subsection{Input/Output Redirection}
+\subsection{Input/Output Redirection} \label{sec:redirection}
 
 Commands receive from the shell\key{Shell} an input and output stream, and a console
 handler to which commands can refer by the special file name
@@ -20993,7 +21031,7 @@ The functions listed in this section provide accessor functions to this
 structure which should be preferred to access and alter properties of the
 calling shell\key{Shell}.
 
-\subsection{Obtaining the Name of the Current Directory}
+\subsection{Obtaining the Name of the Current Directory} \label{sec:getcurrentdirname}
 
 The {\tt GetCurrentDirName()}\mkey{GetCurrentDirName()} function copies the
 current directory of the shell\key{Shell} into the provided buffer if such a shell
@@ -21037,7 +21075,7 @@ and, if truncation was performed, sets {\tt IoErr()}\key{IoErr()} to {\tt
 does not fit into {\tt len} bytes. On success, the function returns a
 non-zero result code, but it does not set {\tt IoErr()} consistently then.
 
-\subsection{Set the Current Directory Name}
+\subsection{Set the Current Directory Name} \label{sec:setcurrentdirname}
 
 The {\tt SetCurrentDirName()}\mkey{SetCurrentDirName()} sets the buffer
 within which the shell\key{Shell} keeps the string representing the current
