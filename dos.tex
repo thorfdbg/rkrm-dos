@@ -623,7 +623,7 @@ on the AmigaDOS Shell.
 \smallskip{}
 
 AmigaDOS is not limited to its own Shell\key{Shell}, which is also called the Boot
-Shell; even though this feature is rarely used, users may install additional
+Shell\key{Boot Shell}; even though this feature is rarely used, users may install additional
 alternative shells. The AmigaDOS interface to shells is specified in
 section~\ref{sec:usershells}.
 
@@ -4193,7 +4193,7 @@ check the corresponding compiler manual.
 
 The Shell\key{Shell} command {\tt Resident} loads pure binaries into RAM for
 future usage and thus reduces loading time. Unfortunately, nothing in the
-shell actually \emph{checks} whether a binary is, actually pure, and its
+shell\key{Shell} actually \emph{checks} whether a binary is, actually pure, and its
 segment has actually been modified. Thus, the AmigaDOS Shell depends on the
 user setting this flag properly. This flag is supported and recognized from
 version 34 of the AmigaDOS Shell\key{Shell} and up.
@@ -8712,14 +8712,10 @@ to preprocess the pattern.
     0x80} to {\tt 0x9f} for tokenized versions of wild-cards and other
   instructions for the pattern matcher. This is identical to the extended
   ISO-Latin control sequence region. The code points in this range do not represent printable
-  characters. While file names on AmigaDOS file systems may in
-  principle include such code-points, patterns of the pattern matcher
-  \emph{shall not} contain unprintable code points from the region {\tt
-    0x00} to {\tt 0x1f} or from {\tt 0x80} to {\tt 0x9f}. These regions are
-  reserved for the pattern matcher, thus restricting its input to printable
-  ISO-Latin codepoints.}
+  characters. The Fast File System\key{Fast File System (FFS)} also
+  disallows such characters in file names.}
 
-\section{Scanning Directories}
+\section{Scanning Directories} \label{sec:dirscanner}
 
 The prime purpose of the pattern matcher is to scan a directory, identifying
 all file system objects such as files, links or directories that match a
@@ -9485,7 +9481,7 @@ runtime binding mechanism will likely be phased out at some point.
 {\tt pr\_StackSize}\mkey{pr\_StackSize} is the size of the process stack in
 bytes which is always a multiple of 4. In case the process is executing a
 command line program, the stack size recorded here is the stack size of the
-shell, and not the stack size of the command line tool executing in the
+shell\key{Shell}, and not the stack size of the command line tool executing in the
 context of the shell. Thus, this element is unsuitable to retrieve the stack
 size of the currently running process in general. Instead, the elements {\tt
   tc\_SPLower} and {\tt tc\_SPUpper} of the task structure shall be used,
@@ -9527,7 +9523,7 @@ BCPL stack grows in opposide direction, it is the start of the BCPL
 stack. While it is initialized, it is not used by the \emph{dos.library} at
 all. It neither reflects the lower end of the stack of a command line
 program executing in the context of a shell process. In such a case, {\tt
-  pr\_StackBase} is the lower end of the stack of the shell. The lower end
+  pr\_StackBase} is the lower end of the stack of the shell\key{Shell}. The lower end
 of the stack of the process may instead be found in the {\tt tc\_SPLower}
 element of {\tt pr\_Task}, which is always correct, regardless of whether
 the process is run from the Workbench, or executing a command overlaying the
@@ -9598,7 +9594,7 @@ section~\ref{sec:getfilesystask}, and access through this function should be pre
 \smallskip{}
 
 {\tt pr\_CLI}\mkey{pr\_CLI} is a BPTR to the {\tt CommandLineInterface}
-\key{CommandLineInterface} structure containing information on the shell
+\key{CommandLineInterface} structure containing information on the shell\key{Shell}
 this process is running in. If this process is not part of a shell, this
 member is {\tt ZERO}. This is for example the case for programs started from
 the Workbench, or handler or file system. This structure is specified in
@@ -9670,7 +9666,7 @@ requesters is specified in more detail in the description of the {\tt
 
 Particular care shall be taken when replacing {\tt pr\_WindowPtr} within
 command line executables as commands only overlay the shell process, and
-thus share the same process with the shell and all other commands executing
+thus share the same process with the shell\key{Shell} and all other commands executing
 within the same shell. If, upon termination of a command, the window pointed to
 by this element is closed, the next command could find an invalid {\tt
   pr\_WindowPtr} in its process. The generation of an error requester would then crash the
@@ -9696,7 +9692,7 @@ available for earlier releases:
 containing the command or binary that is currently executing as this process, if such a directory exists. It
 is {\tt ZERO} if the command was taken from the list of resident commands,
 see section~\ref{sec:resident}, or is a shell built-in command. This lock\key{Lock} is filled in by
-the shell or the Workbench when loading an executable program. It is used
+the shell\key{Shell} or the Workbench when loading an executable program. It is used
 to resolve paths relative to the {\tt PROGDIR}\key{PROGDIR} pseudo-assign, see
 chapter~\ref{table:specialassigns}. If this lock is {\tt ZERO}, any attempt
 to resolve a path within {\tt PROGDIR:} will create a request to insert a
@@ -9795,7 +9791,7 @@ function, see above. It is defined by the
 \smallskip{}
 
 {\tt pr\_Arguments}\mkey{pr\_Arguments} is a pointer to the command line arguments of the
-process if it corresponds to a command started from the shell. It is a
+process if it corresponds to a command started from the shell\key{Shell}. It is a
 {\tt NUL} terminated string \emph{not} including the command name
 itself. The latter can be retrieved from {\tt cli\_CommandName}, see
 section~\ref{sec:getcli}. The argument string can also be found in
@@ -9881,7 +9877,7 @@ by the running program.
 {\tt CreateProc()}\key{CreateProc()} and {\tt
   CreateNewProc()}\key{CreateNewProc()} are in general not sufficient to
 launch programs designed to be run from the Workbench, nor to start command
-line programs as if they were called from the shell. While the Workbench
+line programs as if they were called from the shell\key{Shell}. While the Workbench
 also goes through {\tt CreateNewProc()}, the delivery of the {\tt WBStartup}
 message documented in {\tt workbench/startup.h} is necessary in
 addition. Such a message can be created manually and delivered to the
@@ -9895,7 +9891,7 @@ described in section~\ref{sec:system} are more appropriate. The former
 overlays the calling process with a command represented by a segment list,
 e.g.\ obtained from {\tt LoadSeg()}\key{LoadSeg()}, but requires the
 presence of a shell environment on the caller side. The latter creates a
-shell, loads a command from within this new shell and executes it there.
+shell\key{Shell}, loads a command from within this new shell and executes it there.
 More details on these functions are found in the corresponding sections.
 
 \subsection{Creating a New Process from a TagList} \label{sec:createnewproc}
@@ -10092,7 +10088,7 @@ created. The latter is also the default.
 \smallskip{}
 
 {\tt NP\_Path}\mkey{NP\_Path} provides a chained list of locks\key{Lock}
-within which commands for shell execution are searched. This is the same list the {\tt Path} command adjusts, see
+within which commands for shell\key{Shell} execution are searched. This is the same list the {\tt Path} command adjusts, see
 section~\ref{sec:getcli} for details on this structure. This tag only applies
 if {\tt NP\_Cli}\key{NP\_Cli} is non-zero to request a shell environment. This chained
 list is \emph{not} copied, only referenced, and will be released when the created process
@@ -10230,7 +10226,7 @@ scheduler.
 However, this function does not release any resources except those
 implicitly allocated when creating the process through {\tt
   CreateNewProc()}\key{CreateNewProc()}, {\tt
-  CreateProc()}\key{CreateProc()} or starting the program from the shell
+  CreateProc()}\key{CreateProc()} or starting the program from the shell\key{Shell}
 through {\tt RunCommand()}\key{RunCommand()}. As it misses to release
 resources allocated by the program itself or the compiler startup code, this
 function \emph{should not be used} and rather a compiler or language
@@ -10298,7 +10294,7 @@ calling shell\key{Shell} and thus should not be closed explicitly by the
 caller. The standard input stream may be changed through {\tt SelectInput()}\key{SelectInput()}.
 \smallskip{}
 
-For command line programs started from the shell, this file handle is
+For command line programs started from the shell\key{Shell}, this file handle is
 connected to the console, unless it has been redirected by the ``{\tt <}'', ``{\tt <{}<}''
 or ``{\tt <>}'' operators, see section~\ref{sec:redirection}. Programs started from the
 workbench do not receive an input file handle at all, {\tt pr\_CIS} remains
@@ -10347,7 +10343,7 @@ and thus should not be closed explicitly by the caller. The standard output
 stream may be changed through {\tt SelectOutput()}\key{SelectOutput()}.
 \smallskip{}
 
-For command line programs started from the shell, this file handle is
+For command line programs started from the shell\key{Shell}, this file handle is
 connected to the console, unless it has been redirected by the ``{\tt >}'',
 ``{\tt >{}>}'' or ``{\tt <>}'' operators, see section~\ref{sec:redirection}. Programs started from the
 workbench do not receive an output file handle at all, {\tt pr\_COS} remains
@@ -10398,7 +10394,7 @@ handle can be closed by the process shutdown code or the calling shell\key{Shell
 thus should not be closed explicitly. The standard error stream may be changed through
 {\tt SelectError()}\key{SelectError()}.
 
-For command line programs started from the shell, this file handle is
+For command line programs started from the shell\key{Shell}, this file handle is
 connected to the console. It is by the workings of {\tt
   ErrorOutput()}\key{ErrorOutput()} redirected along with the output file
 handle as typically a standard error stream is not supplied --- note that
@@ -10468,7 +10464,7 @@ This function sets the current directory to {\tt lock} and returns in {\tt
 structure. The passed in {\tt lock} then becomes part of the process and
 shall not be released by {\tt UnLock()}\key{UnLock()} until another
 lock\key{Lock} is installed as current directory. For programs started from
-the shell, the original current directory shall be restored back before the
+the shell\key{Shell}, the original current directory shall be restored back before the
 program terminates as otherwise the shell would be confused, i.e.\ the
 current directory shown by the prompt would then be no longer corresponding to the current
 directory the shell operates in. The only exception is the {\tt CD} command
@@ -10523,77 +10519,89 @@ its suggested usage is:
 \smallskip{}
 
 {\tt ERROR\_NO\_FREE\_STORE}\mkey{ERROR\_NO\_FREE\_STORE}: This error
-code is set if the system run out of memory. Actually, this error code
+code is set if the system runs out of memory. Actually, this error code
 is not set by the \emph{dos.library}, but rather by the
 \emph{exec.library} memory allocation functions.
 \smallskip{}
 
 {\tt ERROR\_TASK\_TABLE\_FULL}\mkey{ERROR\_TASK\_TABLE\_FULL}: This
-error code is no longer in use. Previous releases of AmigaDOS created
-it if more than~$10$ shell\key{Shell} processes were about to be created. As this
-limitation was removed, the error code remains currently unused.
+error code was generated by AmigaDOS versions 34 and before
+if more than~$20$ shell\key{Shell} processes were about to be created. It
+used a fixed-size table to store CLI processes that cannot hold more than~20
+processes. See also section~\ref{sec:findcliproc} and following for more details. As this
+limitation was removed, the error code is unused in AmigaDOS version~36 and
+above.
 \smallskip{}
 
 {\tt ERROR\_BAD\_TEMPLATE}\mkey{ERROR\_BAD\_TEMPLATE}: This error code
-indicates that the command line template for {\tt
-  ReadArgs()}\key{ReadArgs()} is syntactical incorrect. It is also set
-by the pattern matcher in case the pattern is syntactically incorrect.
+indicates that the command line template for {\tt ReadArgs()}\key{ReadArgs()}
+is syntactical incorrect, see section~\ref{sec:readargs}. It is also set
+by the pattern matcher in case the pattern is syntactically incorrect, see~\ref{sec:stringpat}.
 \smallskip{}
 
 {\tt ERROR\_BAD\_NUMBER}\mkey{ERROR\_BAD\_NUMBER}: This error code
 indicates that a string could not be converted to a number. It is for
 example set by {\tt ReadArgs()}\key{ReadArgs()} if a command line
 argument of type {\tt /N} is requested, but the user failed to provide
-a valid number.
+a valid number. It is also set by
+{\tt ExAll()}\key{ExAll()} if its {\tt type} argument is beyond the
+supported range, see section~\ref{sec:exall}.
 \smallskip{}
 
-{\tt ERROR\_REQUIRED\_ARG\_MISSING}\mkey{ERROR\_REQUIRED\_ARG\_MISSING}: This error code is set by
-{\tt ReadArgs()}\key{ReadArgs()} if a non-optional argument is not
-provided.
+{\tt ERROR\_REQUIRED\_ARG\_MISSING}\mkey{ERROR\_REQUIRED\_ARG\_MISSING}:
+This error code is set by{\tt ReadArgs()}\key{ReadArgs()} if a non-optional
+argument is not provided.
 \smallskip{}
 
-{\tt ERROR\_KEY\_NEEDS\_ARG}\mkey{ERROR\_KEY\_NEEDS\_ARG}: This error code is also used by the argument
-parser {\tt ReadArgs()}\key{ReadArgs()} if an argument key is provided on
-the command line, but a corresponding argument value is missing.
+{\tt ERROR\_KEY\_NEEDS\_ARG}\mkey{ERROR\_KEY\_NEEDS\_ARG}: This error code
+is also used by the argument parser {\tt ReadArgs()}\key{ReadArgs()}
+if an argument key is provided on the command line, but a
+corresponding argument value is missing.
 \smallskip{}
 
-{\tt ERROR\_TOO\_MANY\_ARGS}\mkey{ERROR\_TOO\_MANY\_ARGS}: This error code can also be set by
-{\tt ReadArgs()}\key{ReadArgs()}; it indicates that more arguments are
-provided than indicated in the template.
+{\tt ERROR\_TOO\_MANY\_ARGS}\mkey{ERROR\_TOO\_MANY\_ARGS}: This error code
+can also be set by {\tt ReadArgs()}\key{ReadArgs()}. It indicates that
+more arguments are provided on the command line than requested by the template.
 \smallskip{}
 
 {\tt ERROR\_UNMATCHED\_QUOTES}\mkey{ERROR\_UNMATCHED\_QUOTES}: This error code indicates that a closing
-quote is missing for at least one opening quote. It is also set by the
-argument parser and {\tt ReadItem()}\key{ReadItem()}.
+quote is missing for at least one opening quote. It is created by the
+argument parser and {\tt ReadItem()}\key{ReadItem()}, see section~\ref{sec:readitem}.
 \smallskip{}
 
 {\tt ERROR\_LINE\_TOO\_LONG}\mkey{ERROR\_LINE\_TOO\_LONG}: This error code is a general indicator that a
-user provided buffer is too small to buffer a string. It is for example used
-again by the argument parser and the path manipulation functions in
-section~\ref{sec:workpaths}.
+user provided buffer is too small to contain a string. It is for example used
+by the argument parser, the path manipulation functions in
+section~\ref{sec:workpaths} and the soft link\key{Soft Link} resolver
+{\tt ReadLink()}\key{ReadLink()} of section~\ref{sec:readlink}.
 \smallskip{}
 
-{\tt ERROR\_FILE\_NOT\_OBJECT}\mkey{ERROR\_FILE\_NOT\_OBJECT}: This error code is generated by the \emph{Shell}
-if an attempt is made to execute a file that is neither a script, nor an
+{\tt ERROR\_FILE\_NOT\_OBJECT}\mkey{ERROR\_FILE\_NOT\_OBJECT}: This error code is generated by the shell\key{Shell}
+if an attempt is made to load a file that is neither a script, nor an
 executable nor a file that can be opened by a viewer.
 \smallskip{}
 
-{\tt ERROR\_INVALID\_RESIDENT\_LIBRARY}\mkey{ERROR\_INVALID\_RESIDENT\_LIBRARY}:While
-this error code is not in use by the \emph{dos.library}, several
-handlers and other Os components use it to indicate that a required
+{\tt ERROR\_INVALID\_RESIDENT\_LIBRARY}\mkey{ERROR\_INVALID\_RESIDENT\_LIBRARY}: AmigaDOS
+versions up to release 34 generated this error code if an attempt was made
+to open a non-existent or invalid system library as part of a binary file
+(see chapter~\ref{sec:binary}). The structure of such files allowed runtime linking to libraries, though
+this possibility was phased out in AmigaDOS version 36 as it is incompatible
+with the AmigaOs library calling conventions. Today, several
+handlers and other AmigaOs components use this error code to indicate that a required
 library or device is not available.
 \smallskip{}
 
 {\tt ERROR\_NO\_DEFAULT\_DIR}\mkey{ERROR\_NO\_DEFAULT\_DIR}: This is
-error code is also not in use. Its intended purpose is unclear.
+error code is not in use by the current version(s) AmigaDOS.
+Its intended purpose is unclear.
 \smallskip{}
 
 {\tt ERROR\_OBJECT\_IN\_USE}\mkey{ERROR\_OBJECT\_IN\_USE}: This error
-code is used by multiple Os components to indicate that a particular
+code is used by multiple AmigaDOS components to indicate that a particular
 operation cannot be performed because the object to be modified is in
-use. AmigaDOS uses it, for example, to indicate that a lock\key{Lock} was
-obtained on an object that is supposed to be modified or deleted, and
-thus cannot be modified or removed.
+use. It is for example raised to indicate that an attempt was made to
+lock\key{Lock} an object that is exclusively locked by another process, or
+an request for an exclusive lock on an already locked object was made.
 \smallskip{}
 
 {\tt ERROR\_OBJECT\_EXISTS}\mkey{ERROR\_OBJECT\_EXISTS}: This error
@@ -10614,12 +10622,15 @@ working directory to a non-working target directory.
 is a generic error code that indicates that the object on which a
 particular operation is to be performed does not exist. It is for
 example generated on an attempt to open a non-existing file or to lock\key{Lock}
-a file or directory that could not be found.
+a file or directory that could not be found. It is also generated on an
+attempt to resolve a soft link\key{Soft Link} whose target has been renamed,
+moved or deleted.
 \smallskip{}
 
 {\tt ERROR\_BAD\_STREAM\_NAME}\mkey{ERROR\_BAD\_STREAM\_NAME}: This
-error code is currently not in use by AmigaDOS ROM components. Its
-purpose is unclear.
+error code is currently not in use by AmigaDOS ROM components. AmigaOs
+versions 45 and before generated if an attempt was made to provide a
+non-interactive input file to the {\tt NewShell} command.
 \smallskip{}
 
 {\tt ERROR\_OBJECT\_TOO\_LARGE}\mkey{ERROR\_OBJECT\_TOO\_LARGE}: This
@@ -10633,25 +10644,28 @@ or access files larger than~2GB.
 
 {\tt ERROR\_ACTION\_NOT\_KNOWN}\mkey{ERROR\_ACTION\_NOT\_KNOWN}: This
 is a generic error code that is returned by many handlers or file
-systems when an action (in the form of a \emph{packet}) is requested
-the handler does not support or understand. For example, this error is
-created when attempting to create a directory on a console handler.
+systems when an action (in the form of a DosPacket\key{DosPacket}, see
+section~\ref{sec:dospacket}) is requested the handler does not support or
+understand. For example, this error is created when attempting to create a
+directory on a console handler. 
 \smallskip{}
 
 {\tt ERROR\_INVALID\_COMPONENT\_NAME}\mkey{ERROR\_INVALID\_COMPONENT\_NAME}:
-This is an error that is raised by file systems when providing an
-invalid path, or a path that contains components that are
-syntactically incorrect. For example, the colon (``{\tt :}'') shall
-only appear one in a path as separator between the device name and the
-path within the device. A colon within a component is therefore a
-syntactical error. Also, all Amiga ROM file systems do not accept code
-points below {\tt 0x20}, i.e.\ ASCII control characters.
+This is an error that is raised by file systems when providing an invalid
+path, or a path that contains components that are syntactically
+incorrect. For example, the colon (``{\tt :}'') shall only appear once in a
+path as separator between the device name and the path components, a
+colon within a component is therefore a syntactical error; also, the forwards
+slash (``{\tt /}'') shall not appear in a volume name. All Amiga
+ROM file systems do not accept code points below {\tt 0x20} in file names, i.e.\ ASCII
+control characters, or from the extended ISO-Latin control sequence region
+between {\tt 0x80} to {\tt 0x9f}.
 \smallskip{}
 
 {\tt ERROR\_INVALID\_LOCK}\mkey{ERROR\_INVALID\_LOCK}: This error is
 raised if a value is passed in as a lock\key{Lock} that is, in fact, not a valid
 lock of the target file system. For example, an attempt to use
-a file handle\key{FileHandle} as a lock will result in such an error condition. Note,
+a file handle\key{FileHandle} as a lock can result in such an error. Note,
 however, that file systems can, but do not need to check locks for
 validity. Passing incorrect objects to file systems can raise multiple
 error conditions of which this error code is probably the most
@@ -10662,16 +10676,17 @@ harmless.
 This error code indicates that a particular operation is not
 applicable to a target object, even though the target object is valid
 and existing. For example, an attempt to open an existing directory
-for reading as a file will raise this error.
+for reading as file or an attempt create a hard link\key{Hard Link} to the
+root directory of a FFS volume\key{Fast File System (FFS)} will raise this error.
 \smallskip{}
 
 {\tt ERROR\_DISK\_NOT\_VALIDATED}\mkey{ERROR\_DISK\_NOT\_VALIDATED}:
 This error indicates that the inserted medium is currently not
-validated, i.e.\ not checked for consistency. Such a consistency check
-(or validation) may be currently ongoing. This error is for example
+validated, i.e.\ not checked for consistency, and the consistency check
+either failed or is still ongoing. This error is for example
 generated if a write operation is attempted on an FFS\key{Fast File System (FFS)} volume whose
-validation is still ongoing. In such a case, retrying the operation
-later may solve the problem already.
+validation has not yet completed. In such a case, retrying the operation
+later may solve the problem.
 \smallskip{}
 
 {\tt ERROR\_DISK\_WRITE\_PROTECTED}\mkey{ERROR\_DISK\_WRITE\_PROTECTED}: This
@@ -10684,28 +10699,31 @@ attempt to write to a CD-ROM.
 Generated if an attempt is made to move an object to a target
 directory that is located on a different medium or different file
 system than the source directory. This cannot succeed, instead the
-object (and its subobjects) need to be copied manually.
+object (and its subobjects) need to be copied.
 \smallskip{}
 
 {\tt ERROR\_DIRECTORY\_NOT\_EMPTY}\mkey{ERROR\_DIRECTORY\_NOT\_EMPTY}:
 Indicates that an attempt was made to delete a directory that is not
-empty. First, all the files within a directory must be deleted before
+empty. First, all objects within a directory must be deleted before
 the directory itself may be deleted.
 \smallskip{}
 
 {\tt ERROR\_TOO\_MANY\_LEVELS}\mkey{ERROR\_TOO\_MANY\_LEVELS}: This
-error code is generated if too many softlinks refer iteratively to
-other softlinks. In order to avoid an endless indirection of softlinks
+error code is generated if too many soft links\key{Soft Link} refer iteratively to
+other soft links. In order to avoid an endless indirection of links
 referring to each other, the \emph{dos.library} aborts following
-softlinks after 15 passes; application programs attempting to resolve
-softlinks themselves through {\tt ReadLink()}\key{ReadLink()} should
-implement a similar mechanism, see also section~\ref{sec:readlink}.
+links after 15 passes; application programs attempting to resolve
+soft links themselves through {\tt ReadLink()}\key{ReadLink()} should
+implement a similar mechanism, see also section~\ref{sec:readlink}. This
+error is also generated by the {\tt MatchNext()}\key{MatchNext()} function
+of the directory scanner specified in section~\ref{sec:dirscanner} if
+directories are nested too deeply and the function runs out of stack space.
 \smallskip{}
 
 {\tt ERROR\_DEVICE\_NOT\_MOUNTED}\mkey{ERROR\_DEVICE\_NOT\_MOUNTED}:
 This error indicates that an access was attempted to either a handler,
-file system or \emph{assign} that is not known to the system, or to a
-volume that is currently not inserted in any known drive.
+file system or assign\key{Assign} that is not known to the system, or to an
+unknown volume that is currently not available in any mounted drive.
 \smallskip{}
 
 {\tt ERROR\_SEEK\_ERROR}\mkey{ERROR\_SEEK\_ERROR}: This error is
@@ -10713,46 +10731,56 @@ generated by an attempt to {\tt Seek()} to a file position that is
 either negative, or behind the end of the file. It is also signalled
 if the mode of {\tt Seek()}\key{Seek()} or {\tt
   SetFileSize()}\key{SetFileSize()} is none of the modes indicated in
-table~\ref{table:seekmode}. The FFS\key{Fast File System (FFS)} also sets this mode if it cannot
-read one of its administration blocks.
+table~\ref{table:seekmode} of section~\ref{sec:seek}. The FFS\key{Fast File System (FFS)}
+also sets this mode if it cannot read one of its administration blocks and
+thus is unable to find the data blocks that represent the file.
 \smallskip{}
 
 {\tt ERROR\_COMMENT\_TOO\_BIG}\mkey{ERROR\_COMMENT\_TOO\_BIG}: This
 error is raised if the size of the comment is too large to be stored
-in in the metadata of the \emph{file system}. Note that while file
+in in the metadata of the file system. Note that while file
 systems shall validate the size of the comment, it shall silently
-truncate file names to the maximal size possible.
+truncate file names to the maximal size possible. The
+FFS\key{Fast File System (FFS)} allows comments of at most~79 characters.
 \smallskip{}
 
 {\tt ERROR\_DISK\_FULL}\mkey{ERROR\_DISK\_FULL}: Generated by file
 systems when an attempt is made to write more data to a medium than it
-is possible to hold, i.e.\ when the target medium is full.
+can hold, i.e.\ when the target medium is full.
 \smallskip{}
 
 {\tt ERROR\_DELETE\_PROTECTED}\mkey{ERROR\_DELETE\_PROTECTED}: This
-error is generated by \emph{file systems} if an attempt is made to
-delete a file that is delete protected, i.e.\ whose {\tt FIBB\_DELETE}
+error is generated by file systems if an attempt is made to
+delete an object that is delete protected, i.e.\ whose {\tt FIBB\_DELETE}
 protection bit is set, see table~\ref{table:protectionbits} in
 section~\ref{sec:fib}.
 \smallskip{}
 
-{\tt ERROR\_WRITE\_PROTECTED}\mkey{ERROR\_WRITE\_PROTECTED}: This error
-is generated by \emph{file systems} if a write is attempted to a file
-that is write protected, i.e.\ whose {\tt FIBB\_WRITE} bit is set.
+{\tt ERROR\_WRITE\_PROTECTED}\mkey{ERROR\_WRITE\_PROTECTED}: This error is
+generated by file systems if a write is attempted to a file that is write
+protected, i.e.\ whose {\tt FIBB\_WRITE} bit is set. This error is also
+generated if an attempt is made to write to a medium that is write
+protected, either by hardware protection or protected by software, e.g.\ through the
+{\tt Lock} command, see section~\ref{sec:packetlock}.
 \smallskip{}
 
 {\tt ERROR\_READ\_PROTECTED}\mkey{ERROR\_READ\_PROTECTED}: This error
 is generated on an attempt to read from a file that is protected from
-reading by having its {\tt FIBB\_READ} bit is set.
+reading, i.e.\ by having its {\tt FIBB\_READ} bit is set.
 \smallskip{}
 
 {\tt ERROR\_NOT\_A\_DOS\_DISK}\mkey{ERROR\_NOT\_A\_DOS\_DISK}: This
-error is generated by a \emph{file system} on an attempt to read a
+error is generated by a file system on an attempt to read from a
 disk that is not strutured according to the requirements of the file
-system, i.e.\ that is initialized by another incompatbile file system
+system, e.g.\ because it is initialized by another incompatbile file system
 different from the mounted one. Unfortunately, AmigaDOS does not have
 a control instance that selects file systems according to the disk
-layout.
+structure.
+\smallskip{}
+
+{\tt ERROR\_NO\_DISK}\mkey{ERROR\_NO\_DISK}: This error indicates that an
+attempt was made to access a physical device which contains no medium,
+e.g.\ an empty disk drive.
 \smallskip{}
 
 {\tt ERROR\_NO\_MORE\_ENTRIES}\key{ERROR\_NO\_MORE\_ENTRIES}: This
@@ -10764,12 +10792,11 @@ reached when scanning it by {\tt ExNext()}\key{ExNext()} or {\tt
 
 {\tt ERROR\_IS\_SOFT\_LINK}\mkey{ERROR\_IS\_SOFT\_LINK}: This error
 code is generated by file systems on an attempt to access a soft
-  link\key{Soft Link}. For many functions, the \emph{dos.library} recognizes this
-error and then resolves the link by {\tt
-  ReadLink()}\key{ReadLink()} within the library, not requiring
+link\key{Soft Link}. For many functions, the \emph{dos.library} recognizes this
+error and then resolves the link by {\tt ReadLink()}\key{ReadLink()} within the library, not requiring
 intervention of the caller. However, not all functions of the
 \emph{dos.library} are aware of soft links, see
-section~\ref{sec:links} for the list.
+table~\ref{table:softenabled} of section~\ref{sec:links} for the list.
 \smallskip{}
 
 {\tt ERROR\_OBJECT\_LINKED}\mkey{ERROR\_OBJECT\_LINKED}: This error
@@ -10789,31 +10816,37 @@ error code is not used by any ROM component, but several Workbench
 components signal this error indicating that the requested function is
 not supported by this component. For example, the {\tt Format} command
 generates it on an attempt to format a disk with long file names if
-the target file system does not support them.
+the target file system does not support them. This error can also be
+generated by file systems that are able to interpret a packet, but do not
+implement it. The borderline between {\tt ERROR\_ACTION\_NOT\_KNOWN}
+and this error is not well defined, and handlers should report the
+former and not this error if they receive a packet they do not understand.
 \smallskip{}
 
 {\tt ERROR\_RECORD\_NOT\_LOCKED}\mkey{ERROR\_RECORD\_NOT\_LOCKED}:
 Issued by file systems and their record-locking subsystem if an
-attempt is made to release a record that is, actually, not locked.
+attempt is made to release a record that is, actually, not locked. See
+section~\ref{sec:recordlocking} for more information on record locking.
 \smallskip{}
 
 {\tt ERROR\_LOCK\_COLLISION}\mkey{ERROR\_LOCK\_COLLISION}: This error
-is also created by the record-locking subsystem of file systems if
-attempt is made to exclusively lock the same region within a file by
-two write locks.
+is also created by the record-locking subsystem of file systems if an
+attempt is made to lock the same region within a file by two conflicting
+locks, see section~\ref{sec:recordlocking} for more details.
 \smallskip{}
 
-{\tt ERROR\_LOCK\_TIMEOUT}\mkey{ERROR\_LOCK\_TIMEOUT}: Also generated
-by the record-locking mechanism of file systems if an attempt was made
-to exclusively lock a region of a file that is exclusively locked
-already, and the attempt failed because the region did not became
-available before the lock timed out.
+{\tt ERROR\_LOCK\_TIMEOUT}\mkey{ERROR\_LOCK\_TIMEOUT}: Also generated by the
+record-locking mechanism of file systems if an attempt was made to lock a
+region of a file that is locked already by a conflicting lock, and the
+attempt failed because the region did not became available before the request
+timed out.
 \smallskip{}
 
 {\tt ERROR\_UNLOCK\_ERROR}\mkey{ERROR\_UNLOCK\_ERROR}: This error is
 currently not generated by any file system, though could be used to
 indicate that an attempt to unlock a record failed for an unknown
-reason.
+reason. It was used by earlier versions of the
+RAM-Handler\key{RAM-Handler}.
 \smallskip{}
 
 {\tt ERROR\_BUFFER\_OVERFLOW}\mkey{ERROR\_BUFFER\_OVERFLOW}: This
@@ -10823,18 +10856,18 @@ fully expanded matching file name, see also
 section~\ref{sec:patternmatch}.
 \smallskip{}
 
-{\tt ERROR\_BREAK}\mkey{ERROR\_BREAK}: This error is also raised by
-the pattern matcher if it received an external signal for aborting a
-directory scan for objects. Such signals are raised, for example, by
-the user through the console by pressing {\tt Ctrl + C} through {\tt
-  Ctrl + F}.
+{\tt ERROR\_BREAK}\mkey{ERROR\_BREAK}: This error is also raised by the
+pattern matcher if it received an external signal for aborting a directory
+scan, see section~\ref{sec:dirscanner}. Such signals are raised, for
+example, by pressing {\tt Ctrl-C} to {\tt Ctrl-F} on the console.
 \smallskip{}
 
 {\tt ERROR\_NOT\_EXECUTABLE}\mkey{ERROR\_NOT\_EXECUTABLE}: This error
 is generated by the Workbench on an attempt to start an application
-icon from a file whose {FIBB\_EXECUTE} is set, indicating that the
+icon from a file whose {\tt FIBB\_EXECUTE} protection bit is set, indicating that the
 file is not executable. Why the Workbench does not use the same error
-code as the \emph{Shell} remains unclear.
+code as the shell\key{Shell}, namely
+{\tt ERROR\_FILE\_NOT\_OBJECT}\key{ERROR\_FILE\_NOT\_OBJECT} is unclear.
 
 \subsection{Setting IoErr} \label{sec:setioerr}
 
@@ -22052,7 +22085,7 @@ structure passed into it. This function potentially releases all elements of
 the {\tt array} argument of {\tt ReadArgs()}\key{ReadArgs()}, and thus its
 contents is no longer usable after calling {\tt FreeArgs()}\key{FreeArgs()}.
 
-\subsection{Reading a Single Argument from the Command Line}
+\subsection{Reading a Single Argument from the Command Line} \label{sec:readitem}
 
 The {\tt ReadItem()}\mkey{ReadItem()} reads a single item from the command
 line or from a provided {\tt CSource} structure.
