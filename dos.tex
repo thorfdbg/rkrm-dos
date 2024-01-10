@@ -2641,9 +2641,6 @@ by other means.
 #include <dos/dos.h>
 #include <dos/stdio.h>
 #include <string.h>
-#include <utility/tagitem.h>
-#include <proto/dos.h>
-#include <proto/exec.h>
 
 int main(int argc,char **argv)
 {
@@ -2679,6 +2676,54 @@ int main(int argc,char **argv)
   return 0;
 }
 \end{verbatim}
+
+\subsection{Cloning File Handles} \label{sec:clonehandle}
+
+Unlike locks\key{Lock} (see~\ref{sec:duplock}), file handles cannot be duplicated in
+general. However, if the file is interactive (see~\ref{sec:isinteractive}),
+or a {\tt NIL:} handle, a copy can be made. Thus, for
+example, files of the the CON-Handler\key{CON-Handler} and the
+Port-Handler\key{Port-Handler} can be duplicated and then access the same
+console, or the same port, with identical parameters.
+\smallskip{}
+
+The following function creates a copy of a file handle, and is also able to
+duplicate a handle to the {\tt NIL:} (pseudo-)device. It returns {\tt ZERO}
+if no copy can be made (see section~\ref{sec:setconsoletask} for the
+{\tt SetConsoleTask()}\key{SetConsoleTask()} function):
+
+\begin{verbatim}
+#include <dos/dos.h>
+#include <dos/dosextens.h>
+
+BPTR CloneHandle(BPTR handle)
+{
+  struct MsgPort *ctask;
+  struct MsgPort *fport;
+  BPTR newhandle = 0;
+
+  if (handle) {
+    fport = ((struct FileHandle *)BADDR(handle))->fh_Type;
+    if (IsInteractive(handle)) {
+      ctask     = SetConsoleTask(fport);
+      newhandle = Open("*",MODE_OLDFILE);
+      SetConsoleTask(ctask);
+    } else if (fport == NULL) {
+      newhandle = Open("NIL:",MODE_OLDFILE);
+    }
+  }
+
+  return newhandle;
+}
+\end{verbatim}
+
+The above function returns {\tt ZERO} for files opened to a file system;
+they cannot be duplicated with the above algorithm. An alternative
+algorithm that, however, only works if the source file is opened in shared
+mode (see table~\ref{table:openmodes} of section~\ref{sec:open}) is to first
+obtain the file name through {\tt NameFromFH()}\key{NameFromFH()} (see
+section~\ref{sec:namefromfh}) and then to re-open another file from the same
+name.
 
 \subsection{An FSkip() Implementation} \label{sec:fskip}
 
@@ -3288,7 +3333,7 @@ an error code on failure.
   resolve wild cards, similar to {\tt Open()}. All characters in the
   path are literals.}
 
-\subsection{Duplicating a Lock}
+\subsection{Duplicating a Lock} \label{sec:duplock}
 
 The {\tt DupLock()}\mkey{DupLock()} function replicates a given
 lock\key{Lock}, returning a copy of the lock on the same object. This
@@ -5058,7 +5103,7 @@ inserted. The {\tt ZERO} lock\key{ZERO lock} is resolved into the string
 assign\key{Assign} or the default file system of the calling process had
 been modified.
 
-\subsection{Find the Path from a File Handle}
+\subsection{Find the Path from a File Handle} \label{sec:namefromfh}
 
 The {\tt NameFromFH()}\mkey{NameFromFH()} function constructs a path name
 from a file handle\key{FileHandle}, i.e.\ it finds a path that is suitable to open
@@ -10464,7 +10509,8 @@ This function sets the current directory to {\tt lock} and returns in {\tt
 structure. The passed in {\tt lock} then becomes part of the process and
 shall not be released by {\tt UnLock()}\key{UnLock()} until another
 lock\key{Lock} is installed as current directory. For programs started from
-the shell\key{Shell}, the original current directory shall be restored back before the
+the shell\key{Shell}, the original lock (and not just a
+lock to the same directory) shall be restored back before the
 program terminates as otherwise the shell would be confused, i.e.\ the
 current directory shown by the prompt would then be no longer corresponding to the current
 directory the shell operates in. The only exception is the {\tt CD} command
@@ -10738,7 +10784,7 @@ thus is unable to find the data blocks that represent the file.
 
 {\tt ERROR\_COMMENT\_TOO\_BIG}\mkey{ERROR\_COMMENT\_TOO\_BIG}: This
 error is raised if the size of the comment is too large to be stored
-in in the metadata of the file system. Note that while file
+in the file system. Note that while file
 systems shall validate the size of the comment, it shall silently
 truncate file names to the maximal size possible. The
 FFS\key{Fast File System (FFS)} allows comments of at most~79 characters.
@@ -10876,23 +10922,27 @@ the next call to {\tt IoErr()}\key{IoErr()} and thus initializes or resets
 the next IO error.
 
 \begin{verbatim}
-oldcode = SetIoErr(code)
+oldcode = SetIoErr(code) /* since V36 */
 D0                 D1
 
 LONG SetIoErr(LONG);
 \end{verbatim}
 
-This function sets the next value returned by {\tt IoErr()}\key{IoErr()}; this can be
-necessary because some functions of the \emph{dos.library} do not update
-this value in all cases. A particular example are the buffered I/O functions
-introduced in section~\ref{sec:bufferedio} that do not touch {\tt IoErr()}\key{IoErr()}
-in case the input or output operation can be satisfied from the buffer. A good
+This function sets the next value returned by {\tt IoErr()}\key{IoErr()} by
+updating the {\tt pr\_Result2} element of the {\tt Process} structure of the
+calling process; this can be necessary because some functions of the
+\emph{dos.library} do not update this value in all cases. A particular
+example are the buffered I/O functions introduced in
+section~\ref{sec:bufferedio} that do not touch {\tt IoErr()}\key{IoErr()} in
+case the input or output operation can be satisfied from the buffer. A good
 practise is to call {\tt SetIoErr(0)} upfront to ensure that these functions
 leave~a $0$ in {\tt IoErr()}\key{IoErr()} on success.
 \smallskip{}
 
 This function returns the previous value of {\tt IoErr()}, and thus the same
-value {\tt IoErr()}\key{IoErr()} would return.
+value {\tt IoErr()}\key{IoErr()} would return. See section~\ref{sec:ioerr}
+for the specified error codes. This function may also be used by command
+line tools to set the error code the {\tt Why} command will report on.
 
 \subsection{Select the Console Handler} \label{sec:setconsoletask}
 
@@ -10901,14 +10951,14 @@ handler responsible for the ``{\tt *}''\key{* (file name)} file name and {\tt CO
 pseudo-device.
 
 \begin{verbatim}
-oldport = SetConsoleTask(port)
+oldport = SetConsoleTask(port) /* since V36 */
 D0                        D1
 
 struct MsgPort *SetConsoleTask(struct MsgPort *)
 \end{verbatim}
 
 This function selects the {\tt MsgPort} of the console handler. AmigaDOS
-will contact this handler for opening the ``{\tt *}''\key{* (file name)} as file name, or a
+contacts this handler for opening the ``{\tt *}''\key{* (file name)} as file name, or a
 file relative to the {\tt CONSOLE:} pseudo-device. Note that the argument is
 not a pointer to the handler process, but rather to a {\tt MsgPort}
 through which this process can be contacted. It returns the previously used
@@ -10919,6 +10969,15 @@ element of the calling process.
 This function is the setter function corresponding to the
 {\tt GetConsoleTask()}\key{GetConsoleTask()} getter function introduced in
 section~\ref{sec:getconsoletask}.
+\smallskip{}
+
+A particular use case for this function to clone a file handle, i.e.\ to
+create a duplicate of an already open handle, see the code in
+section~\ref{sec:clonehandle}.
+\smallskip{}
+
+In command line executables, any modification to the console task shall be
+reverted before the program returns to the shell.
 
 \subsection{Select the Default File System} \label{sec:setfilesystask}
 
@@ -10926,7 +10985,7 @@ The {\tt SetFileSysTask()}\mkey{SetFileSysTask()} function selects the
 handler responsible for resolving paths relative to the {\tt ZERO} lock\key{ZERO lock}.
 
 \begin{verbatim}
-oldport = SetFileSysTask(port)
+oldport = SetFileSysTask(port) /* since V36 */
 D0                        D1
 
 struct MsgPort *SetFileSysTask(struct MsgPort *)
@@ -10936,8 +10995,8 @@ This function selects the {\tt MsgPort} of the default file
 system. AmigaDOS will contact this file system if a path relative to
 the {\tt ZERO} lock\key{ZERO lock} is resolved, e.g.\ a relative path name if the current
 directory is {\tt ZERO}. This file system should be identical to the
-file system of the {\tt SYS:} assign, and should therefore not be
-relaced as otherwise resolving file names may be inconsistent between
+file system of the {\tt SYS:} assign\key{Assign}, and should therefore not be
+replaced as otherwise resolving file names may be inconsistent between
 processes.
 \smallskip{}
 
@@ -10945,29 +11004,32 @@ Note that the argument is not a pointer to the handler process, but
 rather to a {\tt MsgPort} through which this process can be contacted. It
 returns the previously used default file system {\tt MsgPort}. This
 function is the setter equivalent of {\tt GetFileSysTask()}\key{GetFileSysTask()}
-introduced in section~\ref{sec:getfilesystask}. It sets {\tt pr\_FileSystemTask}\key{pr\_FileSystemTask}
-of the calling process.
+introduced in section~\ref{sec:getfilesystask}. It sets the {\tt pr\_FileSystemTask}\key{pr\_FileSystemTask}
+element of the {\tt Process}\key{Process} structure of the calling process.
 
 \subsection{Retrieve the Lock to the Program Directory}
 
 The {\tt GetProgramDir()}\mkey{GetProgramDir()} returns a lock\key{Lock} to the
-directory that contains the binary from which the caller executes, if
+directory that contains the binary from which the calling process executes, if
 such a directory exists. If the executable was taken from the list of
 resident segments (see section~\ref{sec:resident}), this function
 returns {\tt ZERO}.
 
 \begin{verbatim}
-lock = GetProgramDir()
+lock = GetProgramDir() /* since V36 */
 D0
 
 BPTR GetProgramDir(void)
 \end{verbatim}
 
 The lock returned by this function corresponds to the {\tt PROGDIR}\key{PROGDIR}
-(pseudo)-assign and the {\tt pr\_HomeDir} member of the {\tt Process}\key{Process}
+(pseudo)-assign and the {\tt pr\_HomeDir} element of the {\tt Process}\key{Process}
 structure, with the only exception that {\tt ZERO} does not correspond
 to the root directory of the boot volume, but rather indicates that no
-home directory exists.
+home directory exists. This lock may be used to access data that are stored
+along with the executing binary. It is allocated --- and will be released --- by
+the AmigaDOS component that loaded the executable, e.g.\ the Workbench or
+the shell; it shall therefore \emph{not} be unlocked by the caller.
 
 \subsection{Set the Program Directory}
 
@@ -10977,38 +11039,46 @@ started from, and the directory that corresponds to the {\tt PROGDIR}\key{PROGDI
 pseudo-assign.
 
 \begin{verbatim}
-oldlock = SetProgramDir(lock)
-D0                         D1
+oldlock = SetProgramDir(lock) /* since V36 */
+D0                       D1
 
 BPTR SetProgramDir(BPTR)
 \end{verbatim}
 
-This function installs {\tt lock}\key{Lock} into {\tt pr\_HomeDir} of the {\tt
-  Process}\key{Process} structure. This {\tt lock} is supposed to belong to the
-directory the currently executing program was loaded from and is used
-to resolve the {\tt PROGDIR}\key{PROGDIR} pseudo-assign. If {\tt ZERO} is
-installed, the current process will be unable to resolve this
-pseudo-assign.
+This function installs {\tt lock}\key{Lock} into {\tt pr\_HomeDir} of the
+{\tt Process}\key{Process} structure and returns the lock that was
+previously installed there. The passed {\tt lock} indicates the directory
+the currently executing program was loaded from and is used to resolve the
+{\tt PROGDIR}\key{PROGDIR} pseudo-assign. If {\tt ZERO} is installed, the
+current process will be unable to resolve this pseudo-assign.
+\smallskip{}
+
+Application programs should rarely have a reason why to call this
+function. However, if the home directory of the caller is modified, the
+original lock shall be restored back before the program terminates.
 
 \subsection{Retrieve Command Line Arguments} \label{sec:getargstr}
 
-The {\tt GetArgStr()}\mkey{GetArgStr()} function returns the command
-line arguments, if any, of the calling process. If called from the
-Workbench, this function returns {\tt NULL}.
+The {\tt GetArgStr()}\mkey{GetArgStr()} function returns the command line
+arguments, if any, of the calling process. If the calling process was
+launched from from the Workbench, this function returns {\tt NULL}.
 
 \begin{verbatim}
-ptr = GetArgStr()
+ptr = GetArgStr() /* since V36 */
 D0
 
 STRPTR GetArgStr(void)
 \end{verbatim}
 
-This function returns the command line arguments as {\tt
-  NUL}-terminated string. This is the same string the process finds in
-register {\tt a0} on startup, or that is placed into the file buffer
-of the {\tt Input()} file handle\key{FileHandle}. This function returns {\tt NULL} if
-the program was run from the Workbench; it is equivalent to reading
-the {\tt pr\_Arguments} member of the {\tt Process}\key{Process} structure.
+This function returns the command line arguments of the calling process as
+{\tt NUL}-terminated string. The same string is found in register {\tt a0}
+on startup, and is also located in the buffer of the {\tt Input()} file
+handle\key{FileHandle}. This string contains all arguments provided on the
+command line, it does \emph{not} include the program name itself.
+
+This function returns {\tt NULL} if the program was run from the
+Workbench. This function is the accessor to the {\tt pr\_Arguments} element
+of the {\tt Process}\key{Process} structure.
 
 \subsection{Set the Command Line Arguments} \label{sec:setargstring}
 
@@ -11017,23 +11087,25 @@ returned by {\tt GetArgStr()}\key{GetArgStr()}. It cannot set the
 command line arguments as seen by {\tt ReadArgs()}\key{ReadArgs()}.
 
 \begin{verbatim}
-oldptr = SetArgStr(ptr)
-D0                   D1
+oldptr = SetArgStr(ptr) /* since V36 */
+D0                 D1
 
 STRPTR SetArgStr(STRPTR)
 \end{verbatim}
 
 This function requires a pointer to a {\tt NUL} terminated string as
 {\tt ptr} and installs it to {\tt pr\_Arguments} member of the
-{\tt Process}\key{Process} structure. This is unfortunately of limited use as the
-{\tt ReadArgs()}\key{ReadArgs()} function takes the command line
+{\tt Process}\key{Process} structure of the calling process. This function
+has limited use as 
+{\tt ReadArgs()}\key{ReadArgs()} takes the command line
 arguments from a different source, namely the input buffer of the
-{\tt Input()} file handle\key{FileHandle}. 
+{\tt Input()} file handle\key{FileHandle}, and it rarely makes sense to
+adjust the command line arguments in first place as the functions {\tt
+  RunCommand()}\key{RunCommand()} and {\tt
+  CreateNewProc()}\key{CreateNewProc()} can set them in a more consistent
+way before the program starts up.
 
 \chapter{Binary File Structure} \label{sec:binary}
-
-% TODO: Add keywords to index from here on.
-% TODO: add library format.
 
 The AmigaDOS \emph{Hunk} format represents executable and linkable
 object files. The first type includes application programs that are
