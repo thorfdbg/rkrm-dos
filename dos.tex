@@ -11301,7 +11301,8 @@ the binary ``and'', i.e.\ $p \& 1$ is true if $p$ is odd. The expression {\tt
   i++} increments an internal state variable {\tt i}, and the expression
 {\tt -{}-j} decrements an internal state variable. The value of {\tt i++} is
 the value of $i$ before the increment, and the value of {\tt -{}-j} is the
-value of $j$ after decrementing it.
+value of $j$ after decrementing it. The expresssions {\tt +=} and {\tt -=} add or
+subtract the value on its right to the variable on its left.
 
 \section{Executable File Format} \label{sec:execfmt}
 
@@ -11357,7 +11358,8 @@ Bit $29$ ({\tt HUNKB\_ADVISORY})\mkey{HUNKB\_ADVISORY} has a special
 meaning. If this bit is set, then the hunk contents is ignored. The
 size of such an \emph{advisory} hunk is defined by a long-word
 following the hunk type, and the contents of this hunk is skipped
-over. Currently, there is no publicly known use of such hunks.
+over. Currently, there is no publicly known use of such hunks, and AmigaDOS
+versions 34 and below do not support it.
 \smallskip{}
 
 Loading a binary executable terminates on three conditions. Either, if
@@ -11386,14 +11388,14 @@ segment.
 32 & \tt $t_{\mbox{size}} \in [1,2^{31}-1]$ & Number of segments in binary \\ \hline
 32 & \tt $t_{\mbox{num}} \in [0,t_{\mbox{size}}-1]$ & First segment to load \\ \hline
 32 & \tt $t_{\mbox{max}} \in [t_{\mbox{num}},t_{\mbox{size}}-1]$ & Last segment to load (inclusive) \\ \hline
-   & \tt for(i=$t_{\mbox{num}}$;$i \le t_{\mbox{max}}$;i++) \{ & Iterate over all hunks \\ \hline
-2  & \tt $\quad$ $m_t[i]$ & Read memory type of the segment as 2 bits \\ \hline
-30 & \tt $\quad$ $m_s[i]$ & Read memory size in long words as 30 bits \\ \hline
-   & \tt $\quad$ if ($m_t[i]$ == 3) \{ & if the memory type is $3$ \\ \hline
-32 & $\quad \quad m_t[i]$ & Memory type is explicitly provided \\ \hline
+   & \tt for(j=$t_{\mbox{num}}$;$j \le t_{\mbox{max}}$;j++) \{ & Iterate over all hunks \\ \hline
+2  & \tt $\quad$ $m_t[j]$ & Read memory type of the segment as 2 bits \\ \hline
+30 & \tt $\quad$ $m_s[j]$ & Read memory size in long words as 30 bits \\ \hline
+   & \tt $\quad$ if ($m_t[j]$ == 3) \{ & if the memory type is $3$ \\ \hline
+32 & $\quad \quad m_t[j]$ & Memory type is explicitly provided \\ \hline
    & \tt $\quad$ \tt \} & End of special memory condition \\ \hline
-   & \tt $\quad$ $m_a[i]$ = AllocVec( \par \qquad sizeof(BPTR) + \par \qquad
-$m_s[i] \times$ sizeof(LONG), \par \qquad $m_t[i] \; | $ \mbox{MEMF\_PUBLIC}) + \par \qquad sizeof(BPTR) &
+   & \tt $\quad$ $m_a[j]$ = AllocVec( \par \qquad sizeof(BPTR)+%\par \qquad
+$m_s[j]\times$sizeof(LONG), \par \qquad $m_t[j] \; | \; $\mbox{MEMF\_PUBLIC})+sizeof(BPTR) &
 Get memory for segment \\ \hline
    & \tt \} & End of loop over segments \\ \hline
 \end{longtable}
@@ -11434,6 +11436,15 @@ in the segment table described by this {\tt HUNK\_HEADER}. For
 overlaid files, the number may be smaller, i.e.\ not all segments may
 be populated initially and loading may continue later on when
 executing the binary.
+\smallskip{}
+
+The remaining data in the hunk define the sizes of the segments along with
+their memory type. The memory type is indicated by two bits that map
+directly to {\tt MEMF\_ANY}, {\tt MEMF\_CHIP} and {\tt MEMF\_FAST} for the
+bit combinations $00$, $01$ and $10$, see also {\tt exec/memory.h}. If the
+two memory type bits are both~$1$, an additional long word contains the
+memory type explicitly. This signalling mechanism is, however, only
+available in AmigaDOS 36 and up.
 
 \subsection{HUNK\_CODE} \label{sec:hunk_code}
 
@@ -11516,7 +11527,11 @@ included if $l < m_s[i]$.
 This hunk contains relocation information for the previously loaded
 segment; that is, it corrects addresses within this segment by
 adding the absolute address of this or other segments to long words at
-indicated offsets of the previous segments. \mkey{HUNK\_RELOC32}
+indicated offsets of the previous segments. At it needs to fix up offsets
+within an already loaded segment, it shall appear \emph{behind} the hunk
+carrying the payload data it is supposed to relocate, i.e.\ behind
+{\tt HUNK\_CODE} or {\tt HUNK\_DATA}. While it is also possible to relocate
+data within BSS hunks, this is at least unusual. \mkey{HUNK\_RELOC32}
 \smallskip{}
 
 The structure of this hunk is as follows:
@@ -11541,7 +11556,10 @@ That is, the hunk consists first of a counter that indicates the
 number of relocation entries, followed by the hunk index relative to
 which an address should be relocated. Then relocation entries follow;
 each long-word defines an offset into the previously loaded segment to
-relocate, that is, to fix up the address.
+relocate, that is, to fix up the address. As this hunk relocates pointers
+into other hunks, the relocation offsets $r_o$ shall all be even; the
+AmigaDOS loader does not check this condition, and would crash on an odd
+offset if executed on an 68000 or 68010 processor.
 \smallskip{}
 
 For AmigaDOS versions 37 and up (Kickstart 2.0 and later), the number of
@@ -11558,6 +11576,8 @@ start at long-word boundaries, the hunk contains an optional padding
 field at its end to align the next hunk
 appropriately. This hunk type was introduced in AmigaDOS 36\footnote{But see
 also the note at the end of the table for defects.}.\mkey{HUNK\_RELOC32SHORT}
+Similar to all hunks carrying relocation information, this hunk shall appear
+after the hunk carrying the payload data it relocates.
 \smallskip{}
 
 The structure of this hunk is as follows:
@@ -11583,17 +11603,23 @@ address of the selected hunk \\ \hline
 \end{longtable}
 \end{rkrmtabular}
 
+Similar to its long counterpart, the relocation offsets $r_o$ shall all be
+even as otherwise the AmigaDOS loader crashes on the smaller processors.
+\smallskip{}
+
 Due to an oversight, versions 36 to 38 of AmigaDOS do not understand the
 hunk type {\tt 0x3fc} properly and use instead {\tt 0x3f7}. This
 alternative (but incorrect) hunk type for the short version of the
-relocation hunk is still supported currently.
+relocation hunk is still supported currently. 
 
 \subsection{HUNK\_RELRELOC32} \label{sec:hunk_relreloc32}
 
 This hunk contains relocation information for 32-bit relative displacements
 the {\tt 68020} and later processors offer. Its purpose is to adjust the
 offsets of a 32-bit wide PC-relative branches between
-segments. This hunk was introduced in AmigaDOS~36.\mkey{HUNK\_RELRELOC32}
+segments. This hunk was introduced in AmigaDOS~39.\mkey{HUNK\_RELRELOC32}
+Similar to all hunks carrying relocation information, this hunk shall appear
+after the hunk carrying the payload data it relocates.
 \smallskip{}
 
 The structure of this hunk is as follows:
@@ -11614,24 +11640,31 @@ address of the selected hunk \\ \hline
 \end{tabular}
 \end{rkrmtabular}
 
+Even if this hunk only makes sense for processes from the 68020 onwards, odd
+relocation offsets make little sense as the instructions it relocates are
+still word-aligned.
+\smallskip{}
+
 For AmigaDOS versions 36 and up (Kickstart 2.0 and later), the number of
 relocation entries~$c$ shall not be larger than $2^{16}$. This is a known
 defect of the loader that has currently not yet fixed. If more relocation
 entries are needed, they shall be split into multiple chunks.
 \smallskip{}
 
-Due to another defect in AmigaDOS 36 onwards, all elements of this hunk, namely $c$, $r_o$, $j$ and
+Due to another defect in AmigaDOS 39 onwards, all elements of this hunk, namely $c$, $r_o$, $j$ and
 $r_o$ are only read as 16 bit wide elements, even though they should be (as
 documented) 32 bits wide, which limits the usefulness of this hunk. It is
 therefore recommended not to depend on this hunk type at all and avoid
-32-bit wide branches between segments. Luckely, the support for this hunk
+32-bit wide branches between segments. Luckely, the support and demand for this hunk
 type is very limited.
 
 \subsection{HUNK\_NAME} \label{sec:hunk_name}
 
 This hunk defines a name for the current segment. The AmigaDOS loader
 completely ignores this name, and it does not serve a particular
-purpose for the executable file format. However, linkers that bind
+purpose for the executable file format. This hunk shall always appear
+upfront the hunk carrying the payload data, i.e.\ before {\tt HUNK\_CODE}\key{HUNK\_CODE},
+{\tt HUNK\_DATA}\key{HUNK\_DATA} or {\tt HUNK\_BSS}\key{HUNK\_BSS}. Linkers that bind
 object files together use the name to decide which segments to merge
 to a single segment, more details on this in section~\ref{sec:objfile}.
 \mkey{HUNK\_NAME}
@@ -11664,7 +11697,8 @@ values within the currently loaded segment. Again, the AmigaDOS loader
 ignores this hunk, but the linker uses it to resolve symbols with
 external linkage to bind multiple object files together. If the
 symbol information is retained in the executable file, it may be used
-for debugging purposes. \mkey{HUNK\_SYMBOL}
+for debugging purposes. This hunk should appear behind the payload data it
+annotates. \mkey{HUNK\_SYMBOL}
 \smallskip{}
 
 The syntax of this hunk reads as follows:
@@ -11716,18 +11750,18 @@ i.e.\ {\tt EXT\_SYMB}, though all others are permitted:
 
 \begin{rkrmtabular}{Symbol types in HUNK\_SYMBOL and HUNK\_EXT} \label{table:symboltypes}
 \begin{tabular}{|lc|p{10cm}|} \hline
-\tt EXT\_SYMB\mkey{EXT\_SYMB} & [0x00] & Definition of a symbol, $s_v + m_a[i]$ is the address of the symbol \\ \hline
+\tt EXT\_SYMB\mkey{EXT\_SYMB} & \tt [0x00] & Definition of a symbol, $s_v + m_a[i]$ is the address of the symbol \\ \hline
 
-\tt EXT\_DEF\mkey{EXT\_DEF} & [0x01] & Relocation definition, $s_v + m_a[i]$ is the
+\tt EXT\_DEF\mkey{EXT\_DEF} & \tt [0x01] & Relocation definition, $s_v + m_a[i]$ is the
 address of the symbol. References to this symbol are converted into a
 relocation information to the offset $s_v$ in hunk $i$. \\ \hline
 
-\tt EXT\_ABS\mkey{EXT\_ABS} & [0x02] & Absolute value, $s_v$ is the value of the
+\tt EXT\_ABS\mkey{EXT\_ABS} & \tt [0x02] & Absolute value, $s_v$ is the value of the
 symbol which is substituted into the executable by the linker. No
 relocation information is created, the absolute value is just
 substituted. \\ \hline
 
-\tt EXT\_RES\mkey{EXT\_RES} & [0x03] & Not longer supported as it is part of the
+\tt EXT\_RES\mkey{EXT\_RES} & \tt [0x03] & Not longer supported as it is part of the
 obsolete dynamic library run-time binding protocol, see~\cite{guru}
 for more details. \\ \hline
 \end{tabular}
@@ -11740,13 +11774,15 @@ appear within {\tt HUNK\_EXT}\key{HUNK\_EXT}.
 
 \subsection{HUNK\_DEBUG} \label{sec:hunk_debug}
 
-This hunk contains debug information such as function names and line
-number information. Generally, the contents of this hunk is compiler
-or assembler specific, and the AmigaDOS loader does not interpret the
-contents of this hunk at all, it is just skipped over. \mkey{HUNK\_DEBUG}
+This hunk contains debug information such as function names and line number
+information. Generally, the contents of this hunk is compiler or assembler
+specific, and the AmigaDOS loader does not interpret the contents of this
+hunk at all, it is just skipped over. Similar to {\tt
+  HUNK\_SYMBOL}\key{HUNK\_SYMBOL}, this hunk should appear behind the
+payload data it annotates. \mkey{HUNK\_DEBUG}
 \smallskip{}
 
-However, the debug information emitted by the SAS/C compiler for the
+The debug information emitted by the SAS/C compiler for the
 ``line-debug'' option is also shared by other development tools such
 as the DevPac assembler and will be documented here. In this format,
 the debug hunk contains for each line of the source file an offset
@@ -11764,7 +11800,7 @@ The syntax of this hunk is as follows:
 32 & \tt 'LINE' & Identifies the type of debug information \\ \hline
 32 & \tt $l_n$ & Size of the source file name in long-words \\ \hline
 32 $\times l_n$ & $n_f$ & source file name that compiled to the current segment in $l_n$ long-words \\ \hline
-   & \tt $l -= 3 + l_n$ & Remove long-words read so far \\ \hline
+   & \tt $l$ {\tt -=} $3 + l_n$ & Remove long-words read so far \\ \hline
    & \tt while($l$ > 0) \{ & Repeat for all entries \\ \hline
 8  & \tt $\quad$ & Dummy byte \\ \hline
 24 & \tt $\quad$ $l_l$ & Line number within the source file \\ \hline
@@ -11772,8 +11808,8 @@ The syntax of this hunk is as follows:
 24 & \tt $\quad$ $l_v$ & Offset into the source file. The source file
 at line $l_l$ is compiled or assembled to the code at at address
 $m_a[i] + l_v + h_o$ and following. \\ \hline
-   & \tt $\quad$ $l -= 2$ & Remove the read data \\ \hline
-   & \tt \}; & Loop over the hunk. \\ \hline
+   & \tt $\quad$ $l$ {\tt -=} $2$ & Remove the read data \\ \hline
+   & \tt \} & Loop over the hunk. \\ \hline
 \end{longtable}
 \end{rkrmtabular}
 
@@ -11787,7 +11823,7 @@ The hunk offset $h_o$ is added to all offsets $l_v$ into the hunk to
 determine the position of a symbol in the hunk.
 \smallskip{}
 
-While~\cite{Bantam} documents the entire hunk contents except the hunk
+While~\cite{Bantam} and~\cite{guru} document the entire hunk contents except the hunk
 length~$l$ to be compiler dependent, it is is recommended for custom
 debug hunks to always include the hunk offset $h_o$ and the ID field ---
 {\tt 'LINE'} in this case --- to simplify linker designs.
