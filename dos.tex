@@ -12341,7 +12341,7 @@ described by this entry in the overlay node. \\ \hline
 
 Note that the overlay table is $l+1$ and not $l$ long-words large, i.e.\ a
 table only defining a single symbol within a tree of two levels would be
-indicated by a value of $l=10$ and would have $12 \times 4 = 48$ bytes of
+indicated by a value of $l=9$ and would have $10 \times 4 = 40$ bytes of
 payload, excluding the length field. The length is always indicated in this
 (unorthogonal) way, regardless of the overlay manager used.
 \medskip{}
@@ -12447,27 +12447,27 @@ structure were already briefly introduced in table~\ref{table:hunk_overlay} abov
 
 {\tt oh\_Segments}\mkey{oh\_Segments} in the {\tt
   OverlayHeader}\key{OverlayHeader} structure is filled by the AmigaDOS
-loader with a BPTR to the segment array of the loaded binary. The size of
-this array is taken from $t_{\mbox{size}}$ in the {\tt
+loader with a BPTR to the segment table of the loaded binary. The size of
+this table is taken from $t_{\mbox{size}}$ in the {\tt
   HUNK\_HEADER}\key{HUNK\_HEADER} of the root node\key{Root Node}, see
 table~\ref{table:hunk_header} in section~\ref{sec:hunk_header}. Each element
-in this array contains a BPTR to a segment\key{Segment} of the loaded
+in this table contains a BPTR to a segment\key{Segment} of the loaded
 binary, and it is indexed by the segment number, counting from~$0$ for the
 first segment of the root node\key{Root Node}, i.e. the overlay manager
 itself. Thus, the segments of the loaded executable form a singly linked
-list whose nodes are in addition directly accessibly through the array
+list whose nodes are in addition directly accessibly through the table
 pointed to by {\tt oh\_Segments}.
 \smallskip{}
 
-When parsing a {\tt HUNK\_HEADER}\key{HUNK\_HEADER}, the array entries
+When parsing a {\tt HUNK\_HEADER}\key{HUNK\_HEADER}, the table entries
 $t_{\mbox{num}}$ to $t_{\mbox{max}}$ will be populated by the BPTRs to the
 segments\key{Segment} allocated within this hunk, and when unloading an
 overlay node, the corresponding segments will be unlinked, released and
-their corresponding entries in this array set to {\tt ZERO} again. This
-array is therefore essentially the $m_a$ array of
+their corresponding entries in this table set to {\tt ZERO} again. This
+table is therefore essentially the $m_a$ array of
 table~\ref{table:hunk_header}, except that its entries are BPTRs, not
 regular pointers --- of course another Tripos legacy. Note that the segment
-array contains segments and is indexed by the segment number counting
+table contains segments and is indexed by the segment number counting
 from~0, whereas the entries of the {\tt OVTab}\key{OVTab} array are ordinate
 numbers of loaded overlay nodes, where each node typically consists of
 \emph{multiple} segments. The first entry in the latter array is the first
@@ -12501,11 +12501,11 @@ for the loader on the end of a node.
 
 The {\tt LoadSeg()}\key{LoadSeg()} function is not only able to load
 the root node\key{Root Node} of an overlaid binary, it can also be used for
-loading an overlaid node and all segments within it. For that, the
+loading an overlay node and all segments within it. For that, the
 file pointer shall first be placed with {\tt Seek()}\key{Seek()} to
-the file offset of the {\tt HUNK\_HEADER}\key{HUNK\_HEADER} of the overlaid node. This
-file offset may, for the standard hierarchical overlay manager, be
-taken from the {\tt ot\_FilePosition}\key{ot\_FilePosition} of the overlay table.
+the file offset of the {\tt HUNK\_HEADER}\key{HUNK\_HEADER} of the node to
+load. For the hierarchical overlay manager, this file offset may be taken
+from the {\tt ot\_FilePosition}\key{ot\_FilePosition} of the overlay table, 
 
 \begin{verbatim}
 seglist = LoadSeg( name ,table, fh)
@@ -12518,45 +12518,54 @@ For overlaid node loading, the first argument {\tt name} shall be
 interpret two additional (usually hidden) arguments.
 \smallskip{}
 
-{\tt table} is a BPTR to the segment table, and may be taken
-from {\tt oh\_Segments}. It contains BPTRs to all allocated
-segments\key{Segment}, see section~\ref{sec:hunk_overlay}.
+{\tt table} is a BPTR to the segment table, and may be taken from {\tt
+  oh\_Segments} in the first segment of the root node. It contains BPTRs to
+all allocated segments\key{Segment}, see section~\ref{sec:hunk_overlay}.
 \smallskip{}
 
-{\tt fh} is a BPTR to the \emph{FileHandle} from which the
+{\tt fh} is a BPTR to the file handle\key{FileHandle} from which the
 overlay node is to be loaded. This handle may be taken from
-{\tt oh\_FileHandle}, see section~\ref{sec:hunk_overlay}.
+{\tt oh\_FileHandle}, also stored in the first segment of the root
+node\key{Root Node}.
 \smallskip{}
 
 While this function allocates and loads the segments\key{Segment} in the overlaid
 node, it does not attempt to release already allocated segments
 populating the same entries in the segment table; it is instead up to
-the overlay manager to clean up the segment table upfront,
-see~\ref{sec:unloadnode}. The information which segments will be
-populated by an overlay node may be taken from the {\tt ot\_FirstHunk}
-member of the overlay table. Due to the tree structure imposed by the
-hierarhical overlay manager, it has to release all segments from {\tt
-  ot\_FirstHunk} onwards up to the end of the table, unlink the
-segments contained therein, and then load another overlay node through
-{\tt LoadSeg()}.
+the overlay manager to release entries in the segment table upfront,
+see~\ref{sec:unloadnode}. The overlay manager therefore needs to know which
+segments the node to load will populate.
 \smallskip{}
 
-Note that this function populates the same offset in the
-\emph{dos.library} as the regular {\tt LoadSeg()}\key{LoadSeg()}
-function; the function distinguishes loading regular binaries through
-a file name from loading overlay nodes by the first argument.
+For the hierarchical overlay manager, this information is available from the
+the {\tt ot\_FirstSegment}\key{ot\_FirstSegment} element of the overlay
+table. Due to the tree structure imposed by the hierarhical overlay manager,
+it has to release all segments from {\tt ot\_FirstHunk} onwards up to the
+end of the table, unlink the segments contained therein, and then proceed
+loading the new overlay node through {\tt LoadSeg()}.
+\smallskip{}
+
+Note that this function populates the same offset in the \emph{dos.library}
+as the regular {\tt LoadSeg()}\key{LoadSeg()} function; the function
+distinguishes loading regular binaries through a file name from loading
+overlay nodes by the first argument, though the function prototype available
+in the official AmigaDOS include files do not show the additional arguments.
 \smallskip{}
 
 As the regular {\tt LoadSeg()} call, this function returns the
 BPTR to the first segment\key{Segment} loaded on success, links all loaded
-segments together, populates the segment table, and then sets {\tt
-  IoErr()}\key{IoErr()} to~$0$. On error, it returns {\tt ZERO} and
-installs an error code in {\tt IoErr()}.
+segments together, populates the segment table, and then sets
+{\tt IoErr()}\key{IoErr()} to~$0$. On error, it returns {\tt ZERO} and
+installs an error code in {\tt IoErr()}\key{IoErr()}.
 
-\subsection{Loading an Overlay Node through Call-Back Functions}
+\subsection{Loading an Overlay Node through Call-Back Functions} \label{sec:ovlinternalls}
 
-The {\tt InternalLoadSeg()}\key{InternalLoadSeg()} function can also load
-an overlay node.
+While the {\tt InternalLoadSeg()}\key{InternalLoadSeg()} function can also load
+an overlay node, its usage for overlay managers is discouraged. Generally,
+overlays should load code through standard file handles\key{FileHandle} and
+not through an abstract object as {\tt UnLoadSeg()}\key{UnLoadSeg()} will
+call {\tt Close()}\key{Close()} on the stream used for overlay loading,
+regardless whether it was a file handle or not.
 
 \begin{verbatim}
 seglist = InternalLoadSeg(fh,table,funcs)
@@ -12576,17 +12585,18 @@ within the overlay table.
 \smallskip{}
 
 The {\tt table} shall be the BPTR to the segment\key{Segment} table; this
-may be taken from {\tt oh\_Segments}. This argument determines whether
-a regular binary load is requested, or an overlay node is to be
-loaded. In the latter case, this argument is non-{\tt ZERO}.
+may be taken from {\tt oh\_Segments} in the root node\key{Root Node}, see
+section~\ref{sec:hunk_overlay}. This argument determines whether a regular
+binary load is requested, or an overlay node is to be loaded. In the latter
+case, this argument is non-{\tt ZERO}.
 \smallskip{}
 
-Like {\tt LoadSeg()}\key{LoadSeg()}, this function does not release
-segments in populated entries in the segment list, it is up to the
-overlay manager to unload these segments. The information which
-entries of the segment table will be populated by an overlay node may
+Like {\tt LoadSeg()}\key{LoadSeg()}, this function does not release segments
+in populated entries in the segment list, it is up to the overlay manager to
+unload such segments. For the hierarchical overlay manager, the information
+which entries of the segment table will be populated by an overlay node may
 be taken from the {\tt ot\_FirstHunk} member of the overlay table, see
-also~\ref{sec:loadsegoverload}.
+also~\ref{sec:loadsegoverload} for an algorithm.
 \smallskip{}
 
 The {\tt funcs} argument points to a {\tt LoadSegFuncs} structure as
@@ -12598,27 +12608,35 @@ This function does not set {\tt IoErr()} consistently, unless the
 functions in the {\tt LoadSegFuncs} structure do. The function returns
 the segmen\key{Segment}t of the first segment of the overlay node on success, or
 {\tt ZERO} on error.
+\smallskip{}
 
 \subsection{Unloading Overlay Nodes} \label{sec:unloadnode}
 
-Unloading overlay nodes (and \emph{not} the root node) of an overlaid
-binary requires some manipulation of the segment table as the
-\emph{dos.library} does not provide a function for such
-operation. This algorithm is part of the overlay manager, but its
-implementation within the standard hierarchical overlay manager
-documented here for completeness. Other custom overlay managers
-perform potentially different algorithms.
+Unloading overlay nodes --- and \emph{not} the root node\key{Root Node} ---
+of an overlaid binary requires some manipulation of the segment table as the
+\emph{dos.library} does not provide a function for such operation. This
+algorithm is part of the overlay manager and thus depends on its structure;
+the implementation within the hierarchical overlay manager documented here
+for completeness. Other overlay managers would need to perform different
+algorithms, as for example the flat manager presented in
+section~\ref{sec:manxovl}.
 \smallskip{}
 
-First, it finds the previous segment\key{Segment} upfront the segment to be
-unloaded, and cleans its {\tt NextSegment} pointer to unlink all
-following segments. Then the following segments are released
-through {\tt FreeVec()} or, in case a custom allocator was provided for
-{\tt InternalLoadSeg()}, whatever memory release function is appropriate.
+The hierarchical overlay manager first finds the previous
+segment\key{Segment} upfront the first segment of the overlay node to be
+unloaded, and cleans its {\tt NextSegment} pointer to unlink all following
+segments. Then the following segments are released through {\tt FreeVec()}
+or, in case a custom allocator was provided for {\tt InternalLoadSeg()},
+whatever memory release function is appropriate. An implementation in C of
+this algorithm is given below, section~\ref{sec:stdoverlay} provides a
+complete implementation of the hierarchical overlay manager and thus an
+alternative implementation in assembler.
 \smallskip{}
 
-The following sample code releases the overlay node starting at
-segment $i > 0$ from a segment table of an overlay header:
+The following sample code releases the overlay node starting at segment $i >
+0$ from a segment table of an overlay header\key{OverlayHeader}, i.e.\ the
+structure from section~\ref{sec:hunk_overlay} in the first segment of the
+root node\key{Root Node}:
 \begin{verbatim}
 void UnloadOverlayNode(struct OverlayHeader *oh,ULONG i)
 {
@@ -12630,27 +12648,23 @@ void UnloadOverlayNode(struct OverlayHeader *oh,ULONG i)
   ** the first segment to release */
   *segment = NULL;
 
-  do {
-    /* Get the segment to release */
-    if (segment = (BPTR *)BADDR(segtbl[i++])) {
-      next      = *segment;
-      FreeVec(segment);
-    } else break;
-    /* Repeat until the last segment */
-  } while(next);
+  while (segment = (BPTR *)BADDR(segtbl[i++])) {
+    FreeVec(segment);
+  }
 }
 \end{verbatim}
-Note that a previous segment\key{Segment} always exists because the root node\key{Root Node}
-populates at least entry~$0$ of the segment table. The above loop
-makes use of the fact that the first long-word of a segment is a
-BPTR to the next segment, and this linkage is {\tt ZERO} for
-the final node.
+Note that a previous segment\key{Segment} always exists because the root
+node\key{Root Node} populates at least entry~$0$ of the segment table,
+i.e.\ $i>0$ upon entry. In addition, the AmigaDOS loader also
+zero-terminates the segment table, thus the above code cannot overrun its
+end.
 \smallskip{}
 
-If a custom memory allocator has been used for loading overlay nodes
-through {\tt InternalLoadSeg()}\key{InternalLoadSeg()}, the {\tt
-  FreeVec()} in the above function is replaced by the corresponding
-memory release function.
+If a custom memory allocator has been used for loading overlay nodes through
+{\tt InternalLoadSeg()}\key{InternalLoadSeg()}, the {\tt FreeVec()} in the
+above function is replaced by the corresponding memory release function;
+however, see the note in section~\ref{sec:ovlinternalls}, usage of {\tt InternalLoadSeg()} for
+overlays is discouraged.
 
 \subsection{Unloading Overlay Binaries}
 
@@ -12659,7 +12673,8 @@ all overlay nodes, {\tt UnLoadSeg()}\key{UnLoadSeg()} on the first
 segment of the root node is sufficient if neither custom I/O nor a
 custom memory allocator has been used to load the binary, independent
 on which overlay manager has been used. {\tt UnLoadSeg()} will detect
-the overlay manager from the magic value in {\tt oh\_Magic} and will
+overlaid executables from the magic value in {\tt oh\_Magic} in the first
+segment passed, and will
 then not only release the segments, but also close the overlay file
 handle\key{FileHandle} and release the segment table.
 \smallskip{}
@@ -12668,75 +12683,80 @@ If {\tt InternalLoadSeg()}\key{InternalLoadSeg()} has been used for
 loading the root node\key{Root Node} through custom I/O functions or with a custom
 memory allocator, {\tt InternalUnLoadSeg()}\key{InternalUnLoadSeg()}
 shall be used instead to release the root node. Unfortunately, it
-\emph{always} uses {\tt Close()}\key{Close()} on {\tt oh\_FileHandle},
-even if {\tt oh\_FileHandle} does not correspond to a
-\emph{FileHandle} as returned by {\tt Open()}\key{Open()},
+\emph{always} calls {\tt Close()}\key{Close()} on {\tt oh\_FileHandle},
+even if {\tt oh\_FileHandle} does not correspond to a BPTR to a
+{\tt FileHandle}\key{FileHandle} structure as returned by {\tt Open()}\key{Open()},
 e.g.\ because {\tt ReadFunc()} upon loading the overlay program pointed
 to a custom I/O function. The best strategy in this case is probably
 to close {\tt oh\_FileHandle} manually upfront with whatever method is
-appropriate, then zero it out manually and then finally call into {\tt
-  InternalUnLoadSeg()} to perform all the necessary cleanup steps.
+appropriate, then set it to zero and then finally call into {\tt
+  InternalUnLoadSeg()} to perform all remaining cleanup steps.
 This strategy works because {\tt Close()} on a {\tt ZERO}
-file handle\key{FileHandle} performs no operation and is legit.
+file handle\key{FileHandle} performs no operation and is legit. Due to these
+pecularities, {\tt InternalLoadSeg()} should \emph{not} be used for overlaid
+code, or at least, its {\tt fh} argument should be a BPTR to a {\tt
+  FileHandle} such that loading is attempted through a regular file handle.
 
-\subsection{Internal Working of the Overlay Manager} \label{sec:stdoverlay}
+\subsection{An Implementation of the Hierarchical Overlay Manager} \label{sec:stdoverlay}
 
-Several versions of the hierarchical overlay manager exist. The
-version described here stems from the SAS/C {\tt SLink} utility and is
-designed for the \emph{registerized parameters} configuration within
-which some function arguments are passed in CPU registers. Earlier
-versions require stack-based parameter passing.
+Several versions of the hierarchical overlay manager exist. The version
+described here stems from the SAS/C {\tt SLink} utility and is designed for
+the \emph{registerized parameters} configuration by which a subset of function
+arguments are passed in CPU registers. Earlier versions of the overlay
+manager required stack-based parameter passing. The version provided here
+is, however, also suitable for assembler programs and preserves all CPU registers.
 \smallskip{}
 
-When binding objects together to an overlay binary together, the
-linker checks whether a reference to a symbol crosses a boundary of
-overlay nodes. References that go to a parent node or the node itself
+When binding objects together to an overlaid executable, the
+linker checks whether a referenced symbol is within or outside the node it
+is referenced from. References that go to a parent node or to the node itself
 can be resolved by the linker by creating a relocation entry in a
 {\tt HUNK\_RELOC32}\key{HUNK\_RELOC32} hunk\key{Hunk} as it can assume that the
-corresponding segment\key{Segment} is already loaded.
+segment\key{Segment} containing the symbol is already present when the
+referencing hunk is loaded. Calls to such symbols thus become regular
+function calls whose jump destination is updated through the relocation
+mechanism of the Hunk\key{Hunk} format.
 \smallskip{}
 
-References to symbols within child nodes receive each a unique integer
-identifier, and an entry in the overlay table in {\tt HUNK\_OVERLAY}\key{HUNK\_OVERLAY}
-at the index given by the identifier. The actual call to a function in
-a child node is then replaced to call into a trampoline function that
-looks as follows:
+References to symbols within children nodes require another treatment as their
+segment is not necessarily in memory yet. Instead, the linker
+assigns to each such symbols a unique integer identifier, and creates an
+entry in the symbol table. Each instance of the {\tt SymTab}\key{SymTab}
+structure that is part of the {\tt HUNK\_OVERLAY}\key{HUNK\_OVERLAY}
+(section~\ref{sec:hunk_overlay}) represents such a (forward) reference to a
+child node. The actual call to the referenced symbol is replaced by the
+linker to a call of a trampoline function
 \begin{verbatim}
 @symX:
     jsr @ovlyMgr
     dc.w symbX
 \end{verbatim}
 where {\tt @ovlyMgr} is the entry point of the overlay manager and
-{\tt symbX} is the identifier of the referenced symbol. The overlay
-manager reads the return PC which points to the identifier, and from the
-identifier finds the entry in the symbol table. 
+{\tt symbX} is the integer identifier of the referenced symbol. The overlay
+manager then reads from its stack frame the return address, which instead
+points to the integer identifier. From that, it finds the
+{\tt SymTab}\key{SymTab} structure representing the target function.
 \smallskip{}
 
-The symbol table contains both the ordinate and the level of the
-symbol with which the overlay manager is able to check whether the
-node containing the symbol is currently loaded. If this is not the
-case, it needs to unload the currently loaded node at this level and
-all its children, and then progresses to loading the required node
-from the file offset in the symbol table, and then progresses to
-updating the overlay table.
+The symbol table contains both the ordinate and the level of the symbol
+which allows the overlay manager to check whether the node containing the
+symbol is already loaded. If this is not the case, it will unload the
+currently loaded node at the same level along with all its children, and
+then loads the required node from the file offset recorded in the symbol table.
 \smallskip{}
 
-If the overlay node containing the symbol is already loaded, or just
-has been loaded, the symbol address is computed from the offset in the
-symbol table and the address of the segment\key{Segment} containing the symbol from
-the segment table, and injected into the return address that contained
-a pointer to the symbol identifier. Thus, when returning from the
-overlay manager, the code will continue to execute from the target
-symbol. Other versions of the overlay manager use a trampoline function that
-loads register {\tt d0} with the symbol identifier and thus require
-stack-based function calls.
+Once the overlay node containing the symbol has been loaded or was found to
+be in memory already, the symbol address is computed from the offset in the symbol
+table and the address of the segment\key{Segment} it is contained within.
+The symbol address replaces then the return address of the overlay manager,
+thus forwards the code to the desired function.
 \smallskip{}
 
-Regardless of the version of the overlay
-manager, only symbols corresponding to function can be resolved as the
-overlay manager must be called to resolve a symbol. In particular,
-data cannot be referenced across overlay nodes --- instead, an
-accessor function may be used that returns the object to be accessed.
+As symbols in children nodes can only be reached through a call of the
+overlay manager potentially loading the symbol, data in a child cannot be
+directly referenced from the parent node. A possible workaround for this
+limitation is to make such data available through accessor functions in
+children nodes that return pointers to the requested data.
 \medskip{}
 
 The following code provides an overlay manager for register-based
@@ -12751,8 +12771,8 @@ ot_FilePosition:        rs.l 1          ;File position
 ot_reserved:            rs.l 2          ;for whatever
 ot_OverlayLevel:        rs.l 1          ;Overlay-Level
 ot_Ordinate:            rs.l 1          ;Overlay-Ordinate
-ot_InitialHunk:         rs.l 1          ;Initial hunk for loading
-ot_SymbolHunk:          rs.l 1          ;Hunk containing symbol
+ot_FirstSegment:        rs.l 1          ;Start of the overlay node
+ot_SymbolSegment:       rs.l 1          ;Segment containing symbol
 ot_SymbolOffset:        rs.l 1          ;Offset of symbol
 ot_len:                 rs.b 0
 
@@ -12761,87 +12781,89 @@ ot_len:                 rs.b 0
 ;*************************************************
 MajikLibWord    =       23456           
 
-       section NTRYHUNK,CODE
+       section NTRYHUNK,CODE            ;ensure this is first
 ;*************************************************
 ;** Manager starts here                         **
 ;*************************************************
 Start:
-        bra.w NextModule                ;Jump to the next segment...
+        bra.w NextModule                ;Jump to init code
 
 ;* This next word serves to identify the overlay
-;* supervisor to 'unloader', i.e.\ UnLoadSeg()
+;* manager to the 'unloader', i.e. UnLoadSeg()
 
         dc.l       $ABCD                ;Magic longword for UnLoadSeg
 
 ;* The next four LWs are filled by the loader (LoadSeg())
-ol_FileHandle:  dc.l 0                  ;Overlay file handle
-ol_OverlayTab:  dc.l 0                  ;Overlay table 
-ol_HunkTable:   dc.l 0                  ;BPTR to Overlay hunk table
-ol_GlobVec:     dc.l 0                  ;BPTR to global vector (unused)
+oh_FileHandle:  dc.l 0                  ;Overlay file handle
+oh_OVTab:       dc.l 0                  ;Overlay table 
+oh_Segments:    dc.l 0                  ;BPTR to Overlay hunk table
+oh_GlobVec:     dc.l 0                  ;BPTR to global vector (unused)
 
                 dc.l MajikLibWord       ;Identifier word
                 dc.b 7,"Overlay"        ;Identifier
 
-;* the following data is specific to this manger
+;* the following data is specific to this manager
 
-ol_SysBase:     dc.l 0                  ;additional pointer
-ol_DOSBase:     dc.l 0                  ;to libraries
+oh_SysBase:     dc.l 0                  ;additional pointer
+oh_DOSBase:     dc.l 0                  ;to libraries
 
-                dc.b "THOR Overlay Manager 1.0",0      ;another ID
+                dc.b "THOR Overlay Manager 1.2",0      ;another ID
 
 @ovlyMgr:                               ;Entry-points
-        saveregs d0-d3/a0-a4/a6         ;Saveback register
+        movem.l d0-d3/a0-a4/a6,-(a7)    ;Saveback register
 
         moveq #0,d0
-        move.l 10*4(a7),a0
+        move.l 10*4(a7),a0              ;return address
         move.w (a0),d0                  ;get the overlay reference ID
 
-        move.l ol_OverlayTab(pc),a3     ;get pointer to overlay table
+        move.l oh_OVTab(pc),a3          ;get pointer to overlay table
         move.l a3,a4                    ;to a4
         add.l (a3),d0                   ;add length
         lsl.l #2,d0                     ;get offset
-        add.l d0,a3                     ;address of overlay entry
-        move.l ot_OverlayLevel(a3),d0   ;get overlay
+        add.l d0,a3                     ;address of symbol
+        move.l ot_OverlayLevel(a3),d0   ;get symbol level
         lsl.l #2,d0
         adda.l d0,a4
-        move.l ot_Ordinate(a3),d0       ;get required ordinate level
-        cmp.l (a4),d0                   ;compare ordinate level
-        beq.s .gotsegment
-                                        ;not correct level
+        move.l ot_Ordinate(a3),d0       ;get required ordinate
+        cmp.l (a4),d0                   ;check resident ordinate
+        beq.s .segmentresident          ;if equal, is already resident
+                                        ;incorrect ordinate
                                         ;clear all other entries
-        move.l d0,(a4)+                 ;fill with new overlay entries
+        move.l oh_OVTab(pc),a1          ;get pointer to overlay table
+        move.l d0,(a4)+                 ;fill with new ordinate
+        move.l (a1),d1                  ;get size
+        lsl.l  #2,d1                    
+        adda.l d1,a1                    ;end of table
 
         moveq #0,d1
-        do                              ;macros in action! ;-)
-         tst.l (a4)                     ;terminate on end of table
-         break.s eq
+.do1:    cmp.l a1,a4                    ;terminate on end of table
+         bhs.s .br1
          move.l d1,(a4)+                ;clear this
-        loop.s
-
-        move.l ot_InitialHunk(a3),d0    ;first hunk number to load
-        add.l ol_HunkTable(pc),d0       ;plus BPTR of hunk table
-        lsl.l #2,d0                     ;address of entry in hunk table
+        bra.s .do1
+.br1:
+        move.l ot_FirstSegment(a3),d0   ;first segment to load
+        add.l oh_Segments(pc),d0        ;plus BPTR of hunk table
+        lsl.l #2,d0                     ;address of entry in segtable
         move.l d0,a4
-        move.l -4(a4),d0                ;get previous hunk
+        move.l -4(a4),d0                ;get previous segments
         beq.s .noprevious
         lsl.l #2,d0
         move.l d0,a2
         move.l d1,(a2)                  ;unlink fields before loading
 
-                                        ;now free all hunks
-        move.l ol_SysBase(pc),a6
-
-        do
-         move.l (a4)+,d0                ;next hunk ?
-         break.s eq
+                                        ;now free all children
+        move.l oh_SysBase(pc),a6
+.do2:    move.l (a4)+,d0                ;next hunk ?
+         beq.s .br2
          lsl.l #2,d0
          move.l d0,a1                   ;->a1
          move.l -(a1),d0                ;get length
          jsr FreeMem(a6)                ;free this hunk
-        loop.s                          ;and now the next
+        bra.s .do2                      ;and now the next
+.br2:
 .retry:
-        move.l ol_DOSBase(pc),a6
-        move.l ol_FileHandle(pc),d1     ;get our stream
+        move.l oh_DOSBase(pc),a6
+        move.l oh_FileHandle(pc),d1     ;get our stream
         move.l ot_FilePosition(a3),d2   ;get file position
         moveq #-1,d3                    ;relative to beginning of file
         jsr Seek(a6)                    ;seek to this position
@@ -12849,17 +12871,16 @@ ol_DOSBase:     dc.l 0                  ;to libraries
         bmi.s .loaderror                ;what to do on failure ?
 
                                         ;now call the loader
-        move.l ol_HunkTable(pc),d2      ;hunk table
-        moveq #0,d1                     ;no file (is overlay)
-        move.l ol_FileHandle(pc),d3     ;filehandle
+        move.l oh_Segments(pc),d2       ;segment table
+        moveq #0,d1                     ;no name (is overlay)
+        move.l oh_FileHandle(pc),d3     ;filehandle
         jsr LoadSeg(a6)                 ;load this stuff
         tst.l d0                        ;found
         beq.s .loaderror
         move.l d0,(a2)                  ;add new chain
-
                                         ;found this stuff
-.gotsegment:
-        move.l ot_SymbolHunk(a3),d0     ;get hunk # containing symbol
+.segmentresident:
+        move.l ot_SymbolSegment(a3),d0  ;get hunk # containing symbol
         add.l ol_HunkTable(pc),d0
         lsl.l #2,d0                     ;get APTR to hunk
         move.l d0,a4
@@ -12869,25 +12890,23 @@ ol_DOSBase:     dc.l 0                  ;to libraries
 
         move.l d0,10*4(a7)              ;Set RETURN-Address
 
-        loadregs
+        movem.l (a7)+,d0-d3/a0-a4/a6
         rts
 
 ;*************************************************
-;** Go here if we find an error                        **
+;** Go here if we find an error                 **
 ;*************************************************
 .loaderror:
-        saveregs d7/a5
-        move.l ol_SysBase(pc),a6
+        movem.l d7,-(a7)
+        move.l oh_SysBase(pc),a6
         move.l #$0700000C,d7
-        move.l $114(a6),a5
         jsr Alert(a6)                   ;Post alert
-        loadregs
+        movem.l (a7)+,d7
         bra.s .retry                    ;Retry or die
 
 .noprevious:
-        move.l ol_SysBase(pc),a6
+        move.l oh_SysBase(pc),a6
         move.l #$8700000C,d7            ;dead end !
-        move.l $114(a6),a5
         jsr Alert(a6)                   ;Post alert
         bra.s .noprevious
 
@@ -12901,8 +12920,8 @@ NextModule:
                                         ;why safe registers ?
         move.l a0,a2
         move.l d0,d2                    ;keep arguments
-        lea ol_SysBase(pc),a3
-        move.l ExecBase,a6
+        lea oh_SysBase(pc),a3
+        move.l AbsExecBase.w,a6
         move.l a6,(a3)                  ;fill in Sysbase
         lea DOSName(pc),a1              ;get name of DOS
         moveq #33,d0                    ;at least 1.2 MUST be used
@@ -12919,15 +12938,14 @@ NextModule:
         jsr 4(a2)                       ;jump in
         move.l d0,d2                    ;Save return code
 
-        move.l ol_SysBase(pc),a6
-        move.l ol_DOSBase(pc),a1
+        move.l oh_SysBase(pc),a6
+        move.l oh_DOSBase(pc),a1
         jsr CloseLibrary(a6)            ;Close the lib
 
         move.l d2,d0                    ;Returncode in d0
         rts
 .nodosexit:
         move.l #$07038007,d7            ;DOS didn't open
-        move.l $114(a6),a5
         jsr Alert(a6)
         moveq #30,d0                    ;Something went really wrong !
         rts
