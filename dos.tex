@@ -12983,7 +12983,7 @@ Similar to the hierarchical overlay manager, the MANX overlay manager keeps
 meta-data for organizing the overlay nodes in the
 {\tt HUNK\_OVERLAY}\key{HUNK\_OVERLAY} hunk, though its format is different
 from the one in documentation in section~~\ref{sec:hunk_overlay}. The
-AmigaDOS {\tt LoadSeg()} function does not care about the contents of this
+AmigaDOS {\tt LoadSeg()}\key{LoadSeg()} function does not care about the contents of this
 hunk\key{Hunk} as long as its first {\tt LONG} word indicates its size.
 \smallskip{}
 
@@ -12995,14 +12995,14 @@ symbol. If a call to a function in another overlay node is called, then the
 jump goes through this trampline, which initially calls the overlay manager.
 \smallskip{}
 
-The {\tt HUNK\_OVERLAY} hunk\key{Hunk} contains offsets within the file, to
-the trampoline functions and to the symbol table that provides information
-in which segment the referenced overlaid functions reside. Its contents
+The {\tt HUNK\_OVERLAY} hunk\key{Hunk} contains offsets within the file, the offsets to
+the trampoline functions and to the symbol table. This table provides information
+in which segment the referenced overlaid functions reside. The contents of the overlay hunk
 are, as always, accessible through the {\tt oh\_OVTab}\key{oh\_OVTab}
 element of the {\tt OverlayHeader}\key{OverlayHeader} structure. 
 \smallskip{}
 
-The contents of the overlay hunk for the MANX compiler reads on disk as follows:
+The overlay hunk for the MANX compiler reads on disk as follows:
 \begin{rkrmtabular}{MANX Hunk Overlay Syntax} \label{table:hunk_overlay_manx}%
 \begin{longtable}{|l|p{6.0cm}|p{6.9cm}|} \hline
 {\bf Size} & {\bf Code} & {\bf Syntax} \\ \hline \hline
@@ -13012,14 +13012,13 @@ The contents of the overlay hunk for the MANX compiler reads on disk as follows:
 32 & \tt $o_d$ & Number of nodes in the overlay, excluding the root node \\ \hline
    & \tt for($i$ = 1;$i$ < $o_d$;$i$++) \{ & For all nodes, excluding the root node \\ \hline
 32 & \tt $\quad$ $o_p[i]$ & Absolute offset of the {\tt HUNK\_HEADER} of the overlay node \\ \hline
-16 & \tt $\quad$ $o_t[i]$ & Offset of the first trampoline relative to the
-data hunk of the root node \\ \hline
-16 & \tt $\quad$ $o_s[i]$ & Offset to the symbol table relative to $o_p[0]$ \\ \hline
+16 & \tt $\quad$ $o_t[i]$ & Offset of the first trampoline relative to the linker symbol {\tt \textunderscore\textunderscore{}H1\textunderscore{}org} \\ \hline
+16 & \tt $\quad$ $o_s[i]$ & Offset to the symbol table relative to $\&o_p[1]$ \\ \hline
    & \tt \} & \\ \hline
    & \tt $l$ {\tt -=} $o_d\times 2$ & Remove read data from the count. \\ \hline
    & \tt for($s=0$;$l \ge 0$;$s$++) \{ & Repeat over the symbol table \\ \hline
-16 & \tt $\quad$ $o_h[s]$ & Hunk within which the symbols reside, or 0 for end of symbols for this hunk \\ \hline
-16 & \tt $\quad$ $o_c[s]$ & Symbol count for hunk $o_h[s]$ \\ \hline
+16 & \tt $\quad$ $o_h[s]$ & Segment within which the symbols resides, or 0 for end of node \\ \hline
+16 & \tt $\quad$ $o_c[s]$ & Symbols within segment $o_h[s]$ \\ \hline
    & \tt $\quad$ $l$ {\tt -=} 1 & Remove one long words. \\ \hline
    & \tt \} & End of loop over table \\ \hline
 \end{longtable}
@@ -13046,9 +13045,9 @@ struct MANXSymTab {
 \end{verbatim}
 
 The element $o_d$ representing {\tt ot\_NodeCount}\mkey{ot\_NodeCount} defines the number
-overlay nodes that can all be loaded or unloaded individually. The element
+overlay nodes, all of which can all be loaded or unloaded individually. The element
 $o_p[i]$ providing {\tt ot\_FilePosition}\mkey{ot\_FilePosition} is the offset relative to the
-start of the executable file at which the {\tt HUNK\_HEADER}\key{HUNK\_HEADER} of the
+start of the file at which the {\tt HUNK\_HEADER}\key{HUNK\_HEADER} of the
 overlay node~$i$ is found. The offset~$o_t[i]$ giving {\tt
   ot\_TrampolineOff}\mkey{ot\_TrampolineOff} is the offset of the first trampoline to a symbol
 within overlay node~$i$; the offset is relative to the second segment of the
@@ -13064,7 +13063,7 @@ the internal memory representation, relative to {\tt \&ot\_NodeCount+1}. The
 target of this offset is a sequence of $o_h[s]$,$o_c[s]$ pairs. The first
 member of this pair, $o_h[s]$, or {\tt ot\_Segment}\mkey{ot\_Segment} in memory, is the segment
 index containing the overlaid symbols; this clearly cannot be~$0$ as this
-would be within root node\key{Root Node}. The second member of the pair, $o_c[s]$ or
+would indicate a symbol within root node\key{Root Node}. The second member of the pair, $o_c[s]$ or
 {\tt ot\_Count}\mkey{ot\_Count} is the number of symbols within this segment. The symbols for
 the loaded node terminate with an $o_h[s]$ entry being~0.
 \smallskip{}
@@ -13098,9 +13097,9 @@ struct MANXTrampoline {
 \end{verbatim}
 
 The start of the trampoline is a word-sized relative subroutine jump to the
-overlay manager itself. As the trampoline is typically in the second segment\key{Segment} of
+overlay manager. As the trampoline is typically in the second segment\key{Segment} of
 the root node\key{Root Node}, but the code of the overlay manager is in its first segment,
-this branch goes to a long absolute jump to the overlay manager. The element
+this branch goes to another absolute jump to the overlay manager. The element
 $t_j$, or {\tt mt\_OvMngrOffset}\mkey{mt\_OvMngrOffset} is the branch distance to this jump. When
 building an overlaid binary, the MANX linker resolves all references to
 overlaid symbols to a trampoline as indicated above, and when the code of
@@ -13140,13 +13139,18 @@ struct MANXPatchedTrampoline {
 \end{verbatim}
 
 When unloading an overlay node, the original trampolines have to be
-restored such that a call to an overlay symbol triggers again loading the
-segments containing the symbol from disk. For that, {\tt mt\_JMP}\mkey{mt\_JMP} is again
-replaced by a {\tt bsr.w} instruction, {\tt mt\_OvMngrOffset}\key{mt\_OvMngrOffset} is moved to the
-next word, and the hunk\key{Hunk} offset is re-injected by counting the segmentsq within
-the singly linked list of loaded segments. Finally, {\tt mt\_SymbolOffset}\key{mt\_SymbolOffset}
-is re-computed by subtracting the base address of the segment\key{Segment} from the absolute
-symbol address.
+restored such that a call to an overlay symbol triggers again loading
+the segments containing the symbol from disk. For that, {\tt
+  mt\_JMP}\mkey{mt\_JMP} is replaced by a {\tt bsr.w} instruction,
+{\tt mt\_OvMngrOffset}\key{mt\_OvMngrOffset} is moved to the next
+word, and the overlay node is found by identifying the {\tt OvNode}
+that contains the offset to the trampoline that is to be unloaded. As
+trampoline offsets are assigned in increasing overlay node order, it
+is sufficient to find the largest trampoline offset that is smaller or
+equal to the trampoline to the symbol to be unloaded. Finally,
+{\tt mt\_SymbolOffset}\key{mt\_SymbolOffset} is re-computed by
+subtracting the base address of the segment\key{Segment} from the
+absolute symbol address.
 
 \section{Structures within Hunks}
 
@@ -13158,30 +13162,44 @@ contents.
 \subsection{The Version Cookie} \label{sec:versioncookie}
 
 The {\tt Version} command scans a ROM-resident modules or all segments
-of a binary for the character sequence {\tt \$VER:} and if such a
-sequence is found, the string following is scanned. The syntax of the
-string consists of the following elements:
+of an executable for the character sequence {\tt \$VER:} followed by
+at least a single blank space, and if such a sequence is found, the
+following string is scanned.
+\smallskip{}
 
-\begin{itemize}
-\item[-] The version cookie {\tt \$VER:}
-\item[-] one or multiple blank spaces
-\item[-] a program name, which is output by the {\tt Version} command
-\item[-] a decimal number, representing the \emph{version} of the program
-\item[-] a single dot (``{\tt .}'')
-\item[-] a decimal number, representing the \emph{revision} of the program
-\item[-] one or multiple blank spaces
-\item[-] an opening bracket (``{\tt (}'')
-\item[-] a decimal number, representing the day of the month of the revision
-\item[-] a single dot (``{\tt .}'')
-\item[-] a decimal number, representing the month of the revision
-\item[-] a single dot (``{\tt .}'')
-\item[-] a decimal number, representing the year of the revision
-\item[-] a closing bracket (``{\tt )}'')
-\item[-] an optional comment that is only output if the {\tt FULL} option of the {\tt Version} is given.
-\end{itemize}
+The syntax of the version cookie is formally specified as follows:
+
+\begin{rkrmtabular}{Version Cookie}
+\begin{longtable}{|l|p{3.5cm}|p{9.4cm}|} \hline
+{\bf Size} & {\bf Data} & {\bf Syntax} \\ \hline \hline
+40     & \tt '\$VER:' & The version cookie identifier \\ \hline
+$\ge$8 & \tt ' ' $\ldots$ & One or more blank spaces \\ \hline
+$\ge$8 & name         & Program name, terminated by {\tt '\textbackslash{}0'}, {\tt '\textbackslash{}n'}, {\tt '\textbackslash{}r'} or a digit between {\tt '0'} and {\tt '9'} \\ \hline
+$\ge$8 & version      & Major \emph{version} of the program encoded as decimal number in ASCII\\ \hline
+8      & \tt '.'      & An ASCII dot \\ \hline
+$\ge$8 & revision     & Minor \emph{revision} of the program encoded as decimal number \\ \hline
+$\ge$0 & \tt ' ' $\ldots$ & Zero or more blank spaces \\ \hline
+8      & \tt '('      & An opening bracket \\ \hline
+$\ge$8 & day          & Day of the month, between 1 and 31, encoded as decimal number \\ \hline
+8      & \tt '.'      & A dot \\ \hline
+$\ge$8 & month        & Month, between 1 and 12, encoded as decimal number \\ \hline
+8      & \tt '.'      & A dot \\ \hline
+$\ge$8 & year         & Year, either as two or four decimal digits \\ \hline
+8      & \tt ')'      & Closing bracket \\ \hline
+$\ge$0 & \tt ' ' $\ldots$ & Zero or more blank spaces \\ \hline
+$\ge$8 & comment      & A comment, terminated by {\tt '\textbackslash{}0'}, {\tt '\textbackslash{}n'}, or {\tt '\textbackslash{}r'} \\ \hline
+\end{longtable}
+\end{rkrmtabular}
+
+Everything following the version cookie is optional, even the version
+number may be omitted. However, the cookie is not particulary
+useful if the version number is not present. The string is terminated
+by an ASCII {\tt NUL} character, i.e. {\tt '\textbackslash{}0'}, a
+line feed {\tt '\textbackslash{}n'}, or a carriage return {\tt '\textbackslash{}r'}.
+\smallskip{}
 
 If the number representing the year is below $1900$, the {\tt Version}
-command assumes a two-digit year and either adds $200$ if the year is
+command assumes a two-digit year and either adds $2000$ if the year is
 below $78$, or $1900$ otherwise. The command then re-formats the date
 according to the currently active locale and prints it to the console,
 along with the program name and, optionally, the comment string.
@@ -13194,27 +13212,39 @@ const char version[] = "$VER: RKRM-Dos 45.3 (12.9.2023) (c) THOR";
 
 Note that the date follows the convention date of the month, month and
 year, here September 12, 2023. The version in this example is 45, the
-version is 3. The string behind the date is a comment and usually not
-printed by the {\tt Version} command.
+revision is 3. The string behind the date is a comment and usually not
+printed by the {\tt Version} command, unless instructed to do so with
+the {\tt FULL} command line argument.
 
 \subsection{The Stack Cookie} \label{sec:stackcookie}
 
 The Workbench, the shell\key{Shell}, and also {\tt
-  GetDeviceProc()}\key{GetDeviceProc()} when loading handlers
+  GetDeviceProc()}\key{GetDeviceProc()} when loading handlers,
 scan the loaded binary for the string sequence {\tt \$STACK:}. If this
 string sequence is found, AmigaDOS attempts to read a following
 decimal number, and interprets this as stack size in bytes.
 \smallskip{}
 
-The stack of the program is then, potentially increased to the
-provided size. Note that AmigaDOS also scans alternative sources for a
-stack size: The {\tt Stack} setting in the icon information window of the
-Workbench, the {\tt Stack} command of the shell\key{Shell}, or the {\tt
-  STACKSIZE} entry in the mountlist\key{Mountlist}. The stack size indicated by the
-above stack cookie does not override these settings, it can only
-\emph{increase} the stack size. This allows program authors to ensure
-that the stack of their program has a necessary minimal size, though
-still allows users to increase it if necessary.
+Formally, the stack size cookie looks as follows:
+\begin{rkrmtabular}{Stack Size Cookie}
+\begin{longtable}{|l|p{3.5cm}|p{9.4cm}|} \hline
+{\bf Size} & {\bf Data} & {\bf Syntax} \\ \hline \hline
+56     & \tt '\$STACK:'& The stack size cookie identifier \\ \hline
+$\ge$0 & \tt ' ' $\ldots$ & Zero or more blank spaces \\ \hline
+$\ge$8 & stack size   & Required minimum stack size in bytes\\ \hline
+$\ge$0 & comment      & Terminated by {\tt '\textbackslash{}0'}, {\tt '\textbackslash{}n'}, or {\tt '\textbackslash{}r'} \\ \hline
+\end{longtable}
+\end{rkrmtabular}
+
+The stack of the program is then increased to the provided size. Note
+that AmigaDOS also scans alternative sources for a stack size: The
+{\tt Stack} setting in the icon information window of the Workbench,
+the {\tt Stack} command of the shell\key{Shell}, or the {\tt
+  STACKSIZE} entry in the mountlist\key{Mountlist} provide alternative information sources. The stack size
+indicated by the above stack cookie does not override these settings,
+it can only \emph{increase} the stack size. This allows program
+authors to ensure that the stack of their program has a necessary
+minimal size, though still allows users to increase it if necessary.
 \smallskip{}
 
 An example for the stack cookie is
@@ -13224,22 +13254,24 @@ const char stack[] = "$STACK: 8192";
 This ensures that the stack size of the program is at least 8192 bytes.
 \medskip{}
 
+\subsection{Extending the Stack Size from the Stack Cookie}
+
 The \emph{dos.library} provides with the
 {\tt ScanStackToken()}\mkey{ScanStackToken()} an optimized function to quickly
 scan segments\key{Segment} for the stack cookie and potentially adjust a default
-stacksize upwards to the value found in the stack cookie.
+stacksize to at least the value found in the stack cookie.
 
 \begin{verbatim}
-stack = ScanStackToken(segment, defaultstack)
+stack = ScanStackToken(segment, defaultstack) /* since V47 */
 D0                     D1       D2
 
 LONG ScanStackToken(BPTR segment, LONG defaultstack)
 \end{verbatim}
 
-This function scans the segment\key{Segment} list starting at {\tt segment} for a stack
+This function scans the singly linked segment\key{Segment} list starting at {\tt segment} for a stack
 cookie, potentially adjusting the {\tt defaultstack} size in bytes passed
 in. If a stack cookie is found, and the minimal stack size it finds is
-larger than the default stack, the stack size found in the stack cookie is
+larger than the default stack argument, the stack size found in the stack cookie is
 returned in {\tt stack}. If no stack cookie is found, or the value in the
 stack cookie is smaller than the {\tt defaultstack} size, the default size
 is returned.
