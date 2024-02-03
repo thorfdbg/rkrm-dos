@@ -12550,8 +12550,17 @@ as the regular {\tt LoadSeg()}\key{LoadSeg()} function; the function
 distinguishes loading regular binaries through a file name from loading
 overlay nodes by the first argument, though the function prototype available
 in the official AmigaDOS include files do not show the additional arguments.
-\smallskip{}
 
+\punchline{Seek to the Segment!}{The file pointer of the file
+  handle\key{FileHandle} {\tt fh} from which the executable is loaded
+  is \emph{undefined} after returning from {\tt LoadSeg()}\key{LoadSeg()}.
+  You therefore shall {\tt Seek()}\key{Seek()} to the start of the overlay node
+  before calling {\tt LoadSeg()}\key{LoadSeg()} to load an overlay node.
+  How to obtain the file position of an overlay node depends on the overlay
+  manager in use, but they are typically included in the overlay hunk, see
+  section~\ref{sec:hunk_overlay} for the hierarchical overlay manager, and section~\ref{sec:manxovl}
+  for the MANX overlay manager.}
+  
 As the regular {\tt LoadSeg()} call, this function returns the
 BPTR to the first segment\key{Segment} loaded on success, links all loaded
 segments together, populates the segment table, and then sets
@@ -12993,7 +13002,7 @@ are, as always, accessible through the {\tt oh\_OVTab}\key{oh\_OVTab}
 element of the {\tt OverlayHeader}\key{OverlayHeader} structure. 
 \smallskip{}
 
-The overlay structure for the MANX compiler reads on disk as follows:
+The contents of the overlay hunk for the MANX compiler reads on disk as follows:
 \begin{rkrmtabular}{MANX Hunk Overlay Syntax} \label{table:hunk_overlay_manx}%
 \begin{longtable}{|l|p{6.0cm}|p{6.9cm}|} \hline
 {\bf Size} & {\bf Code} & {\bf Syntax} \\ \hline \hline
