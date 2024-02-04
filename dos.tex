@@ -12554,9 +12554,9 @@ in the official AmigaDOS include files do not show the additional arguments.
 \punchline{Seek to the Segment!}{The file pointer of the file
   handle\key{FileHandle} {\tt fh} from which the executable is loaded
   is \emph{undefined} after returning from {\tt LoadSeg()}\key{LoadSeg()}.
-  You therefore shall {\tt Seek()}\key{Seek()} to the start of the overlay node
-  before calling {\tt LoadSeg()}\key{LoadSeg()} to load an overlay node.
-  How to obtain the file position of an overlay node depends on the overlay
+  You therefore shall {\tt Seek()}\key{Seek()} to the start of the overlaid node
+  before calling {\tt LoadSeg()}\key{LoadSeg()}, i.e. the byte offset of a {\tt HUNK\_HEADER}
+  defining this node. How to obtain the file position of an overlaid node depends on the overlay
   manager in use, but they are typically included in the overlay hunk, see
   section~\ref{sec:hunk_overlay} for the hierarchical overlay manager, and section~\ref{sec:manxovl}
   for the MANX overlay manager.}
@@ -13231,7 +13231,7 @@ Formally, the stack size cookie looks as follows:
 {\bf Size} & {\bf Data} & {\bf Syntax} \\ \hline \hline
 56     & \tt '\$STACK:'& The stack size cookie identifier \\ \hline
 $\ge$0 & \tt ' ' $\ldots$ & Zero or more blank spaces \\ \hline
-$\ge$8 & stack size   & Required minimum stack size in bytes\\ \hline
+$\ge$8 & stack size   & Required minimum stack size in bytes as ASCII encoded decimal number \\ \hline
 $\ge$0 & comment      & Terminated by {\tt '\textbackslash{}0'}, {\tt '\textbackslash{}n'}, or {\tt '\textbackslash{}r'} \\ \hline
 \end{longtable}
 \end{rkrmtabular}
@@ -13282,68 +13282,84 @@ e.g.\ as returned by {\tt LoadSeg()}\key{LoadSeg()} function.
 
 \subsection{Runtime binding of BCPL programs} \label{sec:bcplbinding}
 
-BPCL programs depend on a \emph{Global Vector}\mkey{Global Vector}
-that includes function entries and data available to all its
-modules. AmigaDOS includes a runtime binder functionality that creates
-the \emph{Global Vector} from data found in the segments\key{Segment} of the loaded
-binary and the \emph{dos.library} \emph{Global Vector}.
+BPCL programs depend on a Global Vector\mkey{Global Vector} that
+includes function entries and data that is made available to all its
+program units. AmigaDOS includes a runtime binder functionality that
+creates the Global Vector of such BCPL code from data found in the
+segments\key{Segment} of the loaded binary and the \emph{dos.library}
+public Global Vector.
 \smallskip{}
 
 Even though this mechanism is deprecated and AmigaDOS has long been
-ported to C and assembler, some components still depend on this legacy
-mechanism, namely all handlers and file systems mounted with the {\tt
-  GLOBVEC = 0} or {\tt GLOBVEC = -3}\key{GLOBVEC} entry in the mount
-list. While newer handlers should not depend on this mechanism
-anymore, the Port-Handler\key{Port-Handler} mount entry is created in the
-Kickstart ROM as BCPL handler, beyond control of the user. The same
-goes for the (now deprecated) CLI, which is also initiated as
-BCPL process. The AmigaDOS shell\key{Shell} uses the same code, but uses the C
-startup mechanism.
+ported to C and assembler, some of its components still depend on this
+legacy mechanism, namely all handlers and file systems mounted with
+the {\tt GLOBVEC = 0} or {\tt GLOBVEC = -3}\key{GLOBVEC} entry in the
+mount list, see table~\ref{table:gvvalues} in
+chapter~\ref{sec:devicelist}. While newer handlers should not depend
+on this mechanism anymore, the Port-Handler\key{Port-Handler} mount
+entry, see section~\ref{sec:porthandler}, is created in the Kickstart
+ROM as BCPL handler, beyond control of the user.
+\smallskip{}
+
+The same legacy startup mechanism is also used by the (now deprecated)
+CLI, or to be more precise, by the resident segment {\tt CLI} recorded
+in the \emph{dos.library}, see section~\ref{sec:resident}. The
+AmigaDOS shell\key{Shell}, even though it is build from the same
+source code and thus equivalent to the CLI, is represented by a
+different resident segment, namely {\tt shell}\key{Shell (resident)}
+and {\tt BootShell}, and uses the C/Assembler startup mechanism. More
+details on this are in sections~\ref{sec:resident}
+and~\ref{sec:usershells}.
 \smallskip{}
 
 If the above components --- the Port-Handler\key{Port-Handler} or the CLI
 --- are attempted to be customized, implementors need to be aware that
-these processes are not started from the first byte of the first
-segment\key{Segment}, but from the \emph{Global Vector} entry {\tt \#1}, which
+their processes are not started from the first byte of the first
+segment\key{Segment}, but from the Global Vector entry {\tt \#1}, which
 contains the address of the {\tt START} function from which the
 process is run. All other entries of the vector are of no concern, and
-should not be used anymore.
+should not be used or depend upon anymore.
 \medskip{}
 
 The \emph{Runtime Binder}\mkey{Runtime Binder} of AmigaDOS, initiated
-only for BCPL handlers and BCPL processes such as the CLI, scans the
-segments\key{Segment} of such programs for information on how to populate the
-\emph{Global Vector}.
+only for BCPL handlers and BCPL processes, scans the
+segments\key{Segment} of such programs for information on how to
+populate the Global Vector. The layout of the segments is as follows:
 \smallskip{}
 
-The \emph{first long-word} of the segment\key{Segment}, usually the entry point of
-the process, contains instead the long-word offset from the start of
-the process to the start of the \emph{Global Vector} initialization
-data. This initialization data is \emph{scanned backwards} from the
-given offset towards lower addresses, starting with the long-word
-right before the before the offset.
+The \emph{first long-word} of the segment\key{Segment}, usually the
+entry point of the process for C/Assembler startup, contains instead
+the long-word offset from the start of the process to the start of the
+Global Vector initialization data. This initialization data is
+\emph{scanned backwards} from the given offset towards lower
+addresses, starting with the long-word right before the address computed
+from the offset.
 \smallskip{}
 
-The first long-word of the initialization data is the required size of
-the \emph{Global Vector} the program requires. This value is only used
-to check the following initializers for validity. The standard system
-global vector currently requires 150 entries, which is a safe choice.
+The first long-word of the initialization data is the size of the
+Global Vector the program requires, i.e. the number of entries in the
+vector. This value is only used to check the following initializers
+for validity. The public Global Vector currently requires 150 entries,
+which is a safe choice.
 \smallskip{}
 
 All following entries consist of pairs of long-words, scanned again
 towards smaller addresses, where each pair defines one entry in the
 global vector. The first (higher address) long-word is the offset of
-the function offset which will populate the \emph{Global Vector}, the
-second (lower) address is the index of the \emph{Global Vector}
-entry. An offset of $0$ terminates the list.
+the function relative to the start of the segment to be filled into
+the Global Vector, the second (lower) address is the index of the
+Global Vector entry to be populated. An offset of $0$ terminates the list.
 \medskip{}
 
-The following assembler stub may be used as initial segment\key{Segment} of an
-(otherwise C-based) handler that instructs the \emph{Runtime Binder}
-to populate the {\tt START} vector, and then calls into the {\tt
-  @main} function. BCPL unfortunately also uses a custom call syntax:
-register {\tt a6} is the address of the BCPL return code which cleans
-up the BCPL stack frame and returns to the caller.
+The following assembler stub should be used as initial
+segment\key{Segment} of an (otherwise C-based) handler that instructs
+the Runtime Binder to populate the {\tt START} vector, and then calls
+into the {\tt \_main} function. BCPL unfortunately also uses a custom
+call syntax: register {\tt a6} is the address of the BCPL return code
+which cleans up the BCPL stack frame and returns to the caller. This
+register, along with registers {\tt a0}, {\tt a2}, {\tt a4} and {\tt
+  a5} need to be preserved and restored before exiting the program
+through the BCPL ``return from function'' call.
 
 \begin{verbatim}
                 SECTION text,code
@@ -13356,7 +13372,7 @@ G_CLISTART      EQU     133             ; CLI START
 
 CodeHeader:     DC.L    (CodeEnd-CodeHeader)/4 
 
-*               C Startup function, called for GlobVec=-1 or -3
+*               C Startup function, called for GlobVec=-1 or -2
 *               see text below why this works
 CStart:         sub.l   a0,a0           ; no startup message
                 bsr.w   _main           ; need to GetMsg() in main
@@ -13384,37 +13400,47 @@ CodeEnd:
 Note that there are other differences for BCPL handlers the {\tt
   main()} function of the handler needs to take care of. BCPL handlers
 do not receive their startup message in the process {\tt
-  pr\_MsgPort}\key{pr\_MsgPort}, but rather receive it as first BCPL
-argument in register {\tt d1}. It is here converted to a C-style
-pointer and provided as first argument to the main function, assuming
-the SAS/C registerized parameters ABI.
+  pr\_MsgPort}\key{pr\_MsgPort}, but rather receive a BPTR to the
+startup {\tt DosPacket}\key{DosPacket} in register {\tt d1} (see also
+sections~\ref{sec:dospacket},\ref{sec:handlerstartup} and
+\ref{sec:usershells}). Likewise, the CLI also receives the startup
+packet in this register rather than the process port. For convenience,
+the above startup code converts it to a C-style pointer and provides
+it in register {\tt a0} to the {\tt main()} function.
 \smallskip{}
 
 The {\tt CStart} label is not called at all if the handler is mounted
-with {\tt GLOBVEC=0} or {\tt GLOBVEC=-2}, and thus would be, in this
-example, not required. It is included here to demonstrate another
-technique, namely \emph{dual use} handlers that can be mounted both as
-C and as BCPL handlers.
+with {\tt GLOBVEC=0} or {\tt GLOBVEC=-3}, and thus would be not
+required for pure BPCL-type handlers or the CLI. It is included here
+to demonstrate another technique, namely \emph{dual use} handlers that
+can be mounted both as C and as BCPL handlers. The FFS\mkey{Fast File
+  System (FFS)} makes use of this technique to be able to drive both
+OFS-mounted floppy disks based on the BCPL startup mechanism as well
+as harddisk partitions typically using the more modern C/Assembler
+startup mechanism.
 \smallskip{}
 
-The above startup code also allows {\tt GLOBVEC=-1} in the mount
-list. In this case, the code \emph{is} started from the first byte,
-which is, actually, the long-word offset to the BCPL initializer.  In
-this particular case, it also assembles to a harmless {\tt ORI}
+In such a case, i.e. if {\tt GLOBVEC=-1} or {\tt GLOBVEC=-2} is
+indicated in the mountlist\key{Mountlist}, the code \emph{is} started
+from the first byte of the first segment, which is in this case
+actually the long-word offset to the BCPL initializer list. This still
+works because the offset value assembles to a harmless {\tt ORI}
 instruction, provided the offset to the end of the code is short
-enough, i.e.\ below 64K. As the calling syntax is different, the main
-function is now called with a {\tt NULL} argument, and then needs to
-wait for the startup package itself.
+enough, i.e.\ below 64K. As the calling syntax is different, the {\tt main()}
+function is now invoked with a {\tt NULL} argument in register {\tt
+  a0}, and then shall wait for the startup package itself. A
+corresponding handler main program for this startup code is provided
+as example in section~\ref{sec:handlerstartup}.
 \smallskip{}
 
-For the CLI, in particular, a second entry in the \emph{Global Vector}
-shall be populated, namely the entry {\tt G\_CLISTART} at offset {\tt
-  \#133}. It may point to the same entry code, more on this in
-section~\ref{sec:shell}. As this entry is not used for handler
-startup, it does not hurt to include it in the BCPL initializer in
-either case, and thus the above code may be used as universal ``BCPL
-kludge'' for both the shell\key{Shell} and legacy handlers that depend on BCPL
-startup.
+For the CLI, in particular, a second entry in the Global Vector
+shall be populated, namely the entry {\tt G\_CLISTART} {\tt \#133}. It
+may point to the same entry code, more on this in
+section~\ref{sec:usershells}. As this entry is not used for handler
+startup, it does not hurt to include it in the GlobVec initializer
+list as well. Thus, the above code may be used as universal ``BCPL
+kludge'' for both the CLI and handlers that depend on the legacy BCPL
+binding and startup mechanisms.
 
 \section{Object File Format} \label{sec:objfile}
 
