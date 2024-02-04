@@ -11733,46 +11733,11 @@ in an executable file, but may only appear in an object file; it is defined in
 section~\ref{sec:hunk_ext}.
 \smallskip{}
 
-The symbol type can be roughly classified into two classes: If bit $7$ of
-the type is clear, it is a symbol \emph{definition}. Such definitions may be
-referenced by another object file, or they may be used for debugging
-purposes. If bit $7$ is set, the symbol is \emph{referenced} and requires
-resolution by a symbol definition (i.e.\ a corresponding symbol with bit 7
-cleared) upon linking. Executable files, and thus symbols within {\tt
-  HUNK\_SYMBOL}\key{HUNK\_SYMBOL}, may only contain symbol definitions as
-all references had been resolved by the linker before. Thus, bit~$7$ is
-always~$0$ here.
-\smallskip{}
-
-The following table contains the symbol types for definitions only. They
-can therefore may appear in both {\tt HUNK\_SYMBOL} as part of executables
-and {\tt HUNK\_EXT}\key{HUNK\_EXT} as part of object files; actually, {\tt
-  HUNK\_SYMBOL} will typically only include the first type of entry,
-i.e.\ {\tt EXT\_SYMB}, though all others are permitted:
-
-\begin{rkrmtabular}{Symbol types in HUNK\_SYMBOL and HUNK\_EXT} \label{table:symboltypes}
-\begin{tabular}{|lc|p{10cm}|} \hline
-\tt EXT\_SYMB\mkey{EXT\_SYMB} & \tt [0x00] & Definition of a symbol, $s_v + m_a[i]$ is the address of the symbol \\ \hline
-
-\tt EXT\_DEF\mkey{EXT\_DEF} & \tt [0x01] & Relocation definition, $s_v + m_a[i]$ is the
-address of the symbol. References to this symbol are converted into a
-relocation information to the offset $s_v$ in hunk $i$. \\ \hline
-
-\tt EXT\_ABS\mkey{EXT\_ABS} & \tt [0x02] & Absolute value, $s_v$ is the value of the
-symbol which is substituted into the executable by the linker. No
-relocation information is created, the absolute value is just
-substituted. \\ \hline
-
-\tt EXT\_RES\mkey{EXT\_RES} & \tt [0x03] & Not longer supported as it is part of the
-obsolete dynamic library run-time binding protocol, see~\cite{guru}
-for more details. \\ \hline
-\end{tabular}
-\end{rkrmtabular}
-
-Additional symbol types representing references are documented in
-section~\ref{sec:hunk_ext}. References are only available within
-object files and as such symbol types representing them can only
-appear within {\tt HUNK\_EXT}\key{HUNK\_EXT}.
+Only a single type is permitted here, namely {\tt EXT\_SYMB}, which
+corresponds to the value $s_t=0$. The address of the symbol is given
+by $s_v + m_a[i]$, i.e. the symbol value is the offset into the
+segment represented by the hunk to which the {\tt HUNK\_SYMBOL} hunk
+belongs. All other types only appear in {\tt HUNK\_EXT}.
 
 \subsection{HUNK\_DEBUG} \label{sec:hunk_debug}
 
@@ -12125,7 +12090,7 @@ D0                          D1       A1
 
 BOOL InternalUnLoadSeg(BPTR,
                        void __asm (*)(register __a1 APTR,
-                                      register __d0 ULONG,
+                                      register _d0 ULONG,
                                       register __a6 struct ExecBase 
                                                     *SysBase))
 \end{verbatim}
@@ -12221,10 +12186,21 @@ therefore the organization of this hunk is depending on the overlay manager
 contained in the first hunk of the root node\key{Root Node}.
 \smallskip{}
 
-Every other overlay node terminates with a {\tt
-  HUNK\_BREAK}\key{HUNK\_BREAK} where {\tt LoadSeg()}\key{LoadSeg()}
-interrupts loading as well. This hunk\key{Hunk} does not contain any
-data. The overall structure of an overlaid binary therefore looks as
+Every other overlay node terminates with a {\tt HUNK\_BREAK}\key{HUNK\_BREAK} where {\tt LoadSeg()}\key{LoadSeg()}
+interrupts loading as well. Unlike {\tt HUNK\_OVERLAY}\key{HUNK\_OVERLAY}, this hunk\key{Hunk} does not
+contain any data.
+\smallskip{}
+
+When loading is interrupted, i.e. on {\tt HUNK\_OVERLAY}\key{HUNK\_OVERLAY} or
+{\tt HUNK\_BREAK}\key{HUNK\_BREAK}, the file pointer of the file
+handle\key{File Handle} through which the file is loaded is
+\emph{undefined} because the AmigaDOS loader uses an internal buffer
+of an unspecified size and thus prefetched an unknown small amount of data.
+It is therefore always necessary to seek to the absolute file position
+at which an overlaid node starts before attempting to load it.
+\smallskip{}
+
+The overall structure of an overlaid binary therefore looks as
 follows:
 
 \begin{rkrmtabular}{Overlay File Format} \label{table:overlayformat}
@@ -12770,8 +12746,8 @@ limitation is to make such data available through accessor functions in
 children nodes that return pointers to the requested data.
 \medskip{}
 
-The following code provides an overlay manager for register-based
-calls:
+The following code provides a general overlay manager for register-based or stack-based
+function calls:
 \begin{verbatim}
         xdef    @ovlyMgr
 ;*************************************************
@@ -13569,16 +13545,40 @@ created by the compiler in the \emph{small data model}\mkey{Small Data
 68000 uses only 16-bit for base-relative addressing.
 \smallskip{}
 
+Hunks named {\tt \_NOMERGE}\mkey{\_NOMERGE Hunk} are never merged to
+any other hunk, under no circumstances, even in the small
+code\key{Small Code Model} or small data model\key{Small Data Model}.
+\smallskip{}
+
 The hunk named {\tt NTRYHUNK}\mkey{NTRYHUNK Hunk} always becomes the
-first hunk of the created executable. This, for example, can be used
-to ensure that the overlay manager (see section~\ref{sec:stdoverlay})
-is always placed at the beginning of the executable file, regardless of the link
-order.
+first hunk of the created executable and thus should be the name of a
+code hunk. This, for example, can be used to ensure that the overlay
+manager (see section~\ref{sec:stdoverlay}) is always placed at the
+beginning of the executable file, regardless of the link order.
 \smallskip{}
 
 Executable code and constant data typically ends up in hunks named
 {\tt text}. This name has, however, no further implications to the
 linking process.
+\smallskip{}
+
+Non-constant data in the \emph{large data model}\mkey{Large Data
+  Model} typically ends up in hunks of the name {\tt data}. In this
+model, data is addressed using absolute addressing, without a base
+register. Similar to the above, the name has no further implications
+on linking.
+\smallskip{}
+
+Uninitialized data in the \emph{large data model}\key{Large Data
+  Model}, that is, BSS segments, end up in hunks named {\tt
+  udata}. The name has no further implications on the linking process.
+\smallskip{}
+
+Data that is placed in {\tt MEMF\_CHIP} memory typically ends up in
+data hunks of the name {\tt chip}. The name itself does not instruct
+the linker to request any special memory type, however, only the
+memory type $m_t$ of the hunk does, see table~\ref{table:objfile} in
+section~\ref{sec:objfile}. The name is only a convention.
 \smallskip{}
 
 In assembler, the hunk name can be set by the {\tt section}
@@ -13775,7 +13775,7 @@ The syntax of this hunk reads as follows:
    & \tt HUNK\_EXT [0x3ef] & A hunk assigning symbols to positions within a segment\\ \hline
    & \tt do \{ & Repeat $\ldots$ \\ \hline
 8  & \tt $\quad$ $s_t$ & Symbol type \\ \hline
-24 & \tt $\quad$ $s_l$ & Symbol length in long-words \\ \hline
+24 & \tt $\quad$ $s_l$ & Symbol name length in long-words \\ \hline
    & \tt $\quad$ if ($s_l$ == 0) break & Terminate the hunk \\ \hline
 32 $\times$ $s_l$ & \tt $\quad$ $s_n$ & Symbol name, potentially zero-padded \\ \hline
    & \tt $\quad$ if ($s_t$ < 0x80) \{ & Symbol definition? \\ \hline
@@ -13803,19 +13803,29 @@ types are defined in {\tt dos/doshunks.h} and shared with the {\tt
   HUNK\_SYMBOL} hunk, see section~\ref{sec:hunk_symbol}.\key{HUNK\_SYMBOL}
 \smallskip{}
 
-Entries of a symbol type with {\tt $s_t$ < 0x80} are symbol definitions, the
-symbol value is defined by $s_v$. See table~\ref{table:extsymboltypes} for
-possible types of symbol definitions.
+The symbol type can be roughly classified into two classes: If bit $7$
+of the type is clear, it is a symbol \emph{definition}. Such
+definitions may be referenced by another object file, or they may be
+used for debugging purposes. If bit $7$ is set, the symbol is
+\emph{referenced} and requires resolution by a symbol definition
+(i.e.\ a corresponding symbol with bit 7 cleared) upon linking.
 \smallskip{}
 
-The next table includes symbol types that identify symbol references,
-i.e.\ they are referenced within a segment\key{Segment} of an object file, though
-not defined there. These types can clearly not be contained within a
-executable binary, but they may appear within an object file and are
-then resolved by corresponding symbol definitions from the above table
-by the linker:
+The following table defines all symbol types:
+
 \begin{rkrmtabular}{Symbol types in HUNK\_EXT} \label{table:extsymboltypes}
 \begin{longtable}{|lc|p{9.6cm}|} \hline
+\tt EXT\_SYMB\mkey{EXT\_SYMB} & [0x00] & Definition of a symbol, $s_v + m_a[i]$ is the address of the symbol \\ \hline
+\tt EXT\_DEF\mkey{EXT\_DEF} & [0x01] & Relocation definition, $s_v + m_a[i]$ is the
+address of the symbol. References to this symbol are converted into a
+relocation information to the offset $s_v$ in hunk $i$. \\ \hline
+\tt EXT\_ABS\mkey{EXT\_ABS} & [0x02] & Absolute value, $s_v$ is the value of the
+symbol which is substituted into the executable by the linker. No
+relocation information is created, the absolute value is just
+substituted. \\ \hline
+\tt EXT\_RES\mkey{EXT\_RES} & [0x03] & Not longer supported as it is part of the
+obsolete dynamic library run-time binding protocol, see~\cite{guru}
+for more details. \\ \hline
 \tt EXT\_REF32\mkey{EXT\_REF32} & [0x81] & Reference to a 32-bit symbol that is resolved
 by a corresponding {\tt EXT\_ABS} to an absolute value or by a {\tt
   EXT\_DEF} definition to a relocation information to this or another
@@ -13975,11 +13985,14 @@ Table~\ref{table:hunk_lib} depicts the syntax of this hunk.
 \end{rkrmtabular}
 
 Additional restrictions arise for the {\tt HUNK\_EXT}\key{HUNK\_EXT}
-hunk. Since symbol definitions are now included in the {\tt HUNK\_INDEX}\key{HUNK\_INDEX} hunk\key{Hunk},
-they shall be removed from {\tt HUNK\_EXT}\key{HUNK\_EXT}. The corresponding symbol types to be removed are listed in
-table~\ref{table:symboltypes}. Unlike symbol definitions, symbol references
-as given by table~\ref{table:extsymboltypes} shall be retained as only the
-reference, but not the type of the reference is included in {\tt HUNK\_INDEX}\key{HUNK\_INDEX}.
+hunk. Since symbol definitions are now included in the {\tt
+  HUNK\_INDEX}\key{HUNK\_INDEX} hunk\key{Hunk}, they shall be removed
+from {\tt HUNK\_EXT}\key{HUNK\_EXT}. The corresponding symbol types to
+be removed are those with $s_t < 128$ listed in
+table~\ref{table:extsymboltypes} in section~\ref{sec:hunk_ext}. Unlike
+symbol definitions, symbol references corresponding to $s_t \ge 128$
+shall be retained as only the reference, but not the type of the
+reference is included in {\tt HUNK\_INDEX}\key{HUNK\_INDEX}.
 \smallskip{}
 
 The translation unit name and the hunk\key{Hunk} names shall also be stripped,
@@ -14027,7 +14040,7 @@ Table~\ref{table:hunk_index} depicts the syntax of this hunk.
  8 & \tt $\quad\quad\quad$ $a_u$ & Bits 23-16 of {\tt EXT\_ABS} definition \\ \hline 
  1 & \tt $\quad\quad\quad$ 0     & This bit shall be $0$ to identify a definition \\ \hline
  1 & \tt $\quad\quad\quad$ $a_s$ & Sign bit and bits 30 to 24 of an {\tt EXT\_ABS} definition \\ \hline
- 6 & \tt $\quad\quad\quad$ $d_t$ & Type of the definition from table~\ref{table:symboltypes} \\ \hline 
+ 6 & \tt $\quad\quad\quad$ $d_t$ & Type of the definition from table~\ref{table:extsymboltypes} \\ \hline 
    & \tt $\quad\quad$ \} & \\ \hline
    & \tt $\quad$ \} & \\ \hline
    & \tt \} while(!end) & Repeated until the end of hunk is found \\ \hline
@@ -14065,7 +14078,7 @@ symbol within the hunk, or the least significant 16 bits of an {\tt
 stores bits 23 to 16 of the symbol value, and bit $a_s$ is copied into bits
 31 to 24 of the symbol to enable negative values. The type of the symbol
 definition is $d_t$, which shall be a value from
-table~\ref{table:symboltypes}.
+table~\ref{table:extsymboltypes} in section~\ref{sec:hunk_ext}.
 \smallskip{}
 
 As seen from this definition, symbols can only be defined within the first
