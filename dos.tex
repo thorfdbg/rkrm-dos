@@ -13845,15 +13845,11 @@ generates a zero-initialized object if no definition is found. Not all linkers s
 that the defining and referencing hunks are merged together. \\ \hline
 \tt EXT\_REF8\mkey{EXT\_REF8} & [0x84] & Reference to a 8-bit PC relative offset within
 the same segment. \\ \hline
-\tt EXT\_DREF32\mkey{EXT\_DREF32} & [0x85] & 32-bit reference relative to a base register
-(typically {\tt a4}), resolved by the linker through an entry in a {\tt
-  HUNK\_DRELOC32} hunk\key{HUNK\_DRELOC32}.\\ \hline
-\tt EXT\_DREF16\mkey{EXT\_DREF16} & [0x86] & 16-bit reference relative to a base register,
-resolved by the linker through an entry in a {\tt HUNK\_DRELOC16}
-hunk\key{HUNK\_DRELOC16}.\\ \hline
-\tt EXT\_DREF8\mkey{EXT\_DREF8} & [0x87] & 8-bit reference relative to a base register,
-resolved by the linker through an entry in a {\tt HUNK\_DRELOC8} hunk
-\key{HUNK\_DRELOC8}.\\ \hline
+\tt EXT\_DREF32\mkey{EXT\_DREF32} & [0x85] & Reference to a 32-bit offset relative to a base register
+(typically {\tt a4}), resolved by a {\tt EXT\_DEF} definition in a {\tt \_\_MERGED} hunk.\\ \hline 
+\tt EXT\_DREF16\mkey{EXT\_DREF16} & [0x86] & Reference to a 16-bit offset relative to a base register,
+resolved by a definition in a {\tt \_\_MERGED} hunk.\\ \hline
+\tt EXT\_DREF8\mkey{EXT\_DREF8} & [0x87] & Reference to an 8-bit offset relative to a base register.\\ \hline
 \tt EXT\_RELREF32\mkey{EXT\_RELREF32} & [0x88] & 32-bit PC-relative reference for 32-bit
 address, this is resolved by an {\tt EXT\_DEF} definition into an
 entry into a {\tt HUNK\_RELRELOC32} hunk by the linker.\\ \hline
@@ -13873,6 +13869,40 @@ For references, $s_n$ identifies the number of times the symbol is
 referenced, while the $s_o[]$ array defines the offsets into the
 current segment\key{Segment} where the symbol is used and into which
 the symbol definition will be resolved during linking.
+\smallskip{}
+
+{\tt EXT\_DREF32}\key{EXT\_DREF32}, {\tt EXT\_DREF16}\key{EXT\_DREF16}
+and {\tt EXT\_DREF8}\key{EXT\_DREF8} are references to symbols defined
+in a {\tt \_\_MERGED} hunk somewhere outside of the current {\tt
+  HUNK\_UNIT}\key{HUNK\_UNIT} by an {\tt EXT\_DEF} entry there. Thus,
+in the C language, they represent symbols declared through {\tt
+  extern}, but defined in another translation unit. Upon linking, they
+become 32, 16 or 8 bit offsets relative to a compiler-specific base
+register pointing to or into the {\tt \_\_MERGED} hunk. The offset to
+the symbols is computed by the linker and written to the byte offsets
+defined by the $s_o[]$ array.
+\smallskip{}
+
+This is quite similar to the {\tt HUNK\_DRELOC32}\key{HUNK\_DRELOC32},
+{\tt HUNK\_DRELOC16}\key{HUNK\_DRELOC16} and {\tt
+  HUNK\_DRELOC8}\key{HUNK\_DRELOC8} hunks, except that the latter define
+base-register relative references into the {\tt \_\_MERGED} hunk that
+is part of the same {\tt HUNK\_UNIT}\key{HUNK\_UNIT}, and thus correspond in the C
+language to symbols defined in the same translation unit. Yet, as all
+{\tt \_\_MERGED} hunks of all translation units are joined into one
+common hunk, offsets into this hunk need to be adjusted; the
+positions that require adjustment are provided by the above hunks.
+\smallskip{}
+
+Typically, only 16-bit wide offsets are used, i.e. the {\tt EXT\_DREF16}\key{EXT\_DREF16} references
+and {\tt HUNK\_DRELOC16}\key{HUNK\_DRELOC16} hunks for external or
+internal symbols. This is due to the 16-bit wide base-relative
+addressing mode of the 68000 processor limiting the size of the {\tt \_\_MERGED} hunk to 64K.
+While 32-bit wide relative offsets would be possible on later members
+of the 68K processor family, the author is not aware of a compiler
+that makes use of this possibility. 8-bit references, even though
+representable as references or hunks, are too limited to be of
+practical value.
 \smallskip{}
 
 Common symbols are symbols that are referenced in multiple translation
@@ -18005,7 +18035,7 @@ If the file system does not implement this packet, it shall set
 The \emph{dos.library} then (attempts to) emulates this packet by setting
 the match pattern in the {\tt ExAllControl}{\tt ExAllControl} structure to a pattern that
 matches no entry, and then continues the scan with a
-{\tt ACTION\_EXAMINE\_ALL}\key{\tt ACTION\_EXAMINE\_ALL}
+{\tt ACTION\_EXAMINE\_ALL}\key{ACTION\_EXAMINE\_ALL}
 packet. This would then clearly reach the end of the directory without
 overruning the buffer. However, due to a defect in the \emph{dos.library} up
 to the latest release, the (non-matching) pattern is a literal pattern and
