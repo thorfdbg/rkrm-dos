@@ -13474,7 +13474,7 @@ in the topmost two bits of the hunk type itself. The memory type is
 then derived from $m_t$ as in {\tt HUNK\_HEADER}, see
 table~\ref{table:hunk_header} in section~\ref{sec:hunk_header}:
 \[
-\mu_t = (m_t <{}< 1) \; | \; \mbox{\tt MEMF\_PUBLIC}
+\mu_t = (m_t << 1) \; | \; \mbox{\tt MEMF\_PUBLIC}
 \]
 That is, the bit combinations $00$, $01$ and $10$ correspond to {\tt
   MEMF\_ANY}, {\tt MEMF\_CHIP} and {\tt MEMF\_FAST}. Unlike in {\tt
@@ -13685,8 +13685,7 @@ elements in the \emph{small data model}\key{Small Data Model}, see also
 section~\ref{sec:hunk_namelink}.
 \smallskip{}
 
-The format of this hunk is identical to {\tt
-  HUNK\_RELOC32}\key{HUNK\_RELOC32}, see
+The format of this hunk is identical to {\tt HUNK\_RELOC32}\key{HUNK\_RELOC32}, see
 section~\ref{sec:hunk_reloc32} and table~\ref{table:hunk_reloc32},
 where each 32-bit wide relocation offset $r_o$ points to a long-word
 within the preceding data or BSS hunk. The long-word at this offset is
@@ -13712,11 +13711,10 @@ addressed relative to a base register, i.e.\ {\tt \_\_MERGED} hunks in the
 \emph{small data} memory model.
 \smallskip{}
 
-The format of this hunk is identical to {\tt
-  HUNK\_RELOC32}\key{HUNK\_RELOC32}, see
+The format of this hunk is identical to {\tt HUNK\_RELOC32}\key{HUNK\_RELOC32}, see
 section~\ref{sec:hunk_reloc32} and table~\ref{table:hunk_reloc32},
 where each 32-bit wide relocation offset $r_o$ points to a signed 16-bit word
-within the preceding data or BSS segment\key{Segment}. The word at this offset is then
+within the preceding data or BSS hunk\key{Hunk}. The word at this offset is then
 adjusted by the position of the first byte of this hunk relative to the
 start of the {\tt \_\_MERGED} hunk in the final executable into which it is merged. 
 
@@ -13805,90 +13803,91 @@ types are defined in {\tt dos/doshunks.h} and shared with the {\tt
 
 The symbol type can be roughly classified into two classes: If bit $7$
 of the type is clear, it is a symbol \emph{definition}. Such
-definitions may be referenced by another object file, or they may be
-used for debugging purposes. If bit $7$ is set, the symbol is
+definitions can be referenced by another object file, or they can be
+used for debugging purposes. Symbol definitions do not have a bit
+size, they either represent an address or a value that is substituted
+into a reference of the symbol. If bit $7$ is set, the symbol is
 \emph{referenced} and requires resolution by a symbol definition
-(i.e.\ a corresponding symbol with bit 7 cleared) upon linking.
+(i.e.\ a corresponding symbol with bit 7 cleared) upon
+linking. References are sized, and an attempt to fit a symbol value
+too large for a reference either results in a linker error, or the
+creation of an automatic link vector\key{Automatic Link Vector (ALV)}.
 \smallskip{}
 
-The following table defines all symbol types:
+In the following table $m_a[i]$ is the address of the first data byte
+of the segment that corresponds to the current hunk once loaded,
+i.e. {\tt \&Data[0]} of the {\tt SegmentList} structure (see
+chapter~\ref{sec:binary} and table~\ref{table:hunk_header}
+in section~\ref{sec:hunk_header}):
 
 \begin{rkrmtabular}{Symbol types in HUNK\_EXT} \label{table:extsymboltypes}
 \begin{longtable}{|lc|p{9.6cm}|} \hline
-\tt EXT\_SYMB\mkey{EXT\_SYMB} & [0x00] & Definition of a symbol, $s_v + m_a[i]$ is the address of the symbol \\ \hline
+\tt EXT\_SYMB\mkey{EXT\_SYMB} & [0x00] & Definition of a symbol, $s_v + m_a[i]$ is the address of the symbol.
+This type only exists in {\tt HUNK\_SYMBOL}\key{HUNK\_SYMBOL} hunks. \\ \hline
 \tt EXT\_DEF\mkey{EXT\_DEF} & [0x01] & Relocation definition, $s_v + m_a[i]$ is the
 address of the symbol. References to this symbol are converted into a
 relocation information to the offset $s_v$ in hunk $i$. \\ \hline
 \tt EXT\_ABS\mkey{EXT\_ABS} & [0x02] & Absolute value, $s_v$ is the value of the
-symbol which is substituted into the executable by the linker. No
-relocation information is created, the absolute value is just
-substituted. \\ \hline
+symbol which is substituted into the executable by the linker when it is referenced.
+No relocation information is created, the absolute value is only substituted. \\ \hline
 \tt EXT\_RES\mkey{EXT\_RES} & [0x03] & Not longer supported as it is part of the
 obsolete dynamic library run-time binding protocol, see~\cite{guru}
 for more details. \\ \hline
 \tt EXT\_REF32\mkey{EXT\_REF32} & [0x81] & Reference to a 32-bit symbol that is resolved
-by a corresponding {\tt EXT\_ABS} to an absolute value or by a {\tt
-  EXT\_DEF} definition to a relocation information to this or another
-segment. \\ \hline
-
+by a corresponding {\tt EXT\_ABS} definition to an absolute value or by an {\tt EXT\_DEF} definition
+to a relocation information to this or another segment. \\ \hline
 \tt EXT\_COMMON\mkey{EXT\_COMMON} & [0x82] & Reference to a 32-bit symbol that may be
 resolved by a {\tt EXT\_ABS} or {\tt EXT\_DEF} definition, but if no
 such definition is found, a BSS hunk\key{Hunk} of the maximal size of all
-references to the symbol is created by the linker. Thus, this type
-generates a zero-initialized object if no definition is found. \\ \hline
-
-\tt EXT\_REF16\mkey{EXT\_REF16} & [0x83] & Reference to a 16-bit PC relative offset within
-the same segment. \\ \hline
-
+references to the symbol is created by the linker. Thus, this reference
+generates a zero-initialized object if no definition is found. Not all linkers support this type. \\ \hline
+\tt EXT\_REF16\mkey{EXT\_REF16} & [0x83] & Reference to a 16-bit PC relative offset, requiring
+that the defining and referencing hunks are merged together. \\ \hline
 \tt EXT\_REF8\mkey{EXT\_REF8} & [0x84] & Reference to a 8-bit PC relative offset within
 the same segment. \\ \hline
-
 \tt EXT\_DREF32\mkey{EXT\_DREF32} & [0x85] & 32-bit reference relative to a base register
 (typically {\tt a4}), resolved by the linker through an entry in a {\tt
   HUNK\_DRELOC32} hunk\key{HUNK\_DRELOC32}.\\ \hline
-
 \tt EXT\_DREF16\mkey{EXT\_DREF16} & [0x86] & 16-bit reference relative to a base register,
 resolved by the linker through an entry in a {\tt HUNK\_DRELOC16}
 hunk\key{HUNK\_DRELOC16}.\\ \hline
-
 \tt EXT\_DREF8\mkey{EXT\_DREF8} & [0x87] & 8-bit reference relative to a base register,
 resolved by the linker through an entry in a {\tt HUNK\_DRELOC8} hunk
 \key{HUNK\_DRELOC8}.\\ \hline
-
 \tt EXT\_RELREF32\mkey{EXT\_RELREF32} & [0x88] & 32-bit PC-relative reference for 32-bit
-address, this will be resolved by an {\tt EXT\_DEF} definition into an
+address, this is resolved by an {\tt EXT\_DEF} definition into an
 entry into a {\tt HUNK\_RELRELOC32} hunk by the linker.\\ \hline
-
 \tt EXT\_RELCOMMON\mkey{EXT\_RELCOMMON} & [0x89] & 32-bit PC relative common reference for a
 32-bit address. Similar to a {\tt EXT\_COMMON} definition, this will
 be resolved into an {\tt HUNK\_RELRELOC32} entry where potentially
 space for the symbol will be allocated in a BSS segment if no
 corresponding definition is found.\\ \hline
-
 \tt EXT\_ABSREF16\mkey{EXT\_ABSREF16} & [0x8a] & 16-bit absolute reference, resolved by
 the linker to a 16-bit value by an {\tt EXT\_ABS} definition. \\ \hline
-
 \tt EXT\_ABSREF8\mkey{EXT\_ABSREF8} & [0x8b] & 8-bit absolute reference, resolved by the
-linker to an 8-bit value through an {\tt EXT\_ABS}
-definition. \\ \hline
+linker to an 8-bit value through an {\tt EXT\_ABS} definition. \\ \hline
 \end{longtable}
 \end{rkrmtabular}
 
 For references, $s_n$ identifies the number of times the symbol is
-referenced, while $s_o$ defines the offsets into the current segment\key{Segment} where the
-symbol is used and into which the symbol value will be resolved during
-linking. This value comes from an $s_v$ entry in a {\tt HUNK\_EXT} hunk\key{Hunk}
-from another translation unit.
+referenced, while the $s_o[]$ array defines the offsets into the
+current segment\key{Segment} where the symbol is used and into which
+the symbol definition will be resolved during linking.
 \smallskip{}
 
-Common symbols are symbols that are defined in multiple translation
-units. The size of the symbol required by the translation $s_c$. If no
-corresponding symbol definition is found, the linker then allocates space of
-a size that is determined by the maximum of all $s_c$ values found for the
-same symbol in all translation units. The symbol will then be created within
-a BSS segment\key{Segment} by the linker without an explicit symbol definition. This
-mechanism is mostly used by FORTRAN and is therefore rarely used. SAS/C can
-also be configured to emit common symbols as well.
+Common symbols are symbols that are referenced in multiple translation
+units but potentially nowhere defined. The size of the referenced
+common block is given by~$s_c$. If no corresponding symbol definition
+is found, the linker allocates space of a size that is determined by
+the maximum of all~$s_c$ values referencing the same symbol. Space for
+the symbol is then allocated within a BSS hunk\key{Hunk} by the linker
+without requiring an explicit symbol definition, and thus creates an
+object that is zero-initialized by the AmigaDOS loader. This mechanism
+is mostly required by FORTRAN and is therefore rarely used, and not
+all linkers support this mechanism. However, the SAS/C compiler can
+also be configured to emit such common symbol references to implicitly
+create objects referenced through {\tt extern} declarations missing a
+definition.
 
 \section{Link Library File Format} \label{sec:linkfmt}
 
