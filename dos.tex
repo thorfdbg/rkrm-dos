@@ -14200,13 +14200,104 @@ pointed to by {\tt fl\_Task} is again in many cases identical to the
   List}, but it may also be a separate port. Section~\ref{sec:filelock}
 discusses this structure in depth.
 
+\subsection{Request an Action from a Handler and Wait for Reply} \label{sec:dopkt}
+
+While it is in many cases more practical to interact with handlers
+through the functions of the \emph{dos.library} listed so far, it is
+also possible and sometimes even necessary to communicate with the
+handler on a lower level directly; this becomes necessary if the
+desired activity is not exposed as function in the library.
+\smallskip{}
+
+The {\tt DoPkt()}\mkey{DoPkt()} function requests an activity from a
+handler, including arguments, waits for the handler to perform this
+activity and returns the result. This is the generic synchronous
+input/output request function through which the \emph{dos.library}
+routes most of its function\footnote{Unfortunately, the functions of
+the library do not call through the {\tt DoPkt()} library vector. This is
+probably a defect.}.
+
+\begin{verbatim}
+result1 = DoPkt(port,action,arg1,arg2,arg3,arg4,arg5)
+D0               D1    D2    D3   D4   D5   D6   D7
+
+LONG DoPkt(struct MsgPort *,LONG,LONG,LONG,LONG,LONG,LONG)
+\end{verbatim}
+
+This function performs low-level communication to a target message
+port representing a handler. The {\tt port} is the {\tt MsgPort} of
+the handler to contact. Depending on the context, this port should be
+taken from various sources. If low-level file I/O is to be performed,
+the best source for the port is the {\tt fh\_Type}\key{fh\_Type}
+pointer in the {\tt FileHandle}\key{FileHandle} structure. If the
+communication is related to a lock\key{Lock}, the {\tt
+  fl\_Task}\key{fl\_Task} member of the {\tt FileLock}\key{FileLock}
+is the recommended source. For activities unrelated to locks or files,
+the {\tt dol\_Task}\key{dol\_Task} member of the {\tt DosList}
+structure is another source. To obtain such a structure from a path,
+use the {\tt GetDeviceProc()}\key{GetDeviceProc()} function, see
+section~\ref{sec:getdeviceproc}.
+\smallskip{}
+
+{\tt action} identifies the activity to be performed by the handler or file
+system. Chapter~\ref{sec:packettypes} lists the packet types and how they
+relate to the functions of the \emph{dos.library}.
+\smallskip{}
+
+{\tt arg1} through {\tt arg5} are arguments to the handler. Even
+though the packet interface supports up to 7 arguments, only up to~5
+can be provided by this function. If more arguments become necessary,
+the packet interface needs to be used manually, see
+section~\ref{sec:dospacket} for the raw packet interface.
+\medskip{}
+
+This function returns the primary result code of the handler, and
+installs the secondary result code in {\tt IoErr()}\key{IoErr()}, see
+also section~\ref{sec:dospacket}.
+\smallskip{}
+
+If the caller is a process and the {\tt pr\_PktWait}\key{pr\_PktWait} pointer in the {\tt
+  Process}\key{Process} structure is set, {\tt DoPkt()}\key{DoPkt()} calls through it to wait for the
+packet (or rather the message carrying it) to return, see
+chapter~\ref{sec:process}.
+Otherwise, {\tt DoPkt()} waits on {\tt pr\_MsgPort}\key{pr\_MsgPort}
+with {\tt WaitPort()} and removes the message through {\tt GetMsg()}.
+If the caller is a task, the function builds an exec {\tt MsgPort}
+on the fly and waits on this temporary port --- thus unlike
+many other functions of the \emph{dos.library}, this function is even
+callable from tasks.
+\smallskip{}
+
+If the return {\tt MsgPort} contains a message different from the one
+carrying the issued packet, {\tt DoPkt()}\key{DoPkt()} aborts with a deadend alert of
+type {\tt AN\_QPktFail}\mkey{AN\_QPktFail}, defined in {\tt exec/alerts.h}. Note that this is
+quite different from exec style communications with (exec) devices through
+{\tt DoIO()}; the latter function is able to extract the send {\tt IORequest} from
+the port without creating a conflict if another message is still pending in
+the port. This problem of packet communication manifests itself, for example,
+when attempting to perform I/O operations through the \emph{dos.library}
+while the Workbench startup message is still queued in the process message
+port.
+\medskip{}
+
+Because packets typically require less than 5 arguments, additional
+function prototypes are supplied that take less arguments. They all access the
+same vector within the \emph{dos.library}, the only difference is that the
+function prototypes do not enforce initialization of the data registers
+carrying the unneeded arguments. These functions are named {\tt DoPkt0()}\mkey{DoPkt0()} to
+{\tt DoPkt5()}\mkey{DoPkt5()} and carry 2 to 7 arguments: The target {\tt port}, the requested
+{\tt action} and~0 to~5 additional arguments.
+
 \section{The DosPacket Structure} \label{sec:dospacket}
 
-While it is in many cases more practical to interact with handlers through
-the functions of the \emph{dos.library}, it is also possible to communicate
-with the handler directly through this port. This communication is based on
-\emph{packets}, represented by a {\tt DosPacket}\mkey{DosPacket} structure documented in
-{\tt dos/dosextens.h}:
+Communication with handlers is based on \emph{packets}. For example,
+the {\tt DoPkt()}\key{DoPkt()} function creates a packet on the fly on
+the stack, submits it to the handler via the given port, and waits for
+it to return.
+\smallskip{}
+
+A packet is represented by a {\tt DosPacket}\mkey{DosPacket} structure
+documented in {\tt dos/dosextens.h}:
 \begin{verbatim}
 struct DosPacket {
    struct Message *dp_Link;
@@ -14223,15 +14314,18 @@ struct DosPacket {
    LONG dp_Arg7;
 };
 \end{verbatim}
-\emph{Packets} ride on top of exec messages, see {\tt exec/ports.h}, but
-they do not extend the {\tt Message} structure as it would be usually the
-case. Instead, {\tt mn\_Node.ln\_Name} of the exec message is (mis-)used to
-point to the {\tt DosPacket}. The reply port of the message in {\tt
-  mn\_ReplyPort} is \emph{not} used; instead, the message carrying the
-packet is send back to {\tt dp\_Port}.
-\smallskip{}
+\emph{Packets} ride on top of exec messages, see~\cite{rkrmlib} and {\tt exec/ports.h},
+but they do not extend the {\tt Message} structure as it would be
+usually the case. Instead, {\tt mn\_Node.ln\_Name} of the exec message
+is (mis-)used to point to the {\tt DosPacket} and its {\tt dp\_Link}
+element points back to the message, thus establishing a two-way
+linkage between packet and message. The reply port of the message in
+{\tt mn\_ReplyPort} is \emph{not} used; instead, the message carrying
+the packet is send back to {\tt dp\_Port} once the handler is done.
+\medskip{}
 
-Members of the {\tt DosPacket} structure shall be initialized as follows:
+Members of the {\tt DosPacket} structure shall be initialized as
+follows:
 \smallskip{}
 
 {\tt dp\_Link}\mkey{dp\_Link} shall point to the message which is used for transmitting the
@@ -14239,108 +14333,47 @@ Members of the {\tt DosPacket} structure shall be initialized as follows:
 initialized to point to the {\tt DosPacket} itself.
 \smallskip{}
 
-{\tt dp\_Port}\mkey{dp\_Port} shall point to the {\tt MsgPort} structure to which the
-packet shall be send back after the handler has completed the requested
-activity. This is typically, but not necessary {\tt pr\_MsgPort} of the
-process sending the packet. See section~\ref{sec:process} for the definition
-of the {\tt Process}\key{Process} structure.
+{\tt dp\_Port}\mkey{dp\_Port} shall point to the {\tt MsgPort}
+structure to which the packet shall be send back after the handler has
+completed the requested activity. This is typically, but not necessary
+{\tt pr\_MsgPort} of the process sending the packet. See
+chapter~\ref{sec:process} for the definition of the {\tt
+  Process}\key{Process} structure. {\tt DoPkt()}\key{DoPkt()} uses
+always the process message port of the caller as reply port for the
+packet if the caller is a process.
 \smallskip{}
 
 {\tt dp\_Type}\mkey{dp\_Type} identifies the action requested from the handler. It shall be
 filled by the process requesting an activity from a handler and is
-interpreted by the handler. Section~\ref{sec:packettypes} lists the currently
-documented packet types.
+interpreted by the handler. Section~\ref{sec:packettypes} lists the documented packet types.
+This element corresponds to the {\tt action} argument of {\tt DoPkt()}\key{DoPkt()}.
 \smallskip{}
 
-{\tt dp\_Res1}\mkey{dp\_Res1} is the primary result code of the activity performed by the
-handler. For many, but not for all packet types, this is a boolean result
-code that is~0 for failure and non-zero for success. Many functions of the
-\emph{dos.library} return {\tt dp\_Res1} as their return code.
+{\tt dp\_Res1}\mkey{dp\_Res1} is the primary result code of the
+requested activity and filled by the handler before returning the
+packet. For many, but not for all packet types, this is a boolean
+result code that is~0 for failure and non-zero for success. Many
+packet-based functions of the \emph{dos.library} including {\tt DoPkt()}\key{DoPkt()}
+return {\tt dp\_Res1} as their (primary) result.
 \smallskip{}
 
-{\tt dp\_Res2}\mkey{dp\_Res2} is the secondary result code installed by the handler and is
-typically is 0 for success, or an error code on failure. Many functions of
-the \emph{dos.library} install this error code into {\tt
-  IoErr()}. Section~\ref{sec:ioerr} lists the error codes defined by the
-\emph{dos.library}.
+{\tt dp\_Res2}\mkey{dp\_Res2} is the secondary result code filled by
+the handler and is typically is 0 for success, or an error code on
+failure. Many functions of the \emph{dos.library} install this error
+code into {\tt IoErr()}, and so does {\tt DoPkt()}\key{DoPkt()}.
+Section~\ref{sec:ioerr} lists the error codes defined by the
+\emph{dos.library} handlers should use to communicate error
+conditions.
 \smallskip{}
 
-{\tt dp\_Arg1}\mkey{dp\_Arg1} to {\tt dp\_Arg7} provide additional arguments to the
-handler. They shall be filled by the process submitting a packet to a
-handler. Most packet types do not require all 7 possible arguments; in such
-a case, only the necessary arguments may be initialized.
+{\tt dp\_Arg1}\mkey{dp\_Arg1} to {\tt dp\_Arg7} provide additional
+arguments to the handler. They shall be filled by the issuer of a
+packet, and provide additional arguments to the handler for performing
+the activity encoded by {\tt dp\_Type}. Most packet types do not
+require all 7 possible arguments; in such a case, only the necessary
+arguments may be initialized. The first~5 arguments correspond to {\tt
+  arg1} to {\tt arg5} of the {\tt DoPkt()} function.
 
-\subsection{Send a Packet to a Handler and Wait for Reply} \label{sec:dopkt}
-
-The {\tt DoPkt()}\mkey{DoPkt()} function creates from its arguments a {\tt
-  DosPacket}\key{DosPacket} structure along with an exec {\tt Message} carrying it on the
-fly, transmits the packet to a target port and waits for the packet to
-return.
-
-\begin{verbatim}
-result1 = DoPkt(port,action,arg1,arg2,arg3,arg4,arg5)
-D0               D1    D2    D3   D4   D5   D6   D7
-
-LONG DoPkt(struct MsgPort *,LONG,LONG,LONG,LONG,LONG,LONG)
-\end{verbatim}
-
-This function performs low-level packet IO to a target message port
-belonging to a handler. The {\tt port} is the {\tt MsgPort} of the handler
-to contact. Depending on the context, this port should be taken from various
-sources. If low-level file I/O is to be performed, the best source for the
-port is the {\tt fh\_Type}\key{fh\_Type} pointer in the {\tt FileHandle}\key{FileHandle} structure. If the
-communication is related to a lock\key{Lock}, the {\tt fl\_Task}\key{fl\_Task} member of the
-{\tt FileLock}\key{FileLock} is the right source. For activities unrelated to locks or
-files, the {\tt dol\_Task}\key{dol\_Task} member of the device list\key{Device List} is another
-source.
-\smallskip{}
-
-{\tt action} identifies the activity to be performed by the handler or file
-system. Section~\ref{sec:packettypes} lists the packet types and how they
-relate to the functions of the \emph{dos.library}.
-\smallskip{}
-
-{\tt arg1} through {\tt arg5} are arguments to the packet and filled into
-their {\tt dp\_Arg1} through {\tt dp\_Arg5} elements. If more arguments are
-required, the packet needs to be created and transmitted manually.
-\medskip{}
-
-This function returns the primary result code of the handler from {\tt
-  dp\_Res1}\key{dp\_Res1} in {\tt result1}, and {\tt dp\_Res2}\key{dp\_Res2} in
-{\tt IoErr()}\key{IoErr()}.
-\smallskip{}
-
-If the caller is a process and the {\tt pr\_PktWait}\key{pr\_PktWait} pointer in the {\tt
-  Process}\key{Process} structure is set, {\tt DoPkt()}\key{DoPkt()} calls through it to wait for the
-packet (or rather the message carrying it) to return, see
-section~\ref{sec:process}. Otherwise, {\tt DoPkt()} waits on {\tt
-  pr\_MsgPort}\key{pr\_MsgPort} with {\tt WaitPort()} and removes the message through {\tt
-  GetMsg()}. If the caller is a task, the function even builds an exec {\tt
-  MsgPort} on the fly and waits on this temporary port --- thus unlike many
-other functions of the \emph{dos.library}, this function is even callable
-from tasks.
-\smallskip{}
-
-If the return {\tt MsgPort} contains a message different from the one
-carrying the issued packet, this function aborts with a deadend alert of
-type {\tt AN\_QPktFail}\mkey{AN\_QPktFail}, defined in {\tt exec/alerts.h}. Note that this is
-quite different from exec-style communications with exec devices through
-{\tt DoIO()}; this function is able to extract the send {\tt IORequest} from
-the port without creating a conflict if another message is still pending in
-the port. This problem of packet communication manifests itself typically
-when attempting to perform I/O operations through the \emph{dos.library}
-while the Workbench startup message is still queued in the process message
-port.
-\medskip{}
-
-Because packets typically require less than 5 arguments, additional
-prototypes are supplied that do not take all arguments. They all access the
-same entry within the \emph{dos.library}, the only difference is that the
-function prototypes do not enforce initialization of the data registers
-carrying the unneeded arguments. These functions are named {\tt DoPkt0()}\mkey{DoPkt0()} to
-{\tt DoPkt5()}\mkey{DoPkt5()} and carry 2 to 7 arguments: The target {\tt port}, the type
-of the packet {\tt action} and 0 to 5 additional arguments which are filled
-into {\tt dp\_Arg1} upwards.
 
 \subsection{Send a Packet to a Handler Asynchronously} \label{sec:sendpkt}
 
