@@ -14162,39 +14162,43 @@ indexed link libraries.
 
 \chapter{Handlers, Devices and File Systems} \label{sec:handlers}
 
-The \emph{dos.library} does not implement all of its functions itself;
-operations that are related to files, locks\key{Lock}, notification requests and
-many others are off-loaded to file systems or handlers. Thus, the
-\emph{dos.library} provides a virtual file system that provides a
-common function interface for its clients, but requires the services
-of handlers to implement them. \emph{File systems} are special
-handlers that organize data streams on volumes such as hard disks in
-files, and also provide locks\key{Lock} to reserve access rights to files. Most
-file systems also support directories and thus a hierarchical
-organization of files.
+The \emph{dos.library} does not implement most of its functions itself;
+operations that are related to files, locks\key{Lock}, notification
+requests and many others are off-loaded to file systems or
+handlers. Thus, the \emph{dos.library} establishes a virtual file
+system that provides a common API for its clients, but depends on
+handlers or file systems to implement its functions.
 \smallskip{}
 
-Handlers are recognized by an entry in the device list\key{Device List} whose
-{\tt dol\_Task} element provides a pointer to a message port through which the
-\emph{dos.library} communicates with the handler,
-section~\ref{sec:devicelist} provides further details on this structure.
+The \emph{dos.library} communicates with handlers or file systems via
+DosPackets\key{DosPacket}, see also section~\ref{sec:dospacket}, which ride on top of
+exec messages, see~\cite{rkrmlib} for how the exec message system
+works. DosPackets are send to a {\tt MsgPort} to request a particular action
+from the handler, such as to open a file or read data from it. The
+port is typically the process port {\tt pr\_MsgPort} of the handler
+process. Chapter~\ref{sec:process} provides more details on processes
+and the {\tt Process} structure containing this port.
 \smallskip{}
 
-To ease communication, the {\tt FileHandle} structure representing a file
-also includes with its {\tt fh\_Type}\key{fh\_Type} element a pointer to such a port that
-is typically a copy of {\tt dol\_Task}\key{dol\_Task} when a file is opened, see
-section~\ref{sec:filehandle} for this structure. It is created by the
-\emph{dos.library} when opening files.
+Handlers, and thus file systems, are represented by an entry in the
+device list\key{Device List} whose {\tt dol\_Task} element is a
+pointer to a {\tt MsgPort} structure through which the handler can be
+reached once it is running. To ease the communication with a handler, the {\tt FileHandle} structure
+representing a file also includes in its {\tt fh\_Type}\key{fh\_Type} element
+a pointer to a {\tt MsgPort} to which DosPackets operating on this file
+should be send, see section~\ref{sec:filehandle} for a more detailed
+discussion of this structure. While {\tt fh\_Type} is typically a
+copy of the {\tt dol\_Task}, it may also be a separate port the
+handler checks in addition for incoming requests.
 \smallskip{}
 
 Similarly, the {\tt fl\_Task}\key{fl\_Task} element of the {\tt
-  FileLock} structure includes the port through which communication
-with the file system concerning the lock\key{Lock} is routed. Unlike {\tt
-  FileHandle} structures, the {\tt FileLock} structure is created by
-the file system itself which initializes its {\tt fl\_Task}. This is
-again in many cases identical to the {\tt dol\_Task}\key{dol\_Task} message port
-within the device list\key{Device List}.
-\medskip{}
+  FileLock} structure representing a lock also includes a port through
+which communication concerning the lock\key{Lock} should be routed. The port
+pointed to by {\tt fl\_Task} is again in many cases identical to the
+{\tt dol\_Task}\key{dol\_Task} port within the device list\key{Device
+  List}, but it may also be a separate port. Section~\ref{sec:filelock}
+discusses this structure in depth.
 
 \section{The DosPacket Structure} \label{sec:dospacket}
 
