@@ -14218,7 +14218,7 @@ the library do not call through the {\tt DoPkt()} library vector. This is
 probably a defect.}.
 
 \begin{verbatim}
-result1 = DoPkt(port,action,arg1,arg2,arg3,arg4,arg5)
+result1 = DoPkt(port,action,arg1,arg2,arg3,arg4,arg5) /* since V37 */
 D0               D1    D2    D3   D4   D5   D6   D7
 
 LONG DoPkt(struct MsgPort *,LONG,LONG,LONG,LONG,LONG,LONG)
@@ -14345,7 +14345,7 @@ packet if the caller is a process.
 
 {\tt dp\_Type}\mkey{dp\_Type} identifies the action requested from the handler. It shall be
 filled by the process requesting an activity from a handler and is
-interpreted by the handler. Section~\ref{sec:packettypes} lists the documented packet types.
+interpreted by the handler. Chapter~\ref{sec:packettypes} lists the documented packet types.
 This element corresponds to the {\tt action} argument of {\tt DoPkt()}\key{DoPkt()}.
 \smallskip{}
 
@@ -14383,7 +14383,7 @@ port is provided to which the packet will be returned once the handler acted
 upon it.
 
 \begin{verbatim}
-SendPkt(packet, port, replyport)
+SendPkt(packet, port, replyport) /* since V37 */
          D1     D2        D3
 
 void SendPkt(struct DosPacket *,struct MsgPort *,struct MsgPort *)
@@ -14391,45 +14391,67 @@ void SendPkt(struct DosPacket *,struct MsgPort *,struct MsgPort *)
 
 This function transmits {\tt packet} to the handler {\tt port}, requesting
 to return it to {\tt replyport}. The function returns immediately without
-waiting for the packet to return.
+waiting for the completion of the requested action.
 \smallskip{}
 
-The {\tt packet} shall be partially initialized; in particular, {\tt
-  dp\_Link} shall point to an exec {\tt Message} whose {\tt
-  mn\_Node.ln\_Name} field points back to {\tt packet}. This function
-\emph{does not} supply or initialize a suitable message, this is up to the
-caller.
+The {\tt packet} shall be partially initialized; in particular,
+{\tt dp\_Link} shall point to an exec {\tt Message} whose
+{\tt mn\_Node.ln\_Name} element points back to {\tt packet}.
+{\tt SendPkt()}\key{SendPkt()} \emph{does not} supply or initialize such a
+message. It is recommended to create packets through
+{\tt AllocDosObject()}\key{AllocDosObject()} which also initializes it properly, see below and
+section~\ref{sec:allocdosobject}.
 \smallskip{}
 
-{\tt dp\_Type} shall be filled with the type of the packet, i.e.\ an
-identifier specifying the type of activity requested from the handler, see
-section~\ref{sec:packettypes}. Depending on this type, {\tt dp\_Arg1}\key{dp\_Arg1}
-through {\tt dp\_Arg7}\key{dp\_Arg7} shall be initialized with additional arguments.
+{\tt dp\_Type} shall be filled with the requested action, i.e.\ an
+identifier specifying the type of activity requested from the handler,
+see chapter~\ref{sec:packettypes}. Depending on this type, a subset of
+the packet arguments {\tt dp\_Arg1}\key{dp\_Arg1} through {\tt
+  dp\_Arg7}\key{dp\_Arg7} carry additional arguments for the requested action and
+shall be initialized accordingly.
 \medskip{}
 
-{\tt DosPackets} can be constructed in multiple ways; the {\tt
-  AllocDosObject()}\key{AllocDosObject()} function may be called to
-construct a {\tt StandardPacket}\mkey{StandardPacket}. This is a structure
-that contains both the {\tt Message} and the {\tt DosPacket}\key{DosPacket}. It is defined
-in {\tt dos/dosextens.h}:
+{\tt DosPackets} can be constructed in multiple ways: {\tt
+  AllocDosObject(DOS\_STDPKT,NULL)}\key{AllocDosObject()} allocates a packet along
+with a message and initializes the linkage between the structures.
+This function creates a {\tt StandardPacket}\mkey{StandardPacket} which contains both a
+{\tt Message} and a {\tt DosPacket}\key{DosPacket}. This structure is defined in
+{\tt dos/dosextens.h} and looks as follows:
 \begin{verbatim}
 struct StandardPacket {
    struct Message   sp_Msg;
    struct DosPacket sp_Pkt;
 };
 \end{verbatim}
-{\tt AllocDosObject()} ensures that the linkage between {\tt Message} and
-{\tt DosPacket} are properly initialized.
+{\tt AllocDosObject()} returns a pointer to
+a {\tt DosPacket} structure, i.e. the address of the {\tt sp\_Pkt}
+element, and \emph{not} a pointer to a {\tt StandardPacket}, see also
+section~\ref{sec:allocdosobject}.
 \smallskip{}
 
-Another option is to use {\tt AllocMem()} to allocate sufficient storage to
-hold a {\tt StandardPacket} and initialize the structure appropriately:
+Another option is to allocate memory for the packet from the heap
+and initialize the linkage between the structures manually:
 \begin{verbatim}
 struct StandardPacket *sp;
+
+sp  = AllocMem(sizeof(struct StandardPacket),MEMF_PUBLIC);
 
 sp->sp_Msg.mn_Node.ln_Name = (UBYTE *)&(sp->sp_Pkt);
 sp->sp_Pkt.dp_Link         = &(sp->sp_Msg);
 \end{verbatim}
+At least the {\tt DosPacket}\key{DosPacket} structure shall be aligned to a long
+word boundary to make it and its elements accessible to BCPL
+handlers. As the {\tt Message} structure occupies an integer number of
+long words, the above code is sufficient to ensure this requirement.
+\smallskip{}
+
+Even though it is in principle possible to allocate the packet on
+the stack with the {\tt D\_S()} macro from section~\ref{sec:bptrs},
+this idea is discouraged. It only works if the same function or one of
+its callees also wait for the packet to return, which is
+hard to enforce in a design based on asynchronous packet
+communication. Otherwise, the stack frame containing the packet would
+be destroyed upon returning from the constructing function.
 
 \subsection{Waiting for a Packet to Return}
 
