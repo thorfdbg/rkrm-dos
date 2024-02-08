@@ -13816,7 +13816,7 @@ creation of an automatic link vector\key{Automatic Link Vector (ALV)}.
 
 In the following table $m_a[i]$ is the address of the first data byte
 of the segment that corresponds to the current hunk once loaded,
-i.e. {\tt \&Data[0]} of the {\tt SegmentList} structure (see
+i.e.\ {\tt \&Data[0]} of the {\tt SegmentList} structure (see
 chapter~\ref{sec:binary} and table~\ref{table:hunk_header}
 in section~\ref{sec:hunk_header}):
 
@@ -13895,7 +13895,7 @@ common hunk, offsets into this hunk need to be adjusted upon linking; the
 positions that require adjustment are provided by the above hunks.
 \smallskip{}
 
-Typically, only 16-bit wide offsets are used, i.e. the {\tt EXT\_DREF16}\key{EXT\_DREF16} references
+Typically, only 16-bit wide offsets are used, i.e.\ the {\tt EXT\_DREF16}\key{EXT\_DREF16} references
 and {\tt HUNK\_DRELOC16}\key{HUNK\_DRELOC16} hunks for external or
 internal symbols. This is due to the 16-bit wide base-relative
 addressing mode of the 68000 processor limiting the size of the {\tt \_\_MERGED} hunk to 64K.
@@ -14218,7 +14218,7 @@ the library do not call through the {\tt DoPkt()} library vector. This is
 probably a defect.}.
 
 \begin{verbatim}
-result1 = DoPkt(port,action,arg1,arg2,arg3,arg4,arg5) /* since V37 */
+result1 = DoPkt(port,action,arg1,arg2,arg3,arg4,arg5) /* since V36 */
 D0               D1    D2    D3   D4   D5   D6   D7
 
 LONG DoPkt(struct MsgPort *,LONG,LONG,LONG,LONG,LONG,LONG)
@@ -14383,7 +14383,7 @@ port is provided to which the packet will be returned once the handler acted
 upon it.
 
 \begin{verbatim}
-SendPkt(packet, port, replyport) /* since V37 */
+SendPkt(packet, port, replyport) /* since V36 */
          D1     D2        D3
 
 void SendPkt(struct DosPacket *,struct MsgPort *,struct MsgPort *)
@@ -14424,7 +14424,7 @@ struct StandardPacket {
 };
 \end{verbatim}
 {\tt AllocDosObject()} returns a pointer to
-a {\tt DosPacket} structure, i.e. the address of the {\tt sp\_Pkt}
+a {\tt DosPacket} structure, i.e.\ the address of the {\tt sp\_Pkt}
 element, and \emph{not} a pointer to a {\tt StandardPacket}, see also
 section~\ref{sec:allocdosobject}.
 \smallskip{}
@@ -14455,33 +14455,45 @@ be destroyed upon returning from the constructing function.
 
 \subsection{Waiting for a Packet to Return}
 
-The {\tt WaitPkt()}\mkey{WaitPkt()} function waits on the message port of
-the calling process for a packet to return.
+The {\tt WaitPkt()}\mkey{WaitPkt()} function waits on the
+{\tt pr\_MsgPort} of the calling process (see chapter~\ref{sec:process})
+for a packet to return and returns a pointer to the received packet.
 
 \begin{verbatim}
-packet = WaitPkt()
+packet = WaitPkt() /* since V36 */
 D0
 
 struct DosPacket *WaitPkt(void);
 \end{verbatim}
 
-This function performs all activities to receive a message returning from a
-handler; it is also implicitly called by {\tt DoPkt()}\key{DoPkt()} after
-sending the messages to the handler.
+This function receives a packet returning from a handler; it is also
+implicitly called by {\tt DoPkt()}\key{DoPkt()} after sending the
+messages to the handler\footnote{Unfortunately, {\tt DoPkt()} and the
+rest of the \emph{dos.library} does not call through the {\tt WaitPkt()} function
+vector. This is probably a defect.}.
 \smallskip{}
 
 If the {\tt pr\_PktWait}\key{pr\_PktWait} pointer in the {\tt Process}\key{Process} structure is set, {\tt
   WaitPkt()} calls through this function to wait for the arrival of a
-message. Otherwise, the {\tt WaitPkt()} calls {\tt WaitPort()} to wait for a
+message, see chapter~\ref{sec:process} for details. Otherwise, the {\tt WaitPkt()} function
+calls {\tt WaitPort()} to wait for a
 arrival of a message on {\tt pr\_MsgPort}\key{pr\_MsgPort} of the calling process, and then
 calls {\tt GetMsg()} to remove it from the port. The function then returns
 {\tt mn\_Node.ln\_Name} of the received message, i.e.\ the packet
 corresponding to the message.
 \smallskip{}
 
-This function does not test whether the received message does, actually,
-belong to a packet. The caller shall ensure that only {\tt Messages}
-corresponding to {\tt DosPacket}s can arrive at the process message port.
+This function does not test whether the received message does,
+actually, belong to a packet. The caller shall ensure that only
+messages corresponding to {\tt DosPacket}s can arrive at the process
+message port, and shall remove all other messages from this port
+before.
+\smallskip{}
+
+As {\tt WaitPkt()}\key{WaitPkt()} always waits on the process message
+port of the caller, this only works if the packet was send with the
+{\tt replyport} argument of {\tt SendPkt()}\key{SendPkt()} set to {\tt
+  pr\_MsgPort} of the calling process.
 
 \subsection{Aborting a Packet}
 
@@ -14490,7 +14502,7 @@ to abort a packet already send to a handler. However, as of the current Os
 release, it does nothing and is not functional.
 
 \begin{verbatim}
-AbortPkt(port, pkt)
+AbortPkt(port, pkt) /* since V36 */
           D1    D2
 
 void AbortPkt(struct MsgPort *, struct DosPacket *)
@@ -14499,24 +14511,24 @@ void AbortPkt(struct MsgPort *, struct DosPacket *)
 What this function should do is to scan {\tt port}, presumably the {\tt
   MsgPort} of the handler to which {\tt pkt} was send, and dequeue it there
 if the handler is not yet working on it. Then, it would be placed back into
-the port of its initiator. However, as of V47, this function does nothing.
+the port of its initiator. However, as of V47, \emph{this function does nothing}.
 
-\subsection{Reply a Packet to its Caller}
+\subsection{Reply a Packet to its Sender}
 
 The {\tt ReplyPkt()}\mkey{ReplyPkt()} function returns a packet to its
 initiator, filling the primary and secondary result codes. This function is
 intended to be used by handlers.
 
 \begin{verbatim}
-ReplyPkt(packet, result1, result2)
+ReplyPkt(packet, result1, result2) /* since V36 */
            D1      D2       D3
 
 void ReplyPkt(struct DosPacket *, LONG, LONG)
 \end{verbatim}
 
 This function fills {\tt dp\_Res1}\key{dp\_Res1} and {\tt dp\_Res2}\key{dp\_Res2} of the {\tt packet}
-with {\tt result1} and {\tt result2}, and sends the packet to {\tt
-  dp\_Port}, the initiating port. Note that {\tt mn\_ReplyPort} of the
+with {\tt result1} and {\tt result2}, and sends the packet back to the port pointed to by the {\tt
+  dp\_Port} element of the packet, i.e.\ the initiating port. Note that {\tt mn\_ReplyPort} of the
 message pointed to by {\tt dp\_Link} is ignored, i.e.\ packets do \emph{not}
 follow the exec protocol for replying messages.
 \smallskip{}
@@ -14524,7 +14536,7 @@ follow the exec protocol for replying messages.
 The {\tt result1} argument is the primary result code and identical to the
 return code of many \emph{dos.library} functions. {\tt dp\_Res2} is the
 secondary result code and typically accessible through {\tt IoErr()}\mkey{IoErr()}
-if the packet is replied to a \emph{dos.library} function.
+if the packet is received in {\tt DoPkt()}\key{\tt DoPkt()}, see section~\ref{sec:dopkt}.
 
 \section{Implementing a Handler}
 
