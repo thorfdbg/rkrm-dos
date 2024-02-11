@@ -7236,7 +7236,11 @@ Another defect of this function is that it cannot handle device, volume or
 assign\key{Assign} names longer than 30 characters, even though no limit on the path
 name in total is imposed. This is because this function extracts the device
 name into a temporary buffer of this size, and truncates it if it is longer.
- 
+\smallskip{}
+
+{\tt GetDeviceProc()} is also discussed in
+section~\ref{sec:locatehandler}, see there for further details.
+
 \subsection{Releasing DevProc Information}
 
 The {\tt FreeDeviceProc()}\mkey{FreeDeviceProc()} function releases a
@@ -11157,7 +11161,7 @@ taken from various sources. If low-level file I/O is to be performed,
 the best source for the port is the {\tt fh\_Type}\key{fh\_Type}
 pointer in the {\tt FileHandle}\key{FileHandle} structure. If the
 communication is related to a lock\key{Lock}, the {\tt
-  fl\_Task}\key{fl\_Task} member of the {\tt FileLock}\key{FileLock}
+  fl\_Task}\key{fl\_Task} element of the {\tt FileLock}\key{FileLock}
 is the recommended source. For activities unrelated to locks or files,
 the {\tt dol\_Task}\key{dol\_Task} member of the {\tt DosList}
 structure is another source. To obtain such a structure from a path,
@@ -11556,7 +11560,7 @@ The above structure is \emph{not} documented and is not identical to the
 former describes a resident executable, see section~\ref{sec:resident}, but
 also contains a BPTR to a segment list in the above sense. The {\tt
   pr\_SegList} element is an array\key{Segment Array} where each entry but the first consits of a BPTR to a
-{\tt SegmentList}, see chapter~\ref{sec:process}.
+{\tt SegmentList}\key{SegmentList}, see chapter~\ref{sec:process}.
 \smallskip{}
 
 The Hunk format represents each segment\key{Segment} by a hunk\key{Hunk}, but distinguishes three
@@ -14207,7 +14211,7 @@ creation of an automatic link vector\key{Automatic Link Vector (ALV)}.
 
 In the following table $m_a[i]$ is the address of the first data byte
 of the segment that corresponds to the current hunk once loaded,
-i.e.\ {\tt \&Data[0]} of the {\tt SegmentList} structure (see
+i.e.\ {\tt \&Data[0]} of the {\tt SegmentList}\key{SegmentList} structure (see
 chapter~\ref{sec:binary} and table~\ref{table:hunk_header}
 in section~\ref{sec:hunk_header}):
 
@@ -14559,56 +14563,157 @@ requests and many others are off-loaded to file systems or
 handlers. Thus, the \emph{dos.library} establishes a virtual file
 system that provides a common API for its clients, but depends on
 handlers or file systems to implement its functions.
+\smallskip{}
 
-\section{Implementing a Handler}
+This chapter provides insight into the interface between the
+\emph{dos.library} and its handlers, and also lists the features of
+the handlers included in AmigaDOS.
+
+\section{The Handler Interface}
 
 A handler or a file system is an Amiga process that retrieves
-commands in the form of {\tt DosPacket}s\key{DosPacket}. The main loop of a handler is
+commands in the form of {\tt DosPacket}\key{DosPacket} structures. The main loop of a handler is
 conceptionally similar to a program implementing a graphical user interface,
 except that the latter retrieves messages via the \emph{intuition} IDCMP
-system and works them off, whereas the handlers receive commands from the
-port in the {\tt pr\_MsgPort}\key{pr\_MsgPort} of its process, or any other port they may
-provide to its clients.
-
-\subsection{Handler Startup} \label{sec:handlerstartup}
-
-When a user of the \emph{dos.library} attempts to access an absolute path,
-i.e.\ a path including a device name, the \emph{dos.library} walks the
-device list\key{Device List} (see section~\ref{sec:devicelist}) to find the handler
-responsible for it by comparing the device name in the path with the {\tt
-  dol\_Name} element of the device list\key{Device List}. Once a suitable entry has
-been found, the \emph{dos.library} checks whether a handler is already
-running by checking the {\tt dol\_Task}\key{dol\_Task} field of the {\tt DosList}. If
-so, a packet corresponding to the called \emph{dos.library} function is send
-to the port pointed to by {\tt dol\_Task}. The relation between library
-functions and packet types is further explained in subsequent sections.
+port and reacts on the messages whereas the handlers receive commands from
+the {\tt pr\_MsgPort}\key{pr\_MsgPort} of its process, or any other port they indicated
+to its clients.
 \smallskip{}
 
-If {\tt dol\_Task}\key{dol\_Task} is {\tt NULL}, the \emph{dos.library} checks next whether
-{\tt dol\_SegList}\key{dol\_SegList} is {\tt ZERO}. If it is, the handler code is not yet
-present and will be loaded from the file name indicated in {\tt
-  dol\_Handler}\key{dol\_Handler} through {\tt LoadSeg()}\key{LoadSeg()}, and its return code
-is used to initialize {\tt dol\_SegList}. Once the handler is present, a new
-process is created from the segment\key{Segment}, and a startup packet is delivered to
-{\tt pr\_MsgPort} of the created handler process. The \emph{dos.library}
-will not continue processing the initiating call until the handler replies
-to this packet.
+To interface with a handler, the \emph{dos.library} first needs to
+find a {\tt MsgPort} of handler, either from a path or from an already
+existing object such as a lock\key{Lock} or a file
+handle\key{FileHandle}. For Locks, the {\tt fl\_Task}\key{fl\_Task}
+element of the {\tt FileLock} structure contains the port, and for
+files the {\tt fh\_Type}\key{fh\_Type} field is the pointer to the
+port, see sections~\ref{sec:filelock}
+and~\ref{sec:filehandle}. Section~\ref{sec:locatehandler} describes how
+the library finds a port given a path.
+ 
+\subsection{Locating a Handler from a Path} \label{sec:locatehandler}
+
+Handlers are located by the \emph{dos.library} function
+{\tt GetDeviceProc()}\key{GetDeviceProc()}. This function receives an
+absolute or relative path, and from this path it determines a {\tt MsgPort}
+through which to contact the handler; the function itself is specified in section~\ref{sec:getdeviceproc}. All
+other functions of the \emph{dos.library} requiring to resolve a path
+to a handler also call through {\tt GetDeviceProc()}\key{GetDeviceProc()}\footnote{Unfortunately, they
+do not call it through the vector of the library, which is probably
+a defect.}, e.g.\ so do {\tt Open()}\key{Open()} or {\tt Lock()}\key{Lock()}, and
+also {\tt DeviceProc()}\key{DeviceProc()} as legacy function.
 \smallskip{}
 
-How the startup packet is delivered depends on the {\tt dol\_GlobVec}\key{dol\_GlobVec}
-element of the device list\key{Device List} entry, see Table~\ref{table:gvvalues}. For
+If the argument is a relative path, i.e.\ a path not containing a colon
+(``{\tt :}''), {\tt pr\_CurrentDir}\key{pr\_CurrentDir} of the calling process is
+checked. If non-{\tt ZERO}, the {\tt fl\_Task}\key{fl\_Task} element
+of the {\tt FileLock}\key{FileLock} kept there is a pointer to a
+{\tt MsgPort} through which packets are send to the handler.
+If it is {\tt ZERO}, then {\tt pr\_FileSystemTask}
+provides the {\tt MsgPort} to contact.  More on this in
+section~\ref{sec:filelock} and chapter~\ref{sec:process}.
+\smallskip{}
+
+If an absolute path to the (pseudo-)device {\tt CONSOLE:} or to the
+path ``{\tt *}'' is provided, the {\tt MsgPort} in {\tt
+  pr\_ConsoleTask} is contacted to interact with a handler. This corresponds
+to the current console to which the calling process is attached.
+\smallskip{}
+
+If a path relative to the pseudo-assign {\tt PROGDIR:} has been
+passed, the lock in {\tt pr\_HomeDir} is used to identify a
+handler. If this element is {\tt ZERO}, then the path is considered
+relative to an assign, volume or device named {\tt PROGDIR:}\footnote{This is
+probably a defect, it would be more reasonable if resolution would fail in this
+case.}.
+\smallskip{}
+
+If the path is relative to {\tt NIL:}, no port is provided, i.e.\ the result is
+{\tt NULL}. This is not a failure, but rather an indicator to higher
+level functions that a dummy handler is requested that does nothing.
+\smallskip{}
+
+For every other absolute path, the \emph{dos.library} by {\tt
+  GetDeviceProc()}\key{GetDeviceProc()} walks the device
+list\key{Device List} (see chapter~\ref{sec:devicelist}
+and~\ref{sec:getdeviceproc}) to find a suitable {\tt MsgPort} through
+which to contact a handler. For this, it compares the string upfront
+the colon with the {\tt dol\_Name} element of each {\tt DosList}\key{DosList} entry in
+the device list\key{Device List}.
+\smallskip{}
+
+Once a suitable entry has been found, {\tt GetDeviceProc()}\key{GetDeviceProc()} tests {\tt dol\_Type}
+which contains the type of the entry as given by table~\ref{table:doslisttypes} in chapter~\ref{sec:devicelist}.
+For volumes, {\tt dol\_Task}\key{dol\_Task} is non-{\tt NULL} if the
+volume is currently inserted. It is then the pointer to the port of the
+responsible handler. If it is {\tt NULL}, the volume is currently not
+available and then requested from the user if {\tt pr\_WindowPtr}\key{pr\_WindowPtr} allows to do so.
+If this requester is aborted or disabled, path resolution fails.
+\smallskip{}
+
+For regular assigns\key{Assign} or multi-assigns\key{Multi-Assign}, {\tt dol\_Task} is a pointer to
+the port of the handler responsible for the first directory in the assign, and
+{\tt dol\_Lock} provides the lock to this directory. The same port can
+also be found in the {\tt fl\_Type} element of this lock. All additional
+directories in a multi-assign are only represented by locks in the
+{\tt AssignList}\key{AssignList} structure, and the port can taken
+from the corresponding {\tt fl\_Type} element, see chapter~\ref{sec:devicelist} for a detailed discussion of this structure.
+\smallskip{}
+
+Late\key{Late Binding Assign} and non-binding assigns\key{Non-Binding Assign}
+do not resolve to a port immediately. Instead, the {\tt DosList}
+provides in {\tt dol\_AssignName} a path to the target directory which
+is resolved recursively into a lock relative to which the provided
+path is interpreted. The lock from this target directory then contains a suitable handler port.
+The only difference between late binding and non-binding assigns is
+that the former decay into regular assigns once a suitable lock has been found.
+\smallskip{}
+
+Finally, if {\tt dol\_Type} is {\tt DLT\_DEVICE} indicating an entry of a handler or file system,
+{\tt dol\_Task} is a pointer to a {\tt MsgPort} through which the handler can be
+contacted if it is non-{\tt NULL}.
+
+\subsection{Starting a a Handler} \label{sec:handlerstartup}
+
+If the {\tt dol\_Task}\key{dol\_Task} element of a handler entry is {\tt NULL}, this is
+an indicator that {\tt GetDeviceProc()}\key{GetDeviceProc()} needs to
+start a new handler process for the provided path. It first checks
+next whether {\tt dol\_SegList}\key{dol\_SegList} is {\tt ZERO}.  If
+it is, the handler code is not yet resident in memory and will be
+loaded from the file name indicated in {\tt dol\_Handler}\key{dol\_Handler} through
+{\tt LoadSeg()}\key{LoadSeg()}, see section~\ref{sec:loadseg}, and
+{\tt dol\_SegList} will be filled with the loaded {\tt SegmentList}\key{SegmentList}.
+\smallskip{}
+
+Next, a new process is created by running it from
+the first byte of {\tt dol\_SegList} for C or assembler handlers, or
+from the {\tt START} entry of the Global Vector\key{Global Vector} for
+BCPL handlers. To further initialize the handler, a startup package
+is delivered; details depend on the {\tt dol\_GlobVec}\key{dol\_GlobVec}
+element of the device list\key{Device List} entry, see Table~\ref{table:gvvalues} in chapter~\ref{sec:devicelist}. For
 C or assembler handlers with a {\tt dol\_GlobVec} value of $-1$ or $-2$, the
-startup packet is delivered to the {\tt pr\_MsgPort}\key{pr\_MsgPort} of the handler
-process. For all other values of {\tt dol\_GlobVec}, the startup packet
-becomes the first argument of the {\tt START} entry at index 1 of the
-global vector of the process.
+startup packet is send to the {\tt pr\_MsgPort}\key{pr\_MsgPort} of the handler
+process. For all other values of {\tt dol\_GlobVec}, i.e.\ BCPL handlers, the startup packet
+becomes the first argument of the {\tt START} function at index 1 of the
+Global Vector\key{Global Vector}, see also section~\ref{sec:bcplbinding}.
+If the ``fake'' BCPL startup code from section~\ref{sec:bcplbinding}
+is used, this packet is either delivered in register {\tt a0} of the
+handler main function, or shall be retrieved from {\tt pr\_MsgPort} if {\tt a0}
+is {\tt NULL}.
 \smallskip{}
 
-If the ``fake'' BCPL startup code from section~\ref{sec:bcplbinding} is
-used, this packet is delivered in register {\tt a0} of the main
-function. The following code demonstrates this:
+{\tt GetDeviceProc()} then finally waits for the startup packet to
+return, and blocks in the process of its caller, keeping the device
+list\key{DeviceList} locked. It \emph{does not} initialize
+{\tt dol\_Task} if handler startup succeeded, this is up to the handler,
+see below.
+\smallskip{}
+
+The following code is a sketch of a handler implementation,
+expecting linkage with the assembler code from
+section~\ref{sec:bcplbinding}:
 
 \begin{verbatim}
+/* Link with BCPL/Assembler handler startup code */
 LONG __asm __saveds main(register __a0 struct DosPacket *pkt)
 {
     SysBase = *((struct ExecBase **)(4L));
@@ -14623,7 +14728,8 @@ LONG __asm __saveds main(register __a0 struct DosPacket *pkt)
     ** the packet manually 
     */    
     if (pkt == NULL) {
-      /* Wait and retrieve the startup message
+      /* 
+      ** Wait and retrieve the startup message
       */
       WaitPort(&proc->pr_MsgPort);
       msg = GetMsg(&proc->pr_MsgPort);
@@ -14636,6 +14742,11 @@ LONG __asm __saveds main(register __a0 struct DosPacket *pkt)
     ... /* Handler initialization */
 
     if (error) {
+      /*
+      ** Potentially initialize dol_Task 
+      ** Remove if a new instance is required.
+      */
+      dlist->dol_Task = &proc->pr_MsgPort;
       ReplyPkt(pkt,DOSFALSE,error);
       ... /* shutdown, terminate */
       return;
@@ -14658,7 +14769,10 @@ LONG __asm __saveds main(register __a0 struct DosPacket *pkt)
     }
 }
 \end{verbatim}
-The startup packet is populated as follows:
+The startup packet consists of a {\tt DosPacket}\key{DosPacket}
+structure as it is also used to submit requests to the handler, see
+section~\ref{sec:dospacket} for its definition. For the purpose of
+handler startup, its elements are populated as follows:
 
 \begin{rkrmtable}{Handler Startup Packet} \label{table:handlerstartup}
 {\bf DosPacket Element}   & {\bf Value}\\ \hline \hline
@@ -14670,77 +14784,90 @@ The startup packet is populated as follows:
 \tt dp\_Res2 & 0\\ \hline
 \end{rkrmtable}
 
-{\tt dp\_Type} is set to {\tt ACTION\_STARTUP}\mkey{ACTION\_STARTUP}, which is defined to be~0. As
-the startup packet is always received first, there is no need to test for
-this particular type. However, as its type is identical to {\tt
-  ACTION\_NIL}\key{ACTION\_NIL}, the startup packet may also be processed
-within the main handler loop.
+{\tt dp\_Type} is set to {\tt ACTION\_STARTUP}\mkey{ACTION\_STARTUP},
+which is defined to be~0. As the startup packet is always received
+first, there is no need to test for this particular type. In an
+alternative implementation strategy, it may be processed as 
+{\tt ACTION\_NIL}\key{ACTION\_NIL} packet within the main handle loop,
+noting that the encoding of {\tt ACTION\_NIL} is also~0.
 \smallskip{}
 
-{\tt dp\_Arg1} is set to a BPTR to a BSTR representing the
-path name under which the client of the \emph{dos.library} attempted to
-access the handler. Note that this is not a {\tt NUL}-terminated C string,
-but a BSTR whose first element is the size of the string.
+{\tt dp\_Arg1} is set to a BPTR to a BSTR representing the path
+under which the client of the \emph{dos.library} attempted to access
+the handler. Note that this is not a {\tt NUL}-terminated C string,
+but a BSTR whose first element is the size of the string. This is the
+\emph{full} path which triggered the request for the handler, not only
+the device name. For the CON-Handler\key{CON-Handler} for example,
+this is the window specification that informs the handler on the
+position, size and title of the console; window parameters are \emph{not} taken from
+the subsequent {\tt DosPacket} send for opening a file, see also
+section~\ref{sec:console}.
 \smallskip{}
 
-This argument is for example taken from the first argument to {\tt
-  Open()}\key{Open()}, just that it has been converted to a BSTR by
-the \emph{dos.library}. For the CON-Handler\key{CON-Handler} for example, this is
-the window specification that instructs the handler on the position, size
-and title of the console.
+{\tt dp\_Arg2} is a copy of the {\tt dol\_Startup}\key{dol\_Startup}
+element of the {\tt DosList}\key{DosList} structure, see
+chapter~\ref{sec:devicelist}. It is used to configure the properties
+of the handler. The type that is placed here is depends on the
+mountlist\key{Mountlist}. While its use is handler specific, it is
+typically, but not necessarily, a BPTR to a {\tt
+  FileSysStartupMsg}\key{FileSysStartupMsg} structure for file
+systems. Other possibilities for {\tt dol\_Startup} are a BPTR to a
+BSTR or an integer. What exactly the handler will receive depends on
+the mountlist and is discussed in more detail in
+section~\ref{sec:mountdoslist} and
+section~\ref{sec:filesysstartup}. There is no logic in the {\tt Mount}
+command nor in the handlers that check whether the type deposited in
+{\tt dol\_Startup} matches the expectations of the handler.
 \smallskip{}
 
-{\tt dp\_Arg2} is a copy of the {\tt dol\_Startup} element of the {\tt
-  DosList} structure, see section~\ref{sec:devicelist}. It is used to
-configure the properties of the handler. The type that is placed here is
-depends on the mountlist\key{Mountlist}. While its use is handler, it is typically, but
-not necessarily, a BPTR to a {\tt FileSysStartupMsg}\key{FileSysStartupMsg}
-structure. Other possibilities for {\tt dol\_Startup} are a BPTR to a BSTR or
-an integer. What exactly the handler will receive depends on the mountlist and is discussed in more detail in
-section~\ref{sec:mountdoslist} and section~\ref{sec:filesysstartup}.
-\smallskip{}
-
-{\tt dp\_Arg3} is a BPTR to the {\tt DosList} structure that
-triggered starting this handler.
+{\tt dp\_Arg3} is a BPTR to the {\tt DosList} structure through which
+the handler was identified and which the handler may modify according
+to its needs.
 \medskip{}
 
 Multiple strategies exist how handlers make use of this information. A
-file system process would typically handle multiple files at once
-through the same process. To ensure that the \emph{dos.library} sends
-requests for the file system to the process just started, the \emph{file
-system} shall place a pointer to the {\tt MsgPort} incoming packets are
-supposed to be send to in {\tt dol\_Task} of the {\tt DosList} structure
-received in {\tt dp\_Art3}. This is typically, but not necessarily, the
-{\tt pr\_MsgPort} of the handler process.
+file system process would typically handle multiple files
+by the same process. To ensure that the \emph{dos.library} sends
+all requests to the process just started, the file system places
+a pointer to a {\tt MsgPort} in {\tt dol\_Task} of the {\tt DosList}
+structure received in {\tt dp\_Art3}. This is typically, but not
+necessarily, the {\tt pr\_MsgPort} of the handler process. The Fast
+File System\key{Fast File System (FFS)} and file systems in general
+proceed in this way.
 \smallskip{}
 
-Whenever a client program opens a file on this file system or
-attempts to lock\key{Lock} an object, the handler process will be contacted by sending
-a packet to the port listed in {\tt dol\_Task}.
-\medskip{}
-
-A handler such as the {\tt CON} handler requires a separate process
-for each window it manages. In such a case, {\tt dol\_Task}
-remains {\tt NULL}. Thus, handlers can decide whether they require a new
-process for each file opened from the handler.
+A handler such as the CON-Handler\key{CON-Handler} requires a separate
+process for each window it manages. In such a case, {\tt dol\_Task}
+remains {\tt NULL} and {\tt GetDeviceProc()}\key{GetDeviceProc()} will
+initiate a new process for each path name to the handler. This
+does \emph{not} imply that the handler process only receives a single request
+to open a file in its lifetime, though. Any attempt to open a file
+named ``{\tt *}'' or a using a file name relative to the (pseudo-)
+device {\tt CONSOLE:} will create a request through the port stored in
+{\tt pr\_ConsoleTask} of the initiating process \emph{without}
+creating a new instance of a handler. {\tt CONSOLE:} and ``{\tt *}'' are not exclusive to the
+CON-Handler. They (maybe surprisingly) apply to any handler whose port
+is stored in {\tt pr\_ConsoleTask}.
 \smallskip{}
 
-While the \emph{dos.library} will also send a packet to open the file for
-which the handler was launched, the path of this second packet or any
-subsequent packet to open a file on the same process is not relevant to the
-CON-Handler\key{CON-Handler} anymore as the window will be opened during startup,
-and not during opening a file. Even though the handler is started once for
-the initial open and does not fill in its port in {\tt dol\_Task}, multiple
-requests to open a file may arrive at the handler, e.g.\ when opening the
-``{\tt *}''\key{* (file name)} file indicating the current console.
+Many (non file-system) handlers leave {\tt dol\_Task} unitialized,
+though some exceptions exist, e.g.\ the
+Queue-Handler\key{Queue-Handler} serves all requests from a single
+process to allow inter-process communication. Concluding, handlers
+decide whether they require a new process on an attempt to access them.
 \medskip{}
 
 Once the handler or file system initiated itself from the
-startup packet, the packet shall be replied. If startup failed, the primary
+startup packet, this packet shall be replied. If startup failed, the primary
 result code shall be {\tt DOSFALSE} and the secondary result code shall be
 an error code suitable for reporting through {\tt IoErr()}\key{IoErr()}, see
 section~\ref{sec:ioerr} for a list of common error codes. Then, the handler
 shall release all resources acquired so far and terminate.
+\smallskip{}
+
+On success, the main processing loop of the handler is entered
+processing requests through {\tt DosPacket}s\key{DosPacket} it
+receive through its port(s).
 
 \subsection{Handler Main Processing Loop} \label{sec:handlermain}
 
