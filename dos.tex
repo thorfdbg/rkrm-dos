@@ -14702,11 +14702,26 @@ is {\tt NULL}.
 \smallskip{}
 
 {\tt GetDeviceProc()} then finally waits for the startup packet to
-return, and blocks in the process of its caller, keeping the device
-list\key{DeviceList} locked. It \emph{does not} initialize
-{\tt dol\_Task} if handler startup succeeded, this is up to the handler,
-see below.
+return. It \emph{does not} initialize {\tt dol\_Task} if handler
+startup succeeded, this is up to the handler, see below.
 \smallskip{}
+
+While waiting for the startup packet to return, {\tt GetDeviceProc()}
+keeps the device list\key{DeviceList} locked. This is an exclusive
+lock if {\tt dol\_GlobVec}\key{dol\_GlobVec} is larger or equal than~$-1$.
+This implies an attempt to gain access to the device list within
+the handler startup by {\tt LockDosList()}\key{LockDosList()} can
+deadlock. Even if such a lock is not requested explicitly,
+\emph{dos.library} functions can require implicitly such a lock, and
+thus attempting to access files or locks from the handler process
+should be avoided, not only during startup.
+\smallskip{}
+
+If {\tt dol\_GlobVec}\key{dol\_GlobVec} is $-2$ or $-3$,
+{\tt GetDeviceProc()}\key{GetDeviceProc()} will only acquire a shared
+lock, and thus will allow the handler to retrieve a shared lock on the
+device list\key{Device List} as well.
+\medskip{}
 
 The following code is a sketch of a handler implementation,
 expecting linkage with the assembler code from
@@ -14825,7 +14840,8 @@ the handler was identified and which the handler may modify according
 to its needs.
 \medskip{}
 
-Multiple strategies exist how handlers make use of this information. A
+During startup, the handler may or may not initialize {\tt dol\_Task}
+with a port of its choice. A
 file system process would typically handle multiple files
 by the same process. To ensure that the \emph{dos.library} sends
 all requests to the process just started, the file system places
@@ -14871,87 +14887,30 @@ receive through its port(s).
 
 \subsection{Handler Main Processing Loop} \label{sec:handlermain}
 
-If startup succeeded, the primary result code for the packet shall be
-{\tt DOSTRUE}, and the secondary result code shall be~0. Handler operations
-then proceed by waiting for incoming packets, and processing them one by another.
-\medskip{}
-
-The \emph{dos.library} keeps the device list\key{Device List} locked while the handler
-is starting up. This means in particular that an attempt to gain access to
-the device list with {\tt LockDosList()}\key{LockDosList()}, see
-section~\ref{sec:lockdoslist}, can deadlock. Even if such a call is not made
-explicitly, \emph{dos.library} functions can require implicitly such a lock,
-and thus attempting to access files or lock objects within handlers should
-be avoided, not only during startup.
-\smallskip{}
-
-If {\tt dol\_GlobVec}\key{dol\_GlobVec} is $-2$ or $-3$, the \emph{dos.library} will only
-acquire a shared lock, and thus will allow the handler to retrieve a shared
-lock on the device list\key{Device List} as well.
-\medskip{}
-
 Once started up, handlers or file systems should wait for incoming
-packets. Depending on how a handler is contacted, the \emph{dos.library}
-uses multiple sources to identify a suitable port:
+packets. The main loop of a handler then checks its own process port,
+or all ports it provided through the mechanisms below for incoming
+packets. Chapter~\ref{sec:packettypes} provides information on all
+packets documented in AmigaDOS, though third-party handlers may
+implement additional packet types.
 \smallskip{}
 
-If the handler is contacted through the special path ``{\tt *}''\key{* (file name)} or a
-path starting with ``{\tt CONSOLE:}'', the port in {\tt pr\_ConsoleTask} is
-used to send packets to.
+When opening files through the packets documented in
+section~\ref{sec:actionfindinput} and following, the handler or file
+system receives a BPTR to a {\tt FileHandle} structure into whose
+{\tt fh\_Arg1} element it may deposit an identifier to
+relate the file with internal resources associated to the file. See chapter~\ref{sec:packettypes} for more details.
+On this account, it may also update the {\tt fh\_Type} element to have packets delivered to an alternative
+port.
 \smallskip{}
 
-If the handler is contacted through a path starting with ``{\tt
-  PROGDIR:}''\key{PROGDIR} and the {\tt pr\_HomeDir}\key{pr\_HomeDir} element of the
-calling process is non-{\tt NULL}, the {\tt fl\_Task}\key{fl\_Task} element of the
-lock\key{Lock} stored there is used to contact the handler.
-\smallskip{}
-
-If the handler is contacted through an absolute path, the \emph{dos.library}
-scans the device list\key{Device List} to locate a {\tt DosList} structure whose {\tt
-  dol\_Name}\key{dol\_Name} element matches the device name in the path. The {\tt
-  dol\_Task}\key{dol\_Task} field, if non-{\tt NULL}, is then used as destination of a
-packet. If it is {\tt NULL}, a new process of the handler is created. From
-this follows that a handler or file system can customize the port through
-which it expects packets. File systems will typically place the {\tt
-  pr\_MsgPort}\key{pr\_MsgPort} of their process there.
-\smallskip{}
-
-If a handler is contacted through a relative path, and {\tt pr\_CurrentDir}
-of the calling process is non-{\tt ZERO}, the {\tt fl\_Task}\key{fl\_Task} element of the
-current directory of the process attempting to resolve a path is used as
-target port. If {\tt pr\_CurrentDir}\key{pr\_CurrentDir} is {\tt ZERO}, the {\tt
-  pr\_FileSystemTask}\key{pr\_FileSystemTask} is used as target port.
-\smallskip{}
-
-If the handler is contacted through a file handle\key{FileHandle}, for example
-to read or write bytes from a file, the {\tt fh\_Type}\key{fh\_Type} element of the
-handle is used as destination port. A file system may place a custom
-port in this element on opening files by {\tt ACTION\_FINDINPUT}\key{ACTION\_FINDINPUT},
-{\tt ACTION\_FINDOUTPUT}\key{ACTION\_FINDOUTPUT} or {\tt ACTION\_FINDUPDATE}\key{ACTION\_FINDUPDATE} in
-the {\tt fh\_Type}\key{fh\_Type} element of the handle to receive all packets associated to
-this particular file on an alternative port. The \emph{dos.library}
-places by default there the port it found through the path, see above.
-\smallskip{}
-
-If the handler is contacted through a lock\key{Lock}, the {\tt fl\_Task}\key{fl\_Task} element of
-the {\tt FileLock}\key{FileLock} structure is used to send out packets. A file system thus
-may customize a port through which all packets related to a particular lock
-are transmitted by placing this port in {\tt fl\_Task} when creating a lock.
-\smallskip{}
-
-The special path ``{\tt NIL:}'' does not correspond to any handler but
-sets the {\tt fh\_Type}\key{fh\_Type} element to {\tt ZERO}. Any attempt to write out data
-through such a handle ignores all bytes written, and any attempt to read
-bytes will return zero bytes. This is a special case in which the
-\emph{dos.library} does not go through a handler at all.
-\medskip{}
-
-The main loop of a handler then checks its own process port, or all ports it
-provided through the above mechanisms for incoming packets and tests their
-{\tt dp\_Type}\key{dp\_Type} field, identifying the requested action to be
-performed. Subsequent sections will provide information on all packets
-documented within AmigaDOS, though third-party handlers may implement
-additional packet types.
+Unlike file handles, locks and the {\tt FileLock}\key{FileLock}
+structure shall be build by the file system itself when receiving the packets
+of section~\ref{sec:actionlocateobject}, e.g.\ when locking a file system object. The {\tt fl\_Task}\key{fl\_Task} element
+of this structure, in particular, shall point to a {\tt MsgPort} clients will
+contact for interacting with the file system. While this is typically
+the {\tt pr\_MsgPort} of the file system process, the file system
+may also provide a custom port instead.
 \smallskip{}
 
 A handler or file system receiving a packet it does not implement
@@ -17606,7 +17565,7 @@ The packets listed in this section implement the \emph{dos.library}
 functions listed in section~\ref{sec:locks}; they create, release or
 duplicate locks\key{Lock} or create directories.
 
-\subsection{Obtaining a Lock}
+\subsection{Obtaining a Lock} \label{sec:actionlocateobject}
 
 The {\tt ACTION\_LOCATE\_OBJECT}\mkey{ACTION\_LOCATE\_OBJECT} packet locates
 an object --- a file or a directory --- on a file system and creates
