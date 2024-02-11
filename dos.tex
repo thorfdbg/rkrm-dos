@@ -14897,20 +14897,26 @@ implement additional packet types.
 
 When opening files through the packets documented in
 section~\ref{sec:actionfindinput} and following, the handler or file
-system receives a BPTR to a {\tt FileHandle} structure into whose
-{\tt fh\_Arg1} element it may deposit an identifier to
-relate the file with internal resources associated to the file. See chapter~\ref{sec:packettypes} for more details.
-On this account, it may also update the {\tt fh\_Type} element to have packets delivered to an alternative
-port.
+system receives a BPTR to a {\tt FileHandle} structure whose
+{\tt fh\_Arg1} element may be initialized to an identifier of
+the file. On this account,
+it may also update the {\tt fh\_Type} element of the handle to have
+packets related to the file delivered to an alternative port. The
+identifier from {\tt fh\_Arg1} is then used to identify the file for all other
+operations related to it, such as reading or writing to it.
+Section~\ref{sec:fileactions} contains all packets interacting with files.
 \smallskip{}
 
 Unlike file handles, locks and the {\tt FileLock}\key{FileLock}
-structure shall be build by the file system itself when receiving the packets
-of section~\ref{sec:actionlocateobject}, e.g.\ when locking a file system object. The {\tt fl\_Task}\key{fl\_Task} element
-of this structure, in particular, shall point to a {\tt MsgPort} clients will
-contact for interacting with the file system. While this is typically
-the {\tt pr\_MsgPort} of the file system process, the file system
-may also provide a custom port instead.
+structure shall be build by the file system itself when receiving one of the
+packets in section~\ref{sec:actionlocateobject} and following, 
+e.g.\ when locking a file system object.
+The {\tt fl\_Task}\key{fl\_Task} element of this structure, in particular,
+shall be initialized to point to a {\tt MsgPort} clients will contact for interacting
+with the file system on this lock. While this is typically the {\tt pr\_MsgPort} of
+the file system process, it may also provide a custom
+port instead. Section~\ref{sec:actionlocks} lists all packet types that
+interact with locks.
 \smallskip{}
 
 A handler or file system receiving a packet it does not implement
@@ -14931,50 +14937,57 @@ as shown in the following table:
 all others & ~0 \\ \hline
 \end{rkrmtable}
 
-This ensures that clients of the handler or file system will receive a
-result that is an indication of an error.
+The packet shall then be replied. This ensures that clients of the
+handler or file system will receive a result that is an indication of
+an error.
 
 \subsection{Handler Shutdown} \label{sec:terminatehandler}
 
 A handler that does not initialize the {\tt dol\_Task}\key{dol\_Task} element of its
 {\tt DosList} structure should keep a counter that is incremented for each
-object it creates, and decremented for each object deleted or disposed. For
+object it creates, and decremented for each object deleted. For
 example, if the handler supports opening files, then the initialization of
 each file handle\key{FileHandle} should increment the counter, and each file handle
 closed through {\tt ACTION\_END}\key{ACTION\_END} should decrement the counter. Once the use
 counter reaches zero, the handler process should die by releasing all of its
-resources and falling off its main function. This ensures that the system is
+resources and falling off its main function. This ensures that AmigaDOS is
 not congested by creating more and more processes of the same handler that,
-effectively, cannot be contacted anymore because its process part is not
-referenced in any object passed out of the \emph{dos.library}.
+effectively, cannot be contacted anymore because its process port is not
+referenced anymore.
 \smallskip{}
 
-A typical example of a handler is the CON-Handler\key{CON-Handler} of the system that
-opens its window from its startup message but any file opened to it
-will interact with the same window. The window will be closed when each of
+A typical example for such a handler is the
+CON-Handler\key{CON-Handler} that requires a new process
+for each window openened. Even though there is only one window per console, it can
+be referenced by multiple files as the console can also be reached
+through ``{\tt *}'' and ``{\tt CONSOLE:}''. The window will be closed when each of
 these files had been closed\footnote{This is a simplification, ignoring {\tt
   AUTO}\key{AUTO} and {\tt WAIT}\key{WAIT} parameters, see section~\ref{sec:console} for details}.
 \medskip{}
 
-File systems such as the FFS, however, typically do initialize
-{\tt dol\_Task}\key{dol\_Task} and thus can be reached even if all files, locks\key{Lock} or
-notification requests on the volume they manage have been
-released. Thus, in addition to such resource tracking, file systems
-should check for incoming packets of the type {\tt ACTION\_DIE}\key{ACTION\_DIE} and
-then attempt to shutdown, see section~\ref{sec:packetactiondie}.
+File systems such as the FFS, however, typically \emph{do} initialize
+{\tt dol\_Task}\key{dol\_Task} and thus can be reached even if all
+files, locks\key{Lock} or notification requests on the volumes they
+manage have been released. Thus, in addition to such resource
+tracking, file systems should check for incoming packets of the type
+{\tt ACTION\_DIE}\key{ACTION\_DIE}. If the file system is aware that
+any of its resources are still in use, e.g.\ some files or locks are
+still open, {\tt ACTION\_DIE} shall fail. Otherwise, the file system
+may reply to this packet with success and attempt to shutdown.
 \smallskip{}
 
-The {\tt MsgPort} or ports of such a handler may still contain packets that
-have not yet been worked on after {\tt ACTION\_DIE}\key{ACTION\_DIE} has been received. In
-order to avoid a deadlock, the packets pending in the input queue still need
-to be replied, for example using the default return codes from
-table~\ref{table:unimp}.
+The {\tt pr\_MsgPort} or any other ports of such a handler can still
+contain packets that have not yet been worked on after {\tt ACTION\_DIE}\key{ACTION\_DIE}
+has been received and replied. In order to avoid a deadlock, the
+packets pending in the input queue still need to be replied, for
+example using the default return codes from table~\ref{table:unimp} in section~\ref{sec:handlermain}.
 \smallskip{}
 
-Despite such precautions, {\tt ACTION\_DIE}\key{ACTION\_DIE} cannot be implemented in a
-fully reliable way as the {\tt MsgPort} of the file system could still
-be cached by some client programs even if no active locks\key{Lock} or open file
-handles\key{FileHandle} exist. Section~\ref{sec:packetactiondie} contains further details.
+Despite such precautions, {\tt ACTION\_DIE}\key{ACTION\_DIE} cannot be
+implemented in a fully reliable way as some of the {\tt MsgPort}(s) of the
+file system could still be cached by client programs even without
+having access to any of its resources. Section~\ref{sec:packetactiondie} contains
+further details on this packet and file system shutdown.
 
 \section{The CON-Handler} \label{sec:console}
 
@@ -17559,7 +17572,7 @@ On success, {\tt dp\_Res1} shall be set to {\tt DOSTRUE} and {\tt dp\_Res2}
 to~0. On error, {\tt dp\_Res1} shall be set to {\tt DOSFALSE} and {\tt
   dp\_Res2} to an error code.
 
-\section{Packets for Interacting with Locks}
+\section{Packets for Interacting with Locks} \label{sec:actionlocks}
 
 The packets listed in this section implement the \emph{dos.library}
 functions listed in section~\ref{sec:locks}; they create, release or
