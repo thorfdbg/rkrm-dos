@@ -13768,6 +13768,7 @@ BCPLTable:      CNOP    0,4
                 DC.L    G_START,BCPLStart-CodeHeader
                 DC.L    G_GLOBMAX       ; max global used (default)
 CodeEnd:
+                   END
 \end{verbatim}
 
 Note that there are other differences for BCPL handlers the {\tt
@@ -14721,69 +14722,8 @@ If {\tt dol\_GlobVec}\key{dol\_GlobVec} is $-2$ or $-3$,
 {\tt GetDeviceProc()}\key{GetDeviceProc()} will only acquire a shared
 lock, and thus will allow the handler to retrieve a shared lock on the
 device list\key{Device List} as well.
-\medskip{}
+\smallskip{}
 
-The following code is a sketch of a handler implementation,
-expecting linkage with the assembler code from
-section~\ref{sec:bcplbinding}:
-
-\begin{verbatim}
-/* Link with BCPL/Assembler handler startup code */
-LONG __asm __saveds main(register __a0 struct DosPacket *pkt)
-{
-    SysBase = *((struct ExecBase **)(4L));
-    struct Process *proc = (struct Process *)FindTask(NULL);
-    struct Message *msg;
-    const UBYTE *path;
-    ULONG startup;
-    struct DosList *dlist;
-    LONG error = 0;
-    
-    /* if NULL, this was a C startup, retrieve
-    ** the packet manually 
-    */    
-    if (pkt == NULL) {
-      /* 
-      ** Wait and retrieve the startup message
-      */
-      WaitPort(&proc->pr_MsgPort);
-      msg = GetMsg(&proc->pr_MsgPort);
-      pkt = (struct DosPacket *)msg->mn_Node.ln_Name;
-    }
-
-    path    = (const UBYTE *)BADDR(pkt->dp_Arg1);
-    startup = pkt->dp_Arg2;    
-    dlist   = (struct DosList *)BADDR(pkt->dp_Arg3);
-    ... /* Handler initialization */
-
-    if (error) {
-      /*
-      ** Potentially initialize dol_Task 
-      ** Remove if a new instance is required.
-      */
-      dlist->dol_Task = &proc->pr_MsgPort;
-      ReplyPkt(pkt,DOSFALSE,error);
-      ... /* shutdown, terminate */
-      return;
-    } else {
-      BOOL run = TRUE;
-      ReplyPkt(pkt,DOSTRUE,0);
-      /* main program loop */
-      do {
-       LONG res1 = DOSFALSE;
-       LONG res2 = ERROR_ACTION_NOT_KNOWN;
-       WaitPort(&proc->pr_MsgPort);
-       msg = GetMsg(&proc->pr_MsgPort);
-       pkt = (struct DosPacket *)(msg->mn_Node.ln_Name);
-       switch(pkt->dp_Type) {
-         case ACTION_....
-         ....
-       }
-       ReplyPkt(pkt,res1,res2);
-      } while(run);
-    }
-}
-\end{verbatim}
 The startup packet consists of a {\tt DosPacket}\key{DosPacket}
 structure as it is also used to submit requests to the handler, see
 section~\ref{sec:dospacket} for its definition. For the purpose of
@@ -14918,6 +14858,117 @@ the file system process, it may also provide a custom
 port instead. Section~\ref{sec:actionlocks} lists all packet types that
 interact with locks.
 \smallskip{}
+
+The following code is a sketch of a (non-filesystem) handler implementation,
+expecting linkage with the assembler code from
+section~\ref{sec:bcplbinding}:
+\begin{verbatim}
+#include <dos/dos.h>
+#include <dos/dosextens.h>
+#include <proto/exec.h>
+#include <proto/dos.h>
+
+#ifndef ACTION_FORCE
+# define ACTION_FORCE 2001
+#endif
+
+#ifndef ACTION_STACK
+# define ACTION_STACK 2002
+#endif
+
+#ifndef ACTION_QUEUE
+# define ACTION_QUEUE 2003
+#endif
+
+struct ExecBase   *SysBase;
+struct DosLibrary *DOSBase;
+
+LONG __asm __saveds main(register __a0 struct DosPacket *pkt)
+{
+    struct Process *proc;
+    struct Message *msg;
+    const UBYTE *path;
+    ULONG startup;
+    struct DosList *dlist;
+    LONG error = 0;
+    BOOL open  = 0;
+
+    SysBase = *((struct ExecBase **)(4L));
+    proc    = (struct Process *)FindTask(NULL);
+    /* 
+    ** if NULL, this was a C startup, retrieve
+    ** the packet manually 
+    */    
+    if (pkt == NULL) {
+      /* 
+      ** Wait and retrieve the startup message
+      */
+      WaitPort(&proc->pr_MsgPort);
+      msg = GetMsg(&proc->pr_MsgPort);
+      pkt = (struct DosPacket *)msg->mn_Node.ln_Name;
+    }
+    path    = (const UBYTE *)BADDR(pkt->dp_Arg1);
+    startup = pkt->dp_Arg2;    
+    dlist   = (struct DosList *)BADDR(pkt->dp_Arg3);
+    DOSBase = (struct DosLibrary *)OpenLibrary("dos.library",37);
+
+    if (DOSBase == NULL)
+      error = ERROR_INVALID_RESIDENT_LIBRARY;
+
+    if (error) {
+      /*
+      ** Potentially initialize dol_Task 
+      ** Remove if a new instance is required.
+      */
+      ReplyPkt(pkt,DOSFALSE,error);
+      return;
+    }
+
+    /* dlist->dol_Task = &proc->pr_MsgPort; */
+    ReplyPkt(pkt,DOSTRUE,0);
+    /* main program loop */
+    do {
+      LONG res1 = DOSFALSE;
+      LONG res2 = ERROR_ACTION_NOT_KNOWN;
+      WaitPort(&proc->pr_MsgPort);
+      msg = GetMsg(&proc->pr_MsgPort);
+      pkt = (struct DosPacket *)(msg->mn_Node.ln_Name);
+      switch(pkt->dp_Type) {
+      case ACTION_FINDINPUT:
+      case ACTION_FINDUPDATE:
+      case ACTION_FINDOUTPUT:
+        open++;
+        res1 = DOSTRUE;
+        res2 = 0;
+        break;
+      case ACTION_END:
+        open--;
+        break;
+      case ACTION_READ:
+        res1 = -1; /* EOF */
+        res2 = 0;
+        break;
+      case ACTION_WRITE:
+        res1 = pkt->dp_Arg3;
+        res2 = 0;
+        break;
+      case ACTION_SEEK:
+      case ACTION_SET_FILE_SIZE:
+      case ACTION_STACK:
+      case ACTION_QUEUE:
+      case ACTION_FORCE:
+        res1 = -1;
+        break;
+      default:
+        break;
+      }
+      ReplyPkt(pkt,res1,res2);
+    } while(open);
+    
+    CloseLibrary((struct Library *)DOSBase);
+    
+}
+\end{verbatim}
 
 A handler or file system receiving a packet it does not implement
 shall set the {\tt dp\_Res2} element of the packet to {\tt
