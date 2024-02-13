@@ -15043,37 +15043,51 @@ further details on this packet and file system shutdown.
 \section{The CON-Handler} \label{sec:console}
 
 The CON-Handler\mkey{CON-Handler} implements the console of
-AmigaDOS. It not only serves the graphical console, but also the serial
-console. The AUX-Handler\key{AUX-Handler} is only a minimal wrapper that
-locates the Csonole-Handler\key{CON-Handler} in the ROM and then
-initates it with a suitable startup packet. Therefore, it implements the
-{\tt CON:}, {\tt RAW:} and {\tt AUX:} device.
+AmigaDOS. It not only serves the graphical console, but also a console
+on the serial or any other device. The AUX-Handler\key{AUX-Handler} is
+only a minimal wrapper that locates the
+Console-Handler\key{CON-Handler} in the ROM and then runs it with
+a suitable startup packet. The CON-Handler thus implements the
+{\tt CON:}, {\tt RAW:} and {\tt AUX:} devices.
+\smallskip{}
+
+Even though the AmigaDOS Shell\key{Shell} is the most prominent user
+of the console, the two components are otherwise completely
+separate. The Shell can be run on any AmigaDOS device --- and in fact
+is, when executing scripts --- and the console can be used by any
+other program, for example by {\tt Ed}.
 \smallskip{}
 
 Quite similar to file systems, the CON-Handler\key{CON-Handler} does not implement all of its
 functionality itself. It rather depends on services of exec devices. For the
-graphical console, it creates an intuition window and initializes the {\tt
-  console.device} to run within. For the serial console, i.e.\ {\tt AUX:}, it
-operates on top of the \emph{serial.device}, but can be made to use any other
+graphical console, it creates an intuition window and initializes the
+{\tt console.device} to run within. For the serial console, i.e.\ {\tt AUX:}, it
+operates on top of the {\tt serial.device}, but can be made to use any other
 interface device with proper mount parameters.
 
 \subsection{CON-Handler Path for Graphical Consoles} \label{sec:conwindowpath}
 
-The path through which a stream to the CON-Handler\key{CON-Handler} is opened determines for
-the graphical console the size, position and features of the window the
-console appears within; for the serial console, it defines connection
-parameters such as the baud rate and the parity. The path for the graphical
-console accessed through {\tt CON:}, and for {\tt RAW:} likewise are as
-follows:
+The path through which a stream to the {\tt CON:} and {\tt RAW:}
+devices opened determines the size, position and features of the
+window the console runs in; for the {\tt AUX:} device, it defines
+connection parameters such as the baud rate and the parity.
+\smallskip{}
+
+This section discusses the parameters for the graphical console,
+section~\ref{sec:auxwindowpath} lists the options for {\tt AUX:}.
+Angle brackets ``{\tt <$~$>}'' just name the options for the purpose of
+referencing them, they are \emph{not} part of the actual parameter
+string supplied to the handler.
 
 \begin{verbatim}
 CON:<left>/<top>/<width>/<height>/<title>[/<options>]
 \end{verbatim}
 
-The {\tt <left>} parameter determines the left edge of the window within
-which the console shall appear; it is measured in pixels. If this parameter
-is not present or negative, intuition is instructed to pick a default. This
-position is usually under the cursor position.
+The {\tt <left>} parameter determines the left edge of the window
+within which the console appears; it is measured in pixels. If
+this parameter is not present or negative, intuition is instructed to
+pick a default, which itself defaults to a window position under the
+cursor.
 \smallskip{}
 
 The {\tt <top>} parameter is the top edge of the window, also measured in
@@ -15081,23 +15095,25 @@ pixels. If this parameter is not present or negative, intuition is
 instructed to pick a default.
 \smallskip{}
 
-The {\tt <width>} parameter is the width of the window, including all window
-decorations. If this is not present or negative, the handler instructs
-intuition to pick a default. This is typically the width of the screen. If
-no parameters are present at all, i.e.\ the path is just {\tt CON:}, the
-width of the window is set to 640 pixels for legacy reasons.
+The {\tt <width>} parameter is the width of the window, including all
+window decorations. If this is not present or negative, the handler
+instructs intuition to pick a default, which is the width of
+the screen. If no parameters are present at all, i.e.\ the path is
+just {\tt CON:} or {\tt RAW:} without any parameters, the width of the window is set
+to 640 pixels for legacy reasons.
 \smallskip{}
 
-The {\tt <height>} parameter is the height of the window, including all
-window decorations. If this parameter is not present, the window height is
-set to 100 pixels for legacy reasons. If this parameter is negative, the
-window height will be the height of the screen.
+The {\tt <height>} parameter is the height of the window, including
+all window decorations. If this parameter is not present, the window
+height is set to 100 pixels for legacy reasons. If this parameter is
+negative, the window height will be the height of the screen. Width
+and height are not handled symmetrically, this is intentional.
 \smallskip{}
 
 The {\tt <title>} parameter is the string that is put into the drag bar of
-the console window to create. To insert the forward slash (``{\tt /}'') into
+the window. To insert the forward slash (``{\tt /}'') into
 the string, it is escaped with a backslash, i.e.\ ``{\tt \textbackslash{}/}''
-creates a single forwards slash that does not act as a path
+creates a single forwards slash that does not act as a parameter
 separator\footnote{Given the overall syntax of AmigaDOS, the asterisk {\tt
   *}\key{* (file name)} would have been a more logical choice.}, the backslash is escaped by
 itself, i.e.\ ``{\tt \textbackslash{}\textbackslash{}}'' creates a single
@@ -15105,12 +15121,16 @@ backslash in the title.
 \medskip{}
 
 All following path components configure options for the graphical
-terminal; multiple of these parameters may be combined, separated by a
-forwards slash (``{\tt /}'') from each other:
+console; multiple of these parameters may be combined, separated by a
+forwards slashes (``{\tt /}'') from each other:
 \smallskip{}
 
-{\tt CLOSE}\mkey{CLOSE} adds a close gadget to the window. Pressing on it creates an
-end-of-file indication, similar to the key combination Ctrl+\textbackslash{}.
+{\tt CLOSE}\mkey{CLOSE} adds a close gadget to the window. What
+happens if the user presses on this gadget depends on the mode the
+console is operating in, see section~\ref{sec:conmodes}, whether any
+file handles are open to the console, and whether any read requests
+are pending. In particular, the options {\tt AUTO} and {\tt WAIT} impact
+how this gadget works.
 \smallskip{}
 
 {\tt NOCLOSE}\mkey{NOCLOSE} is the negative form of the above option and removes a
@@ -15118,24 +15138,50 @@ potentially added close gadget from the window.
 \smallskip{}
 
 {\tt AUTO}\mkey{AUTO} delays opening the window to the point where an attempt is made
-to read data from the console or write data to the console.  Up to that
-point the console remains closed. If neither read requests nor write
+to read data from the console or write data to it. If neither read requests nor write
 requests are pending, the close gadget will also close the window without
-queuing an end-of-file; the window will pop-open again as soon as input or
-output requests are made. Unfortunately, an {\tt ACTION\_DISK\_INFO} will
-lock the window open, see section~\ref{sec:diskinfoconsole} for alternatives
+queuing an end-of-file condition to read requests; the window will pop-open again as soon as read or
+write requests are received. Unfortunately, an {\tt ACTION\_DISK\_INFO} will
+lock the window open, thus disabling this parameter, see section~\ref{sec:diskinfoconsole} for alternatives
 to this packet or how to regain the {\tt AUTO} feature.
+This option does not work for the {\tt RAW:} device or in the raw mode for
+reasons explained below.
 \smallskip{}
 
-{\tt WAIT}\mkey{WAIT} delays closing the window after every file handle\key{FileHandle} to the console
-has been closed. With this flag, the window stays open until the close
-gadget has been pressed, even if no client is connected to the terminal
-anymore to receive input or perform output.
+{\tt WAIT}\mkey{WAIT} waits for the user to close the window. With
+this option present, the window stays open even though the last file
+handle has been closed, and will only close when explicitly requested
+by pressing the close gadget. This option does not work for the
+{\tt RAW:} device or in raw mode either.
 \smallskip{}
+
+If read requests are waiting on the console, it depends on the console
+mode, see section~\ref{sec:conmodes}, how the console reacts on the close gadget, but it
+will \emph{not} close the window by itself. If the console is
+operating in raw mode\key{Raw Mode} and a process has requested to
+receive window close events with the {\tt CSI 11 \{} sequence, then a
+CSI raw event will be send to the next reading stream, thus indicating
+the request to close the window. The raw event interface for
+requesting and delivering input events in the form of CSI sequences is
+\emph{not} implemented by the CON-Handler, but rather inherited from
+the {\tt console.device} and therefore documented in~\cite{rkrmdev}.
+\smallskip{}
+
+That the options {\tt AUTO} and {\tt WAIT} do not work for {\tt RAW:}
+is also a side-effect of the above: These options require
+interpretation of the raw events send by the {\tt console.device}, but
+their interpretation is disabled in raw mode.
+\smallskip{}
+
+In all other modes, an end-of-file condition is generated if the
+window close gadget is pressed. It is again up to the receiving
+process how to react on an end of file, the window will not be closed
+by the CON-Handler itself.
+\medskip{}
 
 {\tt SMART}\mkey{SMART} enforces smart refresh of the window. If this is enabled, more
 RAM is required, but it is not necessary to re-render the contents of the
-console window if it is made visible behind another window. In most cases,
+console window if it is moved upfront another window. In most cases,
 this makes little difference and only increases the RAM footprint.
 \smallskip{}
 
@@ -15145,8 +15191,8 @@ not cost a lot of time, saves RAM and is also the default.
 \smallskip{}
 
 {\tt INACTIVE}\mkey{INACTIVE} prevents that the window is receiving
-automatically the input focus when it is opened. The user has to click into
-it to type in the console.
+the input focus automatically when it is opened. The user has to click into
+it to activate it and thus be able to type in it.
 \smallskip{}
 
 {\tt BACKDROP}\mkey{BACKDROP} instructs intuition to place the window behind all other
@@ -15161,7 +15207,7 @@ drag bar will still appear. Thus, this option is ideally combined with an
 empty title string.
 \smallskip{}
 
-{\tt NOSIZE}\mkey{NOSIZE} removes the size gadget of the console on the top
+{\tt NOSIZE}\mkey{NOSIZE} removes the size gadget of the console on the bottom
 right edge of the window and thus creates a fixed-size window.
 \smallskip{}
 
@@ -15174,21 +15220,22 @@ non-movable console as screen background.
 window and place the console within this window. This window will also be
 closed if the console closes. The address of the {\tt Window} structure is
 provided in hexadecimal behind the parameter, optionally separated by
-spaces, e.g.\ {\tt WINDOW~200AFC0}. An optional ``0x'' string may appear
+spaces, e.g.\ {\tt WINDOW~200AFC0}. An optional ``{\tt 0x}'' string may appear
 upfront the hexadecimal window address. This parameter replaces a legacy
 startup mechanism by which the console could also be placed into an already
-opened window.
+opened window, see also~\ref{sec:constartup}. The window structure is
+documented in~\cite{rkrmlib} and defined in {\tt intuition/intuition.h}.
 \smallskip{}
 
 {\tt SCREEN}\mkey{SCREEN} provides a name of a public screen on which the
 console shall appear instead of the Workbench. The public screen name
-follows, optionally separated by spaces, e.g.\ {\tt SCREEN~myProgram.1}. If
-the screen name is {\tt *}\key{* (file name)}, then the frontmost public screen will be used as
+follows the option, optionally separated by spaces, e.g.\ {\tt SCREEN~myProgram.1}. If
+the screen name is {\tt *}, then the frontmost public screen will be used as
 host for the console.
 \smallskip{}
 
 {\tt ALT}\mkey{ALT} provides alternative window dimensions and placement to
-which the window can be toggled by the top-left zoom gadget of the
+which the window can be toggled by the top-right zoom gadget of the
 window. The alternative window placement provides left edge, top edge, width
 and height, similar to the main window placement, though numerical arguments
 are separated by comma (``{\tt ,}'') and not by the forwards slash. This
@@ -15197,16 +15244,26 @@ e.g.\ {\tt ALT 0,0,320,200}.
 \smallskip{}
 
 {\tt ICONIFY}\mkey{ICONIFY} equips the window with an iconfication
-gadget. This requires the {\tt ConCip} program running in order to have an
-icon available for the console. If the iconification gadget is pressed, this
-icon will appear on the Workbench, and the window will disappear. The window
-will be forced open when a incoming read or write request requires a window
-to read from or write data into. Similar to the {\tt AUTO}\key{AUTO} option,
-windows will loose the ability to become iconified if a program requests the
-window pointer through {\tt ACTION\_DISK\_INFO}\key{ACTION\_DISK\_INFO}, see
+gadget. This requires the {\tt ConCip} program running which loads
+the icon for the console. If the iconification gadget is
+pressed, this icon will appear on the Workbench, and the window will
+disappear. The window will be forced open when a incoming read or
+write request requires a window to read from or write data
+into, or when the icon on the workbench is double-clicked.
+Similar to the {\tt AUTO}\key{AUTO} option, windows will loose
+the ability to become iconified if a program requests the window
+pointer through {\tt ACTION\_DISK\_INFO}\key{ACTION\_DISK\_INFO}, see
 again section~\ref{sec:diskinfoconsole} for details.
+\smallskip{}
 
-\subsection{CON-Handler Path for Serial Consoles}
+Similar to {\tt AUTO}, {\tt ICONIFY} also works probably not
+quite as expected in raw mode. As reaction to a click on the
+iconification gadget, the {\tt console.device} will send a raw event
+CSI sequence the CON-Handler will not interpret as iconfication
+request, but rather forward it to a pending read request.
+Thus, iconfication is to be performed by the process operating the console.
+
+\subsection{CON-Handler Path for Serial Consoles} \label{sec:auxwindowpath}
 
 If the console is a serial console, e.g.\ mounted as AUX-Handler\mkey{AUX-Handler},
 another set of parameters becomes available that configures the serial
@@ -17348,7 +17405,7 @@ will not release the memory of the {\tt FileHandle}\key{FileHandle}
 structure, and as such, it remains available to the caller of {\tt
   Close()}\key{Close()} to perform other activities on the file.
 
-\subsection{Reading from a File}
+\subsection{Reading from a File} \label{sec:action_read}
 
 The packet {\tt ACTION\_READ}\mkey{ACTION\_KEY} reads data from a \emph{file
 system} or handler and advances the file pointer accordingly.
