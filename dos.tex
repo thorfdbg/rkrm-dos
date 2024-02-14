@@ -15265,62 +15265,194 @@ Thus, iconfication is to be performed by the process operating the console.
 
 \subsection{CON-Handler Path for Serial Consoles} \label{sec:auxwindowpath}
 
-If the console is a serial console, e.g.\ mounted as AUX-Handler\mkey{AUX-Handler},
-another set of parameters becomes available that configures the serial
-connection; if the console is run on any other than the \emph{serial.device}
-through mount parameters, this device shall support the
-{\tt SDCMD\_SETPARAMS} command through which these path parameters are
-installed.
+The following section covers the {\tt AUX:} device which became part of
+the CON-Handler in AmigaDOS version~47. In earlier versions, the
+device operated from an independent handler implemented in BCPL that
+was phased out. Therefore, the description in this section only
+applies to AmigaDOS~47 and beyond.
+\smallskip{}
+
+If the console is a serial console, e.g.\ mounted as
+AUX-Handler\mkey{AUX-Handler}, another set of parameters becomes
+available that configures the serial connection; if the console is run
+on any other than the {\tt serial.device} through mount parameters,
+this device shall support the {\tt SDCMD\_SETPARAMS} command through
+which the parameters in the path are forwarded to the underlying
+device.
+\smallskip{}
+
+Parameters for the handler come from three sources: First, from the
+Serial preferences of the system. These default parameters are
+overridden by the mountlist for {\tt AUX:}, described separately in
+section~\ref{sec:constartup}. Third, the parameters from the mountlist
+can be overridden through components in the file name from which
+{\tt AUX:} is opened. The description of the path is as follows:
 
 \begin{verbatim}
 AUX:<baud>/<control>[/<options>]
 \end{verbatim}
 
 {\tt baud} defines the baud rate of the serial console, e.g.\ {\tt 9600}. If
-this parameter is not provided, it is taken from the {\tt BAUD}\key{BAUD} mount
-option, and if that is not provided, the settings come from the serial
-preferences.
+this parameter is not provided, it is taken from the {\tt BAUD}\key{BAUD} keyword
+in the mountlist, and if that is not provided, the settings come from the Serial
+preferences, see also section~\ref{sec:envec}.
 \smallskip{}
 
 {\tt control} defines the number of data bits, the parity and the number of
 stop bits, all concatenated into a string of 3 characters. The number of
-data bits is a digit between ``{\tt 1}'' and ``{\tt 8}'' and does not
+data bits is a digit between ``{\tt 5}'' and ``{\tt 8}'' and does not
 include the parity bit. The parity is either ``{\tt N}'' for no parity,
 ``{\tt E}'' for even and ``{\tt O}'' for odd parity, or ``{\tt M}'' for mark
 and ``{\tt S}'' for space parity. The number of stop bits is either the
 digit ``{\tt 0}'', ``{\tt 1}'' or ``{\tt 2}''. A rather typical setting is
 {\tt 8N1}, i.e.\ 8 data bits, no parity, one stop bit. This is also the
-configuration within which the performance of the {\tt serial.device} is
-optimal. If this parameter is not present, it is taken (with identical
-encoding) from the {\tt CONTROL}\key{CONTROL} parameter of the mountlist\key{Mountlist},
-and if it is not present there, from the serial preferences editor.
+optimal configuration for the {\tt serial.device}.
+If the {\tt control} parameter is not present in the path, it is taken --- with
+identical encoding --- from the {\tt CONTROL}\key{CONTROL} parameter
+of the mountlist\key{Mountlist}, and if it is not present there, from
+the Serial preferences editor.
 \medskip{}
 
-As for the graphical console, several optional parameters follow:
+As for the graphical console, several optional parameters follow that may be combined:
 \smallskip{}
 
-{\tt RAW}\mkey{RAW} forces the console into the (non-cooked) raw mode within which
-input characters are not echoed and no line buffering takes place. The same
-can be reached with the mount parameter {\tt STARTUP=1}.
+{\tt RAW}\mkey{RAW} forces the console into the raw mode\key{Raw Mode}
+by which input characters are not echoed and no line buffering takes
+place. If {\tt AUX:} is mounted as {\tt HANDLER} and not as
+{\tt EHANDLER}, setting the {\tt STARTUP} mount parameter to 1 also
+switches to this mode, but makes all other options in the
+mountlist\key{Mountlist} unavailable. Section~\ref{sec:filesysstartup}
+provides more details on these two keywords.
 \smallskip{}
 
-{\tt UNIT}\mkey{UNIT} defines the unit of the device over which the connection shall be
-made if multiple units exist. The unit follows the keyword as decimal
+{\tt UNIT}\mkey{UNIT} defines the unit of the device over which the
+connection shall be made if multiple units exist. The
+{\tt serial.device} only provides unit 0, but third party handlers may
+offer additional units. The unit follows the keyword as decimal
 number, optionally separated by spaces, e.g.\ {\tt UNIT 1}. The unit can
 also be configured through the mountlist\key{Mountlist} {\tt UNIT} keyword.
 \smallskip{}
 
 {\tt AUTO}\key{AUTO} indicates that the serial connection shall not be opened
-immediately, but only after the first attempt is made to write data through
-it or to read data from it. This works similar to the {\tt AUTO} keyword for
+immediately, but only after the first attempt is made to write data to
+it or to read data from it. This is similar to the {\tt AUTO} keyword for
 the graphical console.
 \smallskip{}
 
 {\tt WAIT}\key{WAIT} indicates that the serial connection stays open even after every
 file handle\key{FileHandle} to the console was closed. To shut down the serial connection,
 an ASCII {\tt FS} character = Hex {\tt 0x1c} need to be send by the user. This
-character is created on the Amiga keyboard with Ctrl+\textbackslash{}. This
+character is created on the Amiga keyboard with {\tt Ctrl+\textbackslash{}}. This
 also mirrors the {\tt WAIT} keyword of the graphical console.
+
+\subsection{CON-Handler Startup Parameters} \label{sec:constartup}
+
+In addition to the parameters communicated in the path by which a
+console is opened, the console is also configured through the handler
+startup mechanism and thus by the mountlist\key{Mountlist}. It
+provides defaults for the serial console, including the line
+buffer mode described in section~\ref{sec:conmodes}.
+\smallskip{}
+
+The mount parameters for {\tt CON:} and {\tt RAW:} are hard-coded into the
+Kickstart ROM, though the mountlist\key{Mountlist} for {\tt AUX:} is available in the
+{\tt DEVS:DosDrivers} directory and can be altered there; users can
+create custom mountlists for additional devices based on the CON-Handler by
+specifying {\tt L:AUX-Handler} either as {\tt HANDLER}\key{HANDLER} or {\tt EHANDLER}\key{EHANDLER} in
+the mountlist\key{MountList}. All the AUX-Handler does is to collect startup parameters
+and forward them directly to the CON-Handler, making it customizable.
+\smallskip{}
+
+The following example mountlist creates a serial console on top of a device
+named {\tt duart.device}; in order to supply a custom device, the
+mount entry needs to be an {\tt EHANDLER}:
+
+\begin{verbatim}
+EHandler = L:Aux-Handler
+Device   = duart.device
+Unit     = 0
+Baud     = 9600
+Control  = "8N1"
+\end{verbatim}
+
+If mounted with the {\tt HANDLER}\key{HANDLER} keyword instead, it
+will operate on top of the {\tt serial.device}, and the
+{\tt STARTUP}\key{STARTUP} value then specifies the console mode, see
+section~\ref{sec:conmodes}. Unfortunately, due to the way how
+{\tt Mount} operates, {\tt STARTUP}\key{STARTUP} is not available for
+mount lists based on the {\tt EHANDLER}\key{EHANDLER} keyword, and the
+{\tt DEVICE}\key{DEVICE}, {\tt UNIT}\key{UNIT}, {\tt BAUD}\key{BAUD}
+and {\tt CONTROL}\key{CONTROL} parameters are not available with the
+{\tt HANDLER} keyword. Section~\ref{sec:mountdoslist} and following
+provide more information on the keywords.
+\smallskip{}
+
+The {\tt GLOBVEC}\key{GLOBVEC} entry in the mountlist\key{Mountlist} is
+irrelevant, due to a startup code similar to that listed in
+section~\ref{sec:bcplbinding}. The AUX-Handler can operate both
+as a C/Assembler or as a BCPL handler.
+\medskip{}
+
+The handler startup mechanism in general is specified in
+section~\ref{sec:handlerstartup}.  As described there, {\tt dp\_Arg2}
+of the startup packet is a copy of the {\tt dol\_Startup} entry of the
+{\tt DosList}\key{DosList} created from the mountlist\key{Mountlist};
+details on this mechanism are found in section~\ref{sec:filesysstartup}.
+\smallskip{}
+
+The following table specifies the values of {\tt dol\_Startup}\key{dol\_Startup} the
+CON-Handler\key{CON-Handler} recognizes:
+
+\begin{rkrmtable}{CON-Handler Startup Code} \label{table:constartup}
+{\bf \tt dol\_Startup}   & {\bf Description}\\ \hline \hline
+< 0 & RAW: raw mode, within a window pointed to by {\tt dp\_Arg1} \\ \hline
+0   & CON: cooked mode, create a new window \\ \hline
+1   & RAW: raw mode, create a new window \\ \hline
+2   & CON: medium mode, create a new window \\ \hline
+3   & RAW: reserved for future extensions \\ \hline
+BPTR with bit 30 cleared & raw mode open on a device specified by a
+{\tt FileSysStartupMsg} \\ \hline
+BPTR with bit 30 set    & cooked mode open on a device specified by a
+{\tt FileSysStartupMsg} \\ \hline
+\end{rkrmtable}
+
+The values~0 to~3 configure the line buffer mode and correspond to the
+{\tt mode} selected by~{\tt SetMode()}\key{SetMode()}. The buffer
+mode~3 is currently not used and reserved for future extensions.
+Mode~2 is a new mode introduced in AmigaDOS 47 and described along
+with all other modes in section~\ref{sec:conmodes}.
+\smallskip{}
+
+The case of a negative {\tt dol\_Startup} value is a legacy startup
+mechanism of the console. In this configuration, {\tt dp\_Arg1} of the
+startup packet, see section~\ref{sec:handlerstartup}, is not a BPTR to
+a path as usual, but instead a pointer (not a BPTR) to an intuition
+{\tt Window} structure; the CON-Handler\key{CON-Handler} then creates
+a graphical console within this window. It is quite hard to make
+practical use of this startup mechanism and it is thus discouraged,
+but~\cite{guru} provides example code how to trigger it. It should be
+considered deprecated. A better mechanism to run a console in an
+already opened window is by the {\tt WINDOW} argument in the
+path described in section~\ref{sec:conwindowpath}.
+\smallskip{}
+
+In all other cases, {\tt dol\_Startup}\key{dol\_Startup} is a BPTR to a
+{\tt FileSysStartupMsg}\key{FileSysStartupMsg} described in more detail in
+section~\ref{sec:filesysstartup}. The {\tt fssm\_Device}\key{fssm\_Device}
+and {\tt fssm\_Unit}\key{fssm\_Unit} elements of this structure provide a
+device and unit the console shall run on. While the {\tt CON:} device
+does not use this startup mechanism, the CON-Handler\key{CON-Handler} receives such a
+startup message through the AUX-Handler if it is mounted as {\tt EHANDLER}\key{EHANDLER},
+and it then contains the {\tt DEVICE}\key{DEVICE} and {\tt UNIT}\key{UNIT} parameters
+from its mountlist\key{Mountlist}. Thus, a console can be generated on any kind of device provided
+it supports {\tt CMD\_WRITE} to print text and {\tt CMD\_READ} to
+receive keystrokes.
+\smallskip{}
+
+As BPTRs are upshifted by two bits to gain a regular pointer, the otherwise
+unused bit 30 of the BPTR is used for mode selection. If this bit is~1, the
+console will be a cooked console\key{Cooked Mode} with line buffer, and if this bit is~0, the
+console is raw\key{Raw Mode}.
 
 \subsection{CON-Handler Line Buffer Modes} \label{sec:conmodes}
 
@@ -15462,106 +15594,7 @@ Shift+TAB         & {\tt <U>}=13,iterate backwards through expansion \\ \hline
 The only difference between the cases {\tt <U>}=6 and {\tt <U>}=4 is that
 the former only uses the line input buffer up to the cursor position as
 search pattern and ignores everything past it.
-\medskip{}
 
-\subsection{CON-Handler Startup Parameters} \label{sec:constartup}
-
-In addition to the window or serial parameters communicated to the path, the
-console is also configurd through the handler startup mechanism. It provides
-defaults for the serial console, but also define the line buffer mode of the
-console described in the previous section.
-\smallskip{}
-
-The mount parameters for {\tt CON:} and {\tt RAW:} are hard-coded into the
-Kickstart ROM, though the mountlist\key{Mountlist} for {\tt AUX:} is available in the {\tt
-  DEVS:DosDrivers} directory and can be altered there; however, users can
-create custom mountlists for additional devices with custom mount
-parameters.
-\smallskip{}
-
-The handler startup mechanism is described in
-section~\ref{sec:handlerstartup}, and in particular, {\tt dp\_Arg2} of the
-startup packet is a copy of the {\tt dol\_Startup} entry of the {\tt
-  DosList}\key{DosList} created from the mountlist\key{Mountlist}; details on this mechanism are
-described in section~\ref{sec:filesysstartup}.
-\smallskip{}
-
-The following table specifies the values of {\tt dol\_Startup} the
-CON-Handler\key{CON-Handler} recognizes:
-
-\begin{rkrmtable}{CON-Handler Startup Code} \label{table:constartup}
-{\bf \tt dol\_Startup}   & {\bf Description}\\ \hline \hline
-< 0 & RAW: raw mode, within a window pointed to by {\tt dp\_Arg1} \\ \hline
-0   & CON: cooked mode, create a new window \\ \hline
-1   & RAW: raw mode, create a new window \\ \hline
-2   & CON: medium mode, create a new window \\ \hline
-3   & RAW: reserved for future extensions \\ \hline
-BPTR with bit 30 cleared & raw mode open on a device specified by a
-FileSysStartupMsg \\ \hline
-BPTR with bit 30 set    & cooked mode open on a device specified by a
-FileSysStartupMsg \\ \hline
-\end{rkrmtable}
-
-The values~0 to~3 configure the line buffer mode and correspond to the
-{\tt mode} selected by~{\tt SetMode()}\key{SetMode()}. The buffer
-mode~3 is currently not used and reserved for future extensions.
-\smallskip{}
-
-The case of a negative {\tt dol\_Startup} value is a legacy startup
-mechanism of the console. In this confguration, {\tt dp\_Arg1} of the
-startup packet (see section~\ref{sec:handlerstartup}) is not a BPTR to a path
-as usual, but instead a pointer (not a BPTR) to an intuition {\tt Window}
-structure; the CON-Handler\key{CON-Handler} then creates a graphical console within this
-window. It is quite hard to make practical use of this startup mechanism and
-thus it is discouraged, but~\cite{guru} provides example code how to trigger
-it. A better mechanism to redirect a console to a particular window is the
-{\tt WINDOW} argument of the command path which is described in
-section~\ref{sec:conwindowpath}.
-\smallskip{}
-
-In all other cases, {\tt dol\_Startup}\key{dol\_Startup} is a BPTR to a {\tt
-  FileSysStartupMsg}\key{FileSysStartupMsg} described in more detail in
-section~\ref{sec:filesysstartup}. The {\tt fssm\_Device}\key{fssm\_Device}
-and {\tt fssm\_Unit}\key{fssm\_Unit} elements of this structure provide a
-device and unit the console shall run on. The {\tt AUX:} handler uses this
-mechanism to create a {\tt FileSysStartupMsg} to the
-CON-Handler\key{CON-Handler} which points to the \emph{serial.device}
-unit~$0$, but also accepts custom mount parameters to mount it on other
-devices through the {\tt EHANDLER}\key{EHANDLER} mount parameter. The {\tt
-  DEVICE}\key{DEVICE} parameter of the mountlist\key{Mountlist} is then extracted, and
-forwarded to the CON-Handler\key{CON-Handler} through a startup
-packet. Thus, a console can be generated on either type of device provided
-it supports {\tt CMD\_WRITE} to write data out and {\tt CMD\_READ} to
-receive keystrokes.
-\smallskip{}
-
-As BPTRs are upshifted by two bits to gain a regular pointer, the otherwise
-unused bit 30 of the BPTR is used for mode selection. If this bit is~1, the
-console will be a cooked console with line buffer, and if this bit is~0, the
-console is raw.
-\smallskip{}
-
-To make the {\tt Mount}\key{Mount (command)} command create a {\tt DosList}\key{DosList}
-corresponding to the latter case, the CON-Handler\key{CON-Handler} needs to be mounted as
-{\tt EHANDLER}\key{EHANDLER}. The following is an example mountlist\key{Mountlist}
-providing a serial console on a custom serial hardware:
-
-\begin{verbatim}
-EHandler = CON-Handler
-Device   = duart.device
-Unit     = 0
-Baud     = 9600
-Control  = "8N1"
-\end{verbatim}
-
-The very same mountlist\key{Mountlist} can be used with the AUX-Handler\key{AUX-Handler};
-if it is mounted as an extended handler, it will just take its mount
-parameters and forwards them to the CON-Handler\key{CON-Handler}. If mounted
-with the (regular) {\tt HANDLER}\key{HANDLER} keyword in the mountlist\key{Mountlist}, it
-will create a {\tt FileSysStartupMsg}\key{FileSysStartupMsg} corresponding
-to the \emph{serial.device} and provide this to the
-CON-Handler\key{CON-Handler}. The AUX-Handler\key{AUX-Handler} is therefore
-rather minimal.
 
 \section{The Port-Handler} \label{sec:porthandler}
 
