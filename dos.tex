@@ -15012,8 +15012,8 @@ CON-Handler\key{CON-Handler} that requires a new process
 for each window openened. Even though there is only one window per console, it can
 be referenced by multiple files as the console can also be reached
 through ``{\tt *}'' and ``{\tt CONSOLE:}''. The window will be closed when each of
-these files had been closed\footnote{This is a simplification, ignoring {\tt
-  AUTO}\key{AUTO} and {\tt WAIT}\key{WAIT} parameters, see section~\ref{sec:console} for details}.
+these files had been closed\footnote{This is a simplification, ignoring
+{\tt AUTO}\key{AUTO} and {\tt WAIT}\key{WAIT} parameters, see section~\ref{sec:console} for details}.
 \medskip{}
 
 File systems such as the FFS, however, typically \emph{do} initialize
@@ -15454,32 +15454,36 @@ unused bit 30 of the BPTR is used for mode selection. If this bit is~1, the
 console will be a cooked console\key{Cooked Mode} with line buffer, and if this bit is~0, the
 console is raw\key{Raw Mode}.
 
-\subsection{CON-Handler Line Buffer Modes} \label{sec:conmodes}
+\subsection{CON-Handler Buffer Modes} \label{sec:conmodes}
 
-In addition to the window or serial parameters communicated to the path, the
-console is also configured through the {\tt SetMode()}\key{SetMode()}
-function, see section~\ref{sec:setmode} and table~\ref{table:conmodes}. This
-mode sets the buffer mode of the console, regardless of the device the
-console runs on. In particular, {\tt SetMode()}\key{SetMode()} allows to
-convert a {\tt CON:} window into a {\tt RAW:} window, create an equivalent
-of a {\tt RAW:} handler from an {\tt AUX:} connection.
+In addition to the window or serial parameters communicated in the
+path, the console can also be configured through the {\tt
+  SetMode()}\key{SetMode()} function, see section~\ref{sec:setmode}
+and table~\ref{table:conmodes} in that section, allowing to alter its properties after
+opening it. The above function sets the buffer mode of the console,
+regardless of whether the console runs in a window or over the serial
+interface. {\tt SetMode()}\key{SetMode()} allows to convert a
+{\tt CON:} window into a {\tt RAW:} window or create an equivalent of a
+{\tt RAW:} device from an {\tt AUX:} connection, just that it operates over
+the serial interface.
+\smallskip{}
+
+The console buffer mode determine how and at which time user input is
+provided to a process reading from the console. The CON-Handler supports in
+total three buffer modes.
 \smallskip{}
 
 The buffer mode~0 corresponds to a regular {\tt CON:} window and also to the
 {\tt AUX:} console. In this so called \emph{cooked mode}\mkey{Cooked Mode},
-the console echoes every keystroke on the window, and provides line editing
+the console echoes every keystroke on the window, and provides elementary line editing
 functionalities such as cursor movements. Only when the user presses {\tt
   RETURN}, an entire line of data enters the output buffer, and there
-becomes available for an {\tt ACTION\_READ}\key{ACTION\_READ}.
+becomes available for an {\tt ACTION\_READ}\key{ACTION\_READ}. Thus,
+programs can only read entire lines from the console, they do not receive
+individual keystrokes.
 \smallskip{}
 
-One particular difference between the V47 console and previous versions its
-predecessors is that the console no longer offers a history. Rather, the
-history functions have been moved to the Shell using the medium mode
-corresponding to buffer mode~2 described below.
-\smallskip{}
-
-In the cooked mode, and also in the medium mode, the CON-Handler\key{CON-Handler} interprets
+In the cooked mode, the CON-Handler\key{CON-Handler} interprets
 the following keystrokes:
 
 \begin{rkrmtabular}{Cooked Keyboard Sequences} \label{table:cookedconsole}
@@ -15519,40 +15523,91 @@ Del               & Delete character under cursor \\ \hline
   table~\ref{table:mediumcsi}} \\ \hline
 \end{longtable}
 \end{rkrmtabular}
-As seen in the table, some keystrokes operate differently in the medium
-mode\key{Medium Mode}; in that mode, they request a particular function from the shell\key{Shell} by
-sending a ``TAB Report'' CSI sequence.
+
+The \emph{yank buffer}\mkey{Yank Buffer} keeps characters that have
+been cut out with {\tt Ctrl+k}. Its contents can be reinserted into
+the console with {\tt Ctrl+y}. It operates independently of the
+clipboard and is local to each console window.
 \smallskip{}
 
-The \emph{yank buffer}\mkey{Yank Buffer} keeps characters that have been cut out with Ctrl+k. Its
-contents can be reinserted into the console with Ctrl+y. It operates
-independently of the clipboard and is local to each console window.
+The keys {\tt Ctrl+C} through {\tt Ctrl+F} are special in the sense as
+they signal {\tt SIGBREAKB\_CTRL\_C} to {\tt SIGBREAKB\_CTRL\_F} to
+the most recent process that output to the console or requested
+data from it. This is usually an indicator to the receiving program to
+interrupt processing or interrupt a script.  If the most recent reading or
+writing processes are different, the corresponding signal will be send
+twice, and a program can explicitly request receiving signals instead
+of the most recently reading program by the DosPacket
+{\tt ACTION\_CHANGE\_SIGNAL}, see section~\ref{sec:action_change_signal}.
+\smallskip{}
+
+Unlike other operating systems, AmigaDOS does not have the abililty to
+asynchronously terminate processes; thus, program shall check for the
+above sequences periodically, and interrupt their program flow when one of
+the above signals has been received. By convention, {\tt Ctrl+C} is
+supposed to interrupt a program, while {\tt Ctrl+D} interrupts a shell
+script and is thus tested by the Shell. {\tt Ctrl+E} is currently
+unassigned. {\tt Ctrl+F} makes the control window of Commodities
+visible. The pattern matching functions from
+chapter~\ref{sec:patternmatch} offer the option check such signals
+while scanning a directory tree, but the \emph{dos.library}
+is otherwise ignorant on the signals generated by the above keys.
 \medskip{}
 
-The buffer mode~1 corresponds to a {\tt RAW:} window and is denoted the
-\emph{raw mode}\mkey{Raw Mode}. In this mode, every keystroke becomes available to client
-programs as it enters the output buffer immediately. Cursor movements thus
-become available as CSI sequences. In this mode, the console does not echo
-user input. The CSI sequences are those defined by the \emph{console.device},
-resp. the current keymap of the device.
+One particular difference between the V47 console and previous
+versions its predecessors is that the console no longer offers a
+history. Rather, the history functions are now part of the Shell which
+operates in buffer mode~2 described below. The history is not the only
+change, some keystrokes operate differently in this \emph{medium
+mode}\key{Medium Mode}. As for the history, they request a particular
+function from the shell\key{Shell}, or any other program that operates
+the console in this mode, see below.
 \medskip{}
 
-The buffer mode~2 is not available under a device name, even though one
-could in principle create a suitable mountlist\key{Mountlist} for it. It is called the
-\emph{medium mode}\mkey{Medium Mode}. The mode is reserved for the shell\key{Shell} and
-forewards TAB-Expansion and history functions to the shell\key{Shell}. While the
-console again provides line editing features and echoes most keys on the
-screen, some keyboard sequences create immediate output through a ``TAB
-Report'' CSI sequence that enters the output buffer immediately. These
-sequences are interpreted by the Shell and trigger there corresponding
-functions, such as expanding a pattern or working through the command
-history. A TAB Report sequence looks as follows:
+The buffer mode~1 corresponds to a {\tt RAW:} window and is denoted
+the \emph{raw mode}\mkey{Raw Mode}. In this mode, the console reports
+every keystroke individually to its clients, without interpreting
+them; they are not even echoed on the console, this is up to the
+program receiving them. Thus, for example, cursor movements are
+reported as control sequences, but do not actually move the cursor.
+\smallskip{}
+
+The control sequences are either single bytes from the ASCII control
+character set between {\tt 0x00} and {\tt 0x1f}, or ECMA-48 control
+sequences~\cite{ecma48} with some additons from AmigaDOS, starting
+with a CSI\mkey{CSI} \emph{control sequence introducer} character,
+code {\tt 0x9b}. The sequences are generated by the {\tt
+  console.device}, or to be more specific, by the keymap that is
+currently installed. \cite{rkrmdev}~and \cite{ecma48}~provide details
+and specify them. Similarly, the {\tt console.device} also interprets
+such sequences and reacts accordingly, e.g.\ by moving the cursor or
+erasing its window.  Such functions are \emph{not} implemented by the
+CON-Handler which only passively forwards it to the device to which it
+is connected.
+\medskip{}
+
+The buffer mode~2 is not available under a device name, even though
+one could in principle create a suitable mountlist\key{Mountlist} for
+it. It is called the \emph{medium mode}\mkey{Medium Mode}. The mode is
+reserved for shells\key{Shell} and forewards TAB expansion requests
+and history functions to them. While the console continues to provide
+line editing features for the keys listed in
+table~\ref{table:cookedconsole}, some of the keys marked with an
+asterisk in this table are reported immediately to programs reading
+from the console without waiting for the {\tt RETURN} key to be pressed.
+They create \emph{TAB Report}\mkey{TAB Report Sequence} CSI\key{CSI}
+sequences that are interpreted by the Shell and trigger there
+functions such as expanding a pattern into a list of files, or
+iterating through the command history.
+\smallskip{}
+
+A TAB Report\key{TAB Report} sequence looks as follows:
 
 \begin{verbatim}
 CSI <m>;<s>;<c>U <line>
 \end{verbatim}
 
-Here {\tt CSI} is the ANSI ``control sequence introducer'', which has the
+Here {\tt CSI}\key{CSI} is again the \emph{control sequence introducer} of the
 byte value {\tt 0x9b}. The {\tt <m>} value is a decimal number that
 identifies the keystroke and also the function the Shell is requested to
 perform. Such functions browse in the history or expand a file name
@@ -15561,19 +15616,22 @@ console with an {\tt ACTION\_FORCE}\key{ACTION\_FORCE} packet, see
 section~\ref{sec:actionforce}.
 \smallskip{}
 
-The parameters {\tt <s>} and {\tt <c>} provide the length of the current
-line input buffer of the console the user is editing, and the (1-based,
-i.e.\ cursor at the left edge corresponds to {\tt <c>} = 1) cursor position
-within this buffer.
+The parameters {\tt <s>} and {\tt <c>} provide the length of the
+current line input buffer of the console the user is editing, and the
+(1-based, i.e.\ cursor at the left edge corresponds to {\tt <c>} = 1)
+cursor position within this buffer. Both {\tt <s>} and {\tt <c>} are
+also encoded as ASCII decimal numbers.
 \smallskip{}
 
-The {\tt U} is a literal character and identifies this sequence as
-TAB-Report. {\tt <line>} is a copy of the current line that is edited by the
-user. For many sequences, this input is used as a template the shell\key{Shell} to
-perform the requested action, e.g.\ for a TAB-expansion, it provides the
-entire input, though the command line argument within which the cursor is
-positioned is used to generate a wildcard the Shell uses to find possible
-candidates for its expansion.
+The {\tt U} is a literal character and identifies this sequence as TAB
+Report\key{TAB Report}. {\tt <line>} is a copy of the current line
+that is being edited by the user. For many sequences, this input is
+used as a template the Shell\key{Shell} interprets as part of the requested
+action, e.g.\ for a TAB-expansion: there, the
+command line argument within which the cursor is positioned, as
+reported by the {\tt <c>} parameter of the CSI sequence, is used to
+generate a wildcard the Shell uses to find possible candidates for its
+expansion.
 \smallskip{}
 
 The keystrokes that trigger such TAB Report sequences, along with their
@@ -15581,20 +15639,40 @@ purpose, are as follows:
 
 \begin{rkrmtable}{Medium Mode CSI Sequences} \label{table:mediumcsi}
 {\bf Keystroke} & {\bf Sequence}\\ \hline \hline
-Cursor up         & {\tt <U>}=2, move upwards in the history \\ \hline
-Cursor down       & {\tt <U>}=3, move downwards in the history \\ \hline
-Shift+cursor up   & {\tt <U>}=4, search history upwards \\ \hline
-Shift+cursor down & {\tt <U>}=5, search history downwards \\ \hline
-Ctrl+r            & {\tt <U>}=6 ,search history upwards, partial pattern \\ \hline
-Ctrl+b            & {\tt <U>}=10,rewind history \\ \hline
-TAB               & {\tt <U>}=12,iterate forwards through expansion \\ \hline
-Shift+TAB         & {\tt <U>}=13,iterate backwards through expansion \\ \hline
+Cursor up         & {\tt <U>}=2,  move upwards in the history \\ \hline
+Cursor down       & {\tt <U>}=3,  move downwards in the history \\ \hline
+Shift+cursor up   & {\tt <U>}=4,  search history upwards \\ \hline
+Shift+cursor down & {\tt <U>}=5,  search history downwards \\ \hline
+Ctrl+r            & {\tt <U>}=6,  search history upwards, partial pattern \\ \hline
+Ctrl+b            & {\tt <U>}=10, rewind history \\ \hline
+TAB               & {\tt <U>}=12, iterate forwards through expansion \\ \hline
+Shift+TAB         & {\tt <U>}=13, iterate backwards through expansion \\ \hline
 \end{rkrmtable}
 
-The only difference between the cases {\tt <U>}=6 and {\tt <U>}=4 is that
-the former only uses the line input buffer up to the cursor position as
-search pattern and ignores everything past it.
+The only difference between the cases {\tt <U>}=6 and {\tt <U>}=4 is
+that the former only uses the line input buffer up to the cursor
+position as search pattern and ignores everything beyond it. All
+remaining values for {\tt U} are currently reserved, even though some
+third-party implementations assign a meaning to them.
+\smallskip{}
 
+Thus, the flow of operations if a user presses the {\tt Cursor} {\tt up} key in
+the console is as follows: First, the console delivers a {\tt CSI} {\tt U} TAB
+Report sequence to the shell. The Shell will then check its history
+for the previously issued command, and will insert this command
+with {\tt ACTION\_FORCE}\key{ACTION\_FORCE} back into the console. The
+latter is a special {\tt DosPacket} that emulates keystrokes, i.e. the
+Shell \emph{types} the previous command from the history into the
+console. The advantage is that the command history becomes available
+to programs operating in the Shell, and can be retrieved or modified from there,
+see section~\ref{sec:doshellmethod}.
+\medskip{}
+
+Before executing programs, the Shell switches the console back to the
+regular cooked mode for backwards compatibility, and re-enables the
+medium mode as soon as it regains control\footnote{This has the side
+effect that the Shell can also operate in a console opened as {\tt
+RAW:}.}.
 
 \section{The Port-Handler} \label{sec:porthandler}
 
@@ -20254,7 +20332,7 @@ Upon replying this packet, {\tt dp\_Res1} shall be set to {\tt DOSTRUE} and
 {\tt dp\_Res2} to~0 on success. On error, {\tt dp\_Res1} shall be set to
 {\tt DOSFALSE} and {\tt dp\_Res2} to an error code.
 
-\subsection{Change the Target Port to Receive BREAK signals}
+\subsection{Change the Target Port to Receive BREAK signals} \label{sec:action_change_signal}
 
 The {\tt ACTION\_CHANGE\_SIGNAL}\mkey{ACTION\_CHANGE\_SIGNAL} packet sets a
 {\tt MsgPort} to whose task the console sends break signals generated by
@@ -24226,6 +24304,9 @@ Addison-Wesley Publishing Company (1991)
 \bibitem{guru} Ralph Babel:
 {\sl The Amiga Guru Book.}
 Ralph Babel, Taunusstein (1993)
+\bibitem{ecma48} ECMA:
+{\sl Control Functions for Coded Character Sets.}
+ECMA International (1998)
 \end{thebibliography}
 %\begin{theindex}
 {
