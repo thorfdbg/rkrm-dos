@@ -15345,7 +15345,7 @@ an ASCII {\tt FS} character = Hex {\tt 0x1c} need to be send by the user. This
 character is created on the Amiga keyboard with {\tt Ctrl+\textbackslash{}}. This
 also mirrors the {\tt WAIT} keyword of the graphical console.
 
-\subsection{CON-Handler Startup Parameters} \label{sec:constartup}
+\subsection{CON-Handler Startup and Mount Parameters} \label{sec:constartup}
 
 In addition to the parameters communicated in the path by which a
 console is opened, the console is also configured through the handler
@@ -15736,88 +15736,112 @@ interfaces as AmigaDOS devices. Clearly, {\tt PAR:} interfaces to the {\tt
 the {\tt serial.device}. The difference between {\tt SER:} and {\tt AUX:} is
 that the former processes raw streams of bytes transmitted over a serial
 connection, whereas {\tt AUX:} provides line buffering and line editing
-capabilities and thus implements a console.
+capabilities and thus implements a console\footnote{Even in the raw mode, {\tt AUX:} is different
+from {\tt SER:}; for example, the former creates a signal on {\tt Ctrl+C}, the latter sends the byte {\tt 0x03}.}.
 
 \subsection{Port-Handler Path}
 
-Access to the Port-Handler\key{Port-Handler} is configurable through the path following the
-device name. The path looks as follows:
+Access to the Port-Handler\key{Port-Handler} is configurable through
+the mountlist and the path through which a device mounted on it is
+opened. In this section, configuration through the path is
+discussed. While the Port-Handler was not configurable in AmigaDOS versions~40 and below, AmigaDOS~45 upgraded it.
+The path, depending on how the handler is mounted, looks as follows:
 
 \begin{verbatim}
-SER:[<options>]
+SER:[[BAUD=]<baud>/][[CONTROL=]<control>/][NOWAIT/][UNIT=<n>]
+PAR:[UNIT=<n>]
+PRT:[TRANSPARENT/][RAW/][UNIT=<n>]
 \end{verbatim}
 
-The following keywords in {\tt options} exist, where options are
-separated by a forwards slash (''{\tt /}'') from each other.
+The brackets are not part of the path and shall not be
+included. Square brackets indicate optional elements, angle brackets
+parameters that shall be substituted by a value.
 \smallskip{}
 
-{\tt BAUD}\key{BAUD} sets the baud rate, which is only relevant for serial
-connections. It specifies the number of bits per second transmitted over a
-serial connection. If this parameter is not present, the default from the
-serial preferences is used. Optionally, this parameter may be introduced
-with the keyword {\tt BAUD} which shall be separated from the decimal baud
-rate by spaces or an equals sign, e.g.\ {\tt BAUD~9600}. Clearly, this
-parameter is only used by {\tt SER:}.
+The Port-Handler parses the following parameters from its path:
 \smallskip{}
 
-{\tt control} specifies additional parameters of the serial connection such
-as number of data bits, parity and number of stop bits, represented as 3
-letter string. The string follows the same convention used for the {\tt
-  AUX:} terminal. The first digit is between ``{\tt 1}'' and ``{\tt 8}'',
-specifying the data bits, the second letter the parity, which is either {\tt
-  N}, {\tt E}, {\tt O}, {\tt M} or {\tt S}, indicating no parity, even or
-odd parity, or mark or space parity. The last digit is the number of stop
-bits and is a digit between ``{\tt 0}'' and ``{\tt 2}''.
+{\tt BAUD}\key{BAUD} sets the baud rate, which is only relevant for
+serial connections and thus {\tt SER:}. It specifies the number of
+bits per second transmitted over a serial connection. If this
+parameter is not present, the default from the mountlist, see
+section~\ref{sec:portstartup}, is used, and if not present there, the
+Serial preferences provide the baud rate. Optionally, this parameter
+may be introduced with the keyword {\tt BAUD} which shall be separated
+from the decimal baud rate by spaces or an equals sign, e.g.\
+{\tt BAUD~9600}. Without the keyword, it shall be the first parameter in the path.
+Clearly, this parameter is only used by {\tt SER:}.
 \smallskip{}
 
+{\tt CONTROL}\key{CONTROL} specifies additional parameters of the
+serial connection such as number of data bits, parity and number of
+stop bits, represented as 3 letter string. It is also only relevant
+for the {\tt SER:} device. If this parameter is not present, the {\tt
+  CONTROL} parameter of the mountlist\key{Mountlist} provides a
+control string of identical encoding, and if not present there, the
+settings from the Serial preferences are used.
+\smallskip{}
+
+The string follows the same convention as the one for the {\tt AUX:}
+terminal. The first digit  between ``{\tt 5}'' and ``{\tt 8}'',
+specifies the number of data bits; the second letter is the parity, which is
+either {\tt N}, {\tt E}, {\tt O}, {\tt M} or {\tt S}, indicating no
+parity, even or odd parity, or mark or space parity. The last digit is
+the number of stop bits and is a number between ``{\tt 0}'' and ``{\tt 2}''.
 A typical control string is {\tt 8N1} indicating 8 data bits, no parity and
-1 stop bit, corresponding to the fastest possible console. Optinally, this
-parameter may be introduced with the keyword {\tt CONTROL} which shall be
-separated from the control string by spaces or an equals-sign, e.g.\ {\tt
-  CONTROL 8N1}.
+1 stop bit, which is also the optimal setting for the {\tt serial.device}.
 \smallskip{}
 
-If this parameter is not present, the default from the serial preferences is
-used. Obviously, this parameter is only used by {\tt SER:} and ignored
-otherwise.
+This parameter is either matched by position as second
+component of the path, or by the {\tt CONTROL} keyword, which shall be
+separated by a blank space or an equals-sign from its value, e.g.\ {\tt CONTROL 8N1}.
 \medskip{}
 
-{\tt TRANSPARENT}\mkey{TRANSPARENT} is a boolean switch that, if present,
-indicates that CSI sequences written over this device shall not be
-translated to the configured printer, but shall rather be send directly to
-the printer. By default, the {\tt PRT:} device uses the AmigaDOS defined CSI
-sequences that are device independent. This option is only used by the {\tt
-  PRT:} device and ignored otherwise.
+{\tt TRANSPARENT}\mkey{TRANSPARENT} is a boolean switch only relevant
+to the {\tt PRT:} device. If present, it indicates that CSI\key{CSI}
+sequences written over this device will not be translated to the
+printer, but will be send untranslated (as-is). By
+default, the {\tt PRT:} device accepts the ECMA-48 (see~\cite{ecma48})
+and AmigaDOS defined CSI sequences (see~\cite{rkrmdev}) that are device
+independent and translates them to printer specific sequences by the
+{\tt printer.device}. With this option, {\tt PRT:} expects raw control
+sequences that are printer and model specific. This option matches by
+keyword, its position in the path is irrelevant.
 \smallskip{}
 
 {\tt RAW}\mkey{RAW} is a boolean switch that, if present, disables
-translation of the AmigaDOS newline-character {\tt 0x0a} to {\tt 0x0a 0x0c}
+translation of the AmigaDOS newline character {\tt 0x0a} to {\tt 0x0a} {\tt 0x0d}
 pairs, i.e.\ a line feed followed by carriage return. This switch only
-applies to the {\tt PRT:} device and is not used otherwise.
+applies to the {\tt PRT:} device and is not used otherwise. It matches by
+keyword, its position is irrelevant.
 \smallskip{}
 
-{\tt UNIT}\key{UNIT} takes a numeric argument and provides the device unit that will
-be opened. This makes most sense if the Port-Handler\key{Port-Handler} is not mounted on the
-standard exec devices, but a custom device is provided through the {\tt
-  DEVICE}\key{DEVICE} keyword of a custom mountlist\key{Mountlist}. The unit number is represented as
-decimal number separated from the keyword by spaces or an equals-sign,
-e.g.\ {\tt UNIT 1}. This option is operational regardless of the underlying
-device.
+{\tt UNIT}\key{UNIT} takes a numeric argument and provides the unit of
+the device that shall be used. This makes most sense for {\tt PRT:} as
+the {\tt printer.device} supports multiple units, or if the
+Port-Handler\key{Port-Handler} is mounted on a third-party device
+provided through a custom mountlist\key{Mountlist}, see
+section~\ref{sec:portstartup} for details. The ROM-based {\tt serial}
+or {\tt parallel.device} only support a single unit each. The unit
+number is represented as decimal number separated from the keyword by
+spaces or an equals-sign, e.g.\ {\tt UNIT} {\tt 1}. This option applies to
+all devices mounted on the Port-Handler, and matches by keyword.
 \smallskip{}
 
 {\tt NOWAIT}\key{NOWAIT} is boolean switch that, if present, avoids blocking when
-reading from a serial connection. If no data is available at the serial
-port, a connection configured with {\tt NOWAIT} will report an end-of-file
-condition. Otherwise, such a stream would block until data is
-available. This option is only supported for serial connections.
+reading from a connection, and only applies to {\tt SER:}. If no data is available
+at the serial port, a connection configured with {\tt NOWAIT} will report an end-of-file
+condition. Otherwise, the stream blocks until data becomes available. This option
+matches by keyword.
 \smallskip{}
 
-Another possibility to implement non-blocking reading from the serial port
-is to use {\tt WaitForChar()}\key{WaitForChar()} which is also supported by
-the Port-Handler\key{Port-Handler}. It blocks until either the specified timeout is reached,
-or input data is available on the port.
+Another possibility to implement non-blocking reading from the serial
+port is to use {\tt WaitForChar()}\key{WaitForChar()}, see
+section~\ref{sec:waitforchar}. This function blocks until either the
+specified time has elapsed, or input is available on the port. Support
+for this function in the Port-Handler is also new in AmigaDOS~45.
 
-\subsection{Port-Handler Startup} \label{sec:portstartup}
+\subsection{Port-Handler Startup and Mount Parameters} \label{sec:portstartup}
 
 The Port-Handler\key{Port-Handler} is also configurable through a mountlist\key{Mountlist},
 though mount parameters for {\tt PAR:}, {\tt SER:} and {\tt PRT:} are
@@ -15854,11 +15878,12 @@ option can be provided. If the mountlist\key{Mountlist} includes in addition a {
   BAUD}\key{BAUD} value, that is used as default value for the baud rate,
 which can be overridden by the Port-Handler\key{Port-Handler} path described in the previous
 section. The {\tt CONTROL}\key{CONTROL} parameter in the mountlist\key{Mountlist}, if
-present, also control sthe serial settings. An example mountlist\key{Mountlist} would look
+present, also control sthe serial settings.
+An example mountlist\key{Mountlist} would look
 as follows:
 
 \begin{verbatim}
-EHandler = Port-Handler
+EHandler = L:Port-Handler
 Device   = duart.device
 Unit     = 1
 Baud     = 19200
