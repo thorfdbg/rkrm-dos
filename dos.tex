@@ -15739,7 +15739,7 @@ connection, whereas {\tt AUX:} provides line buffering and line editing
 capabilities and thus implements a console\footnote{Even in the raw mode, {\tt AUX:} is different
 from {\tt SER:}; for example, the former creates a signal on {\tt Ctrl+C}, the latter sends the byte {\tt 0x03}.}.
 
-\subsection{Port-Handler Path}
+\subsection{Port-Handler Path} \label{sec:portpath}
 
 Access to the Port-Handler\key{Port-Handler} is configurable through
 the mountlist and the path through which a device mounted on it is
@@ -15843,44 +15843,65 @@ for this function in the Port-Handler is also new in AmigaDOS~45.
 
 \subsection{Port-Handler Startup and Mount Parameters} \label{sec:portstartup}
 
-The Port-Handler\key{Port-Handler} is also configurable through a mountlist\key{Mountlist},
-though mount parameters for {\tt PAR:}, {\tt SER:} and {\tt PRT:} are
-hard-coded within the Kickstart ROM. However, users may create custom
-mountlist\key{Mountlist}s and mount the handler under a custom name.
+The Port-Handler\key{Port-Handler} is also configurable through its
+mountlist\key{Mountlist}, though mount parameters for {\tt PAR:},
+{\tt SER:} and {\tt PRT:} are hard-coded within the Kickstart ROM and
+thus cannot be customized in this way. However, users may create
+custom mountlist\key{Mountlist}s and mount the handler under a custom
+device name.
 \smallskip{}
 
-As for all handlers, it is customized through {\tt dol\_Startup},
-transmitted in {\tt dp\_Arg2} in the handler startup packet. The following
+As most handlers, the Port-Handler is parametrized through
+{\tt dol\_Startup}, transmitted in {\tt dp\_Arg2} in the handler startup
+packet, see also section~\ref{sec:handlerstartup}. The following
 values are recognized:
 
 \begin{rkrmtable}{Port Handler Startup Code} \label{table:portstartup}
 {\bf \tt dol\_Startup}   & {\bf Description}\\ \hline \hline
-0 & SER: serial output through the serial.device \\ \hline
-1 & PAR: parallel output through the parallel.device \\ \hline
-2 & PRT: printer output through the printer.device \\ \hline
-BPTR & serial output with parameters from the FileSysStartupMsg
+0 & SER: serial input and output through the {\tt serial.device} \\ \hline
+1 & PAR: parallel output through the {\tt parallel.device} \\ \hline
+2 & PRT: printer output through the {\tt printer.device} \\ \hline
+BPTR & serial input/output with parameters from the {\tt FileSysStartupMsg}
 \\ \hline
 \end{rkrmtable}
 
-The values~0 to~2 represent the standard handlers {\tt SER:}, {\tt PAR:} and
-{\tt PRT:} mounted by the kickstart. They can be recreated by a {\tt
-  STARTUP=<n>} entry in a mountlist\key{Mountlist}. For these options, the standard Amiga
-device names for the serial, parallel and printer interface is used.
+The values~0 to~2 represent the handlers {\tt SER:}, {\tt PAR:} and
+{\tt PRT:} mounted by the Kickstart, and are supported by all AmigaDOS
+versions. They can be recreated by a mountlist as follows:
+
+\begin{verbatim}
+Handler = L:Port-Handler
+Startup = <n>
+GlobVec = 0
+\end{verbatim}
+where {\tt <n>} is one of the values above. Unfortunately, the
+{\tt STARTUP} keyword is mutually exclusive to a device and unit
+specification, and thus the Port-Handler in the above configuration always uses the unit 0 of the
+default devices according to table~\ref{table:portstartup}. As seen in
+the above mountlist, the Port-Handler relies for legacy reasons on the
+BCPL startup mechanism and \emph{cannot} be run as C/Assembler
+handler, even though it is nowadays implemented in C.
 \smallskip{}
 
-The last option allows to customize the target exec device to run on. In
-this case, {\tt dol\_Startup}\key{dol\_Startup} is a BPTR to a {\tt
-  FileSysStartupMsg}\key{FilesysStartupMsg} described in
-section~\ref{sec:filesysstartup}. To make the {\tt Mount}\key{Mount (command)} command create a
-suitable {\tt DosList}\key{DosList} entry, {\tt EHANDLER}\key{EHANDLER}
-keyword is used, and a {\tt DEVICE}\key{DEVICE} and {\tt UNIT}\key{UNIT}
-option can be provided. If the mountlist\key{Mountlist} includes in addition a {\tt
-  BAUD}\key{BAUD} value, that is used as default value for the baud rate,
-which can be overridden by the Port-Handler\key{Port-Handler} path described in the previous
-section. The {\tt CONTROL}\key{CONTROL} parameter in the mountlist\key{Mountlist}, if
-present, also control sthe serial settings.
-An example mountlist\key{Mountlist} would look
-as follows:
+The last option in table~\ref{table:portstartup} corresponds to a
+custom mountlist\key{Mountlist} based on the {\tt EHANDLER} keyword,
+see also section~\ref{sec:filesysstartup}. This requires AmigaDOS
+version 45 or better. The {\tt DEVICE}\key{DEVICE} and {\tt UNIT}\key{UNIT}
+keywords then provide the name of the device and the
+unit the handler is run on. If the mountlist\key{Mountlist} includes
+in addition a {\tt BAUD}\key{BAUD} value, it is used as default value
+for the baud rate which can be overridden by the {\tt BAUD} parameter
+in the path described in section~\ref{sec:portpath}.  The {\tt
+  CONTROL}\key{CONTROL} parameter in the mountlist\key{Mountlist}, if
+present, controls the serial settings. Its encoding is identical to
+the {\tt CONTROL} parameter in the path, see
+section~\ref{sec:portpath}.
+\smallskip{}
+
+The following mountlist creates a device similar to {\tt SER:} that
+operates on top of the (third-party provided) {\tt duart.device} unit 1, and
+configures it by default to 19200 baud, 8 bits, no parity and 1 stop
+bit:
 
 \begin{verbatim}
 EHandler = L:Port-Handler
@@ -15888,7 +15909,18 @@ Device   = duart.device
 Unit     = 1
 Baud     = 19200
 Control  = "8N1"
+GlobVec  = 0
 \end{verbatim}
+
+In the absense of additional sources of information, such a mountlist
+creates a {\tt SER:} style device and assumes the device
+to acccept the command set of the {\tt serial.device}.
+However, the Port-Handler uses the AmigaDOS~43 extension
+{\tt NSCMD\_DEVICEQUERY} to identify devices that operate similar to
+the {\tt parallel} or {\tt printer.device} and then adjusts its mode
+of operation accordingly. In such a case, the {\tt BAUD} and
+{\tt CONTROL} parameters in the mountlist are irrelevant and ignored,
+and the device becomes a lookalike of either {\tt PAR:} or {\tt PRT:}.
 
 \section{The Queue-Handler}
 
