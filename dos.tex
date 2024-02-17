@@ -15404,7 +15404,7 @@ The following table specifies the values of {\tt dol\_Startup}\key{dol\_Startup}
 CON-Handler\key{CON-Handler} recognizes:
 
 \begin{rkrmtable}{CON-Handler Startup Code} \label{table:constartup}
-{\bf \tt dol\_Startup}   & {\bf Description}\\ \hline \hline
+{\tt \bf dol\_Startup}   & {\bf Description}\\ \hline \hline
 < 0 & RAW: raw mode, within a window pointed to by {\tt dp\_Arg1} \\ \hline
 0   & CON: cooked mode, create a new window \\ \hline
 1   & RAW: raw mode, create a new window \\ \hline
@@ -15476,9 +15476,9 @@ total three buffer modes.
 The buffer mode~0 corresponds to a regular {\tt CON:} window and also to the
 {\tt AUX:} console. In this so called \emph{cooked mode}\mkey{Cooked Mode},
 the console echoes every keystroke on the window, and provides elementary line editing
-functionalities such as cursor movements. Only when the user presses {\tt
-  RETURN}, an entire line of data enters the output buffer, and there
-becomes available for an {\tt ACTION\_READ}\key{ACTION\_READ}. Thus,
+functionalities such as cursor movements. Only when the user presses
+{\tt Return}, an entire line of data enters the output buffer, and then
+becomes available for an {\tt ACTION\_READ}\key{ACTION\_READ} request. Thus,
 programs can only read entire lines from the console, they do not receive
 individual keystrokes.
 \smallskip{}
@@ -15486,7 +15486,7 @@ individual keystrokes.
 In the cooked mode, the CON-Handler\key{CON-Handler} interprets
 the following keystrokes:
 
-\begin{rkrmtabular}{Cooked Keyboard Sequences} \label{table:cookedconsole}
+\begin{rkrmtabular}{Keystrokes Interpreted in Cooked Mode} \label{table:cookedconsole}
 \begin{longtable}{|ll|} \hline
 {\bf Keystroke} & {\bf Function}\\ \hline \hline
 Cursor left       & Move left one character \\ \hline
@@ -15501,21 +15501,25 @@ Shift+cursor up   & Move to the start of line${}^*$ \\ \hline
 Shift+cursor down & Erase line${}^*$ \\ \hline
 TAB               & Inserts a TAB control code${}^*$ \\ \hline
 Shift+TAB         & Do nothing${}^*$ \\ \hline
-Ctrl+a            & Move to the start of line \\ \hline
-Ctrl+b            & Erase entire line \\ \hline
-Ctrl+c            & Sends signal 12 \\ \hline
-Ctrl+d            & Sends signal 13 \\ \hline
-Ctrl+e            & Sends signal 14 \\ \hline
-Ctrl+f            & Sends signal 15 \\ \hline
-Ctrl+x            & Erase entire line \\ \hline
-Cltr+k            & Kill characters into yank buffer \\ \hline
-Cltr+q            & Resume output \\ \hline
-Ctrl+s            & Suspend output \\ \hline
-Ctrl+r            & Do nothing${}^*$ \\ \hline
-Ctrl+u            & Delete beginning of line \\ \hline
-Cltr+w            & Delete word \\ \hline
-Cltr+y            & Paste characters from yank buffer\\ \hline
-Ctrl+z            & Move to end of line \\ \hline
+Return            & Complete line and send it to clients \\ \hline
+Ctrl+A            & Move to the start of line \\ \hline
+Ctrl+B            & Erase entire line \\ \hline
+Ctrl+C            & Sends signal 12 \\ \hline
+Ctrl+D            & Sends signal 13 \\ \hline
+Ctrl+E            & Sends signal 14 \\ \hline
+Ctrl+F            & Sends signal 15 \\ \hline
+Ctrl+H            & Identical to Backspace \\ \hline
+Ctrl+J            & Insert a Line Feed \\ \hline
+Cltr+K            & Kill characters into yank buffer \\ \hline
+Cltr+M            & Identical to Return \\ \hline
+Cltr+Q            & Resume output \\ \hline
+Ctrl+R            & Do nothing${}^*$ \\ \hline
+Ctrl+S            & Suspend output \\ \hline
+Ctrl+U            & Delete beginning of line \\ \hline
+Ctrl+W            & Delete word \\ \hline
+Ctrl+X            & Erase entire line \\ \hline
+Cltr+Y            & Paste characters from yank buffer\\ \hline
+Ctrl+Z            & Move to end of line \\ \hline
 Ctrl+\textbackslash & Signal an end-of-file \\ \hline
 Backspace         & Delete character upfront cursor \\ \hline
 Del               & Delete character under cursor \\ \hline
@@ -15525,33 +15529,58 @@ Del               & Delete character under cursor \\ \hline
 \end{rkrmtabular}
 
 The \emph{yank buffer}\mkey{Yank Buffer} keeps characters that have
-been cut out with {\tt Ctrl+k}. Its contents can be reinserted into
-the console with {\tt Ctrl+y}. It operates independently of the
+been cut out with {\tt Ctrl+K}. Its contents can be reinserted into
+the console with {\tt Ctrl+Y}. It operates independently of the
 clipboard and is local to each console window.
+\smallskip{}
+
+The line feed inserted by {\tt Ctrl+J} splits the current line at the
+cursor position and keeps editing the lower line, that is, it inserts
+a line feed into the output buffer at the cursor position. If finally
+{\tt Return} is pressed, then all lines combined, including the line
+feeds between them, are transmitted to processes reading from the
+console. In case the shell is reading from the console, its
+interpreter splits input at line feed characters and therefore
+executes the commands on each line separately.
+\smallskip{}
+
+{\tt Ctrl+W} erases the characters to the left of the cursor position
+up to the previous blank space, i.e.\ it erases the word to the left of
+the cursor. {\tt Ctrl+U} erases all characters to the left of the cursor position.
+\smallskip{}
+
+{\tt Ctrl+S} suspends the output and blocks any program from
+outputting text on the console. Output is resumed with {\tt Ctrl+Q}.
+\smallskip{}
+
+{\tt Ctrl+\textbackslash} creates a end-of-file condition for 
+reading programs, i.e.\ the console will respond to pending read
+requests by returning zero bytes.
 \smallskip{}
 
 The keys {\tt Ctrl+C} through {\tt Ctrl+F} are special in the sense as
 they signal {\tt SIGBREAKB\_CTRL\_C} to {\tt SIGBREAKB\_CTRL\_F} to
-the most recent process that output to the console or requested
+the most recent process that printed to the console or requested
 data from it. This is usually an indicator to the receiving program to
-interrupt processing or interrupt a script.  If the most recent reading or
+interrupt processing or interrupt a script. If the most recent reading or
 writing processes are different, the corresponding signal will be send
 twice, and a program can explicitly request receiving signals instead
-of the most recently reading program by the DosPacket
+of the most recently reading program by the {\tt DosPacket}
 {\tt ACTION\_CHANGE\_SIGNAL}, see section~\ref{sec:action_change_signal}.
 \smallskip{}
 
 Unlike other operating systems, AmigaDOS does not have the abililty to
-asynchronously terminate processes; thus, program shall check for the
-above sequences periodically, and interrupt their program flow when one of
-the above signals has been received. By convention, {\tt Ctrl+C} is
-supposed to interrupt a program, while {\tt Ctrl+D} interrupts a shell
-script and is thus tested by the Shell. {\tt Ctrl+E} is currently
+asynchronously terminate processes; thus, programs shall check for the
+above signals periodically, e.g.\ by {\tt CheckSignal()} as described
+in section~\ref{sec:checksignal}, and interrupt their program flow when
+one of them has been received. By convention, {\tt Ctrl+C} is supposed
+to interrupt a program, while {\tt Ctrl+D} interrupts a shell script
+and is thus tested by the Shell. {\tt Ctrl+E} is currently
 unassigned. {\tt Ctrl+F} makes the control window of Commodities
 visible. The pattern matching functions from
 chapter~\ref{sec:patternmatch} offer the option check such signals
-while scanning a directory tree, but the \emph{dos.library}
-is otherwise ignorant on the signals generated by the above keys.
+while scanning a directory tree, but the \emph{dos.library} is
+otherwise ignorant on the signals.
 \medskip{}
 
 One particular difference between the V47 console and previous
@@ -15567,23 +15596,47 @@ the console in this mode, see below.
 The buffer mode~1 corresponds to a {\tt RAW:} window and is denoted
 the \emph{raw mode}\mkey{Raw Mode}. In this mode, the console reports
 every keystroke individually to its clients, without interpreting
-them; they are not even echoed on the console, this is up to the
-program receiving them. Thus, for example, cursor movements are
-reported as control sequences, but do not actually move the cursor.
+them. Read requests pending in the console are satisfied for every
+single keystroke, even if they request more bytes than generated by
+the keystroke. Keystrokes are not even echoed on the console, this is
+up to the program receiving them. Thus, for example, cursor movements
+are reported as multi-byte control sequences, but do not actually move
+the cursor. The only exception are the keystrokes {\tt Ctrl+C} to
+{\tt Ctrl+F} which are always interpreted and send break signals instead
+of their ASCII codes. All other keys remain uninterpreted, even
+{\tt Ctrl+\textbackslash} does \emph{not} create an EOF condition in raw
+mode, but rather generates the control code {\tt 0x1c} (ASCII {\tt FS}).
 \smallskip{}
 
 The control sequences are either single bytes from the ASCII control
 character set between {\tt 0x00} and {\tt 0x1f}, or ECMA-48 control
-sequences~\cite{ecma48} with some additons from AmigaDOS, starting
+sequences~\cite{ecma48} with some additions from AmigaDOS, starting
 with a CSI\mkey{CSI} \emph{control sequence introducer} character,
-code {\tt 0x9b}. The sequences are generated by the {\tt
-  console.device}, or to be more specific, by the keymap that is
-currently installed. \cite{rkrmdev}~and \cite{ecma48}~provide details
-and specify them. Similarly, the {\tt console.device} also interprets
-such sequences and reacts accordingly, e.g.\ by moving the cursor or
-erasing its window.  Such functions are \emph{not} implemented by the
-CON-Handler which only passively forwards it to the device to which it
-is connected.
+code {\tt 0x9b}. The sequences are generated by the
+{\tt console.device}, or to be more specific, for keystrokes by the keymap that is
+currently active. \cite{rkrmdev}~and \cite{ecma48}~provide details
+and specify the sequences. The {\tt console.device} is also able to generate
+CSI sequences when it receives intuition events such as resizing the
+window or attempting to close the window. In order to receive such
+events, they need to be requested by {\tt CSI} {\tt <n>} {\tt \{}, and they are
+unsubscribed by {\tt CSI} {\tt <n>} {\tt \}}, where {\tt <n>} indicates the event
+type, for details see again~\cite{rkrmdev}. It is noteworthy that a
+console starting in raw mode\key{Raw Mode} \emph{does not} subscribe to the
+window close event, though consoles opening in cooked mode do, in order
+to react on the close gadget. The CON-Handler only forwards such
+events from the {\tt console.device} or any other device it is connected to if
+operating in the raw-mode, but it interprets them in the cooked mode,
+and, for that reason, cannot react on close window events or any other events
+in raw mode.
+\smallskip{}
+
+Similarly to creating control sequences, the {\tt console.device} also
+interprets sequences and reacts accordingly, e.g.\ by moving the cursor or
+erasing its window. Such functions are \emph{not} implemented by the
+CON-Handler which only passively forwards them to the device to which it
+is connected. Thus, in particlar, if the console is connected to a
+terminal via a serial connection, then it is up to the connected
+terminal to interpret them.
 \medskip{}
 
 The buffer mode~2 is not available under a device name, even though
@@ -15594,7 +15647,7 @@ and history functions to them. While the console continues to provide
 line editing features for the keys listed in
 table~\ref{table:cookedconsole}, some of the keys marked with an
 asterisk in this table are reported immediately to programs reading
-from the console without waiting for the {\tt RETURN} key to be pressed.
+from the console without waiting for the {\tt Return} key to be pressed.
 They create \emph{TAB Report}\mkey{TAB Report Sequence} CSI\key{CSI}
 sequences that are interpreted by the Shell and trigger there
 functions such as expanding a pattern into a list of files, or
@@ -15630,40 +15683,40 @@ used as a template the Shell\key{Shell} interprets as part of the requested
 action, e.g.\ for a TAB-expansion: there, the
 command line argument within which the cursor is positioned, as
 reported by the {\tt <c>} parameter of the CSI sequence, is used to
-generate a wildcard the Shell uses to find possible candidates for its
-expansion.
+generate a wildcard the Shell uses to find possible candidates for the
+expansion of the file name template the cursor is located in.
 \smallskip{}
 
 The keystrokes that trigger such TAB Report sequences, along with their
 purpose, are as follows:
 
-\begin{rkrmtable}{Medium Mode CSI Sequences} \label{table:mediumcsi}
+\begin{rkrmtable}{TAB Report CSI Sequences} \label{table:mediumcsi}
 {\bf Keystroke} & {\bf Sequence}\\ \hline \hline
-Cursor up         & {\tt <U>}=2,  move upwards in the history \\ \hline
-Cursor down       & {\tt <U>}=3,  move downwards in the history \\ \hline
-Shift+cursor up   & {\tt <U>}=4,  search history upwards \\ \hline
-Shift+cursor down & {\tt <U>}=5,  search history downwards \\ \hline
-Ctrl+r            & {\tt <U>}=6,  search history upwards, partial pattern \\ \hline
-Ctrl+b            & {\tt <U>}=10, rewind history \\ \hline
-TAB               & {\tt <U>}=12, iterate forwards through expansion \\ \hline
-Shift+TAB         & {\tt <U>}=13, iterate backwards through expansion \\ \hline
+Cursor up         & {\tt <m>}=2,  move upwards in the history \\ \hline
+Cursor down       & {\tt <m>}=3,  move downwards in the history \\ \hline
+Shift+cursor up   & {\tt <m>}=4,  search history upwards \\ \hline
+Shift+cursor down & {\tt <m>}=5,  search history downwards \\ \hline
+Ctrl+R            & {\tt <m>}=6,  search history upwards, partial pattern \\ \hline
+Ctrl+B            & {\tt <m>}=10, rewind history \\ \hline
+TAB               & {\tt <m>}=12, iterate forwards through expansion \\ \hline
+Shift+TAB         & {\tt <m>}=13, iterate backwards through expansion \\ \hline
 \end{rkrmtable}
 
-The only difference between the cases {\tt <U>}=6 and {\tt <U>}=4 is
+The only difference between the cases {\tt <m>}=6 and {\tt <m>}=4 is
 that the former only uses the line input buffer up to the cursor
 position as search pattern and ignores everything beyond it. All
-remaining values for {\tt U} are currently reserved, even though some
-third-party implementations assign a meaning to them.
+remaining values for {\tt <m>} are currently reserved, even though some
+third-party implementations assign meanings to them.
 \smallskip{}
 
 Thus, the flow of operations if a user presses the {\tt Cursor} {\tt up} key in
 the console is as follows: First, the console delivers a {\tt CSI} {\tt U} TAB
 Report sequence to the shell. The Shell will then check its history
-for the previously issued command, and will insert this command
+for the previously issued command, and will insert the line from the history
 with {\tt ACTION\_FORCE}\key{ACTION\_FORCE} back into the console. The
 latter is a special {\tt DosPacket} that emulates keystrokes, i.e. the
 Shell \emph{types} the previous command from the history into the
-console. The advantage is that the command history becomes available
+console. The advantage of this construction is that the command history becomes available
 to programs operating in the Shell, and can be retrieved or modified from there,
 see section~\ref{sec:doshellmethod}.
 \medskip{}
@@ -21756,7 +21809,7 @@ stack. {\tt IoErr()}\key{IoErr()} remains its value from the called command,
 or is set to {\tt ERROR\_NO\_FREE\_STORE}\key{ERROR\_NO\_FREE\_STORE} if
 resources could not be allocated.
 
-\subsection{Checking for Signals}
+\subsection{Checking for Signals} \label{sec:checksignal}
 
 The {\tt CheckSignal()}\mkey{CheckSignal()} function tests whether
 particular signals, as for example those to break process or a shell
