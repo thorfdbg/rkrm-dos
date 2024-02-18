@@ -13710,7 +13710,7 @@ from the offset.
 \smallskip{}
 
 The first long-word of the initialization data is the size of the
-Global Vector the program requires, i.e. the number of entries in the
+global vector the program requires, i.e. the number of entries in the
 vector. This value is only used to check the following initializers
 for validity. The public Global Vector currently requires 150 entries,
 which is a safe choice.
@@ -13718,7 +13718,7 @@ which is a safe choice.
 
 All following entries consist of pairs of long-words, scanned again
 towards smaller addresses, where each pair defines one entry in the
-global vector. The first (higher address) long-word is the offset of
+global vector\key{Global Vector}. The first (higher address) long-word is the offset of
 the function relative to the start of the segment to be filled into
 the Global Vector, the second (lower) address is the index of the
 Global Vector entry to be populated. An offset of $0$ terminates the list.
@@ -15927,101 +15927,132 @@ and the device becomes a lookalike of either {\tt PAR:} or {\tt PRT:}.
 The Queue-Handler\mkey{Queue-Handler} provides inter-process communication on the basis of
 AmigaDOS file handles\key{FileHandle}. It is used by the Shell to implement pipes; they
 collect the output of one command and provide it as input to another,
-without requiring to store the entire output. The reading end of a pipe
+without requiring to store the output in a temporary file. The reading end of a pipe
 blocks as long as no data becomes available at the writing end, and the
 writing end blocks if the reading end is not able to consume data fast
 enough. If the reading end closes the pipe, the Queue-Handler attempts to
-abort the writing end.
+abort the writing end by sending a {\tt SIGBREAKF\_CTRL\_C}\key{SIGBREAKF\_CTRL\_C} bit
+to it.
 \smallskip{}
 
-Even though the Queue-Handler is disk-based, it is already mounted by the
-Kickstart-ROM as {\tt PIPE:}, though additional instances under other device
-names can be mounted through the user.
+Even though the Queue-Handler is disk-based, AmigaDOS~47 already mounts it
+during its startup as {\tt PIPE:}. While a handler of the
+same name and a similar purpose already existed in prior versions of
+AmigaDOS, it had to be mounted manually and lacked some of the
+features of the most recent version.
 
 \subsection{Queue-Handler Path}
 
-Pipes are created and identified by a unique name; reading and writing ends
-of the same name are connected together. The name itself does not matter as
-long as it uniquely identifies the pipe; the Shell constructs a pipe name
-from the process indicator and a second unique number that is incremented
-for each pipe used. The packet {\tt
-  ACTION\_FINDINPUT}\key{ACTION\_FINDINPUT} opens the reading end, and {\tt
-  ACTION\_FINDOUTPUT}\key{ACTION\_FINDOUTPUT} the writing end. The third
-open mode, {\tt ACTION\_FINDUPDATE}\key{ACTION\_FINDUPDATE} is not
-supported.
+Pipes are created and identified by a unique name; reading and writing
+ends of the same name are connected together. The name itself does not
+matter as long as it uniquely identifies the pipe; the Shell
+constructs a pipe name from the process indicator and a second unique
+number that is incremented for each pipe used. The Queue handler can
+be either opened in {\tt MODE\_OLDFILE}, which represents the reading
+end of the pipe, or {\tt MODE\_NEWFILE}, which corresponds to the
+writing end. The third mode, {\tt MODE\_READWRITE}, is not
+supported. For {\tt Open()}\key{Open} and its modes see
+section~\ref{sec:open}.
 \smallskip{}
 
-The empty name establishes a special case. It identifies a pipe that is
-already open as standard input or standard output of a process. In case a
-pipe is openend without a name, the Queue-Handler checks whether the
-standard input or standard output of the client process is already open to a
-pipe, and if so, this end is reused. This allows constructions such as
+The empty file name establishes the special case of the anonymous
+pipe. The empty name represents the pipe that is already connected to
+the standard input or standard output of the process contacting the
+Queue-Handler. If the open mode is {\tt MODE\_OLDFILE}, it will
+attempt to reuse the pipe connected to the standard input of the
+process, or on {\tt MODE\_NEWFILE} the pipe connected to the standard
+output. If the file handle in the standard input or standard output
+does not belong to the Queue-Handler, opening the anonymous pipe
+fails. Its purpose is in Shell command lines such as
 
 \begin{verbatim}
 list | type PIPE: hex
 \end{verbatim}
 
-where the reading end of the pipe is explicitly addressed by an empty pipe
-name as it is already established by the Shell as standard input of the {\tt
-  type} command. It is necessary here because the command line syntax of
-{\tt type} does not include provisions to read from its input stream.
+where the reading end of the pipe is explicitly addressed by the
+anonymous pipe while the Shell already connected the standard input of
+the {\tt Type} command to it. It is necessary here because the command
+line syntax of {\tt Type} does not offer to read from its input stream
+as prepared by the Shell. Anonymous pipes were introduced in
+AmigaDOS~45.
 \smallskip{}
 
-The pipe path may follow by options configuring the pipe, thus the complete
-path specification is as follows:
+The path of the Queue-Handler may include options configuring it; the
+complete specification is as follows:
 
 \begin{verbatim}
 PIPE:name[/quantumsize[/buffercount]]
 \end{verbatim}
 
 The {\tt quantumsize} is the size of a block the Queue-Handler uses to
-buffer intermediate data. Written data is is queued up until a buffer is
-full or the writing end is closed, and the full block is then made available
-to the reading end. This minimizes the communication overhead as the reading
-process does not need to wake up for every single byte. The default quantum
-size is 1024 bytes.
+buffer data between the writing and the reading end. It is encoded as
+an ASCII decimal number and measured in bytes. Written data is is queued up until either a buffer
+is full or the writing end is closed, and the full block is then made
+available to the reading end. This minimizes the communication
+overhead as the reading process does not need to wake up for every
+single byte. The default quantum size is 1024 bytes.
 \smallskip{}
 
-The {\tt buffercount} configures the number of buffers the Queue-Handler
-makes available to the writing end. If all buffers are full without being
-retrieved by the reading end, the writing end blocks. This avoids that a
-fast writing process floods the memory of the system. The special value of~0
-indicates that system memory may be filled up to a safety margin of 64K. The
-default buffer count is~8, i.e.\ at most 8K of data can be waiting in a pipe.
+The {\tt buffercount} configures the number of buffers the
+Queue-Handler makes available to the writing end until it blocks. It
+is also encoded as decimal number. If the configured number of
+buffers, all sized according to the {\tt quantumsize}, are full
+without being retrieved by the reading end, the writing end
+blocks. This avoids that a fast writing process floods the memory of
+the system. The special value of~0 indicates that system memory may be
+filled up to a safety margin of 64K. The default buffer count is~8,
+i.e.\ for a quantum size of 1024 bytes at most 8K of data can be waiting in a pipe.
 
-\subsection{Queue-Handler Startup}
+\subsection{Queue-Handler Startup and Mount Parameters}
 
-The Queue-Handler\key{Queue-Handler} can also be configured through its
-startup packet. For this, {\tt dol\_Startup}\key{dol\_Startup} in its {\tt
-  DosList}\key{DosList} entry shall be a BPTR to a {\tt
-  FileSysStartupMsg}\key{FileSysStartupMsg} as specified in
-section~\ref{sec:filesysstartup}. The device and unit found there are
-irrelevant, though the environment vector in
-{\tt fssm\_Environ}\key{fssm\_Environ} discussed in section~\ref{sec:envec}
-contains some relevant entries.
+The Queue-Handler\key{Queue-Handler} can also be configured through a
+mountlist\key{Mountlist}, though as it is already mounted by the ROM,
+the name of the device cannot be {\tt PIPE:}. The mount parameters
+used by the Kickstart correspond to the following
+mountlist:
+
+\begin{verbatim}
+Handler         = L:Queue-Handler
+Startup         = 0
+GlobVec         = -1
+\end{verbatim}
+
+which mounts the Queue-Handler with its default parameter described
+above. The handler is implemented in C and thus does not require a
+global vector\key{Global Vector}, thus {\tt GlobVec} shall be set to $-1$.
+To customize the Queue-Handler, a mountlist such as the following can be used:
+
+\begin{verbatim}
+EHandler        = L:Queue-Handler
+Device          = no.device
+BlockSize       = 1024
+Buffers         = 8
+GlobVec         = -1
+\end{verbatim}
+
+The {\tt BLOCKSIZE}\mkey{BLOCKSIZE} keyword sets the quantum size,
+that is the size of a single buffer in bytes, and the {\tt
+  BUFFERS}\key{BUFFERS} keyword the number of buffers. The argument of
+the {\tt DEVICE}\key{DEVICE} parameter is irrelevant, but shall be
+present.
 \smallskip{}
 
-{\tt de\_SizeBlock}\key{de\_SizeBlock} set the size of the Quantum, and thus
-corresponds to the default of the first optional argument in the path.
+The above mountlist creates a {\tt FileSysStartupMsg}\key{FileSysStartupMsg} as specified in
+section~\ref{sec:filesysstartup} and places it into the {\tt dol\_Startup}\key{dol\_Startup}
+element in its {\tt DosList}
+structure. The device and unit found there are irrelevant, though the
+environment vector in {\tt fssm\_Environ}\key{fssm\_Environ} discussed
+in section~\ref{sec:envec} contains two relevant entries:
+\smallskip{}
+
+{\tt de\_SizeBlock}\key{de\_SizeBlock} set the quantum size, and thus
+corresponds to the default of the first optional argument in the path
+and the {\tt BLOCKSIZE}\key{BLOCKSIZE} parameter in the mountlist\key{Mountlist}.
 \smallskip{}
 
 {\tt de\_NumBuffers}\key{de\_NumBuffers} sets the number of such buffers for
-each pipe and corresponds to the default of the second optional argument of
-the path.
-\smallskip{}
-
-The Kickstart ROM does not provide a startup value and thus mounts the Queue
-handler with its defaults parameters. However, within a custom mountlist\key{Mountlist},
-they can be provided as follows:
-
-\begin{verbatim}
-EHandler        = Queue-Handler
-BlockSize       = 1024
-Buffers         = 8
-\end{verbatim}
-
-The {\tt BLOCKSIZE}\mkey{BLOCKSIZE} keyword sets the quantum size, and the
-{\tt BUFFERS}\key{BUFFERS} keyword the number of quantum buffers.
+each pipe and corresponds to the second optional argument of
+the path or the {\tt BUFFERS}\key{BUFFERS} parameter in the mountlist\key{Mountlist}.
 
 \section{The RAM-Handler}
 
