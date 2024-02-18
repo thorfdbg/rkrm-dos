@@ -137,7 +137,7 @@ Thomas Richter\\}
 \bigskip
 \vspace*{\fill}
 \bigskip
-{\small Copyright © 2023 by Thomas Richter, all rights reserved. This
+{\small Copyright © 2024 by Thomas Richter, all rights reserved. This
 publication is freely distributable under the restrictions stated below, but is
 also Copyright © Thomas Richter.
 
@@ -15941,7 +15941,7 @@ same name and a similar purpose already existed in prior versions of
 AmigaDOS, it had to be mounted manually and lacked some of the
 features of the most recent version.
 
-\subsection{Queue-Handler Path}
+\subsection{Queue-Handler Path} \label{sec:queuepath}
 
 Pipes are created and identified by a unique name; reading and writing
 ends of the same name are connected together. The name itself does not
@@ -15969,12 +15969,13 @@ fails. Its purpose is in Shell command lines such as
 list | type PIPE: hex
 \end{verbatim}
 
-where the reading end of the pipe is explicitly addressed by the
-anonymous pipe while the Shell already connected the standard input of
-the {\tt Type} command to it. It is necessary here because the command
-line syntax of {\tt Type} does not offer to read from its input stream
-as prepared by the Shell. Anonymous pipes were introduced in
-AmigaDOS~45.
+where the reading end of the pipe is explicitly addressed as anonymous
+pipe, while the Shell connected the standard input of the {\tt Type}
+command to a named pipe created for the purpose of the {\tt |}
+operator, see also section~\ref{sec:binaryops}. The anonymous {\tt PIPE:} connects to the named pipe created by the
+Shell. This construction is necessary here because the command line
+syntax of {\tt Type} does not offer to read from its input stream as
+prepared by the Shell. Anonymous pipes were introduced in AmigaDOS~45.
 \smallskip{}
 
 The path of the Queue-Handler may include options configuring it; the
@@ -16017,8 +16018,8 @@ Startup         = 0
 GlobVec         = -1
 \end{verbatim}
 
-which mounts the Queue-Handler with its default parameter described
-above. The handler is implemented in C and thus does not require a
+which mounts the Queue-Handler with its default parameter described in~\ref{sec:queuepath}.
+The handler is implemented in C and thus does not require a
 global vector\key{Global Vector}, thus {\tt GlobVec} shall be set to $-1$.
 To customize the Queue-Handler, a mountlist such as the following can be used:
 
@@ -16056,23 +16057,32 @@ the path or the {\tt BUFFERS}\key{BUFFERS} parameter in the mountlist\key{Mountl
 
 \section{The RAM-Handler}
 
-The RAM-Handler\mkey{RAM-Handler} is a ROM-based file system that places its
-data in available RAM of the system. It implements almost all of the file
-system packets listed in sections~\ref{sec:fileactions} and following, with
-the exception of record locking. The RAM-Handler provides one extended
+The RAM-Handler\mkey{RAM-Handler} is a ROM-based file system that
+places its data in available RAM of the system. It implements almost
+all of the file system packets listed in
+chapter~\ref{sec:packettypes}. The RAM-Handler provides one extended
 feature, namely external links\key{External Link}, also explaned in
-section~\ref{sec:links}. Such a link points to a target outside of the RAM
-disk; while such objects are initially empty, their contents will be made
-accessible by copying the objects within the link target to the RAM disk.
+section~\ref{sec:links}. Such a link points to a target outside of the
+RAM-Disk; while external links are initially empty, they will be
+filled with the contents of the link target as soon as they are
+accessed. The RAM-Handler then copies the link target into RAM, making
+it accessible under the link origin, or an object within the
+link origin. The link source is from that point on independent from the link
+target and can be modified without affecting the linked object.
 \smallskip{}
 
-This feature is used within AmigaDOS to realize the {\tt ENV:} assign which
-contains the system preferences. This allows to save RAM by only
-keeping those files in {\tt RAM:} that are actually accessed.
+This feature is used within AmigaDOS for the {\tt ENV} directory
+containing the currently active system preferences; the {\tt ENV:}
+assign points to it. This allows to save RAM by copying only those
+files to {\tt ENV:} that are actually accessed. A separate handler is
+not necessary.
 \smallskip{}
 
-The RAM handler does not interpret any arguments in its startup packet and
-cannot be configured through it.
+The RAM-Handler does not interpret any arguments in its startup packet
+and cannot be configured through it. The {\tt STARTUP}\key{STARTUP} value prepared by
+AmigaDOS is simply~0 and not interpreted by the RAM-Handler. As the
+RAM-Handler is not represented as file nor registered as file system,
+it cannot be mounted through a custom mountlist.
 
 \section{The Fast File System} \label{sec:ffs}
 
