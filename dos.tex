@@ -16059,7 +16059,12 @@ the path or the {\tt BUFFERS}\key{BUFFERS} parameter in the mountlist\key{Mountl
 The RAM-Handler\mkey{RAM-Handler} is a ROM-based file system that
 places its data in available RAM of the system. It implements almost
 all of the file system packets listed in
-chapter~\ref{sec:packettypes}. Starting with version~47, the RAM-Handler provides one extended
+chapter~\ref{sec:packettypes}, with the exception of packets
+specific to interactive handlers in section~\ref{sec:packetsinteractive}
+and {\tt ACTION\_SET\_OWNER}\key{ACTION\_SET\_OWNER}, see~\ref{sec:action_set_owner}.
+\smallskip{}
+
+Starting with version~47, the RAM-Handler provides one extended
 feature, namely external links\key{External Link}, also explaned in
 section~\ref{sec:links}. Such a link points to a target outside of the
 RAM-Disk; while external links are initially empty, they will be
@@ -16085,24 +16090,31 @@ it cannot be mounted through a custom mountlist.
 
 \section{The Fast File System} \label{sec:ffs}
 
-The Fast File System\mkey{Fast File System (FFS)} (FFS) is the standard Amiga file
-system and as such included in the ROM. However, the bootstrap code of Amiga
-hostadapters are typically able to load an updated version of this (and
-other) file systems from the \emph{rigid disk block} of the boot disk and
-make it available to the system. The \emph{System-Startup} module will make
-such updated version then also available for all other devices.
+The Fast File System\mkey{Fast File System (FFS)} (FFS) is the
+standard Amiga file system and as such included in the ROM. However,
+the bootstrap code of Amiga hostadapters are typically able to load an
+updated version of this (and other) file systems from the
+\emph{rigid disk block} of the boot disk and make it available to the
+system. The \emph{System-Startup} module described in
+section~\ref{sec:sysstartup} will updates also available for all other
+devices, see there for more details.
 \smallskip{}
 
-The same code serves multiple flavours of the file system that differ in the
-structure and organization of on disk. Table~\ref{table:ffsflavours} in
-section~\ref{sec:envec} provides an overview on the available flavours.
+The FFS serves from the same code multiple variants or flavours of
+the file system that differ slightly in the structure and organization
+of data on disk, all listed in table~\ref{table:ffsflavours} of
+section~\ref{sec:envec}. This section describes the disk structure for
+all variants. It is configured through a mountlist\key{Mountlist} configuring it
+through the keywords and structures listed in section~\ref{sec:mountdoslist}.
+Section~\ref{sec:configffs} provides further details.
 \smallskip{}
 
-As a full hierarchical file system, the FFS\key{Fast File System (FFS)} supports all file-system
+As a hierarchical file system, the FFS\key{Fast File System (FFS)} supports all file-system
 relevant packets listed from section~\ref{sec:fileactions} onwards; packets
 specific to interactive handlers listed in
 section~\ref{sec:packetsinteractive} are an exception and not implemented,
-and the {\tt ACTION\_SET\_OWNER}\key{ACTION\_SET\_OWNER} packet is neither
+and the {\tt ACTION\_SET\_OWNER}\key{ACTION\_SET\_OWNER} packet described in
+section~\ref{sec:action_set_owner} is neither
 implemented and remains exclusive to to multi-user network file systems. The
 FFS\key{Fast File System (FFS)} does support record locking, soft-\key{Soft Link} and hard
 links\key{Hard Link} and notification
@@ -16110,24 +16122,36 @@ requests. External links remain currently exclusive to the RAM-Handler\key{RAM-H
 are neither supported. Latest versions of the FFS\key{Fast File System (FFS)} can also be shut down by
 {\tt ACTION\_DIE}\key{ACTION\_DIE}.
 
-\subsection{Configuring the FFS}
+\subsection{FFS Startup and Mount Parameters} \label{sec:configffs}
 
-The FFS\key{Fast File System (FFS)} is customized through multiple sources. First of all, the {\tt
-  DosList}\key{DosList}, the {\tt FileSysStartupMsg}\key{FileSysStartupMsg}
-pointed to by this structure, and the environment vector in the
-latter. Section~\ref{sec:mountlist} provides a list of the configurable
-options and the corresponding entries in the mountlist\key{Mountlist}.
+The FFS\key{Fast File System (FFS)} is customized through multiple
+sources. First of all, the {\tt DosList}\key{DosList}, the
+{\tt FileSysStartupMsg}\key{FileSysStartupMsg} pointed to by this
+structure, see~\ref{sec:filesysstartup}, and the environment vector
+(\ref{sec:envec}) in the latter. Section~\ref{sec:mountlist} provides
+a list of the configurable options and the corresponding entries in
+the mountlist\key{Mountlist}. Actually, the environment vector
+\emph{is} historically the configuration vector of the AmigaDOS file
+system which became the de-facto configuration mechanism for many
+other handlers and file systems.
 \smallskip{}
 
-In some situations, however, the FFS\key{Fast File System (FFS)} will override the parameters found in
-the above sources, and therefore parameters from the
-mountlist\key{Mountlist}. In case the device name is either ``{\tt
-  trackdisk.device}'' or ``{\tt carddisk.device}'', the FFS\key{Fast File System (FFS)} will instead
-request the disk geometry from the underlying exec device by a {\tt
-  TD\_GETGEOMETRY} when validating an available medium. The same logic can
-also be enabled for all other devices by the mountlist\key{Mountlist}
+In some situations, however, the FFS\key{Fast File System (FFS)} will
+override the parameters found in the above sources, and therefore
+parameters from the mountlist\key{Mountlist}. In case the device name
+is either ``{\tt trackdisk.device}'' or ``{\tt carddisk.device}'', the
+FFS\key{Fast File System (FFS)} will instead request the disk geometry
+from the underlying exec device. For this, it issues a {\tt
+  TD\_GETGEOMETRY} command when a medium is inserted,
+the FFS starts up or access to the
+volume granted by {\tt Inhibit(}$\ldots${\tt,DOSFALSE)}\key{Inhibit()}, see
+section~\ref{sec:inhibit}.
+\smallskip{}
+
+The same procedure can
+also be enabled for AmigaDOS~45 and up for all other devices by the mountlist\key{Mountlist}
 parameter {\tt SUPERFLOPPY}, which corresponds to the
-{ENVF\_SUPERFLOPPY}\key{ENVF\_SUPERFLOPPY} flag in the {\tt
+{\tt ENVF\_SUPERFLOPPY}\key{ENVF\_SUPERFLOPPY} flag in the {\tt
   de\_Interleave}\key{de\_Interleave} element of the environment
 vector. This flag, along with the environment vector is defined in the file
 {\tt dos/filehandler.h} and also introduced in section~\ref{sec:envec}.
@@ -16142,7 +16166,7 @@ algorithm is used to adjust the data in the environment vector:
 \begin{verbatim}
 void AdjustEnv(struct DosEnvec *env, 
                const struct DriveGeometry *dg) {
-     env->de_SizeBlock      = dg->SectorSize >> 2;
+     env->de_SizeBlock      = dg->dg_SectorSize >> 2;
      env->de_HighCyl        = dg->dg_Cylinders - 1;
      env->de_Surfaces       = dg->dg_Heads;
      env->de_BlocksPerTrack = dg->dg_TrackSectors;
@@ -16155,35 +16179,62 @@ measures it in long-words rather than bytes as provided by the drive
 geometry, and {\tt dg\_Cylinders}\key{dg\_Cylinders} is a count, whereas
 {\tt de\_HighCyl}\key{de\_HighCyl} is an inclusive upper bound. In
 particular, {\tt dg\_BufMemType}\key{dg\_BufMemType} is not copied over, and
-therefore {\tt de\_BufMemType}\key{de\_BufMemType} shall be setup though the
+therefore {\tt de\_BufMemType}\key{de\_BufMemType} shall be setup correctly by the
 mountlist\key{Mountlist} or the rigid disk block. Ideally, of course, any
 memory type should be supported and this workaround should not be necessary.
 \smallskip{}
 
-The number of blocks kept in the file system cache is read from {\tt
-  de\_NumBuffers}\key{de\_NumBuffers} in the environment vector, but {\tt
-  ACTION\_MORE\_CACHE}\key{ACTION\_MORE\_CACHE} can be used to adjust this
-parameter anytime.
+In case the {\tt ENVF\_SCSIDIRECT}\key{ENVF\_SCSIDIRECT} flag is set
+in addition, the FFS does not use {\tt TD\_GETGEOMETRY}, but collects
+the parameters for the drive geometry using the SCSI {\tt MODE\_SENSE}
+command requesting all pages. The number of sectors and sector size is
+then taken from the SCSI block descriptor in the mode page header;
+additionally a SCSI {\tt READ\_CAPACITY} is issued and if successful,
+the data returned by it overrides the information from the previous
+step.
+\smallskip{}
+
+The number of heads and the number of blocks per track is obtained
+through a second {\tt MODE\_SENSE} command reading the SCSI Rigid Disk
+Page. If this fails or the result is not sensible, the FFS attempts to
+find some suitable values for the number of heads and the track size
+by testing values from 16 downwards for the number of heads and stopping
+whenever it finds a value that divides the total sector count.
+\smallskip{}
+
+The algorithm by which the FFS attempts to obtain the disk geometry
+through SCSI is not necessarily identical to the algorithm the
+underyling exec device would use to compute them for filling the {\tt
+  DriveGeometry} structure, and thus superfloppies mounted with the
+{\tt ENVF\_SCSIDIRECT} flag set are not necessarily compatible to
+those mounted without them.
+\medskip{}
+
+A second configurable parameter is the number of blocks kept in the file system cache.
+It is originally read from {\tt de\_NumBuffers}\key{de\_NumBuffers} in the
+environment vector, but the {\tt AddBuffers()}\key{AddBuffers()} function described in
+section~\ref{sec:addbuffers} or the {\tt ACTION\_MORE\_CACHE}\key{ACTION\_MORE\_CACHE} packet,
+see section~\ref{sec:packetmorecache}, can be used to adjust this parameter anytime.
 
 \subsection{The Boot Block} \label{sec:bootblock}
 
 The FFS\key{Fast File System (FFS)} flavour is initially read from {\tt de\_DosType} element of the
 environment vector, see section~\ref{sec:envec}. However, the initial choice
 is overridden either by formatting (initializing) a volume, or during the
-(quick) validation that is triggered if a volume becomes available to the FFS.
+(quick) validation that is triggered if a volume becomes available to the FFS, i.e.\ if a medium
+is inserted, the FFS is starting up with the medium inserted or is un-inhibited.
 \smallskip{}
 
-During formatting, the flavour is taken from {\tt dp\_Arg2} of the {\tt
-  ACTION\_FORMAT}\key{ACTION\_FORMAT} packet. If {\tt dp\_Arg2} is none of known FFS\key{Fast File System (FFS)} flavours
-from table~\ref{table:ffsflavours}, the currently active flavour remains in
-force and is used to initialize the disk structure. If the FFS did not adjust its
-flavour from accessing a previous volume, this remains the value from
-{\tt de\_DosType}\key{de\_DosType}.
+During formatting, the flavour is taken from {\tt dp\_Arg2} of the
+{\tt ACTION\_FORMAT}\key{ACTION\_FORMAT} packet, see~\ref{sec:actionformat}.
+If {\tt dp\_Arg2} is none of known FFS\key{Fast File System (FFS)} flavours
+from table~\ref{table:ffsflavours} in \ref{sec:envec}, the currently
+active flavour remains in force and is used to initialize the disk structure.
 \smallskip{}
 
 During disk insertion, or if a volume becomes accessible to the FFS\key{Fast
   File System (FFS)} by other means such as mounting it or uninhibiting a
-volume through {\tt ACTION\_INHIBIT}\key{ACTION\_INHIBIT}, the FFS\key{Fast
+volume through the {\tt Inhibit()}\key{Inhibit()} function (see~\ref{sec:inhibit}), the FFS\key{Fast
   File System (FFS)} reads the flavour from the first long-word of the
 \emph{boot block}\mkey{Boot Block}, even if this block is placed on a
 hard-disk and not actually used for booting. It is found at sector
@@ -16195,15 +16246,15 @@ hard-disk and not actually used for booting. It is found at sector
 
 of the device. Note that this is not necessarily the sector~0 if the volume
 is a partition of a hard-disk. The remaining data of the boot block is not
-used by the FFS\key{Fast File System (FFS)} but, at least for floppy disks, for bootblock booting which
-is described in mored detail in~\cite{rkrmdev}.
+used by the FFS\key{Fast File System (FFS)} but, at least for floppy disks, for bootblock booting. The boot
+mechanism is specified in~\cite{rkrmdev} and is beyond the scope of this book.
 
 \subsection{Disk Keys and Sectors} \label{sec:key}
 
-Except for the boot block, the FFS\key{Fast File System (FFS)} does not address sectors through their
-physical sector number, but due to their \emph{key}\mkey{Key (FFS)}, which
-addresses data on disk relative to the start of the partition in blocks, and
-not sectors. The relation between the physical sector~$S$ and the key~$K$ is
+The FFS\key{Fast File System (FFS)} does not address sectors through their
+physical sector number, but through their \emph{key}\mkey{Key (FFS)} which is relative
+to the start of the partition, and measured in units of blocks, not in units of sectors.
+The relation between the physical sector~$S$ and the key~$K$ is
 given by the following equation:
 
 \[
@@ -16212,29 +16263,36 @@ S = \mbox{\tt de\_LowCyl} \times \mbox{\tt de\_Surfaces} \times
        de\_SectorPerBlock}
 \]
 
-In particular, the boot block has therefore the key~0. The sector number is
-used directly for the ``direct SCSI'' transfer which is enabled by the
+In particular, the boot block has therefore the key~0. The sector number~$S$ is
+used directly for SCSI transfer which is enabled by the
 {\tt ENVF\_SCSIDIRECT}\key{ENVF\_SCSIDIRECT} flag in the {\tt
   de\_Interleave}\key{de\_Interleave} element of the environment vector.
 \smallskip{}
 
-For the default trackdisk-like transfer, exec device drivers expect a byte
-offset instead of a sector, which is computed by multiplying $S$ by
-$\mbox{\tt de\_SizeBlock} \times 4$. The additional factor of~4 is because
-{\tt de\_SizeBlock} is in units of long-words and not a byte count.
+For trackdisk style commands, e.g.\ {\tt TD\_READ} or {\tt
+  TD\_READ64} that are used otherwise, exec device drivers address
+data by a byte offset instead of a sector number. It is computed by
+multiplying $S$ by $\mbox{\tt de\_SizeBlock} \times 4$. The additional
+factor of~4 is required because {\tt de\_SizeBlock} is in units of long-words
+and not a byte count.
 \smallskip{}
 
 Even though {\tt de\_SizeBlock}\key{de\_SizeBlock} and {\tt
   de\_SectorsPerBlock}\key{de\_SectorsPerBlock} could be any number, the
-FFS, and likely many other file systems, only accept powers of two
+FFS, and likely many other file systems only accept powers of 2
 here. Thus, any multiplication or division by these numbers are easily
 implementable as shifts.
 
 \subsection{The Root Block} \label{sec:rootblock}
 
-The Root Block\mkey{Root Block} represents the root directory of a volume
-and contains the creation date and the volume name. It is placed in the
-middle of the volume at key
+The Root Block\mkey{Root Block} represents the root directory of a
+volume and contains the objects in the root directory, the creation
+date of the volume and its name. It corresponds to the path ``{\tt :}''.
+\smallskip{}
+
+The root block is placed in the middle of the volume at
+key\footnote{In~\cite{guru}, the number of sectors per block is not
+included as earlier FFS versions did not support this parameter.}:
 
 \[
 \left\lfloor \frac{\mbox{\tt de\_Reserved} + 
@@ -16243,13 +16301,17 @@ middle of the volume at key
         \mbox{\tt de\_BlocksPerTrack}}{\mbox{\tt de\_SectorsPerBlock}}\right\rfloor - 1}{2} \right\rfloor
 \]
 
-Note that the element name {\tt de\_BlocksPerTrack} is actually misleading
-as this the size of a track in (physical) sectors and not in (logical)
-blocks or keys. The division by
-{\tt de\_SectorsPerBlock}\key{de\_SectorsPerBlock} computes from the sector
-index a key. The brackets $\lfloor \cdot \rfloor$ indiciate rounding down to
-the next integer.
+Note that the element name {\tt de\_BlocksPerTrack} is actually
+misleading as this the size of a track in (physical) sectors and not
+in (logical) blocks or keys. The brackets $\lfloor \cdot \rfloor$
+indiciate rounding down to the next integer.
 \smallskip{}
+
+The division by {\tt de\_SectorsPerBlock}\key{de\_SectorsPerBlock}
+computes from the sector index a key, and the addition of
+{\tt de\_Reserved}\key{de\_Reserved} skips the reserved blocks at the
+start of the partition, including the boot block.
+\medskip{}
 
 The structure of the root block is as follows:
 
@@ -19356,7 +19418,7 @@ set to {\tt DOSTRUE} and {\tt dp\_Res2} shall be set to~0. On error,
 {\tt dp\_Res1} shall be set to {\tt DOSFALSE} and {\tt dp\_Res2} to an error
 code.
 
-\subsection{Setting the Owner of an Object}
+\subsection{Setting the Owner of an Object} \label{sec:action_set_owner}
 
 The {\tt ACTION\_SET\_OWNER}\mkey{ACTION\_SET\_OWNER} packet sets the owner
 and group ID of an object in a file system.
@@ -24422,6 +24484,8 @@ The {\tt di\_DevLock}\mkey{di\_DevLock}, {\tt di\_EntryLock}\mkey{di\_EntryLock}
 {\tt di\_DeleteLock}\mkey{di\_DeleteLock} semaphores are private to the
 \emph{dos.library}. They are used by the {\tt LockDosList()}\key{LockDosList()} function of
 section~\ref{sec:lockdoslist}.
+
+\section{The System-Startup Module} \label{sec:sysstartup}
 
 \begin{thebibliography}{99}
 \bibitem{Bantam} Commodore-Amiga Inc:
