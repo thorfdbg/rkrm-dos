@@ -16112,11 +16112,8 @@ Section~\ref{sec:configffs} provides further details.
 As a hierarchical file system, the FFS\key{Fast File System (FFS)} supports all file-system
 relevant packets listed from section~\ref{sec:fileactions} onwards; packets
 specific to interactive handlers listed in
-section~\ref{sec:packetsinteractive} are an exception and not implemented,
-and the {\tt ACTION\_SET\_OWNER}\key{ACTION\_SET\_OWNER} packet described in
-section~\ref{sec:action_set_owner} is neither
-implemented and remains exclusive to to multi-user network file systems. The
-FFS\key{Fast File System (FFS)} does support record locking, soft-\key{Soft Link} and hard
+section~\ref{sec:packetsinteractive} are an exception and not implemented.
+The FFS\key{Fast File System (FFS)} does support record locking, soft-\key{Soft Link} and hard
 links\key{Hard Link} and notification
 requests. External links remain currently exclusive to the RAM-Handler\key{RAM-Handler} and
 are neither supported. Latest versions of the FFS\key{Fast File System (FFS)} can also be shut down by
@@ -16362,7 +16359,7 @@ L = \mbox{\tt de\_SizeBlock} \times \mbox{\tt de\_SectorsPerBlock}
 Dashed table boundaries indicate that the corresponding element
 extends over multiple long-words. In particular, the list of hash-keys
 is a variably sized number of long-words large, it always extends over
-$L-56$ longs.
+$L-56$ long words.
 \medskip{}
 
 The block type is indicated by {\tt Type}\mkey{Type (FFS)} and {\tt SecType}\mkey{SecType}. For the root
@@ -16374,14 +16371,14 @@ block. The FFS\key{Fast File System (FFS)}
 stores in the root block $L-56$ hash keys, from offset $6$ to $L-51$.
 \smallskip{}
 
-{\tt Chksum}\mkey{Chksum} is a checksum over the block. Its value is chosen such that the
+{\tt Chksum}\mkey{Chksum} is a checksum over the block. Its value is computed such that the
 long-word sum over all long-words, including the checksum, is zero.
 \smallskip{}
 
 {\tt Hash}\mkey{Hash} stores the hash-chain of all objects in the root
 directory. The FFS\key{Fast File System (FFS)} computes for each file system object a \emph{hash key}
 that is derived from its name. As multiple objects can have the same hash
-and thus hash conflicts may arise, all objects of the same hash are kept in
+and thus hash conflicts can arise, all objects of the same hash are kept in
 a singly linked list. The head of each list is kept in the {\tt Hash} array.
 \smallskip{}
 
@@ -16399,7 +16396,7 @@ ULONG hash = size;    /* Initial hash is string length */
    ULONG c = *name++;
    /* Is this an international flavour? */
    if (isInternational) {
-    if (c != 0xf7 && ((c >= 0xe0 && c<= 0xfe) || 
+    if (c != 0xf7 && ((c >= 0xe0 && c <= 0xfe) || 
                       (c >= 0x61 && c <= 0x7a))) {
      c -= 0x20; /* make upper case */
     }
@@ -16416,42 +16413,44 @@ In the above, {\tt HTSize}\key{HTSize} is the value of the element of the
 same name in the disk root block. As seen from the code, the
 non-international versions of the FFS\key{Fast File System (FFS)} only convert the ASCII characters
 between 'a' and 'z' to upper case, whereas the international version
-performs this conversion also for all characters in the latin-1 character
+performs this conversion also for all letters in the Latin-1 supplement 
 set. The FFS\key{Fast File System (FFS)} \emph{does not} use the \emph{utility.library} for the
 upper-case conversion and thus hashing does not depend on the selected
-locale. However, it depends on the latin-1 encoding and will not map
+locale. However, it depends on the Latin-1 encoding and will not map
 characters correctly for many other encodings. Latin-15 only replaces the
 international currency symbol with the Euro-sign which is outside the range
-of characters that are converted to upper case. It therefore also works
-correctly for this encoding.
+of characters that are converted to upper case. The algorithm above therefore also works
+correctly for Latin-15.
 \medskip{}
 
 {\tt BMFlag}\mkey{BMFlag} is {\tt DOSTRUE} in case the bitmap is valid. If the quick
 validation on disk insertion finds that this element is~0, then the disk
 status is set to non-validated and the bitmap is recomputed through a
 complete disk scan. The bitmap keeps information on which blocks of the
-volume are allocated and which are free.
+volume are allocated and which are free. More on this block in
+section~\ref{sec:bitmapblock}.
 \smallskip{}
 
 {\tt BMKeys}\mkey{BMKeys} is an array containing the keys of the bitmap
 blocks. How many bitmap blocks are required to represent the bitmap depends
 on the size of the volume and the size of a bitmap block. Unused keys
-remain~0.
+remain~0, which is the key of the bootblock, see~\ref{sec:bootblock}.
 \smallskip{}
 
 {\tt BMExt}\mkey{BMExt} is the key of a bitmap extension block if the above
-bitmap array is not sufficient to represent all blocks of the volume.
+bitmap array is not sufficient to represent all blocks of the volume. This block is
+described in section~\ref{sec:bmextblock}.
 \smallskip{}
 
-The elements at offsets $L-23$ to $L-21$ form a {\tt DateStamp} structure as
-specified in section~\ref{sec:dates}. The date and time there indicate the
+The elements at offsets $L-23$ to $L-21$ form a {\tt DateStamp}\key{DateStamp} structure as
+specified in chapter~\ref{sec:dates}. The date and time there indicate the
 last change within the root directory.
 \smallskip{}
 
-{\tt Name}\mkey{Name (FFS)} is the volume name, encoded as BSTR; the first character is
+{\tt Name}\mkey{Name (FFS)} is the volume name, encoded as BSTR; the first byte is
 therefore the size of the name. This element is 8 long-words large and thus
-limits the volume name to 30 characters (one extra character is reserved,
-even though there would be sufficient space for 31 characters).
+limits the volume name to 30 characters --- one extra character is reserved,
+even though there would be sufficient space for 31 characters.
 \smallskip{}
 
 The elements at offsets $L-10$ to $L-8$ form a {\tt DateStamp} structure
@@ -16466,23 +16465,23 @@ otherwise unchanged.
 
 {\tt DCache}\mkey{DCache} is the key of the directory cache list of
 blocks. It is only used for the flavours of the FFS\key{Fast File System (FFS)} that utilize such a cache.
+This block is described in section~\ref{sec:dircacheblock}.
 \smallskip{}
 
 Unlike user directories, the root block lacks a list of hard-links that
-points to it. This has the consequence that the FFS\key{Fast File System (FFS)} does not allow to create
+point to it. This has the consequence that the FFS\key{Fast File System (FFS)} does not allow to create
 hard-links to the root directory of a volume.
 
 \subsection{The User Directory Block} \label{sec:userdirblock}
 
-The user header block represents a sub-directory of the
+The user directory block\mkey{User Directory Block} represents a sub-directory of the
 volume root, or another user directory. It is enqueued in one of the
 hash-chains of the root block or its parent user directory block. This block
 exists in multiple variants, depending on the flavour of the
 FFS. Table~\ref{table:userdirblock} applies to all FFS\key{Fast File System (FFS)} variants except the
-long-file variants {\tt DOS\textbackslash{}06} and {\tt
-  DOS\textbackslash{}07}.
+long-file variants {\tt DOS\textbackslash{}06} and {\tt DOS\textbackslash{}07}.
 
-\begin{rkrmtabular}{FFS User Header Block} \label{table:userdirblock}
+\begin{rkrmtabular}{FFS User Directory Block} \label{table:userdirblock}
 \begin{longtable}{|l|l|l|} \hline
 {\bf Long-word Offset} & {\bf Content} & {\bf Notes} \\ \hline \hline
 0          & \tt Type    & shall be 2, this is the BCPL constant T.SHORT\key{T.SHORT} \\ \hline
@@ -16522,7 +16521,7 @@ L-1        & \tt SecType & shall be 2, setthis is the BCPL constant ST.USERDIR\m
 BCPL constant {\tt T.SHORT}
 \smallskip{}
 
-{\tt OwnKey}\mkey{OwnKey} is the key of this object, i.e.\ it is the block number of this
+{\tt OwnKey}\mkey{OwnKey} is the key of this object, i.e.\ it is the key of this
 block itself.
 \smallskip{}
 
@@ -16550,12 +16549,12 @@ the first character. There is room for 80 bytes, i.e.\ the maximum comment
 size is 79 characters.
 \smallskip{}
 
-The elements at offset $L-23$ to $L-21$ form a {\tt DateStamp} structure
+The elements at offset $L-23$ to $L-21$ form a {\tt DateStamp}\key{DateStamp} structure
 that identifies the timestamp of the last change of this directory.
 \smallskip{}
 
 {\tt Name}\mkey{Name (FFS)} is the name of this directory encoded as BSTR with the name
-length in the first byte; even though~32 bytes are available here, the FFS\key{Fast File System (FFS)}
+length in the first byte; even though~32 bytes are available, the FFS\key{Fast File System (FFS)}
 reserves one character, thus limiting the maximal directory name size to~30.
 \smallskip{}
 
@@ -17086,7 +17085,7 @@ not sufficient to keep all data block keys. Otherwise, it is~0.
 block. The value of this element shall be~-3 (ST.FILE)\key{ST.FILE},
 identifying this block as belonging to a file.
 
-\subsection{The Bitmap Extension Block}
+\subsection{The Bitmap Extension Block} \label{sec:bmextblock}
 
 The bitmap extension block keeps the keys of additional bitmap blocks in case
 the number of bitmap keys in the root block (25, namely) are not sufficient.
@@ -17367,7 +17366,7 @@ in this section. Various disk salvage tools fell into this pitfall
 identifying blocks as adminstration blocks that were, actually, data blocks
 allocated for a file.
 
-\subsection{The Bitmap Block}
+\subsection{The Bitmap Block} \label{sec:bitmapblock}
 
 Bitmap blocks keep a bitmap --- one bit per key --- which keys are already
 occupied for administrational or payload data, and which keys are still
