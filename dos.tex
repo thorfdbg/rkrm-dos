@@ -5014,7 +5014,7 @@ modification date of file system objects through the packet interface, see
 section~\ref{sec:packetsetdate}, a convenient interface on the level of the
 \emph{dos.library} did not exist.
 
-\subsection{Set User and Group ID}
+\subsection{Set User and Group ID} \label{sec:setowner}
 
 The {\tt SetOwner()}\mkey{SetOwner()} function sets the user and group
 ID of an object within a file system. Both are concatenated to
@@ -16308,6 +16308,12 @@ The division by {\tt de\_SectorsPerBlock}\key{de\_SectorsPerBlock}
 computes from the sector index a key, and the addition of
 {\tt de\_Reserved}\key{de\_Reserved} skips the reserved blocks at the
 start of the partition, including the boot block.
+\smallskip{}
+
+The parameters above come from the disk geometry defined by the
+environment vector, see~\ref{sec:envec}, but are potentially adjusted
+by the FFS for floppies or partitions that are configured as floppies, see
+section~\ref{sec:configffs}.
 \medskip{}
 
 The structure of the root block is as follows:
@@ -16315,7 +16321,7 @@ The structure of the root block is as follows:
 \begin{rkrmtabular}{FFS Root Block} \label{table:rootblock}
 \begin{longtable}{|l|l|l|} \hline
 {\bf Long-word Offset} & {\bf Content} & {\bf Notes} \\ \hline \hline
-0          & \tt Type    & shall be 2, this is the BCPL constant T.SHORT\mkey{T.SHORT} \\ \hline
+0          & \tt Type    & shall be 2, this is the BCPL constant {\tt T.SHORT}\mkey{T.SHORT} \\ \hline
 1          & \tt 0       & header key, always 0 in root \\ \hline
 2          & \tt 0       & highest sequence number, always 0 in root \\ \hline
 3          & \tt HTSize  & entries in the hash table = Block size - 56 \\ \hline
@@ -16343,7 +16349,7 @@ L-5        & \tt Ticks   & \\ \hline
 L-4        & \tt 0       & reserved for future use \\ \hline
 L-3        & \tt 0       & reserved for future use \\ \hline
 L-2        & \tt DCache  & key of directory cache block if used \\ \hline
-L-1        & \tt SecType & shall be 1, this is the BPCL constant ST.ROOT\mkey{ST.ROOT} \\ \hline
+L-1        & \tt SecType & shall be 1, this is the BPCL constant {\tt ST.ROOT}\mkey{ST.ROOT} \\ \hline
 \end{longtable}
 \end{rkrmtabular}
 
@@ -16363,7 +16369,7 @@ $L-56$ long words.
 \medskip{}
 
 The block type is indicated by {\tt Type}\mkey{Type (FFS)} and {\tt SecType}\mkey{SecType}. For the root
-block, these elements shall be $2$ and $1$, respectively.
+block, these elements are $2$ and $1$, respectively.
 \smallskip{}
 
 {\tt HTSize}\mkey{HTSize} is the number of hash keys stored in the root
@@ -16376,13 +16382,16 @@ long-word sum over all long-words, including the checksum, is zero.
 \smallskip{}
 
 {\tt Hash}\mkey{Hash} stores the hash-chain of all objects in the root
-directory. The FFS\key{Fast File System (FFS)} computes for each file system object a \emph{hash key}
+directory. The FFS\key{Fast File System (FFS)} computes for each file system object a \emph{hash}\mkey{Hash (FFS)}
 that is derived from its name. As multiple objects can have the same hash
 and thus hash conflicts can arise, all objects of the same hash are kept in
-a singly linked list. The head of each list is kept in the {\tt Hash} array.
+a singly linked list. The head of each list is kept in the {\tt Hash} array, and the end of a
+hash list is indicated by key~0. This is actually the key of the bootblock (see~\ref{sec:bootblock}),
+which shall be included in the {\tt de\_Reserved}\key{de\_Reserved} blocks
+at the start of the partition that cannot be allocated for disk objects.
 \smallskip{}
 
-How the FFS\key{Fast File System (FFS)} computes the hash key from the name depends on the FFS
+How the FFS\key{Fast File System (FFS)} computes the hash from the name depends on the FFS
 flavour. The following algorithm computes the hash key from the object name,
 represented as a BSTR, i.e.\ the first character is the length of the string:
 
@@ -16419,22 +16428,23 @@ upper-case conversion and thus hashing does not depend on the selected
 locale. However, it depends on the Latin-1 encoding and will not map
 characters correctly for many other encodings. Latin-15 only replaces the
 international currency symbol with the Euro-sign which is outside the range
-of characters that are converted to upper case. The algorithm above therefore also works
-correctly for Latin-15.
+of characters that are converted to upper case. The algorithm above therefore
+also works correctly for Latin-15.
 \medskip{}
 
-{\tt BMFlag}\mkey{BMFlag} is {\tt DOSTRUE} in case the bitmap is valid. If the quick
+{\tt BMFlag}\mkey{BMFlag} is {\tt DOSTRUE} in case the bitmap is valid.
+The bitmap keeps information on which blocks of the volume are allocated and
+which are free. More on this block in section~\ref{sec:bitmapblock}. If the quick
 validation on disk insertion finds that this element is~0, then the disk
-status is set to non-validated and the bitmap is recomputed through a
-complete disk scan. The bitmap keeps information on which blocks of the
-volume are allocated and which are free. More on this block in
-section~\ref{sec:bitmapblock}.
+status is set to non-validated. The bitmap is then recomputed by a
+complete directory scan, recursively locating all objects on disks and marking
+the blocks they reside in as occupied.
 \smallskip{}
 
-{\tt BMKeys}\mkey{BMKeys} is an array containing the keys of the bitmap
-blocks. How many bitmap blocks are required to represent the bitmap depends
-on the size of the volume and the size of a bitmap block. Unused keys
-remain~0, which is the key of the bootblock, see~\ref{sec:bootblock}.
+{\tt BMKeys}\mkey{BMKeys} is an array containing the keys of the
+bitmap blocks. How many bitmap blocks are required to represent the
+bitmap depends on the size of the volume and the size of a bitmap
+block. Unused keys are~0. 
 \smallskip{}
 
 {\tt BMExt}\mkey{BMExt} is the key of a bitmap extension block if the above
@@ -16448,9 +16458,9 @@ last change within the root directory.
 \smallskip{}
 
 {\tt Name}\mkey{Name (FFS)} is the volume name, encoded as BSTR; the first byte is
-therefore the size of the name. This element is 8 long-words large and thus
-limits the volume name to 30 characters --- one extra character is reserved,
-even though there would be sufficient space for 31 characters.
+therefore the size of the name. This element is 8 long-words large. While
+this is sufficient space for 31 characters, one extra character is reserved,
+limiting the volume name to 30 characters.
 \smallskip{}
 
 The elements at offsets $L-10$ to $L-8$ form a {\tt DateStamp} structure
@@ -16468,23 +16478,25 @@ blocks. It is only used for the flavours of the FFS\key{Fast File System (FFS)} 
 This block is described in section~\ref{sec:dircacheblock}.
 \smallskip{}
 
-Unlike user directories, the root block lacks a list of hard-links that
+Unlike user directories, the root block lacks a list of hard links\key{Hard Link} that
 point to it. This has the consequence that the FFS\key{Fast File System (FFS)} does not allow to create
 hard-links to the root directory of a volume.
 
 \subsection{The User Directory Block} \label{sec:userdirblock}
 
 The user directory block\mkey{User Directory Block} represents a sub-directory of the
-volume root, or another user directory. It is enqueued in one of the
-hash-chains of the root block or its parent user directory block. This block
-exists in multiple variants, depending on the flavour of the
+volume root, or another user directory. It is enqueued in the
+hash-chain corresponding to its name within its parent block.
+\smallskip{}
+
+The user directory block exists in multiple variants, depending on the flavour of the
 FFS. Table~\ref{table:userdirblock} applies to all FFS\key{Fast File System (FFS)} variants except the
-long-file variants {\tt DOS\textbackslash{}06} and {\tt DOS\textbackslash{}07}.
+long file-name variants {\tt DOS\textbackslash{}06} and {\tt DOS\textbackslash{}07}.
 
 \begin{rkrmtabular}{FFS User Directory Block} \label{table:userdirblock}
 \begin{longtable}{|l|l|l|} \hline
 {\bf Long-word Offset} & {\bf Content} & {\bf Notes} \\ \hline \hline
-0          & \tt Type    & shall be 2, this is the BCPL constant T.SHORT\key{T.SHORT} \\ \hline
+0          & \tt Type    & shall be 2, this is the BCPL constant {\tt T.SHORT}\key{T.SHORT} \\ \hline
 1          & \tt OwnKey  & key of this block (self-reference) \\ \hline
 2          & \tt 0       & reserved for future use \\ \hline
 3          & \tt 0       & reserved for future use \\ \hline
@@ -16513,7 +16525,7 @@ L-9        & \tt NameX2  & name extension for {\tt DOS\textbackslash08} \\
 L-4        & \tt NxtHash & next key of the same hash \\ \hline
 L-3        & \tt Parent  & key of the parent directory \\ \hline
 L-2        & \tt DCache  & key of directory cache block if used \\ \hline
-L-1        & \tt SecType & shall be 2, setthis is the BCPL constant ST.USERDIR\mkey{ST.USERDIR} \\ \hline
+L-1        & \tt SecType & shall be 2, setthis is the BCPL constant {\tt ST.USERDIR}\mkey{ST.USERDIR} \\ \hline
 \end{longtable}
 \end{rkrmtabular}
 
@@ -16521,26 +16533,27 @@ L-1        & \tt SecType & shall be 2, setthis is the BCPL constant ST.USERDIR\m
 BCPL constant {\tt T.SHORT}
 \smallskip{}
 
-{\tt OwnKey}\mkey{OwnKey} is the key of this object, i.e.\ it is the key of this
+{\tt OwnKey}\mkey{OwnKey} is the key of this object, i.e.\ it is the key of the
 block itself.
 \smallskip{}
 
 {\tt Chksum}\key{Chksum} is the checksum over the entire block. It is chosen such that
-the long-word sum over the entire block, including this element, is zero.
+the long word sum over the entire block, including this element, is zero.
 \smallskip{}
 
-{\tt Hash}\key{Hash} contains for user directories all the hash keys of the file
+{\tt Hash}\key{Hash} contains for user directories all the hashes\key{Hash (FFS)} of the file
 system objects contained within.
 \smallskip{}
 
 {\tt OwnerID}\key{OwnerID} is reserved for the owner ID of this directory that can be set
-with {\tt ACTION\_SET\_OWNER}. As the FFS\key{Fast File System (FFS)} has no means to validate the
-directory owner, this element does not bear any practical meaning.
+with {\tt SetOwner()}\key{SetOwner()}, see section~\ref{sec:setowner}.
+As the FFS\key{Fast File System (FFS)} has no means to validate the directory owner,
+this element does not bear any practical meaning.
 \smallskip{}
 
 {\tt PrtBits}\mkey{PrtBits} are the protection bits of this directory. The
 FFS\key{Fast File System (FFS)} actually ignores the protection bits on the directory, but stores the
-value here anyhow.
+value here anyhow. The protection bits are explained in section~\ref{sec:fib}.
 \smallskip{}
 
 {\tt Comment}\mkey{Comment (FFS)} contains a potential comment for this
@@ -16549,8 +16562,8 @@ the first character. There is room for 80 bytes, i.e.\ the maximum comment
 size is 79 characters.
 \smallskip{}
 
-The elements at offset $L-23$ to $L-21$ form a {\tt DateStamp}\key{DateStamp} structure
-that identifies the timestamp of the last change of this directory.
+The elements at offset $L-23$ to $L-21$ form a {\tt DateStamp}\key{DateStamp} structure,
+see chapter~\ref{sec:dates}, that identifies the timestamp of the last change of this directory.
 \smallskip{}
 
 {\tt Name}\mkey{Name (FFS)} is the name of this directory encoded as BSTR with the name
@@ -16561,23 +16574,22 @@ reserves one character, thus limiting the maximal directory name size to~30.
 {\tt NameX1}\mkey{NameX1} and {\tt NameX2}\mkey{NameX2} are name extensions that are used by the {\tt
   DOS\textbackslash{}08} flavour of the FFS. They add additional~24 bytes of
 storage for the directory name. Again, one character is reserved, limiting
-the maximum directory name size for this variant to~54. The directory name
+the maximum directory name size in this variant to~54. The directory name
 extends from {\tt Name}, then overflows into {\tt NameX1} and from there to
 {\tt NameX2}.
 \smallskip{}
 
 {\tt BckLink}\mkey{BckLink} is the key of the first hard link\key{Hard Link} to this
 directory. The link of this key replaces the original directory header block
-in case the directory itself is deleted, and then is converted from a link
-to a directory.
+in case the directory itself is deleted, and the link is converted to a directory.
 \smallskip{}
 
 {\tt NxtHash}\mkey{NxtHash} is the key of the next object using the same
-hash key as this directory itself.
+hash\key{Hash (FFS)} as this directory itself.
 \smallskip{}
 
 {\tt Parent}\mkey{Parent (FFS)} is the key of the parent directory, or the key of the root
-block in case this directory is directly in the volume root.
+block in case this directory is located within the volume root.
 \smallskip{}
 
 {\tt DCache}\key{DCache} is the key of the first directory cache block. This
@@ -16590,14 +16602,14 @@ value of this element shall be~2, identifying this as a user directory
 block.
 \medskip{}
 
-For the long file-name enabled flavours of the FFS, namely {\tt
+For the long file name enabled flavours of the FFS, namely {\tt
   DOS\textbackslash{}06} and {\tt DOS\textbackslash{}07}, this block looks
 somewhat different:
 
 \begin{rkrmtabular}{Long-Filename FFS Directory User Header Block}
 \begin{longtable}{|l|l|l|} \hline
 {\bf Long-word Offset} & {\bf Content} & {\bf Notes} \\ \hline \hline
-0          & \tt Type    & shall be 2, this is the BCPL constant T.SHORT\key{T.SHORT} \\ \hline
+0          & \tt Type    & shall be 2, this is the BCPL constant {\tt T.SHORT}\key{T.SHORT} \\ \hline
 1          & \tt OwnKey  & key of this block (self-reference) \\ \hline
 2          & \tt 0       & reserved for future use \\ \hline
 3          & \tt 0       & reserved for future use \\ \hline
@@ -16625,7 +16637,7 @@ L-9        & \tt 0       & reserved for future use \\
 L-4        & \tt NxtHash & next key of the same hash \\ \hline
 L-3        & \tt Parent  & key of the parent directory \\ \hline
 L-2        & \tt DCache  & key of directory cache block if used \\ \hline
-L-1        & \tt SecType & shall be 2, setthis is the BCPL constant ST.USERDIR\key{ST.USERDIR} \\ \hline
+L-1        & \tt SecType & shall be 2, setthis is the BCPL constant {\tt ST.USERDIR}\key{ST.USERDIR} \\ \hline
 \end{longtable}
 \end{rkrmtabular}
 
@@ -16640,12 +16652,12 @@ the comment. This element is capable of storing 112 bytes, but the FFS\key{Fast 
 reserves one byte making in total 110 bytes available. In case the comment
 is too long and cannot be placed in this element, an additional comment
 block is created keeping only the comment, and this element then only keeps
-the file name.
+the file name. 
 \smallskip{}
 
 {\tt CmtBlk}\mkey{CmtBlk} is the key of the comment block, keeping the file comment if
 the {\tt NaC} element is too short. If no comment block is needed, this
-element is~0.
+element is~0. The comment block\key{Comment Block} is described in section~\ref{sec:commentblock}.
 
 \subsection{The File Header Block} \label{sec:fileheaderblock}
 
@@ -16659,7 +16671,7 @@ to all FFS\key{Fast File System (FFS)} variants except the long-file variants {\
 \begin{rkrmtabular}{FFS File Header Block} \label{table:fileheaderblock}
 \begin{longtable}{|l|l|l|} \hline
 {\bf Long-word Offset} & {\bf Content} & {\bf Notes} \\ \hline \hline
-0          & \tt Type    & shall be 2, this is the BCPL constant T.SHORT\key{T.SHORT} \\ \hline
+0          & \tt Type    & shall be 2, this is the BCPL constant {\tt T.SHORT}\key{T.SHORT} \\ \hline
 1          & \tt OwnKey  & key of this block (self-reference) \\ \hline
 2          & \tt BlkCnt  & number of data block keys included \\ \hline
 3          & \tt 0       & reserved for future use \\ \hline
@@ -16678,7 +16690,7 @@ L-26       & \tt 0       & reserved for future use \\
 L-23       & \tt Days    & \multirow{3}{*}{timestamp of last file change} \\ \cline{1-2}
 L-22       & \tt Mins    & \\ \cline{1-2}
 L-21       & \tt Ticks   & \\ \hline
-L-20       & \tt Name    & directory name as BSTR \\ 
+L-20       & \tt Name    & file name as BSTR \\ 
 \multicolumn{3}{;{1.5pt/1.5pt}c;{1.5pt/1.5pt}}{} \\ \hline
 L-12       & \tt NameX1  & name extension for {\tt DOS\textbackslash08} \\ \hline
 L-11       & \tt 0       & reserved for future use \\ \hline
@@ -16688,7 +16700,7 @@ L-9        & \tt NameX2  & name extension for {\tt DOS\textbackslash08} \\
 L-4        & \tt NxtHash & next key of the same hash \\ \hline
 L-3        & \tt Parent  & key of the parent directory \\ \hline
 L-2        & \tt FileExt & key of first file extension block \\ \hline
-L-1        & \tt SecType & shall be -3, this is the BCPL constant ST.FILE\mkey{ST.FILE} \\ \hline
+L-1        & \tt SecType & shall be -3, this is the BCPL constant {\tt ST.FILE}\mkey{ST.FILE} \\ \hline
 \end{longtable}
 \end{rkrmtabular}
 
@@ -16763,12 +16775,12 @@ of this key replaces the original directory header block in case the
 file itself is deleted, and then is converted from a link to a file.
 \smallskip{}
 
-{\tt NxtHash} is the key of the next object using the same hash key as this
-directory itself.
+{\tt NxtHash} is the key of the next object using the same hash\key{Hash (FFS)} as this
+file.
 \smallskip{}
 
 {\tt Parent} is the key of the directory containing this file, or the key of
-the root block in case this file is directly in the volume root.
+the root block in case this file is located in the volume root.
 \smallskip{}
 
 {\tt FileExt} is the key of the first file extension block. This key is only
@@ -16786,7 +16798,7 @@ somewhat different:
 \begin{rkrmtabular}{Long-Filename FFS File Header Block} \label{table:longfileheaderblock}
 \begin{longtable}{|l|l|l|} \hline
 {\bf Long-word Offset} & {\bf Content} & {\bf Notes} \\ \hline \hline
-0          & \tt Type    & shall be 2, this is the BCPL constant T.SHORT \\ \hline
+0          & \tt Type    & shall be 2, this is the BCPL constant {\tt T.SHORT}\key{T.SHORT} \\ \hline
 1          & \tt OwnKey  & key of this block (self-reference) \\ \hline
 2          & \tt HighSeq & total number of blocks occupied \\ \hline
 3          & \tt 0       & reserved for future use \\ \hline
@@ -16814,7 +16826,7 @@ L-9        & \tt 0       & reserved for future use \\
 L-4        & \tt NxtHash & next key of the same hash \\ \hline
 L-3        & \tt Parent  & key of the parent directory \\ \hline
 L-2        & \tt FileExt & key of first file extension block \\ \hline
-L-1        & \tt SecType & shall be 2, setthis is the BCPL constant ST.USERDIR \\ \hline
+L-1        & \tt SecType & shall be -3, this is the BCPL constant {\tt ST.FILE}\key{ST.FILE} \\ \hline
 \end{longtable}
 \end{rkrmtabular}
 
@@ -16832,11 +16844,11 @@ block is created keeping only the comment, and this element then only keeps
 the file name.
 \smallskip{}
 
-{\tt CmtBlk} is the key of the comment block, keeping the file comment if
+{\tt CmtBlk} is the key of the comment block\key{Comment Block}, keeping the file comment if
 the {\tt NaC} element is too short. If no comment block is needed, this
-element is~0.
+element is~0. The comment block\key{Comment Block} is described in section~\ref{sec:commentblock}.
 
-\subsection{The Soft- and Hard-Link Block}
+\subsection{The Soft- and Hard-Link Block} \label{sec:linkblock}
 
 The soft- and hard-link block represent a soft-link or a hard-link to
 another file system object. Similar to the file header and user directory
