@@ -17427,6 +17427,11 @@ representing the block contents:
 /* Bring key to memory */
 ULONG *readKey(ULONG key);
 
+/* Offsets of block elements */
+#define BMKeys 49
+#define BMNext 1
+#define BMExt  24
+
 /* Check whether a particular key is allocated */
 LONG isKeyAllocated(ULONG longsperblock,ULONG reservedblocks,
                     ULONG key,ULONG rootkey)
@@ -17436,6 +17441,7 @@ ULONG  bitmap;
 ULONG  keyinbitmap;
 ULONG  longoffset;
 ULONG *block;
+ULONG  bitinlong;
 
   /* compute the number of keys per bitmap */
   keysperbitmap = (longsperblock - 1) * 32;
@@ -17449,14 +17455,16 @@ ULONG *block;
   bitinlong     = keyinbitmap % 32;
   /* read the root block */
   block         = readKey(rootkey);
+
   /* Check whether the bitmap is linked in the root 
   ** block or not. The first 25 are.
   */
   if (bitmap < 25) {
-    /* Bring the proper keymap into memory */
-    block = readKey(block[bitmap + BMKeys]);
+     /* Bring the proper keymap into memory */
+     block = readKey(block[bitmap + longsperblock - BMKeys]);
   } else {
      LONG extension,keyoffset;
+
      /* Compute the extension block required, 
      ** and key offset within the extension block
      ** to the bitmap block.
@@ -17464,17 +17472,18 @@ ULONG *block;
      extension = (bitmap - 25) / (longsperblock - 1);
      keyoffset = (bitmap - 25) % (longsperblock - 1);
      /* read the first extension block */
-     block     = readKey(block[BMExt]);
+     block     = readKey(block[longsperblock - BMExt]);
      /* Follow the link chain of extension 
      ** blocks to find the right one
      */
      while(extension > 0) {
-       block   = readKey(block[BMNext]); 
+       block   = readKey(block[longsperblock - BMNext]); 
        extension--;
      }
      /* Now read the right bitmap */
      block     = readKey(block[keyoffset]);
   }
+
   /* check the bit corresponding to the key */  
   if (block[longoffset] & (1UL << bitinlong)) {
     return DOSTRUE; /* is allocated */
