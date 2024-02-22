@@ -16241,10 +16241,121 @@ hard-disk and not actually used for booting. It is found at sector
      \mbox{\tt de\_BlocksPerTrack}
 \]
 
-of the device. Note that this is not necessarily the sector~0 if the volume
-is a partition of a hard-disk. The remaining data of the boot block is not
-used by the FFS\key{Fast File System (FFS)} but, at least for floppy disks, for bootblock booting. The boot
-mechanism is specified in~\cite{rkrmdev} and is beyond the scope of this book.
+of the device. Note that this is not necessarily the sector~0 if the
+volume is a partition of a hard-disk. The remaining data of the boot
+block is not used by the FFS\key{Fast File System (FFS)} but for
+bootblock booting, namely for floppy disks and for those partitions
+whose {\tt de\_BootBlocks}\key{de\_BootBlocks} element (see~\ref{sec:envec}) in the
+environment vector is larger than~0.
+\medskip{}
+
+The boot mechanism is part of the {\tt strap} module of the Kickstart
+ROM and specified in more detail in~\cite{rkrmdev}. In short, the
+Kickstart supports two boot mechanisms, boot block booting depending
+on the contents of the boot block described in this section, and boot
+point booting, which depends on an Autoconfig ROM implementing the
+boot procedure. For harddisks, the latter boot protocol is most
+relevant and typically used, though in principle boot block booting as
+for floppy disks is also supported.
+\smallskip{}
+
+The structure of the boot block is follows:
+
+\begin{rkrmtabular}{Boot Block} \label{table:bootblock}
+\begin{longtable}{|l|l|l|} \hline
+{\bf Long-word Offset} & {\bf Content} & {\bf Notes} \\ \hline \hline
+0                      & {\tt DosType} & Encodes the flavour of the FFS \\ \hline
+1                      & {\tt Chksum}  & Checksum over this block \\ \hline
+2                      & {\tt RootBlk} & Sector of the Root Block \\ \hline
+3                      & {\tt Code}    & Boot code \\ 
+\multicolumn{3}{;{1.5pt/1.5pt}c;{1.5pt/1.5pt}}{} \\ \hline
+\end{longtable}
+\end{rkrmtabular}
+
+{\tt DosType}\key{DosType (Boot Block)} contains the file system
+identifier (or the flavour) of the FFS. It is one of the constants
+from table~\ref{table:ffsflavours} in section~\ref{sec:envec} or the
+special value {\tt 'BOOT'} also indicating a bootable (non-FFS) partition. All
+other values are rejected by the {\tt strap} module, it does not allow
+bootblock booting from such devices.
+\smallskip{}
+
+The {\tt DosType} constant is not, in general, the file system type,
+i.e.\ other file systems do not (necessarily) install their identifier
+here. It is only read by the FFS to configure itself. That the
+{\tt Info()}\key{Info()} function of section~\ref{sec:info} returns these
+identifies in {\tt id\_DiskType}\key{id\_DiskType} is a side effect of
+an FFS being mounted on the particular medium, reading the type, and
+from that deciding whether it is able to interpret the disk
+structure. If it is not, it does not touch the partition, but leaves
+the long word identifier of the first long word in {\tt id\_DiskType}
+for other programs to observe.
+\smallskip{}
+
+The special value $-1$ in {\tt DosType} currently puts the FFS into a
+state where it assumes that there is no disk present. This is,
+however, only a side effect of its implementation and shall not be
+relied upon.
+\medskip{}
+
+{\tt Chksum}\key{Chksum (Boot Block)} is the checksum over the
+bootblock. It is computed in a somewhat different way from the
+checksum the FFS takes as it is the {\tt strap} module that implements
+the boot mechanism, and not the file system. The checksum is computed
+over all long words of the {\tt de\_BootBlocks}\key{de\_BootBlocks},
+including the carry which is added into the sum as well. The entire
+sum, over all boot blocks, including the {\tt Chksum}, must be $-1$ in
+order to enable execution of the boot code.
+\medskip{}
+
+The following small assembler code verifies the checksum and expects
+in register {\tt a0} the pointer to the loaded boot blocks, and in
+register {\tt d0} the total byte size of the boot block as computed by
+\[
+\mbox{\tt d0} = \mbox{\tt de\_BootBlocks} \times \mbox{\tt de\_SizeBlock} \times 4
+\]
+It returns a non-zero result code in case the boot code is
+suitable for booting, and zero in case the checksum is not valid:
+
+\begin{verbatim}
+CheckBootBlock:
+                move.l  d0,d1
+                lsr.l   #2,d1
+                moveq   #0,d0
+                bra.s   smbbSumDBF  
+smbbSumLoop:
+                add.l   (a0)+,d0
+                bcc.s   smbbSumDBF
+                addq.l  #1,d0
+smbbSumDBF:
+                dbf     d1,smbbSumLoop
+                not.l   d0
+                seq.b   d0
+                ext.w   d0
+                ext.l   d0
+                rts
+\end{verbatim}
+
+{\tt RootBlk}\key{RootBlk (Boot Block)} is the sector number of the
+root block, see section~\ref{sec:rootblock}, or at least it should
+be. However, nothing in the system depends on its value, and the FFS
+does not take the position of the root block from here. Instead, it
+computes it from the disk geometry as indicated in~\ref{sec:rootblock}.
+Actually, it is deposited here by the {\tt Install} command, which does
+not even attempt to adjust this value depending on whether a double or high
+density floppy disk is installed. Thus, program code cannot rely on this value being
+correct.
+\medskip{}
+
+{\tt Code}\key{Code (Boot Block)} is the boot code in 68000 machine
+code that is executed if the {\tt DosType} is valid and the
+{\tt Chksum} is valid. All the default boot code does is that it locates the
+{\tt dos.library} resident module and intializes it. Under AmigaDOS~36
+and later, it also sets the {\tt EBF\_SILENTSTART} flag in the
+{\tt expansion.library} to prevent the System-Startup component from opening
+the boot console, see section~\ref{sec:sysstartup} for additional
+details.
+
 
 \subsection{Disk Keys and Sectors} \label{sec:key}
 
@@ -16398,8 +16509,8 @@ represented as a BSTR, i.e.\ the first character is the length of the string:
 \begin{verbatim}
 ULONG ComputeHash(UBYTE *name)
 {
-ULONG size = *name++; /* String size, this is a BSTR */
-ULONG hash = size;    /* Initial hash is string length */
+  ULONG size = *name++; /* String size, this is a BSTR */
+  ULONG hash = size;    /* Initial hash is string length */
 
   while(size) {
    ULONG c = *name++;
