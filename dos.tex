@@ -11228,7 +11228,7 @@ different\footnote{Historically, it seems plausible that the exec
 \smallskip{}
 
 To trigger an asynchronous input or output operation, the caller first
-needs to create a {\tt DosPacket}, see section~\ref{sec:dospacket},
+needs to create a {\tt DosPacket}\key{DosPacket}, see section~\ref{sec:dospacket},
 fill this packet with the action requested from the handler plus zero
 or more additional arguments and then send the packet to the handler
 with~{\tt SendPkt()}, see section~\ref{sec:sendpkt}.  The sending
@@ -11279,7 +11279,7 @@ struct DosPacket {
 \emph{Packets} ride on top of exec messages, see~\cite{rkrmlib} and {\tt exec/ports.h},
 but they do not extend the {\tt Message} structure as it would be
 usually the case. Instead, {\tt mn\_Node.ln\_Name} of the exec message
-is (mis-)used to point to the {\tt DosPacket} and its {\tt dp\_Link}
+is (mis-)used to point to the {\tt DosPacket}\key{DosPacket} and its {\tt dp\_Link}
 element points back to the message, thus establishing a two-way
 linkage between packet and message. The reply port of the message in
 {\tt mn\_ReplyPort} is \emph{not} used; instead, the message carrying
@@ -11446,7 +11446,7 @@ corresponding to the message.
 
 This function does not test whether the received message does,
 actually, belong to a packet. The caller shall ensure that only
-messages corresponding to {\tt DosPacket}s can arrive at the process
+messages corresponding to {\tt DosPacket}s\key{DosPacket} can arrive at the process
 message port, and shall remove all other messages from this port
 before.
 \smallskip{}
@@ -14754,7 +14754,7 @@ but a BSTR whose first element is the size of the string. This is the
 the device name. For the CON-Handler\key{CON-Handler} for example,
 this is the window specification that informs the handler on the
 position, size and title of the console; window parameters are \emph{not} taken from
-the subsequent {\tt DosPacket} send for opening a file, see also
+the subsequent {\tt DosPacket}\key{DosPacket} send for opening a file, see also
 section~\ref{sec:console}.
 \smallskip{}
 
@@ -15564,7 +15564,7 @@ data from it. This is usually an indicator to the receiving program to
 interrupt processing or interrupt a script. If the most recent reading or
 writing processes are different, the corresponding signal will be send
 twice, and a program can explicitly request receiving signals instead
-of the most recently reading program by the {\tt DosPacket}
+of the most recently reading program by the {\tt DosPacket}\key{DosPacket}
 {\tt ACTION\_CHANGE\_SIGNAL}, see section~\ref{sec:action_change_signal}.
 \smallskip{}
 
@@ -15713,7 +15713,7 @@ the console is as follows: First, the console delivers a {\tt CSI} {\tt U} TAB
 Report sequence to the shell. The Shell will then check its history
 for the previously issued command, and will insert the line from the history
 with {\tt ACTION\_FORCE}\key{ACTION\_FORCE} back into the console. The
-latter is a special {\tt DosPacket} that emulates keystrokes, i.e. the
+latter is a special {\tt DosPacket}\key{DosPacket} that emulates keystrokes, i.e. the
 Shell \emph{types} the previous command from the history into the
 console. The advantage of this construction is that the command history becomes available
 to programs operating in the Shell, and can be retrieved or modified from there,
@@ -17654,27 +17654,65 @@ purpose.
 
 \chapter{Packet Documentation} \label{sec:packettypes}
 
-Packets are the mechanism by which the \emph{dos.library} communicates
-with file systems and handlers. Their structure is specified in
-section~\ref{sec:dospacket}. The activity a handler is requested to
-perform is defined through the packet type, contained in the {\tt
-  dp\_Type} element of the handler.
+Packets --- or {\tt DosPacket}s\key{DosPacket} by the name of the
+structure --- are the mechanism by which the \emph{dos.library}
+communicates with file systems and handlers, and by which the library
+delegates function to them. Many functions of the library are only a
+thin wrapper around this packet interface, and run internally into the
+{\tt DoPkt()}\key{DoPkt()} function which creates and transmits such
+packets, then waits for the response of the handler and retrieves the
+result codes. Chapter~\ref{sec:directpkts} introduces this function,
+and also specifies in section~\ref{sec:dospacket} the structure of
+such packets.
 \smallskip{}
 
-This chapter documents all packets the AmigaDOS handlers and file
-systems support. Third party handlers may support additional packets.
-It is permissible to implement additional packet types as long as they
-do not conflict with existing packets. In particular, the range from
-2050 to 2999 is available for third party handler implementations.
+When a handler receives a packet, it checks its {\tt
+  dp\_Type}\key{dp\_Type} element for the requested action, retrieves
+the parameters from it, executes the requested function, then fills
+the packet with the results of this function and replies it to the
+originating process. Section~\ref{sec:handlermain} provides more
+details and also includes a minimalistic handler as an example.
+\smallskip{}
+
+This chapter documents the possible values of {\tt dp\_Type} and thus
+the possible requests the \emph{dos.library} and the users of the
+direct packet interface can submit. It is most relevant for
+implementors of handlers and file systems that want to learn which
+packet types a handler is required to support. However, the list is
+also interesting for authors of application programs as they will find
+here packet types triggering functions that are only available
+through the direct packet interface, i.e.\ {\tt DoPkt()}\key{DoPkt()}
+(or in general the functions of chapter~\ref{sec:directpkts}) and not through any
+other function of the \emph{dos.library}.
+\smallskip{}
+
+While this list covers all packets currently defined by AmigaDOS,
+third party handlers may support additional packets;
+section~\ref{sec:thirdpartypackets} lists some generally known packets
+that are not part of AmigaDOS but have been used in the past, though
+this list is not necessarily complete. In general, {\tt dp\_Type}\key{dp\_Type}
+values between 2050 and 2999 are reserved for private purposes.
 
 \section{Packets for File Interactions} \label{sec:fileactions}
 
-The packet types listed in this section are used to implement file-specific
-functions, such as those listed in chapter~\ref{sec:file}. The arguments of
-the packets typically follow the calling conventions of the
-\emph{dos.library} functions closely, though are typically represented in
-their BCPL equivalents, i.e.\ BPTRs instead of regular pointers or
-BSTRs instead of {\tt NUL}-terminated C strings.
+The packet types listed in this section implement functions of the
+\emph{dos.library} that operate on or with files, such as the library
+functions listed in chapter~\ref{sec:file}. They open and close files,
+read data from files are write data to files, or set the position of
+the file pointer. These packets shall be supported by almost any
+handler and are not exclusive to file systems. This section also
+list the packets implementing the record locking interface of 
+section~\ref{sec:recordlocking}, which is however an optional extension.
+\smallskip{}
+
+The arguments of the packets usually mirror the arguments of the
+corresponding \emph{dos.library} functions closely, though are often
+represented in their BCPL equivalents, i.e.\ BPTRs instead of regular
+pointers or BSTRs instead of {\tt NUL}-terminated C strings. The
+conversion of the C strings to BSTRs are performed
+transparently within the \emph{dos.library}. Unfortunately, it means
+that even handlers written in Assembler or C need to deal with legacy
+BCPL data types.
 
 \subsection{Opening a File for Shared Access} \label{sec:actionfindinput}
 
@@ -21045,7 +21083,7 @@ to~0. On an error {\tt dp\_Res2} shall be set to {\tt DOSFALSE} and
 The packets in this section shall never be sent to a handler or filesystem
 as part of an application request. Instead, these packets are only used
 internally within the handler, and are rather an implementation trick to
-uniform the handler event processing. While regular {\tt DosPackets} are
+uniform the handler event processing. While regular {\tt DosPackets}\key{DosPacket} are
 carried by an exec message, the packets listed here are instead linked to an
 {\tt IORequest} (see {\tt exec/io.h}). This allows using a shared port,
 typically the {\tt pr\_MsgPort} of the handler process, for receiving
@@ -23742,7 +23780,7 @@ the resident segment\key{Segment (resident)} list will thus follow C or assemble
 \smallskip{}
 
 Regardless of whether the Shell is run as BCPL or C program, it
-receives a startup-package in the form of a {\tt DosPacket} structure
+receives a startup-package in the form of a {\tt DosPacket}\key{DosPacket} structure
 similar to handlers and file systems. The startup code from
 section~\ref{sec:bcplbinding} provides a minimal interface for the
 BCPL runtime binding, and is also safe to use for C shells.  For the
@@ -23894,7 +23932,7 @@ LONG CliInitRun( struct DosPacket * )
 \end{verbatim}
 
 This function is part of the shell\key{Shell} initialization. The {\tt packet} is the
-{\tt DosPacket} the shell received as startup information; the function
+{\tt DosPacket}\key{DosPacket} the shell received as startup information; the function
 initializes from it all elements of the {\tt
   CommandLineInterface}\key{CommandLineInterface} structure stored in the
 {\tt pr\_CLI}\key{pr\_CLI} BPTR of the calling process.
