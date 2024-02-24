@@ -17724,51 +17724,57 @@ The packet {\tt ACTION\_FINDINPUT}\mkey{ACTION\_FINDINPUT} initializes a
 \tt dp\_Type  & \tt ACTION\_FINDINPUT (1005) \\ \hline
 \tt dp\_Arg1  & BPTR to {\tt FileHandle} \\ \hline
 \tt dp\_Arg2  & BPTR to {\tt FileLock} \\ \hline
-\tt dp\_Arg3  & BPTR to BSTR of the file name \\ \hline \hline
+\tt dp\_Arg3  & BPTR to BSTR of the path \\ \hline \hline
 \tt dp\_Res1  & Boolean result code \\ \hline
 \tt dp\_Res2  & Error code \\ \hline
 \end{rkrmtable}
 
 This packet is used by the {\tt Open()}\key{Open()} function of the
-\emph{dos.library} where the packet type is taken copied from the second
-argument, i.e.\ the packet type is identical to the {\tt accessMode} argument
-of {\tt Open()}, and thus {\tt ACTION\_FINDINPUT}\key{ACTION\_FINDINPUT} is
-identical to {\tt MODE\_OLDFILE}\key{MODE\_OLDFILE}.
+\emph{dos.library} which copies the packet type from its second
+argument, namely {\tt accessMode}. The macro
+{\tt ACTION\_FINDINPUT}\key{ACTION\_FINDINPUT} therefore expands to the
+same value as {\tt MODE\_OLDFILE}\key{MODE\_OLDFILE}.
 \smallskip{}
 
-{\tt dp\_Arg1} is initialized to {\tt BPTR} to a {\tt
-  FileHandle}\key{FileHandle} structure whose {\tt fh\_Arg1} handle should
-be initialized to a value the handler or file system may use later on to
-identify the file it operates on. This is particularly important to
-file systems that handle multiple files by a single process. In a
-typical implementation, this opaque value may be the (internal) lock\key{Lock} to the
+{\tt dp\_Arg1} is a {\tt BPTR} to a {\tt FileHandle}\key{FileHandle}
+structure whose {\tt fh\_Arg1}\key{fh\_Arg1} handle should be initialized to a value
+the handler or file system may use later on to identify the file
+opened by this packet, see also section~\ref{sec:filehandle} for the specification of
+this structure. This step is recommended because all other packets
+that operate on files do not include the {\tt FileHandle} as one of
+their arguments, but instead the value placed here. In a typical
+implementation, this value may be the (internal) lock\key{Lock} to the
 opened file.
 \smallskip{}
 
 A handler or file system may also replace the {\tt fh\_Type}\key{fh\_Type}
-element of the {\tt FileHandle} structure request that packets concerning
-this particular file shall be delivered to an alternative port. This element
-otherwise defaults to the process port of the handler.
+element of the {\tt FileHandle} structure by
+a pointer to an alternative port subsequent requests related to this
+file will be delivered to. This is a second mechanism by which a file
+system or handler may disambiguate files. Otherwise, {\tt fh\_Type}
+keeps its original value, namely the port to which the request to open
+the file was delivered.
 \medskip{}
 
-{\tt dp\_Arg2} is initialized to the {\tt BPTR} to a {\tt
-  FileLock}\key{FileLock} structure describing the directory within which
-the file to be opened is located. Typically, this corresponds to the current
-directory of the caller of {\tt Open()}\key{Open()}. If this lock\key{Lock} is {\tt
-  ZERO}, then the file system shall assume that the provided path is
-relative to the root directory of the currently inserted volume. Flat file
-systems or handlers may ignore this argument.
+{\tt dp\_Arg2} contains a {\tt BPTR} to a {\tt FileLock}\key{FileLock}
+structure identifying the directory within which the file to be opened is located.
+Typically, this corresponds to the current directory of the caller of {\tt Open()}\key{Open()}.
+If this lock\key{Lock} is {\tt ZERO}, then the file system shall assume
+that the provided path is relative to the root directory of the
+currently inserted volume. Flat file systems or handlers may ignore
+this argument.
 \smallskip{}
 
-{\tt dp\_Arg3} is initialized to a {\tt BPTR} to a {\tt BSTR} providing the
-path of the file relative to the directory provided by {\tt dp\_Arg1}.
+{\tt dp\_Arg3} contains a {\tt BPTR} to a {\tt BSTR} providing the
+path of the file relative to the directory in {\tt dp\_Arg1}. That is, it
+is the path of the file to be opened.
 \medskip{}
 
 All other arguments of the packet shall be ignored. The handler should
 locate the file indicated by {\tt dp\_Arg3} relative to {\tt dp\_Arg2}, and
-fill in a boolean success code in {\tt dp\_Res1}. It shall be set to {\tt
-  DOSTRUE} for success or {\tt DOSFALSE} for error. {\tt dp\_Res2} shall be
-set to an error code from {\tt dos/dos.h} or~0 for success.
+fill in a boolean success code in {\tt dp\_Res1}. It shall be set to
+{\tt DOSTRUE} for success or {\tt DOSFALSE} for error. {\tt dp\_Res2} shall be
+set to an error code from {\tt dos/dos.h} or error or~0 for success.
 \medskip{}
 
 The purpose of this packet is to prepare a {\tt FileHandle} structure for
@@ -17779,30 +17785,32 @@ used by the {\tt Open()}\key{Open()} function if its second argument is set
 to {\tt MODE\_OLDFILE}\key{MODE\_OLDFILE}.
 \smallskip{}
 
-Handlers such that the Port-Handler\key{Port-Handler} or the CON-Handler\key{CON-Handler} may already open
-its resources as part of the startup-packet handling and thus may not
-perform a lot of activities here. Note that both handlers do not initialize
-{\tt dol\_Task}\key{dol\_Task} of the {\tt DosList}\key{DosList} structure
-and thus each opened file will launch a new process. The FFS, however, runs
-on a single process and thus distinguishes its files through {fh\_Arg1} in
-the {\tt FileHandle} structure.
+Handlers such as the Port-Handler\key{Port-Handler} or the
+CON-Handler\key{CON-Handler} may already open their resources as part of
+the startup-packet handling and thus may not need to perform a lot of
+activities here, except incrementing a use counter. Note that the
+CON-Handler does not initialize {\tt dol\_Task}\key{dol\_Task} of the
+{\tt DosList}\key{DosList} structure and thus each opened file will
+launch a new process. The FFS, however, runs on a single process and
+thus distinguishes its files through {\tt fh\_Arg1} in the {\tt FileHandle} structure.
 \smallskip{}
 
-Note that both the Lock provided by {\tt dp\_Arg2} and the path {\tt
-  dp\_Arg3} are required for locating a file on a hierarchical file
-system. The path from {\tt dp\_Arg3} is logically ``appended'' to the path
-implied by {\tt dp\_Arg2}, i.e.\ the file system starts interpreting the
-former by scanning the directory hierarchy at the position given by {\tt
-  dp\_Arg2}, or the root directory if {\tt dp\_Arg2} is~{\tt ZERO}.
+Both the Lock provided by {\tt dp\_Arg2} and the path {\tt dp\_Arg3}
+are required for locating a file in a hierarchical file system. The
+path from {\tt dp\_Arg3} is logically ``appended'' to the path implied
+by {\tt dp\_Arg2}, i.e.\ the file system starts interpreting the
+former by scanning the directory hierarchy at the position given by
+{\tt dp\_Arg2}, or the root directory if {\tt dp\_Arg2} is~{\tt ZERO}.
 \smallskip{}
 
-A special case arises if {\tt dp\_Arg3} is the empty string; in such a case,
-{\tt dp\_Arg2} shall be already a Lock to the file to open. This is implied
-by the above algorithm to locate a file that ends walking the directory tree
-whenever {\tt dp\_Arg3} ends.
+A special case arises if {\tt dp\_Arg3} is the empty string; in such a
+case, {\tt dp\_Arg2} shall be already a lock to the file to open. This
+is implied by the above algorithm: Walking a directory tree ends
+whenever the path terminates, and in this case it terminates right at
+the lock from {\tt dp\_Arg3}.
 \smallskip{}
 
-\subsection{Opening a File for Exclusive Access}
+\subsection{Opening a File for Exclusive Access} \label{sec:actionfindoutput}
 
 The packet {\tt ACTION\_FINDOUTPUT}\mkey{ACTION\_FINDOUTPUT} initializes a
 {\tt FileHandle}\key{FileHandle} structure for exclusive access to a file
@@ -17813,21 +17821,34 @@ and potentially creates the file if it does not yet exist.
 \tt dp\_Type  & \tt ACTION\_FINDOUTPUT (1006) \\ \hline
 \tt dp\_Arg1  & BPTR to {\tt FileHandle} \\ \hline
 \tt dp\_Arg2  & BPTR to {\tt FileLock} \\ \hline
-\tt dp\_Arg3  & BPTR to BSTR of file name \\ \hline \hline
+\tt dp\_Arg3  & BPTR to BSTR of the path \\ \hline \hline
 \tt dp\_Res1  & Boolean result code \\ \hline
 \tt dp\_Res2  & Error code \\ \hline
 \end{rkrmtable}
 
 This packet is used by the {\tt Open()}\key{Open()} function of the
-\emph{dos.library} where the packet type is taken copied from the second
-argument, i.e.\ the packet type is identical to the {\tt accessMode} argument
-of {\tt Open()}, and thus {\tt ACTION\_FINDOUTPUT}\key{ACTION\_FINDOUTPUT}
-is identical to {\tt MODE\_NEWFILE}\key{MODE\_NEWFILE}.
+\emph{dos.library} which copies the packet type from its second
+argument, namely {\tt accessMode}. The macro
+{\tt ACTION\_FINDOUTPUT}\key{ACTION\_FINDOUTPUT} therefore expands to the
+same value as {\tt MODE\_NEWFILE}\key{MODE\_NEWFILE}.
 \smallskip{}
 
-The arguments of the packet are initialized as for {\tt
-  ACTION\_FINDINPUT}\key{ACTION\_FINDINPUT}, see
-section~\ref{sec:actionfindinput}.
+The arguments of the packet are initialized as for
+{\tt ACTION\_FINDINPUT}\key{ACTION\_FINDINPUT}, see
+section~\ref{sec:actionfindinput}, and the primary and secondary
+result codes {\tt dp\_Res1} and {\tt dp\_Res2} shall be set
+likewise. Also, file systems should deposit a unique value
+identifying the file in {\tt fh\_Arg1} of the file handle.
+\smallskip{}
+
+If the file identified by {\tt dp\_Arg2} and {\tt dp\_Arg3} does not
+exist, though all directories but the last component of the
+path in {\tt dp\_Arg3} do exist, then this packet shall not fail.
+Instead, it shall create a file in the target directory under the name
+given by the last component of the path. In short, while this packet
+shall create non-existing files, it shall not attempt to create
+intermediate directories between the directory in {\tt dp\_Arg2}
+and the file.
 
 \subsection{Opening or Creating a File for Shared Access}
 
@@ -17846,15 +17867,33 @@ potentially creating the file if it does not yet exist.
 \end{rkrmtable}
 
 This packet is used by the {\tt Open()}\key{Open()} function of the
-\emph{dos.library} where the packet type is taken copied from the second
-argument, i.e.\ the packet type is identical to the {\tt accessMode} argument
-of {\tt Open()}, and thus {\tt ACTION\_FINDUPDATE}\key{ACTION\_FINDUPDATE}
-is identical to {\tt MODE\_READWRITE}\key{MODE\_READWRITE}.
+\emph{dos.library} which copies the packet type from its second
+argument, namely {\tt accessMode}. The macro
+{\tt ACTION\_FINDUPDATE}\key{ACTION\_FINDUPDATE} therefore expands to the
+same value as {\tt MODE\_READWRITE}\key{MODE\_READWRITE}.
 \smallskip{}
 
 The arguments of the packet are initialized as for
 {\tt ACTION\_FINDINPUT}\key{ACTION\_FINDINPUT}, see
-section~\ref{sec:actionfindinput}.
+section~\ref{sec:actionfindinput}, except that the packet shall create
+the file in case it does not exist. The primary and secondary result
+codes {\tt dp\_Res1} and {\tt dp\_Res2} shall be set likewise. Also,
+file systems should deposit a unique value identifying the file in
+{\tt fh\_Arg1} of the file handle.
+\smallskip{}
+
+The packet is quite similar to
+{\tt ACTION\_FINDOUTPUT}\key{ACTION\_FINDOUTPUT} described in
+section~\ref{sec:actionfindoutput} as it also creates new files,
+though the file is opened in shared mode and not in exclusive mode.
+\smallskip{}
+
+The purpose of this packet changed, unfortunately, with AmigaDOS~36
+and what is documented above relates to this and all newer
+versions. The BCPL implementation of the OFS, and thus AmigaDOS~34 and
+before used this packet to open an existing file in exclusive mode,
+quite the reverse from what the packet does today. More details on
+this change is found in section~\ref{sec:open}.
 
 \subsection{Opening a File from a Lock}
 
@@ -17874,20 +17913,33 @@ lock. Upon success, the lock is absorbed into the {\tt FileHandle}.
 
 This packet type implements the {\tt OpenFromLock()}\key{OpenFromLock()}
 function of the \emph{dos.library}, see section~\ref{sec:openfromlock}. It
-opens a file from a lock\key{Lock}. On a hierarchical file system, this is equivalent
+opens a file from a lock\key{Lock}. For hierarchical file systems, this is equivalent
 to an {\tt ACTION\_FINDINPUT}\key{ACTION\_FINDINPUT} packet with {\tt
   dp\_Arg3} set to an empty string.
 \smallskip{}
 
-To uniquely identify the file handle\key{FileHandle} and resources associated to it later
-on, the handler may place an identifier or a handle or pointer to internal
-resources in the {\tt fh\_Arg1} element of the {\tt FileHandle} provided by
-{\tt dp\_Arg1}. Before replying the packet, {\tt dp\_Res1} shall be set by
-the handler to {\tt DOSTRUE} on success, or {\tt DOSFALSE} on error. On
-success, {\tt dp\_Res2} shall be set to~$0$, and to an error code from {\tt
-  dos/dos.h} otherwise.
+To uniquely identify the file and resources associated to it, the
+handler may --- and file systems should --- place an identifier or a
+handle or pointer to internal resources in the {\tt fh\_Arg1} element
+of the {\tt FileHandle}\key{FileHandle} provided in {\tt dp\_Arg1}.
+This value is delivered as argument of subsequent packets operating on
+the file and allows file systems to identify the target to work on.
+More on this in section~\ref{sec:actionfindinput}.
+\smallskip{}
 
-\subsection{Closing a File}
+When successful, the lock in {\tt dp\_Arg2} is absorbed into the file
+and shall be released when the file handle is closed by {\tt ACTION\_END}\key{ACTION\_END},
+see~\ref{sec:actionend}. It is no longer available to the process initiating this packet.
+In typical implementations, the lock or internal resources associated to the lock
+are placed in {\tt fh\_Arg1} of the file handle.
+\smallskip{}
+
+Before replying the packet, {\tt dp\_Res1} shall be set by
+the handler to {\tt DOSTRUE} on success, or {\tt DOSFALSE} on error. On
+success, {\tt dp\_Res2} shall be set to~$0$, and to an error code from
+{\tt dos/dos.h} otherwise.
+
+\subsection{Closing a File} \label{sec:actionend}
 
 The packet {\tt ACTION\_END}\mkey{ACTION\_END} releases all \emph{file
 system} internal resources of a file handle\key{FileHandle}.
