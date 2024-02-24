@@ -11,7 +11,7 @@
 \setlength{\oddsidemargin}{0cm}
 \setlength{\evensidemargin}{0cm}
 \setlength{\textwidth}{15.2cm}
-\setlength{\footskip}{1.6cm}
+\setlength{\footskip}{1.2cm}
 %\setlength{\footheight}{0.5cm}
 \setlength{\topmargin}{0.0cm}
 \setlength{\headheight}{0.5cm}
@@ -1851,7 +1851,7 @@ will typically not implement this function as they do not block.
 Under AmigaDOS versions prior to V36, a timeout value of~0 does not function
 properly. This was fixed in V36.
 
-\subsection{Writing Data}
+\subsection{Writing Data} \label{sec:write}
 The {\tt Write()}\mkey{Write()} function writes an array of bytes unbuffered
 to a file, interacting directly with the corresponding handler.
 
@@ -17999,7 +17999,8 @@ system} or handler and advances the file pointer accordingly.
 \end{rkrmtable}
 
 This packet implements the {\tt Read()}\key{Read()} function of the
-\emph{dos.library}. Packet arguments contain the following data:
+\emph{dos.library}, see~\ref{sec:read}.
+Packet arguments contain the following data:
 \smallskip{}
 
 {\tt dp\_Arg1} is a copy from {\tt fh\_Arg1} of the
@@ -18068,7 +18069,8 @@ accordingly.
 \end{rkrmtable}
 
 This packet implements the {\tt Write()}\key{Write()} function of the
-\emph{dos.library}. The elements of the packet are populated as follows:
+\emph{dos.library}, see~\ref{sec:write}.
+The elements of the packet are populated as follows:
 \smallskip{}
 
 {\tt dp\_Arg1} is a copy from {\tt fh\_Arg1} of the {\tt FileHandle}\key{FileHandle}
@@ -18126,14 +18128,14 @@ relative to a base location.
 \tt dp\_Type  & \tt ACTION\_SEEK (1008) \\ \hline
 \tt dp\_Arg1  & {\tt fh\_Arg1} of the {\tt FileHandle} \\ \hline
 \tt dp\_Arg2  & File pointer offset \\ \hline
-\tt dp\_Arg3  & Seek mode from Table~\ref{table:seekmode} \\ \hline \hline
+\tt dp\_Arg3  & Seek mode from Table~\ref{table:seekmode} in~\ref{sec:seek} \\ \hline \hline
 \tt dp\_Res1  & Previous file position \\ \hline
 \tt dp\_Res2  & Error code \\ \hline
 \end{rkrmtable}
 
 This packet implements, to a major degree, the {\tt Seek()}\key{Seek()}
-function of the \emph{dos.library}. The elements of the packet are
-initialized as follows:
+function of the \emph{dos.library}, see~\ref{sec:seek}.
+The elements of the packet contain the following data:
 \smallskip{}
 
 {\tt dp\_Arg1} is a copy from {\tt fh\_Arg1} of the {\tt FileHandle}
@@ -18146,7 +18148,7 @@ position identified by {\tt dp\_Arg3}.
 \smallskip{}
 
 {\tt dp\_Arg3} defines the position to which {\tt dp\_Arg2} is relative. It
-is one of the modes in table~\ref{table:seekmode} and is therefore identical
+is one of the modes in table~\ref{table:seekmode} of section~\ref{sec:seek} and is therefore identical
 to the third argument of {\tt Seek()}\key{Seek()}.
 \smallskip{}
 
@@ -18154,18 +18156,19 @@ Before replying this packet, the handler shall fill {\tt dp\_Res1}
 with the previous value of the file pointer, i.e.\ before making the
 requested adjustment, or to~$-1$ in case an error occurred. In the latter
 case, {\tt dp\_Res2} shall be filled with an error code, otherwise it shall
-be set to~$0$.
+be set to~$0$. In case of an error, the file pointer shall remain unaltered.
 \smallskip{}
 
-While this packet type mostly implement the {\tt Seek()}\key{Seek()} function, the
-latter is also aware of the (caller-side) buffer of the {\tt FileHandle}
-and performs a flush of this buffer. The packet cannot, of course, perform a
-flush.
+While this packet type mostly implement the {\tt Seek()}\key{Seek()}
+function, the latter is also aware of the (caller-side) buffer of the
+{\tt FileHandle} and performs potentially a flush of this buffer. The
+packet cannot, of course, perform this step as it does not have access
+to the buffer of the {\tt FileHandle}\key{FileHandle}.
 
 \subsection{Setting the File Size}
 
 The packet {\tt ACTION\_SET\_FILE\_SIZE}\mkey{ACTION\_SET\_FILE\_SIZE}
-adjusts the size of a file, either truncating or extends it beyond its
+adjusts the size of a file, either truncating it or extending it beyond its
 current end of file.
 
 \begin{rkrmtable}{\tt ACTION\_SET\_FILE\_SIZE} \label{table:actionsetfilesize}
@@ -18173,14 +18176,15 @@ current end of file.
 \tt dp\_Type  & \tt ACTION\_SET\_FILE\_SIZE (1022) \\ \hline
 \tt dp\_Arg1  & {\tt fh\_Arg1} of the {\tt FileHandle} \\ \hline
 \tt dp\_Arg2  & File size adjustment \\ \hline
-\tt dp\_Arg3  & Mode from Table~\ref{table:seekmode} \\ \hline \hline
+\tt dp\_Arg3  & Mode from Table~\ref{table:seekmode} in~\ref{sec:seek} \\ \hline \hline
 \tt dp\_Res1  & Boolean result code \\ \hline
 \tt dp\_Res2  & Error code \\ \hline
 \end{rkrmtable}
 
 This packet implements the {\tt SetFileSize()}\key{SetFileSize()}
-function of the \emph{dos.library}. The elements of the packet are
-initialized as follows:
+function of the \emph{dos.library}, see~\ref{sec:setfilesize}. This
+packet was introduced in AmigaDOS~36. The elements of the packet contain the
+following data:
 \smallskip{}
 
 {\tt dp\_Arg1} is a copy from {\tt fh\_Arg1} of the {\tt FileHandle}
@@ -18188,17 +18192,26 @@ structure and may be used by the file system or handler to
 identify the file.
 \smallskip{}
 
-{\tt dp\_Arg2} defines the new size of the file or equivalently the new
+{\tt dp\_Arg2} defines the new size of the file, or equivalently the new
 position of the end of file, relative to a position identified by
 {\tt dp\_Arg3}.
 \smallskip{}
 
-{\tt dp\_Arg3} defines the position to which {\tt dp\_Arg2} is relative. It
-is one of the modes in table~\ref{table:seekmode} and is therefore identical
+{\tt dp\_Arg3} defines the position {\tt dp\_Arg2} is relative to. It
+is one of the modes in table~\ref{table:seekmode} of section~\ref{sec:seek} and is therefore identical
 to the third argument of {\tt SetFileSize()}\key{SetFileSize()}. The new
 end-of-file position of the file can therefore be set relative to the start
 of the file, i.e.\ {\tt dp\_Arg2} is the new size of the file, relative to
 the current file pointer, or relative to the current end-of-file.
+\smallskip{}
+
+When truncating a file, all contents beyond the new end of file
+are lost. When extending a file, the contents of the file in the
+extended region is \emph{undefined}. Unlike other operating systems,
+AmigaDOS does not enforce zero-initialization of the extended
+region. The file pointers of all file handles accessing this file
+shall be clamped to the new file size, but shall remain
+unaltered otherwise.
 \smallskip{}
 
 Before replying this packet, the handler shall fill {\tt dp\_Res1}
