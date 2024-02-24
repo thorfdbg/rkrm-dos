@@ -1629,7 +1629,7 @@ error condition.
   the file name. While these characters are valid, they should be
   avoided as they make it hard to access such files the shell\key{Shell}.}
 
-\subsection{Closing Files}
+\subsection{Closing Files} \label{sec:close}
 
 The {\tt Close()}\mkey{Close()} function writes all internally
 buffered data to disk and makes an exclusively opened file accessible
@@ -17915,7 +17915,7 @@ This packet type implements the {\tt OpenFromLock()}\key{OpenFromLock()}
 function of the \emph{dos.library}, see section~\ref{sec:openfromlock}. It
 opens a file from a lock\key{Lock}. For hierarchical file systems, this is equivalent
 to an {\tt ACTION\_FINDINPUT}\key{ACTION\_FINDINPUT} packet with {\tt
-  dp\_Arg3} set to an empty string.
+  dp\_Arg3} set to an empty string. This packet is new in AmigaDOS~36.
 \smallskip{}
 
 To uniquely identify the file and resources associated to it, the
@@ -17941,8 +17941,9 @@ success, {\tt dp\_Res2} shall be set to~$0$, and to an error code from
 
 \subsection{Closing a File} \label{sec:actionend}
 
-The packet {\tt ACTION\_END}\mkey{ACTION\_END} releases all \emph{file
-system} internal resources of a file handle\key{FileHandle}.
+The packet {\tt ACTION\_END}\mkey{ACTION\_END} releases all file
+system internal resources related to a file and, if it was opened for
+exclusive acccess, makes it accessible again.
 
 \begin{rkrmtable}{\tt ACTION\_END} \label{table:actionend}
 {\bf DosPacket Element}   & {\bf Value}\\ \hline \hline
@@ -17952,11 +17953,22 @@ system} internal resources of a file handle\key{FileHandle}.
 \tt dp\_Res2  & Error code \\ \hline
 \end{rkrmtable}
 
-{\tt dp\_Arg1} is initialized to the {\tt fh\_Arg1} element of the
-{\tt FileHandle}\key{FileHandle} structure corresponding to the file that is supposed to be
-closed. This value may be used by the File System or Handler
-to uniquely identify the resources associated to the file, for example any
-implicit lock\key{Lock} on the file system object.
+The \emph{dos.library} uses this packet to implement the
+{\tt Close()}\key{Close()} function, see section~\ref{sec:close}.
+\smallskip{}
+
+{\tt dp\_Arg1} contains the {\tt fh\_Arg1} element of the
+{\tt FileHandle}\key{FileHandle} structure corresponding to the file that is
+supposed to be closed. This value may be used by the file system or handler
+to uniquely identify the resources associated to the file, see section~\ref{sec:actionfindinput} for
+more information.
+\smallskip{}
+
+This packet shall close the file, release all resources associated to it
+and, in case the file was opened in exclusive mode, shall make the file
+accessible again. This packet \emph{does not} release the
+{\tt FileHandle} structure, it does not even get access to it --- this
+step is performed by the \emph{dos.library} if the packet indicates success.
 \smallskip{}
 
 Before repyling to the packet, {\tt dp\_Res1} shall be set to {\tt DOSTRUE}
@@ -17964,11 +17976,12 @@ on success or {\tt DOSFALSE} on failure. On success, {\tt dp\_Res2} shall be
 set to~0, or to an error code otherwise.
 \smallskip{}
 
-The \emph{dos.library} uses this packet to implement the {\tt
-  Close()}\key{Close()} function. If it receives an error code, the library
-will not release the memory of the {\tt FileHandle}\key{FileHandle}
-structure, and as such, it remains available to the caller of {\tt
-  Close()}\key{Close()} to perform other activities on the file.
+If this packet is not successful, the \emph{dos.library} will not
+release the memory of the {\tt FileHandle}\key{FileHandle} structure,
+and as such, it remains available for future operations. Thus,
+indicating failure implies that the file and resources associated to
+it remain available, and clients of a file system or handler possibly
+continue to access it.
 
 \subsection{Reading from a File} \label{sec:action_read}
 
@@ -17986,20 +17999,40 @@ system} or handler and advances the file pointer accordingly.
 \end{rkrmtable}
 
 This packet implements the {\tt Read()}\key{Read()} function of the
-\emph{dos.library}. The elements of the packet are initialized as follows:
+\emph{dos.library}. Packet arguments contain the following data:
 \smallskip{}
 
 {\tt dp\_Arg1} is a copy from {\tt fh\_Arg1} of the
 {\tt FileHandle}\key{FileHandle} structure and may be used by the file
 system or handler to identify the file. Note that it is \emph{not} the {\tt
   FileHandle} itself; instead, the handler may create and insert such an
-identifier into the {\tt FileHandle} when opening a file.
+identifier into the {\tt FileHandle} when opening a file, see~\ref{sec:actionfindinput} for details.
 \smallskip{}
 
 {\tt dp\_Arg2} is a pointer (not a BPTR) to the buffer to be filled.
 \smallskip{}
 
 {\tt dp\_Arg3} is the number of bytes to read.
+\smallskip{}
+
+If a file system mounted on an exec device implements this packet by
+reading data from the device, it should check the supplied target
+buffer against {\tt de\_Mask}\key{de\_Mask} in the environment vector
+of the file. If the buffer start or end address binary and'ed with the
+complement of the mask is non-zero, the file system should not attempt
+to directly fill the buffer from the underlying device. Instead, it
+should first read the data into a buffer allocated with the memory
+requirements from {\tt de\_BufMemType}, and copy the buffer contents
+manually to the target buffer. Also, file systems should never read
+more than {\tt de\_MaxTransfer}\key{de\_MaxTransfer} bytes at once,
+and potentially break up the transfer into multiple reads.  These
+workarounds are unfortunately necessary for some broken device
+implementations, see section~\ref{sec:envec} for further details.
+\smallskip{}
+
+If successful, the file pointer of the file shall be advanced by the
+number of bytes that could be read from it. On an error, the file
+pointer shall remain unaltered.
 \smallskip{}
 
 Before replying this packet, the handler shall fill {\tt dp\_Res1}
@@ -18035,7 +18068,7 @@ accordingly.
 \end{rkrmtable}
 
 This packet implements the {\tt Write()}\key{Write()} function of the
-\emph{dos.library}. The elements of the packet are initialized as follows:
+\emph{dos.library}. The elements of the packet are populated as follows:
 \smallskip{}
 
 {\tt dp\_Arg1} is a copy from {\tt fh\_Arg1} of the {\tt FileHandle}\key{FileHandle}
@@ -18048,6 +18081,26 @@ be transferred.
 \smallskip{}
 
 {\tt dp\_Arg3} is the number of bytes to write.
+\smallskip{}
+
+If a file system mounted on an exec device implements this packet by
+writing data to the device, it should check the supplied target buffer
+against {\tt de\_Mask}\key{de\_Mask} in the environment vector of the
+file. If the buffer start or end address binary and'ed with the
+complement of the mask is non-zero, the file system should not attempt
+to directly write the buffer to the underlying device. Instead, it
+should first manually copy the data into a buffer allocated with the memory
+requirements from {\tt de\_BufMemType}, and then write the buffer
+contents to the device. Also, file systems should never write
+more than {\tt de\_MaxTransfer}\key{de\_MaxTransfer} bytes at once,
+and potentially break up the transfer into multiple writes. These
+workarounds are unfortunately necessary for some broken device
+implementations, see section~\ref{sec:envec} for further details.
+\smallskip{}
+
+If successful, the file pointer of the file shall be advanced by the
+number of bytes that could be written. On an error, the file pointer
+shall remain unaltered.
 \smallskip{}
 
 Before replying this packet, the handler shall fill {\tt dp\_Res1}
