@@ -17740,11 +17740,12 @@ same value as {\tt MODE\_OLDFILE}\key{MODE\_OLDFILE}.
 structure whose {\tt fh\_Arg1}\key{fh\_Arg1} handle should be initialized to a value
 the handler or file system may use later on to identify the file
 opened by this packet, see also section~\ref{sec:filehandle} for the specification of
-this structure. This step is recommended because all other packets
+this structure. All other packets
 that operate on files do not include the {\tt FileHandle} as one of
-their arguments, but instead the value placed here. In a typical
-implementation, this value may be the (internal) lock\key{Lock} to the
-opened file.
+their arguments, but instead the value placed here. Interactive handlers, i.e.\
+handlers that implement {\tt ACTION\_WAIT\_CHAR} and understand the ``{\tt *}''\key{*
+  (file name)} and ``{\tt CONSOLE:}'' file names, shall also set the {\tt fh\_Port} element
+of the {\tt FileHandle} to {\tt DOSTRUE}.
 \smallskip{}
 
 A handler or file system may also replace the {\tt fh\_Type}\key{fh\_Type}
@@ -17757,58 +17758,98 @@ the file was delivered.
 \medskip{}
 
 {\tt dp\_Arg2} contains a {\tt BPTR} to a {\tt FileLock}\key{FileLock}
-structure identifying the directory within which the file to be opened is located.
-Typically, this corresponds to the current directory of the caller of {\tt Open()}\key{Open()}.
-If this lock\key{Lock} is {\tt ZERO}, then the file system shall assume
-that the provided path is relative to the root directory of the
-currently inserted volume. Flat file systems or handlers may ignore
-this argument.
+structure identifying the directory within which the file to be opened
+is located. Typically, this corresponds to the current directory of
+the caller of {\tt Open()}\key{Open()}.  If this lock\key{Lock} is
+{\tt ZERO}, then the file system shall assume that the provided path
+is relative to the root directory of the currently inserted
+volume. Handlers that do not implement locks, in particular interactive handlers,
+ignore this argument.
 \smallskip{}
 
 {\tt dp\_Arg3} contains a {\tt BPTR} to a {\tt BSTR} providing the
-path of the file relative to the directory in {\tt dp\_Arg1}. That is, it
-is the path of the file to be opened.
+path of the file relative to the directory in {\tt dp\_Arg2}. That is,
+it is the path of the file to be opened. For interactive handlers, the
+interpretation of the path is up to the handler, see
+sections~\ref{sec:console} or~\ref{sec:porthandler} for examples. Even
+though the interpretation of paths by file systems is up to their
+implementation, too, it is advisable to follow the conventions of
+section~\ref{sec:locate}, namely to separate components by forward
+slashes (``{\tt /}'') and the device name from the path by a colon
+(``{\tt :}''). The path may consist of multiple components whose last
+component is the name of the file, and whose initial components
+indicate a path relative to {\tt Arg2}.
 \medskip{}
 
 All other arguments of the packet shall be ignored. The handler should
 locate the file indicated by {\tt dp\_Arg3} relative to {\tt dp\_Arg2}, and
 fill in a boolean success code in {\tt dp\_Res1}. It shall be set to
-{\tt DOSTRUE} for success or {\tt DOSFALSE} for error. {\tt dp\_Res2} shall be
-set to an error code from {\tt dos/dos.h} or error or~0 for success.
+{\tt DOSTRUE} for success or {\tt DOSFALSE} for error. On error, {\tt dp\_Res2} shall be
+set to an error code from {\tt dos/dos.h}, see also section~\ref{sec:ioerr} for the list, or shall be
+set to~0 on success.
 \medskip{}
 
-The purpose of this packet is to prepare a {\tt FileHandle} structure for
-shared access, allowing both reading and writing. If the file cannot be
-located, this packet \emph{shall not} create it but rather fail with the
-error code {\tt ERROR\_OBJECT\_NOT\_FOUND}\key{ERROR\_OBJECT\_NOT\_FOUND}. This packet is
-used by the {\tt Open()}\key{Open()} function if its second argument is set
-to {\tt MODE\_OLDFILE}\key{MODE\_OLDFILE}.
+The purpose of this packet is to prepare a {\tt FileHandle} structure
+for shared access, allowing both reading and writing. If a file system
+cannot locate the requested file, this packet \emph{shall not} create
+it but rather fail with the error code {\tt ERROR\_OBJECT\_NOT\_FOUND}\key{ERROR\_OBJECT\_NOT\_FOUND}.
 \smallskip{}
 
 Handlers such as the Port-Handler\key{Port-Handler} or the
-CON-Handler\key{CON-Handler} may already open their resources as part of
-the startup-packet handling and thus may not need to perform a lot of
-activities here, except incrementing a use counter. Note that the
-CON-Handler does not initialize {\tt dol\_Task}\key{dol\_Task} of the
-{\tt DosList}\key{DosList} structure and thus each opened file will
-launch a new process. The FFS, however, runs on a single process and
-thus distinguishes its files through {\tt fh\_Arg1} in the {\tt FileHandle} structure.
+CON-Handler\key{CON-Handler} may already open their resources as part
+of the startup-packet handling and thus may not need to perform a lot
+of activities here, except incrementing a use counter, see also section~\ref{sec:handlermain};
+the lock in {\tt dp\_Arg2} is irrelevant for them, and if the path was already interpreted
+during the handler startup, see section~\ref{sec:handlerstartup}, then
+{\tt dp\_Arg3} may also be ignored. Interactive handlers shall be
+prepared to receive in {\tt dp\_Arg3} the file name ``{\tt *}''\key{*
+  (file name)} or a path relative to {\tt CONSOLE:} in which case the
+newly created file shall use the same resources as the already running
+handler process at which port the packet was received, i.e. these special names
+create duplicates of an already open file, see also
+section~\ref{sec:clonehandle}. 
 \smallskip{}
 
-Both the Lock provided by {\tt dp\_Arg2} and the path {\tt dp\_Arg3}
-are required for locating a file in a hierarchical file system. The
-path from {\tt dp\_Arg3} is logically ``appended'' to the path implied
-by {\tt dp\_Arg2}, i.e.\ the file system starts interpreting the
-former by scanning the directory hierarchy at the position given by
-{\tt dp\_Arg2}, or the root directory if {\tt dp\_Arg2} is~{\tt ZERO}.
+Note that the CON-Handler does not initialize {\tt dol\_Task}\key{dol\_Task}
+of the {\tt DosList}\key{DosList} structure and thus each attempt to open
+a file from its device name, i.e.\ ``{\tt CON:}'', ``{\tt RAW:}'' or ``{\tt AUX:}'', will
+request a new handler process, though attempting to re-open the console
+by ``{\tt *}'' or relative to ``{\tt CONSOLE:}'' will re-use an already running handler.
+\smallskip{}
+
+This is different for file systems which do initialize {\tt dol\_Task}
+and thus operate from a single process. In this case {\tt fh\_Arg1} in
+the {\tt FileHandle} structure shall be initialized as it is delivered to subsequent
+packets that operate on the file, and thus allows the file system to identify the file
+to work with. For file systems, both the lock\key{Lock} provided in {\tt dp\_Arg2}
+and the path in {\tt dp\_Arg3} are required for locating the file to
+open. The path from {\tt dp\_Arg3} is logically appended to the
+path locked by {\tt dp\_Arg2}, i.e.\ the file system starts
+interpreting the former by scanning the directory hierarchy at the
+position given by {\tt dp\_Arg2}, or the root directory of the inserted volume if
+{\tt dp\_Arg2} is~{\tt ZERO}.
 \smallskip{}
 
 A special case arises if {\tt dp\_Arg3} is the empty string; in such a
 case, {\tt dp\_Arg2} shall be already a lock to the file to open. This
 is implied by the above algorithm: Walking a directory tree ends
 whenever the path terminates, and in this case it terminates right at
-the lock from {\tt dp\_Arg3}.
+the lock from {\tt dp\_Arg2}.
 \smallskip{}
+
+File systems shall be aware that the same file can be opened multiple
+times in shared access, and that such shared access also permits write
+access to the file. It is therefore advisable to split information on
+the file in two objects, one local object that represents the state of
+the file as seen from each file handle, and a global file specific object that
+stores the properties of the file common to them. Local states of the
+file are, for example, the position of its file pointer which is
+different for each file handle, global states are for example the size of the
+file, i.e.\ its end-of-file position. A pointer to the local object
+could be placed in {\tt fh\_Arg1}\key{fh\_Arg1}, and it
+could contain a pointer to a global object that contains also a
+counter how often a file is accessed, and which is released at the
+point all file handles to the file are closeed.
 
 \subsection{Opening a File for Exclusive Access} \label{sec:actionfindoutput}
 
@@ -17838,17 +17879,22 @@ The arguments of the packet are initialized as for
 section~\ref{sec:actionfindinput}, and the primary and secondary
 result codes {\tt dp\_Res1} and {\tt dp\_Res2} shall be set
 likewise. Also, file systems should deposit a unique value
-identifying the file in {\tt fh\_Arg1} of the file handle.
+identifying the file in {\tt fh\_Arg1} of the file handle, and
+interactive handlers shall set {\tt fh\_Port} of the file
+handle to {\tt DOSTRUE}.
 \smallskip{}
 
-If the file identified by {\tt dp\_Arg2} and {\tt dp\_Arg3} does not
-exist, though all directories but the last component of the
-path in {\tt dp\_Arg3} do exist, then this packet shall not fail.
-Instead, it shall create a file in the target directory under the name
-given by the last component of the path. In short, while this packet
-shall create non-existing files, it shall not attempt to create
-intermediate directories between the directory in {\tt dp\_Arg2}
-and the file.
+For handlers that are not file systems, this packet may share the
+implementation with the packet type {\tt ACTION\_FINDINPUT}, as
+handlers typically do not interpret the access mode under which a resource
+is openend. This is different for file systems: if the file identified by
+{\tt dp\_Arg2} and {\tt dp\_Arg3} does not exist, though all directories
+but the last component of the path in {\tt dp\_Arg3} do exist, then
+this packet shall not fail.  Instead, it shall create a file in the
+target directory under the name given by the last component of the
+path. In short, while this packet shall create non-existing files, it
+shall not attempt to create intermediate directories between the
+directory in {\tt dp\_Arg2} and the file.
 
 \subsection{Opening or Creating a File for Shared Access}
 
@@ -17879,17 +17925,24 @@ section~\ref{sec:actionfindinput}, except that the packet shall create
 the file in case it does not exist. The primary and secondary result
 codes {\tt dp\_Res1} and {\tt dp\_Res2} shall be set likewise. Also,
 file systems should deposit a unique value identifying the file in
-{\tt fh\_Arg1} of the file handle.
+{\tt fh\_Arg1} of the file handle, and
+interactive handlers shall set {\tt fh\_Port} of the file
+handle to {\tt DOSTRUE}.
 \smallskip{}
 
-The packet is quite similar to
+For handlers that are not file systems, this packet may share the
+implementation with the packet type {\tt ACTION\_FINDINPUT}, as
+handlers typically do not interpret the access mode under which a resource
+is openend. For file systems, this packet works quite similar to
 {\tt ACTION\_FINDOUTPUT}\key{ACTION\_FINDOUTPUT} described in
 section~\ref{sec:actionfindoutput} as it also creates new files,
-though the file is opened in shared mode and not in exclusive mode.
+though the file is opened in shared mode and not in exclusive mode, or equivalently,
+this packet works similar to {\tt ACTION\_FINDINPUT}\key{ACTION\_FINDINPUT} except that
+it also creates non-existing files.
 \smallskip{}
 
 The purpose of this packet changed, unfortunately, with AmigaDOS~36
-and what is documented above relates to this and all newer
+and what is documented above is valid for this and all newer
 versions. The BCPL implementation of the OFS, and thus AmigaDOS~34 and
 before used this packet to open an existing file in exclusive mode,
 quite the reverse from what the packet does today. More details on
@@ -20243,7 +20296,7 @@ window, the Aux-Handler which makes a console available through the serial
 port, and the Port-Handler\key{Port-Handler} which reads and writes data through the serial
 or parallel port and also makes the printer accessible to AmigaDOS.
 
-\subsection{Waiting for Input Becoming Available}
+\subsection{Waiting for Input Becoming Available} \label{sec:actionwaitchar}
 
 The packet {\tt ACTION\_WAIT\_CHAR}\mkey{ACTION\_WAIT\_CHAR} waits for
 characters becoming available on an interactive handler.
