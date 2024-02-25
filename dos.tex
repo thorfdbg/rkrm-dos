@@ -17887,14 +17887,26 @@ handle to {\tt DOSTRUE}.
 For handlers that are not file systems, this packet may share the
 implementation with the packet type {\tt ACTION\_FINDINPUT}, as
 handlers typically do not interpret the access mode under which a resource
-is openend. This is different for file systems: if the file identified by
+is openend.
+\smallskip{}
+
+This is different for file systems: if the file identified by
 {\tt dp\_Arg2} and {\tt dp\_Arg3} does not exist, though all directories
 but the last component of the path in {\tt dp\_Arg3} do exist, then
-this packet shall not fail.  Instead, it shall create a file in the
+this packet shall not fail. Instead, it shall create a file in the
 target directory under the name given by the last component of the
 path. In short, while this packet shall create non-existing files, it
 shall not attempt to create intermediate directories between the
 directory in {\tt dp\_Arg2} and the file.
+\smallskip{}
+
+What exactly happens if a file is overwritten that is the target of
+hard links\key{Hard Link} is implementation dependend. The FFS
+replaces the file content such that the links point to the changed
+file. The RAM-Handler\key{RAM-Handler} detaches the links such that
+the links point to the old content, and creates a new independent file
+of the new content.
+
 
 \subsection{Opening or Creating a File for Shared Access}
 
@@ -17933,7 +17945,10 @@ handle to {\tt DOSTRUE}.
 For handlers that are not file systems, this packet may share the
 implementation with the packet type {\tt ACTION\_FINDINPUT}, as
 handlers typically do not interpret the access mode under which a resource
-is openend. For file systems, this packet works quite similar to
+is openend.
+\smallskip{}
+
+For file systems, this packet works quite similar to
 {\tt ACTION\_FINDOUTPUT}\key{ACTION\_FINDOUTPUT} described in
 section~\ref{sec:actionfindoutput} as it also creates new files,
 though the file is opened in shared mode and not in exclusive mode, or equivalently,
@@ -17984,7 +17999,7 @@ When successful, the lock in {\tt dp\_Arg2} is absorbed into the file
 and shall be released when the file handle is closed by {\tt ACTION\_END}\key{ACTION\_END},
 see~\ref{sec:actionend}. It is no longer available to the process initiating this packet.
 In typical implementations, the lock or internal resources associated to the lock
-are placed in {\tt fh\_Arg1} of the file handle.
+are placed in the object placed in {\tt fh\_Arg1} of the file handle.
 \smallskip{}
 
 Before replying the packet, {\tt dp\_Res1} shall be set by
@@ -18024,6 +18039,11 @@ accessible again. This packet \emph{does not} release the
 step is performed by the \emph{dos.library} if the packet indicates success.
 \smallskip{}
 
+If there are still any packets blocking on the file to be closed,
+e.g.\ an {\tt ACTION\_READ}\key{ACTION\_READ} on an interactive stream
+waiting for user input, such requests shall be canceled and replied as well.
+\smallskip{}
+
 Before repyling to the packet, {\tt dp\_Res1} shall be set to {\tt DOSTRUE}
 on success or {\tt DOSFALSE} on failure. On success, {\tt dp\_Res2} shall be
 set to~0, or to an error code otherwise.
@@ -18034,7 +18054,8 @@ release the memory of the {\tt FileHandle}\key{FileHandle} structure,
 and as such, it remains available for future operations. Thus,
 indicating failure implies that the file and resources associated to
 it remain available, and clients of a file system or handler possibly
-continue to access it.
+continue to access it. Unfortunately, it is unclear what a client should
+do in such a situation except retrying the request to close the file later.
 
 \subsection{Reading from a File} \label{sec:action_read}
 
@@ -18073,7 +18094,7 @@ If a file system mounted on an exec device implements this packet by
 reading data from the device, it should check the supplied target
 buffer against {\tt de\_Mask}\key{de\_Mask} in the environment vector
 of the file. If the buffer start or end address binary and'ed with the
-complement of the mask is non-zero, the file system should not attempt
+one's complement of the mask is non-zero, the file system should not attempt
 to directly fill the buffer from the underlying device. Instead, it
 should first read the data into a buffer allocated with the memory
 requirements from {\tt de\_BufMemType}, and copy the buffer contents
@@ -18090,13 +18111,21 @@ pointer shall remain unaltered.
 \smallskip{}
 
 Before replying this packet, the handler shall fill {\tt dp\_Res1}
-with the number of bytes that could be transferred into the buffer, or~$-1$
-for an error condition. This number may also be~0 if no data could be
-transferred, either because the end of file has been reached, or because
-currently no data is available on an interactive file, such as the console
-or the serial port. In case of an error, i.e.\ for the primary result
-code~$-1$, {\tt dp\_Res2} shall be filled with an error code, otherwise it
-shall be set to~$0$.
+with the number of bytes that could be transferred to the buffer,
+or~$-1$ for an error condition. This number may also be~0 if no data
+could be transferred, either because the end of file has been reached,
+or because currently no data is available. Interactive handlers
+typically block in this situation, i.e.\ do not respond to the packet,
+unless there is some data available and then deliver the amount of
+data they can supply, even if this is less data than
+requested. Details, however, depend on the handler and its
+configuration; the Port-Handler\key{Port-Handler}, for example, can be configured such that it does not
+block but returns~0 bytes in such a case, see section~\ref{sec:portpath}.
+\smallskip{}
+
+In case of an error, i.e.\ if the primary result
+code is~$-1$, {\tt dp\_Res2} shall be filled with an error code from {\tt dos/dos.h} or the
+list from section~\ref{sec:ioerr}, otherwise it shall be set to~$0$.
 \smallskip{}
 
 Note that there are no separate packet types corresponding to the buffered
@@ -18131,7 +18160,7 @@ structure and may be used by the file system or handler to
 identify the file.
 \smallskip{}
 
-{\tt dp\_Arg2} is a pointer (not a BPTR) to the buffer contaiing the data to
+{\tt dp\_Arg2} is a pointer (not a BPTR) to the buffer containing the data to
 be transferred.
 \smallskip{}
 
@@ -18141,7 +18170,7 @@ be transferred.
 If a file system mounted on an exec device implements this packet by
 writing data to the device, it should check the supplied target buffer
 against {\tt de\_Mask}\key{de\_Mask} in the environment vector of the
-file. If the buffer start or end address binary and'ed with the
+file. If the buffer start or end address binary and'ed with the one's
 complement of the mask is non-zero, the file system should not attempt
 to directly write the buffer to the underlying device. Instead, it
 should first manually copy the data into a buffer allocated with the memory
@@ -18205,6 +18234,12 @@ is one of the modes in table~\ref{table:seekmode} of section~\ref{sec:seek} and 
 to the third argument of {\tt Seek()}\key{Seek()}.
 \smallskip{}
 
+If the resulting position of the file handle as computed from
+{\tt dp\_Arg2}, its current value and the mode from {\tt dp\_Arg3} is
+outside of the file, i.e.\ either negative or beyond the end-of-file, the
+attempt shall fail with the error code {\tt ERROR\_SEEK\_ERROR}\key{ERROR\_SEEK\_ERROR}.
+\smallskip{}
+
 Before replying this packet, the handler shall fill {\tt dp\_Res1}
 with the previous value of the file pointer, i.e.\ before making the
 requested adjustment, or to~$-1$ in case an error occurred. In the latter
@@ -18212,11 +18247,33 @@ case, {\tt dp\_Res2} shall be filled with an error code, otherwise it shall
 be set to~$0$. In case of an error, the file pointer shall remain unaltered.
 \smallskip{}
 
-While this packet type mostly implement the {\tt Seek()}\key{Seek()}
+If a handler, for example an interactive handler, does not implement
+this packet, it shall still identify it and set
+{\tt dp\_Res1} to $-1$ --- \emph{and not 0} --- and {\tt dp\_Res2} to
+{\tt ERROR\_ACTION\_NOT\_KNOWN} as this allows users to identify the error,
+see also table~\ref{table:unimp} in section~\ref{sec:handlermain}.
+\smallskip{}
+
+Unfortunately, it is not clearly defined how this packet should
+interact with files that are larger than 2GB. A suggested
+implementation strategy is to interpret {\tt dp\_Arg2} as unsigned
+32 bit offset for the mode {\tt OFFSET\_BEGINNING}\key{OFFSET\_BEGINNING} and
+extend it to 64 bits, and sign-extend it for {\tt OFFSET\_CURRENT}\key{OFFSET\_CURRENT}
+to 64 bits. For the mode {\tt OFFSET\_END}\key{OFFSET\_END}, it is suggested
+to first zero-extend the 32 bit negative of {\tt dp\_Arg2} to 64 bits, and then negate it in 64 bits.
+The 64 bit offset formed this way should be added to the 64-bit file pointer,
+forming a 64-bit target file pointer. The 32 least significant bits
+of this file pointer should be returned in {\tt dp\_Res1}. Unfortunately,
+that leaves it to the client to check {\tt dp\_Res2} in case the result
+is~$-1$ and thus to distinguish it from an error condition.
+\smallskip{}
+
+While this packet type implement the core of the {\tt Seek()}\key{Seek()}
 function, the latter is also aware of the (caller-side) buffer of the
 {\tt FileHandle} and performs potentially a flush of this buffer. The
 packet cannot, of course, perform this step as it does not have access
 to the buffer of the {\tt FileHandle}\key{FileHandle}.
+\smallskip{}
 
 \subsection{Setting the File Size}
 
@@ -18267,11 +18324,29 @@ shall be clamped to the new file size, but shall remain
 unaltered otherwise.
 \smallskip{}
 
+Unfortunately, it is not clearly defined how this packet should
+interact with files that are larger than 2GB. A suggested
+implementation strategy is to interpret {\tt dp\_Arg2} as unsigned
+32 bit offset for the mode {\tt OFFSET\_BEGINNING}\key{OFFSET\_BEGINNING} and
+extend it to 64 bits, and sign-extend it for {\tt OFFSET\_CURRENT}\key{OFFSET\_CURRENT}
+to 64 bits. For the mode {\tt OFFSET\_END}\key{OFFSET\_END}, it is suggested
+to first zero-extend the 32 bit negative of {\tt dp\_Arg2} to 64 bits, and then negate it in 64 bits.
+The 64 bit offset formed this way should be added to the 64-bit file pointer,
+forming a 64-bit target file size.
+\smallskip{}
+
 Before replying this packet, the handler shall fill {\tt dp\_Res1}
 with a boolean success indicator, {\tt DOSTRUE} in case it could extend or
 truncate the file as requested, or {\tt DOSFALSE} in case of error. In case
 of success, {\tt dp\_Res2} shall be set to~0, otherwise it shall be set to
 an error code.
+\smallskip{}
+
+If a handler, for example an interactive handler, does not implement
+this packet, it shall still identify it and set
+{\tt dp\_Res1} to $-1$ --- \emph{and not 0} --- and {\tt dp\_Res2} to
+{\tt ERROR\_ACTION\_NOT\_KNOWN} as this allows users to identify the error,
+see also table~\ref{table:unimp} in section~\ref{sec:handlermain}.
 \smallskip{}
 
 Additional information on this packet is found in
