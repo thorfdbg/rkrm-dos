@@ -17698,11 +17698,11 @@ values between 2050 and 2999 are reserved for private purposes.
 The packet types listed in this section implement functions of the
 \emph{dos.library} that operate on or with files, such as the library
 functions listed in chapter~\ref{sec:file}. They open and close files,
-read data from files are write data to files, or set the position of
+read data from files or write data to files, or set the position of
 the file pointer. These packets shall be supported by almost any
 handler and are not exclusive to file systems. This section also
 list the packets implementing the record locking interface of 
-section~\ref{sec:recordlocking}, which is however an optional extension.
+section~\ref{sec:recordlocking}, which is an extension made by AmigaDOS~36.
 \smallskip{}
 
 The arguments of the packets usually mirror the arguments of the
@@ -17743,9 +17743,8 @@ opened by this packet, see also section~\ref{sec:filehandle} for the specificati
 this structure. All other packets
 that operate on files do not include the {\tt FileHandle} as one of
 their arguments, but instead the value placed here. Interactive handlers, i.e.\
-handlers that implement {\tt ACTION\_WAIT\_CHAR} and understand the ``{\tt *}''\key{*
-  (file name)} and ``{\tt CONSOLE:}'' file names, shall also set the {\tt fh\_Port} element
-of the {\tt FileHandle} to {\tt DOSTRUE}.
+handlers that implement {\tt ACTION\_WAIT\_CHAR}, shall also set
+the {\tt fh\_Port} element of the {\tt FileHandle} to {\tt DOSTRUE}.
 \smallskip{}
 
 A handler or file system may also replace the {\tt fh\_Type}\key{fh\_Type}
@@ -17805,14 +17804,14 @@ during the handler startup, see section~\ref{sec:handlerstartup}, then
 prepared to receive in {\tt dp\_Arg3} the file name ``{\tt *}''\key{*
   (file name)} or a path relative to {\tt CONSOLE:} in which case the
 newly created file shall use the same resources as the already running
-handler process at which port the packet was received, i.e. these special names
+handler process at which port the packet was received, i.e. the above file names
 create duplicates of an already open file, see also
 section~\ref{sec:clonehandle}. 
 \smallskip{}
 
 Note that the CON-Handler does not initialize {\tt dol\_Task}\key{dol\_Task}
 of the {\tt DosList}\key{DosList} structure and thus each attempt to open
-a file from its device name, i.e.\ ``{\tt CON:}'', ``{\tt RAW:}'' or ``{\tt AUX:}'', will
+a file through its device name, i.e.\ ``{\tt CON:}'', ``{\tt RAW:}'' or ``{\tt AUX:}'', will
 request a new handler process, though attempting to re-open the console
 by ``{\tt *}'' or relative to ``{\tt CONSOLE:}'' will re-use an already running handler.
 \smallskip{}
@@ -18112,15 +18111,26 @@ pointer shall remain unaltered.
 
 Before replying this packet, the handler shall fill {\tt dp\_Res1}
 with the number of bytes that could be transferred to the buffer,
-or~$-1$ for an error condition. This number may also be~0 if no data
-could be transferred, either because the end of file has been reached,
-or because currently no data is available. Interactive handlers
-typically block in this situation, i.e.\ do not respond to the packet,
-unless there is some data available and then deliver the amount of
-data they can supply, even if this is less data than
-requested. Details, however, depend on the handler and its
-configuration; the Port-Handler\key{Port-Handler}, for example, can be configured such that it does not
-block but returns~0 bytes in such a case, see section~\ref{sec:portpath}.
+or~$-1$ for an error code from {\tt dos/dos.h} or the list in
+section~\ref{sec:ioerr}. This number may also be~0 if no data could be
+transferred, for example because the end-of-file has been reached.
+\smallskip{}
+
+Unlike file systems, interactive handlers typically block if no data
+can be read, i.e.\ do not respond to the packet immediately. The
+packet is replied as soon as at least a single byte becomes available.
+They then deliver at most {\tt dp\_Arg3} bytes of the data that became
+available, even if this is less data than requested. Details, however,
+depend on the handler and its configuration; the
+Port-Handler\key{Port-Handler}, for example, can be configured such
+that it does not block if no data is available on the serial port, but
+to return immediately with~0 bytes in the buffer, see
+section~\ref{sec:portpath}. An alternative approach to prevent
+blocking for an undetermined timespan that is supported by
+all interactive handlers is {\tt ACTION\_WAIT\_CHAR}\key{ACTION\_WAIT\_CHAR}
+specified in section~\ref{sec:actionwaitchar}. This packet does not remove any
+bytes from the stream, they remain available for a subsequent
+{\tt ACTION\_READ}\key{ACTION\_READ}.
 \smallskip{}
 
 In case of an error, i.e.\ if the primary result
@@ -18261,11 +18271,12 @@ implementation strategy is to interpret {\tt dp\_Arg2} as unsigned
 extend it to 64 bits, and sign-extend it for {\tt OFFSET\_CURRENT}\key{OFFSET\_CURRENT}
 to 64 bits. For the mode {\tt OFFSET\_END}\key{OFFSET\_END}, it is suggested
 to first zero-extend the 32 bit negative of {\tt dp\_Arg2} to 64 bits, and then negate it in 64 bits.
-The 64 bit offset formed this way should be added to the 64-bit file pointer,
-forming a 64-bit target file pointer. The 32 least significant bits
-of this file pointer should be returned in {\tt dp\_Res1}. Unfortunately,
-that leaves it to the client to check {\tt dp\_Res2} in case the result
-is~$-1$ and thus to distinguish it from an error condition.
+The 64 bit offset formed this way is either the new file pointer, or
+should be added to the 64-bit file pointer or the 64-bit file size to form the new file pointer.
+The 32 least significant bits of the of the current 64-bit file
+pointer shall be returned in {\tt dp\_Res1}.  Unfortunately, that
+leaves it to the client to check {\tt dp\_Res2} in case the result
+is~$-1$ and thus to distinguish a successful seek from an error condition.
 \smallskip{}
 
 While this packet type implement the core of the {\tt Seek()}\key{Seek()}
@@ -18320,7 +18331,7 @@ are lost. When extending a file, the contents of the file in the
 extended region is \emph{undefined}. Unlike other operating systems,
 AmigaDOS does not enforce zero-initialization of the extended
 region. The file pointers of all file handles accessing this file
-shall be clamped to the new file size, but shall remain
+shall be clamped to the new file size if necessary, but shall remain
 unaltered otherwise.
 \smallskip{}
 
@@ -18331,8 +18342,8 @@ implementation strategy is to interpret {\tt dp\_Arg2} as unsigned
 extend it to 64 bits, and sign-extend it for {\tt OFFSET\_CURRENT}\key{OFFSET\_CURRENT}
 to 64 bits. For the mode {\tt OFFSET\_END}\key{OFFSET\_END}, it is suggested
 to first zero-extend the 32 bit negative of {\tt dp\_Arg2} to 64 bits, and then negate it in 64 bits.
-The 64 bit offset formed this way should be added to the 64-bit file pointer,
-forming a 64-bit target file size.
+The 64 bit offset formed this way is either the new file size directly, or shall be added to the
+current file pointer or the current file size to obtain the target file size.
 \smallskip{}
 
 Before replying this packet, the handler shall fill {\tt dp\_Res1}
@@ -18356,10 +18367,10 @@ function that is based on it.
 \subsection{Locking a Record of a File}
 
 The packet {\tt ACTION\_LOCK\_RECORD}\mkey{ACTION\_LOCK\_RECORD} locks a
-record of a file. Such a record lock neither provides reading nor writing to
-the locked region, it just prevents locking the same region with an
-exclusive lock, see section~\ref{sec:recordlocking} for details how the
-protocol is supposed to use.
+record of a file. Such a record lock neither prevents reading nor writing to
+the locked region, it just prevents locking an overlapping region with a
+conflicting lock, see section~\ref{sec:recordlocking} for details how the
+protocol is supposed to be used.
 
 \begin{rkrmtable}{\tt ACTION\_LOCK\_RECORD} \label{table:actionlockrecord}
 {\bf DosPacket Element}   & {\bf Value}\\ \hline \hline
@@ -18367,7 +18378,7 @@ protocol is supposed to use.
 \tt dp\_Arg1  & {\tt fh\_Arg1} of the {\tt FileHandle} \\ \hline
 \tt dp\_Arg2  & Start offset of record \\ \hline
 \tt dp\_Arg3  & Length of record \\ \hline
-\tt dp\_Arg4  & Type of lock from table~\ref{table:reclockmode} \\ \hline
+\tt dp\_Arg4  & Type of lock from table~\ref{table:reclockmode} in~\ref{sec:lockrecord} \\ \hline
 \tt dp\_Arg5  & Timeout (if applicable) in ticks \\ \hline \hline
 \tt dp\_Res1  & Boolean result code \\ \hline
 \tt dp\_Res2  & Error code \\ \hline
@@ -18375,11 +18386,15 @@ protocol is supposed to use.
 
 This packet implements the {\tt LockRecord()}\key{LockRecord()} function of
 the \emph{dos.library} and attempts to lock a record of a file, given as
-start offset from the beginning of the file and a byte size. The file is
-identified by {\tt dp\_Arg1} which is a copy from {\tt fh\_Arg1} of the {\tt
-  FileHandle} structure\footnote{The information on {\tt dp\_Arg1}
-in~\cite{Bantam} is incorrect.}. There is no packet corresponding to {\tt
-  LockRecords()}. Instead, the latter locks records sequentially.
+start offset from the beginning of the file and a byte size. There is no
+packet corresponding to {\tt LockRecords()}. Instead, the latter locks
+records sequentially. This packet was added in AmigaDOS~36.
+Arguments of the packet are populated as follows:
+\smallskip{}
+
+The file is identified by {\tt dp\_Arg1} which is a copy from
+{\tt fh\_Arg1} of the {\tt FileHandle} structure\footnote{The information
+on {\tt dp\_Arg1} in~\cite{Bantam} is incorrect.}. 
 \smallskip{}
 
 The record to lock is identified by {\tt dp\_Arg2} and {\tt dp\_Arg3} which
@@ -18387,24 +18402,30 @@ correspond to the {\tt offset} and {\tt length} arguments of the
 {\tt LockRecord()} function.
 \smallskip{}
 
-The mode by which the record is supposed to be locked is given by {\tt
-  dp\_Arg4}, it identifies whether the access is shared or exclusive, and
-whether a timeout is applied or not. The mode is a value from
-table~\ref{table:reclockmode}, and more information on the modes is found in
-section~\ref{sec:lockrecord}.
+The mode by which the record is supposed to be locked is given by
+{\tt dp\_Arg4}, it identifies whether the access is shared or exclusive,
+and whether a timeout is applied or not. The mode is a value from
+table~\ref{table:reclockmode} in section~\ref{sec:lockrecord}, and
+more information on the modes is found there.
 \smallskip{}
 
-If the mode from {\tt dp\_Arg4} includes a timeout the file system
-should wait for the record to become available, it is provided by {\tt
-  dp\_Arg5}. Otherwise, this argument is ignored, see
-table~\ref{table:reclockmode}.
+If the mode from {\tt dp\_Arg4} includes a timeout,
+see table~\ref{table:reclockmode}, the file system
+should wait {\tt dp\_Arg5} ticks for the record to
+become available. Otherwise, {\tt dp\_Arg5} is ignored and
+the packet shall fail immediately if locking is not possible.
 \smallskip{}
 
-If locking the record is possible, or possible within the timeout, then {\tt
-  dp\_Res1} shall be set to {\tt DOSTRUE} when replying this packet. In such
-a case, {\tt dp\_Res2} shall be set to~0. On failure to obtain the record
-lock, {\tt dp\_Res1} shall be set to {\tt DOSFALSE} and {\tt dp\_Res2} to an
-error code.
+If locking the record is possible, or possible within the timeout,
+then {\tt dp\_Res1} shall be set to {\tt DOSTRUE} when replying this
+packet. In such a case, {\tt dp\_Res2} shall be set to~0. On failure,
+{\tt dp\_Res1} shall be set to {\tt DOSFALSE} and {\tt dp\_Res2} to an
+error code. If a timeout is provided, and the lock could not be
+obtained within the timeout because an overlapping region is already
+locked by a conflicting record lock, the file system shall signal
+{\tt ERROR\_LOCK\_TIMEOUT} as error code. If no timeout was given and the
+lock could not be obtained, the the error code {\tt ERROR\_LOCK\_COLLISION}
+shall be signalled instead.
 
 \subsection{Release a Record of a File}
 
@@ -18425,19 +18446,25 @@ This packet implements the {\tt UnLockRecord()}\key{UnLockRecord()}
 function of the \emph{dos.library} and releases a lock on a subset of
 a file, identified by start position and length. The {\tt
   UnLockRecords()}\key{UnlockRecords()} function is not implemented by
-a separate packet, instead, the \emph{dos.library} sequentially calls
-{\tt UnLockRecord()} for each record.
+a separate packet; instead, the \emph{dos.library} sequentially calls
+{\tt UnLockRecord()} for each record. This packet was introduced in
+AmigaDOS~36. Arguments of the packet are populated as follows:
 \smallskip{}
 
-The file is identified by {\tt dp\_Arg1} which is a copy from the {\tt
-  fh\_Arg1} element of the {\tt FileHandle} structure. The record to
-release is given by the start offset within the file provided by {\tt
-  dp\_Arg2} and the byte size of the record in {\tt dp\_Arg3}.
+The file is identified by {\tt dp\_Arg1} which is a copy from the
+{\tt fh\_Arg1} element of the {\tt FileHandle} structure.
 \smallskip{}
 
-On success, {\tt dp\_Res1} shall be set to {\tt DOSTRUE} and {\tt dp\_Res2}
-to~0. On error, {\tt dp\_Res1} shall be set to {\tt DOSFALSE} and {\tt
-  dp\_Res2} to an error code.
+The record to release is given by the start offset within the file
+provided by {\tt dp\_Arg2} and the byte size of the record in
+{\tt dp\_Arg3}.
+\smallskip{}
+
+On success, {\tt dp\_Res1} shall be set to {\tt DOSTRUE}
+and {\tt dp\_Res2} to~0. On error, {\tt dp\_Res1} shall be
+set to {\tt DOSFALSE} and {\tt dp\_Res2} to an error code. If,
+in particular, the specified region is not locked, this packet
+shall fail with {\tt ERROR\_RECORD\_NOT\_LOCKED} as error code.
 
 \section{Packets for Interacting with Locks} \label{sec:actionlocks}
 
