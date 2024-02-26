@@ -3626,7 +3626,7 @@ access to a file without deleting its contents can, however, be established
 through the {\tt OpenFromLock()}\key{OpenFromLock()} function passing in an
 exclusive lock to the function as argument.
 
-\subsection{Duplicate the Implicit Lock of a File}
+\subsection{Duplicate the Implicit Lock of a File} \label{sec:duplockfromfh}
 
 The {\tt DupLockFromFH()}\mkey{DupLockFromFH()} function performs a copy of a lock implicit
 to a file handle\key{FileHandle} of an opened file. For this to succeed, the
@@ -18655,7 +18655,7 @@ find the parent of the root directory. In all other cases, the two
 approaches to lock the parent directory work alike.
 \smallskip{}
 
-This function returns on success a BPTR to the {\tt FileLock}\key{FileLock}
+This packet returns on success a BPTR to the {\tt FileLock}\key{FileLock}
 representing the parent directory in {\tt dp\_Arg1} and sets {\tt dp\_Arg2}
 to~0. On error, {\tt dp\_Res1} is set to {\tt ZERO} and {\tt dp\_Arg2} to an
 error code.
@@ -18663,7 +18663,7 @@ error code.
 \subsection{Duplicating a Lock from a File Handle}
 
 The packet {\tt ACTION\_COPY\_DIR\_FH}\mkey{ACTION\_COPY\_DIR\_FH} creates a
-shared lock\key{Lock} from an object opened by a file handle\key{FileHandle}; that is, it
+shared lock\key{Lock} from an opened file represented by a file handle\key{FileHandle}; that is, it
 copies the implicit lock of the handle.
 
 \begin{rkrmtable}{\tt ACTION\_COPY\_DIR\_FH} \label{table:actioncopydirfh}
@@ -18675,19 +18675,21 @@ copies the implicit lock of the handle.
 \end{rkrmtable}
 
 This packet implements the {\tt DupLockFromFH()}\key{DupLockFromFH()}
-function of the \emph{dos.library}, and thus creates a copy of the lock\key{Lock} that
-is implicit to an open file handle\key{FileHandle}. This works only if the file is open in a
-non-exclusive mode, i.e.\ either {\tt MODE\_READWRITE}\key{MODE\_REAWRITE} or
-{\tt MODE\_OLDFILE}\key{MODE\_OLDFILE}.
+function of the \emph{dos.library}, see~\ref{sec:duplockfromfh}, and
+thus creates a copy of the lock\key{Lock} that is implicit to a file handle\key{FileHandle}.
+It was added in AmigaDOS~36. Duplicating the lock associated to a file handle
+works only if the file has been opened in a non-exclusive mode, i.e.\
+either in {\tt MODE\_READWRITE}\key{MODE\_REAWRITE} or in {\tt MODE\_OLDFILE}\key{MODE\_OLDFILE}.
 \smallskip{}
 
-{\tt dp\_Arg1} is a copy of the {\tt fh\_Arg1} element of the {\tt
-  FileHandle} structure and thus serves to identify the opened file.
+{\tt dp\_Arg1} is a copy of the {\tt fh\_Arg1} element of the {\tt FileHandle} structure
+and thus serves to identify the opened file. This handle shall stay usable after this packet
+returns.
 \smallskip{}
 
-On success, {\tt dp\_Res1} is filled by the BPTR to the {\tt FileLock}\key{FileLock}
-created, namely a lock\key{Lock} to the object opened by the file handle\key{FileHandle}. In such a
-case, {\tt dp\_Res2} is set to~0. On error, {\tt dp\_Res1} is set to
+On success, {\tt dp\_Res1} shall be filled by the BPTR to the {\tt FileLock}\key{FileLock} created,
+namely a shared lock\key{Lock} to the file opened by the file handle\key{FileHandle}. In such a case,
+{\tt dp\_Res2} shall be set to~0. On error, {\tt dp\_Res1} shall be set to
 {\tt ZERO} and {\tt dp\_Res2} to an error code.
 
 \subsection{Finding the Parent Directory of a File Handle}
