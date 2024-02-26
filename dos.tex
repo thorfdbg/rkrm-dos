@@ -18468,16 +18468,23 @@ shall fail with {\tt ERROR\_RECORD\_NOT\_LOCKED} as error code.
 \section{Packets for Interacting with Locks} \label{sec:actionlocks}
 
 The packets listed in this section implement the \emph{dos.library}
-functions listed in section~\ref{sec:locks}; they create, release or
-duplicate locks\key{Lock} or create directories.
+functions listed in chapter~\ref{sec:locks}; they create, release or
+duplicate locks\key{Lock}, or create directories returning a lock. A
+lock is an abstract representation of a file system object, granting
+shared or exclusive access to it. If the lock represents a directory,
+it can be used to replace the current directory of a process. If it
+represents a file, a file handle can be opened from it. Locks can
+also be used to retrieve metadata such as comments or protection bits
+of a file system object. Locks never represent soft\key{Soft Link}-
+or hard links\key{Hard Link}, they are resolved when obtaining the
+lock, and the lock then represents the target of the link.
 
 \subsection{Obtaining a Lock} \label{sec:actionlocateobject}
 
-The {\tt ACTION\_LOCATE\_OBJECT}\mkey{ACTION\_LOCATE\_OBJECT} packet locates
-an object --- a file or a directory --- on a file system and creates
-from it a lock\key{Lock} identifying the object uniquely. The object can later
-be used as active directory, to open a file from it or to retrieve metadata
-such as comments or protection bits associated to the identified object.
+The {\tt ACTION\_LOCATE\_OBJECT}\mkey{ACTION\_LOCATE\_OBJECT} packet
+locates an object --- a file or a directory --- on a file system and
+creates from it a lock\key{Lock} identifying the object
+uniquely. 
 
 \begin{rkrmtable}{\tt ACTION\_LOCATE\_OBJECT} \label{table:actionlocateobject}
 {\bf DosPacket Element}   & {\bf Value}\\ \hline \hline
@@ -18490,44 +18497,47 @@ such as comments or protection bits associated to the identified object.
 \end{rkrmtable}
 
 This packet creates a lock\key{Lock} from a path and a directory to which this path is
-relative, also represented as a lock. As such, it implements the
-{\tt Lock()}\key{Lock} function of the \emph{dos.library}.
+relative, also represented by a lock. As such, this packet implements the
+{\tt Lock()}\key{Lock} function of the \emph{dos.library} as found in section~\ref{sec:lock}.
 \smallskip{}
 
-{\tt dp\_Arg1} is a BPTR to a {\tt FileLock} structure that represents the
-object to which the path given in {\tt dp\_Arg3} is relative. This is
-usually a directory, and the {\tt Lock()} function fills it from the current
-directory of the calling process. This argument can be {\tt ZERO} in which
-case the file system shall assume that {\tt dp\_Arg3} is relative to
-the root of the currently inserted volume handled by the file system.
+{\tt dp\_Arg1} is a BPTR to a {\tt FileLock} structure that represents
+the object to which the path given in {\tt dp\_Arg2} is relative. The
+{\tt Lock()}\key{Lock()} function fills it from the current directory of
+the calling process. If {\tt dp\_Arg1} is {\tt ZERO}, the path in
+{\tt dp\_Arg2} is relative to the root of the currently inserted volume.
 \smallskip{}
 
-{\tt dp\_Arg2} is the type of the lock\key{Lock} to be created as defined in
-table~\ref{table:lockmodes}. The value {\tt SHARED\_LOCK}\key{SHARED\_LOCK} requests a
-non-exclusive lock on an object; multiple of such locks can be held on the
-same object. The value {\tt EXCLUSIVE\_LOCK}\key{EXCLUSIVE\_LOCK} requests an exclusive an
-object; only a single exclusive lock can be held on an object at once, and
-no other locks, including shared locks, are permissible. Attempting to
-exclusively lock an object that is already locked shall fail, and attempting
-to lock an object that is already exclusively locked shall as
-well. Unfortunately, some programs call {\tt Lock()}\key{Lock()} with an
-invalid argument for the mode, and thus file systems should be
-prepared to handle invalid values for {\tt dp\_Arg2}. Such values should be
-considered equivalent to {\tt SHARED\_LOCK}\key{SHARED\_LOCK}.
+{\tt dp\_Arg2} is a BPTR to a BSTR of an absolute path or a path
+relative to {\tt dp\_Arg1} of the object to be locked. That is, the
+location of the object to be locked is logically formed by appending
+the path in {\tt dp\_Arg2} to the directory identified by the lock in
+{\tt dp\_Arg1}. If the string in {\tt dp\_Arg2} is empty, the object
+to be locked is identical to the object locked by {\tt dp\_Arg1}.
 \smallskip{}
 
-{\tt dp\_Arg3} is a BPTR to a BSTR of an absolute or relative path of the
-object to be locked. Relative paths are relative to the lock in {\tt
-  dp\_Arg1}, and if this argument is {\tt ZERO}, relative to the root ---
-the topmost directory --- of the volume currently managed by this file
-system. If this string is empty, the identified object to be locked is
-identical to the one identified by {\tt dp\_Arg1}.
+{\tt dp\_Arg3} is the type of the lock\key{Lock} to be created as
+defined in table~\ref{table:lockmodes} in section~\ref{sec:lock}. The value
+{\tt SHARED\_LOCK}\key{SHARED\_LOCK} requests a non-exclusive lock on an
+object; multiple shared locks can be held on the same object. The
+value {\tt EXCLUSIVE\_LOCK}\key{EXCLUSIVE\_LOCK} requests an exclusive
+lock. Attempting to exclusively lock an object that is already locked
+shall fail, and attempting to lock an object that is already
+exclusively locked shall fail as well\footnote{As the root directory is always
+represented as {\tt ZERO} lock, an exclusive lock on this directory
+is probably not very exclusive, which is why~\cite{guru} suggests not to
+permit exclusive locks on the volume root.}.
+Unfortunately, some programs call {\tt Lock()}\key{Lock()} with an
+invalid value in {\tt accessMode}, and file systems should be prepared
+to receive such values in {\tt dp\_Arg3}. They should be considered equivalent to
+{\tt SHARED\_LOCK}\key{SHARED\_LOCK}.
 \smallskip{}
 
-On success, {\tt dp\_Res1} shall be a BPTR to a {\tt FileLock}
-structure. These objects are created and maintained by the file
-system. This structure shall be initialized as indicated in
-section~\ref{sec:filelock}:
+If a lock can be granted, the file system shall create a {\tt
+  FileLock} structure representing the locked object. Such structures
+are allocated, maintained and released by file systems and not the
+\emph{dos.library}. The {\tt FileLock} shall be initialized as
+follows (see also~\ref{sec:filelock}):
 \smallskip{}
 
 {\tt fl\_Task}\key{fl\_Task} shall point to a {\tt MsgPort} through which the maintaining
@@ -18537,24 +18547,27 @@ the process message port {\tt pr\_Port} of the file system itself.
 
 {\tt fl\_Volume}\key{fl\_Volume} shall be a BPTR to the {\tt DosList}\key{DosList} structure
 representing the volume on which the locked object is located, see
-section~\ref{sec:devicelist}.
+chapter~\ref{sec:devicelist}.
 \smallskip{}
 
-{\tt fl\_Access}\key{fl\_Access} shall be filled by {\tt dp\_Arg2},
+{\tt fl\_Access}\key{fl\_Access} shall be filled with {\tt dp\_Arg2},
 identifying the type of the lock\key{Lock}.
 \smallskip{}
 
-{\tt fl\_Link}\key{fl\_Link} may be used to queue up locks\key{Lock} on a volume that is currently
-not inserted. When a volume with locked objects is removed from the drive,
-the file system may store all these locks in a singly linked list
-starting at {\tt dol\_LockList}\key{dol\_LockList} and chained by {\tt fl\_Link}. If the same
-volume is then re-inserted into another drive, another instance of the same
-file system is able to pick up these locks and manage them instead. Thus,
-for example, a lock on an object in drive {\tt df0:} will remain valid even
-if the volume is removed and re-inserted into {\tt df1:}.
+{\tt fl\_Link}\key{fl\_Link} may be used to queue up locks\key{Lock}
+on a volume that is currently not accessible. As locking an object on a
+non-inserted volume is not possible, this element is only filled when
+a volume containing locked objects is ejected or becomes otherwise inaccessible.
+The file system will then store all such locks in a singly linked list
+starting at {\tt dol\_LockList}\key{dol\_LockList} and chained by {\tt fl\_Link}.
+If the same volume is then re-inserted into another drive, another
+instance of the same file system is able to pick up these locks and
+manages them instead. Thus, for example, a lock on an object in drive
+{\tt df0:} will remain valid even if the volume is removed and
+re-inserted into {\tt df1:}.
 \smallskip{}
 
-{\tt fl\_Key}\key{fl\_Key}, finally, may be used for the purpose of the
+{\tt fl\_Key}\key{fl\_Key} may be used for the purpose of the
 file system for uniquely identifying the locked object. It is an
 opaque value as far as the \emph{dos.library} is concerned.
 \medskip{}
