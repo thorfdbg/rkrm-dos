@@ -17854,7 +17854,8 @@ point all file handles to the file are closeed.
 
 The packet {\tt ACTION\_FINDOUTPUT}\mkey{ACTION\_FINDOUTPUT} initializes a
 {\tt FileHandle}\key{FileHandle} structure for exclusive access to a file
-and potentially creates the file if it does not yet exist.
+that is either created if it does not exist, or replaces an existing file along with
+its contents.
 
 \begin{rkrmtable}{\tt ACTION\_FINDOUTPUT} \label{table:actionfindoutput}
 {\bf DosPacket Element}   & {\bf Value}\\ \hline \hline
@@ -17899,13 +17900,12 @@ shall not attempt to create intermediate directories between the
 directory in {\tt dp\_Arg2} and the file.
 \smallskip{}
 
-What exactly happens if a file is overwritten that is the target of
-hard links\key{Hard Link} is implementation dependend. The FFS
+What exactly happens if a file is replaced that is the target of
+hard links\key{Hard Link} is implementation dependend. The FFS\key{Fast File System (FFS)}
 replaces the file content such that the links point to the changed
 file. The RAM-Handler\key{RAM-Handler} detaches the links such that
 the links point to the old content, and creates a new independent file
 of the new content.
-
 
 \subsection{Opening or Creating a File for Shared Access}
 
@@ -17948,11 +17948,10 @@ is openend.
 \smallskip{}
 
 For file systems, this packet works quite similar to
-{\tt ACTION\_FINDOUTPUT}\key{ACTION\_FINDOUTPUT} described in
-section~\ref{sec:actionfindoutput} as it also creates new files,
-though the file is opened in shared mode and not in exclusive mode, or equivalently,
-this packet works similar to {\tt ACTION\_FINDINPUT}\key{ACTION\_FINDINPUT} except that
-it also creates non-existing files.
+{\tt ACTION\_FINDINPUT}\key{ACTION\_FINDINPUT} described in
+section~\ref{sec:actionfindoutput} except that it creates
+the file if it does not exist. If it does exists, its contents remains
+intact.
 \smallskip{}
 
 The purpose of this packet changed, unfortunately, with AmigaDOS~36
