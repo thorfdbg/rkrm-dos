@@ -3389,7 +3389,7 @@ non-zero error code, then the file system failed to lock the parent
 directory. Possible reasons are lack of memory, or an exclusive lock on the
 the parent that prevents a second shared lock.
 
-\subsection{Creating a Directory}
+\subsection{Creating a Directory} \label{sec:createdir}
 
 The {\tt CreateDir()} object creates a new empty directory whose name is
 given by the last component of the path passed in. It does not create any
@@ -3421,7 +3421,7 @@ $0$ in case the function succeeds.
 Note that not all file systems support directories, i.e.\ flat file
 systems (see section~\ref{sec:flathierarchical}) do not.
 
-\subsection{Releasing a Lock}
+\subsection{Releasing a Lock} \label{sec:unlock}
 
 Once a lock\key{Lock} is no longer required, it should be released as soon
 as possible to allow other functions or processes to access or modify the
@@ -3442,7 +3442,7 @@ action. This function does not return an error code. It does, however, set
 {\tt IoErr()}\key{IoErr()} if {\tt lock} is not {\tt ZERO}, and thus
 potential problems of a file system releasing a lock may be identified.
 
-\subsection{Changing the Type of a Lock}
+\subsection{Changing the Type of a Lock} \label{sec:changemode}
 
 Once a lock\key{Lock} has been granted, it is possible to change the
 nature of the lock, either from
@@ -3649,7 +3649,7 @@ usable after this call. In case of failure, {\tt ZERO} is returned. In
 either case, {\tt IoErr()} is set to~$0$ in case of success, or an error
 code on failure.
 
-\subsection{Obtaining the Directory a File is Located in}
+\subsection{Obtaining the Directory a File is Located in} \label{sec:parentoffh}
 
 The {\tt ParentOfFH()}\mkey{ParentOfFH()} function obtains a
 shared lock\key{Lock} on the parent directory of the file associated to
@@ -18694,7 +18694,7 @@ namely a shared lock\key{Lock} to the file opened by the file handle\key{FileHan
 
 \subsection{Finding the Parent Directory of a File Handle}
 
-The packet {\tt ACTION\_PARENT\_FH}\mkey{ACTION\_PARENT\_FH} creates a lock\key{Lock}
+The packet {\tt ACTION\_PARENT\_FH}\mkey{ACTION\_PARENT\_FH} obtains a lock\key{Lock}
 on the directory containing a file identified by a file handle\key{FileHandle}.
 
 \begin{rkrmtable}{\tt ACTION\_PARENT\_FH} \label{table:actionparentfh}
@@ -18705,11 +18705,21 @@ on the directory containing a file identified by a file handle\key{FileHandle}.
 \tt dp\_Res2  & Error code \\ \hline
 \end{rkrmtable}
 
-This packet implements the {\tt ParentOfFH()}\key{ParentOfFH()} function of
-the \emph{dos.library} and as such creates a lock\key{Lock} on the directory that
-contains a given file handle\key{FileHandle}. {\tt dp\_Arg1} is a copy of the {\tt
-  fh\_Arg1} element of the {\tt FileHandle}\key{FileHandle} structure and thus identifies
-the handle.
+This packet implements the {\tt ParentOfFH()}\key{ParentOfFH()}
+function of the \emph{dos.library}, see section~\ref{sec:parentoffh},
+and as such creates a shared lock\key{Lock} on the directory that
+contains the provided file handle\key{FileHandle}. Same as the function,
+this packet was added in AmigaDOS~36.
+\smallskip{}
+
+{\tt dp\_Arg1} is a copy of the {\tt fh\_Arg1} element of the
+{\tt FileHandle}\key{FileHandle} structure and thus identifies the
+file whose parent directory is to be locked.
+\smallskip{}
+
+Unlike {\tt ACTION\_COPY\_DIR\_FH}\key{ACTION\_COPY\_DIR\_FH}, this
+packet does not fail if the file was opened in exclusive mode. It will, of
+course, fail if the parent directory is exclusively locked.
 \smallskip{}
 
 On success, {\tt dp\_Res1} is filled with a BPTR to the {\tt FileLock}
@@ -18719,7 +18729,7 @@ created, and {\tt dp\_Res2} is set to~0. On error, {\tt dp\_Res1} is set to
 \subsection{Creating a new Directory}
 
 The packet {\tt ACTION\_CREATE\_DIR}\mkey{ACTION\_CREATE\_DIR} creates a new
-directory and represents it by an exclusive lock\key{Lock} on the directory created.
+directory and returns an exclusive lock\key{Lock} to it.
 
 \begin{rkrmtable}{\tt ACTION\_CREATE\_DIR} \label{table:actioncreatedir}
 {\bf DosPacket Element}   & {\bf Value}\\ \hline \hline
@@ -18730,20 +18740,42 @@ directory and represents it by an exclusive lock\key{Lock} on the directory crea
 \tt dp\_Res2  & Error code \\ \hline
 \end{rkrmtable}
 
-This packet implements the {\tt CreateDir()}\key{CreateDir()} function of
-the \emph{dos.library} and creates a new directory of the name {\tt
-  dp\_Arg2} within the directory identified by the lock\key{Lock} {\tt dp\_Arg1}.
+This packet implements the {\tt CreateDir()}\key{CreateDir()} function
+of the \emph{dos.library}, see section~\ref{sec:createdir}. The arguments
+are as follows:
 \smallskip{}
 
-On success, it creates a new exclusive lock\key{Lock} which is returned in {\tt
-  dp\_Res1}, and {\tt dp\_Res2} is set to~0. On error, {\tt dp\_Res1} is set
-to {\tt ZERO} and {\tt dp\_Res2} is set to an error code.
+The lock in {\tt dp\_Arg1} is the directory to which the path in
+{\tt dp\_Arg2} is relative. This is, for example, the current directory
+of the process calling {\tt CreateDir()}.
+\smallskip{}
+
+The path in {\tt dp\_Arg2} is logically concatenated to the directory
+represented by the lock in {\tt dp\_Arg1}, or is relative to the root
+directory of the currently inserted volume if {\tt dp\_Arg1} is
+{\tt ZERO}\key{ZERO lock}. The name of the directory to be created is given by the last
+component of the path in {\tt dp\_Arg2}, all components in the path
+upfront must exist or the packet shall fail with the error
+{\tt ERROR\_OBJECT\_NOT\_FOUND}\key{\tt ERROR\_OBJECT\_NOT\_FOUND}, i.e.\
+this packet does not attempt to create directories recursively.
+\smallskip{}
+
+If the path in {\tt dp\_Arg2} describes an already existing file
+system object, that is, if the target already exists as a file or
+directory, this packet shall fail with the error code
+{\tt ERROR\_OBJECT\_EXISTS}\key{ERROR\_OBJECT\_EXISTS}.
+\smallskip{}
+
+On success, this packet returns an exclusive lock\key{Lock} to the directory
+created in {\tt dp\_Res1}, and {\tt dp\_Res2}
+is set to~0. On error, {\tt dp\_Res1} is set to {\tt ZERO} and
+{\tt dp\_Res2} is set to an error code.
 
 \subsection{Comparing two Locks} \label{sec:actionsamelock}
 
 The packet {\tt ACTION\_SAME\_LOCK}\mkey{ACTION\_SAME\_LOCK} compares two
-locks\key{Lock} on the same file system and checks whether the two locks are on the
-same object.
+locks\key{Lock} on the same file system and checks whether they lock the same
+object.
 
 \begin{rkrmtable}{\tt ACTION\_SAME\_LOCK} \label{table:actionsamelock}
 {\bf DosPacket Element}   & {\bf Value}\\ \hline \hline
@@ -18754,11 +18786,15 @@ same object.
 \tt dp\_Res2  & Error code \\ \hline
 \end{rkrmtable}
 
-This packet is the core of the {\tt SameLock()}\key{SameLock()} function of the
-\emph{dos.library}, which, however, first checks whether the two locks\key{Lock} to
-compare are on the same file system. Only if so, the file system
-corresponding the two locks is contacted with the above packet to compare
-the two locks. For this, {\tt dp\_Arg1} and {\tt dp\_Arg2} are BPTRs to the
+This packet is the core of the {\tt SameLock()}\key{SameLock()}
+function of the \emph{dos.library} (see~\ref{sec:samelock}), which,
+however, first checks whether the locks\key{Lock} to compare are on
+the same file system. Only if so, the file system corresponding the
+two locks is contacted with this packet to compare them. This packet
+was introduced in AmigaDOS~36.
+\smallskip{}
+
+The arguments {\tt dp\_Arg1} und {\tt dp\_Arg2} are BPTRs to the
 two {\tt FileLocks}\key{FileLock} to compare.
 \smallskip{}
 
@@ -18769,6 +18805,12 @@ shall be set to {\tt DOSFALSE} and {\tt dp\_Res2} shall also be set to~0. On
 error, {\tt dp\_Res1} is set to~0 and {\tt dp\_Res2} to an error
 code\footnote{The documentation in~\cite{Bantam} on {\tt dp\_Res1} is
 incorrect.}.
+\smallskip{}
+
+If the file system does not implement this packet, the \emph{dos.library}
+{\tt SameLock()}\key{SameLock()} function instead compares
+the {\tt fl\_Key}\key{fl\_Key} elements of the two locks, and assumes
+that the locks point to the same object if their keys are identical.
 
 \subsection{Changing the Mode of a Lock or a File Handle}
 
@@ -18779,7 +18821,7 @@ access --- if possible --- or lowering the rights to shared access.
 \begin{rkrmtable}{\tt ACTION\_CHANGE\_MODE} \label{table:actionchangemode}
 {\bf DosPacket Element}   & {\bf Value}\\ \hline \hline
 \tt dp\_Type  & \tt ACTION\_CHANGE\_MODE (1028) \\ \hline
-\tt dp\_Arg1  & Object type from table~\ref{table:changemode} \\ \hline
+\tt dp\_Arg1  & Object type from table~\ref{table:changemode} in~\ref{sec:changemode} \\ \hline
 \tt dp\_Arg2  & BPTR to {\tt FileLock} or {\tt FileHandle} \\ \hline
 \tt dp\_Arg3  & Target mode \\ \hline \hline
 \tt dp\_Res1  & Boolean result code \\ \hline
@@ -18787,14 +18829,14 @@ access --- if possible --- or lowering the rights to shared access.
 \end{rkrmtable}
 
 This packet implements the {\tt ChangeMode()}\key{ChangeMode()} function of
-the \emph{dos.library} and thus changes the access mode of files or locks to
-exclusive or shared access mode.
+the \emph{dos.library} and shall therefore change the access mode of files or locks to 
+exclusive or shared access mode. This packet was added in AmigaDOS~36.
 \smallskip{}
 
 {\tt dp\_Arg1} identifies the object whose mode is to be changed. This is a
-value from table~\ref{table:changemode}, i.e.\ either {\tt CHANGE\_LOCK} to
-adjust the type of the lock\key{Lock}, or {\tt CHANGE\_FH} to change the access mode
-of a file handle\key{FileHandle}.
+value from table~\ref{table:changemode} in section~\ref{sec:changemode}, i.e.\ either
+{\tt CHANGE\_LOCK} to adjust the type of a lock\key{Lock}, or {\tt CHANGE\_FH} to
+change the access mode of a file handle\key{FileHandle}.
 \smallskip{}
 
 {\tt dp\_Arg2} is the BPTR to the object whose mode is to be changed. If
@@ -18818,7 +18860,7 @@ file systems should also accept {\tt ACTION\_FINDINPUT}\key{ACTION\_FINDINPUT} a
 
 Note that it is not always possible to change the mode of a lock\key{Lock} or a file
 to exclusive access, namely if it is accessed by a second file handle\key{FileHandle} or
-locked a second time. This packet shall then fail.
+locked a second time. In such a case, this packet shall fail.
 \smallskip{}
 
 Upon reply, {\tt dp\_Res1} shall include a boolean success indicator,
@@ -18829,7 +18871,7 @@ code.
 \subsection{Releasing a Lock}
 
 The packet {\tt ACTION\_FREE\_LOCK}\mkey{ACTION\_FREE\_LOCK} releases a
-lock\key{Lock} on a file system.
+lock\key{Lock} on a file system object.
 
 \begin{rkrmtable}{\tt ACTION\_FREE\_LOCK} \label{table:actionfreelock}
 {\bf DosPacket Element}   & {\bf Value}\\ \hline \hline
@@ -18839,19 +18881,31 @@ lock\key{Lock} on a file system.
 \tt dp\_Res2  & Error code \\ \hline
 \end{rkrmtable}
 
-This packet implements the \emph{dos.library} function {\tt
-  UnLock()}\key{UnLock()} and releases a {\tt FileLock}\key{FileLock}. A BPTR to the lock\key{Lock}
-to release is provided in {\tt dp\_Arg1}. If this argument is {\tt ZERO},
-the file system shall ignore the request and return success.
+This packet implements the \emph{dos.library} function
+{\tt UnLock()}\key{UnLock()} (see~\ref{sec:unlock}) and releases
+a {\tt FileLock}\key{FileLock}. A BPTR to the lock\key{Lock} to
+release is provided in {\tt dp\_Arg1}. If this argument is
+{\tt ZERO}, the file system shall ignore the request and
+return success.
+\smallskip{}
+
+As first step of precaution, file systems should zero the
+{\tt fl\_Task} element of the {\tt FileLock} structure because the
+\emph{dos.library} ignores attempts to unlock such locks.
+This improves system stability a bit if applications erraneously
+attempt to release a lock twice. In a second step, file system
+shall release all internal resources related to the lock, until
+finally the {\tt FileLock} structure itself shall be disposed; it is
+\emph{not} allocated or released by the \emph{dos.library}.
 \smallskip{}
 
 When replying this packet, {\tt dp\_Res1} shall be set to {\tt DOSTRUE} on
 success and {\tt DOSFALSE} on error. On success, {\tt dp\_Res2} shall be set
-to~0, otherwise it shall be set to an error code. There are actually few
+to~0, otherwise it shall be set to an error code. There are actually only few
 reasons why this packet could fail, probably because the passed in BPTR is
 invalid and does not point to a valid {\tt FileLock}\key{FileLock}. The {\tt UnLock()}
-function does not return this result code, but adjusts {\tt IoErr()}\key{IoErr()}
-according to {\tt dp\_Res2}.
+function does not return this result code, but only adjusts {\tt IoErr()}\key{IoErr()}
+from {\tt dp\_Res2}.
 
 \section{Packets for Examining Objects} \label{sec:actionfib}
 
