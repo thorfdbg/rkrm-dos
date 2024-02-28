@@ -19009,7 +19009,7 @@ to~0. In case of an error, {\tt dp\_Res1} shall be set to {\tt
 \subsection{Scanning Directory Contents} \label{sec:actionexnext}
 
 The {\tt ACTION\_EXAMINE\_NEXT}\mkey{ACTION\_EXAMINE\_NEXT} continues a scan
-over the directory contents and delivers meta-information on the subsequent
+over the directory contents and delivers information on the subsequent
 entry in a directory. Such a scan is started by an {\tt
   ACTION\_EXAMINE\_OBJECT}\key{ACTION\_EXAMINE} on the directory to be
 scanned; the first {\tt ACTION\_EXAMINE\_NEXT} then provides information on
@@ -19026,41 +19026,52 @@ corresponding next entry.
 \end{rkrmtable}
 
 This function continues a directory scan by providing information on the
-next subsequent object in the directory identified by the lock\key{Lock} in {\tt
-  dp\_Arg1}. Meta-information on the object itself is copied into the {\tt
-  FileInfoBlock}\key{FileInfoBlock} structure in the BPTR in {\tt dp\_Arg2}. Similar
+next subsequent object in the directory identified by the lock\key{Lock} in
+{\tt dp\_Arg1}. Information on the object is filled into the
+{\tt FileInfoBlock}\key{FileInfoBlock} structure pointed to by the BPTR in {\tt dp\_Arg2}. Similar
 to {\tt ACTION\_EXAMINE\_OBJECT}\key{ACTION\_EXAMINE\_OBJECT} discussed
-in~\ref{sec:actionexamineobject}, the file name and comment shall be
+in section~\ref{sec:actionexamineobject}, the file name and comment shall be
 provided as BSTRs and not as {\tt NUL}-terminated C strings. Conversion to
 the latter format is performed within the \emph{dos.library}.
+\smallskip{}
+
+Depending on the file system, it may be impossible to scan the root
+directory through the {\tt ZERO} lock\key{ZERO lock} in
+{\tt dp\_Arg1}. Failing with {\tt ERROR\_INVALID\_LOCK} is permissible in
+such a case.
 \smallskip{}
 
 Unlike Unixoid file systems, AmigaDOS does not keep entries in directories
 that correspond to the directory itself or its parent directory, i.e.\
 AmigaDOS file systems do not carry ``{\tt .}'' or ``{\tt ..}'' directory
 entries. When parsing paths, the current directory is identified by the
-empty string, and the parent directory by the isolated slash (``{\tt /}'').
+empty string, and the parent directory by the isolated slash (``{\tt /}''). They
+are neither represented as objects within a directory.
 \smallskip{}
 
-Unfortunately, this packet is one of the hardest to implement in a file
-system as the directory may change while the scan is active. In particular,
-file systems shall handle the situation gracefully in which the object from
-the previous iteration identified by {\tt fib\_DiskKey}\key{fib\_DiskKey} has been deleted,
-moved or replaced by another object, or in which {\tt dp\_Arg1} is a
-different lock\key{Lock} than the lock that was used to start the scan by {\tt
-  ACTION\_EXAMINE\_OJBECT}\key{ACTION\_EXAMINE\_OJBECT}. The file system may
-only assume that the lock in {\tt dp\_Arg1} is a lock on the same directory
-on which the scan has been started. Similarly, {\tt dp\_Arg2} may have
-changed from the last iteration, and the file system shall only depend on
-{\tt fib\_DiskKey}\key{fib\_DiskKey} and {\tt fib\_DirEntryType}\key{fib\_DirEntryType}
-being identical compared to the last iteration, all other entries can be
-potentially trashed or inconsistent. Thus, the file system shall only use
-these two elements to store state information. Also, file systems shall not
-depend on application programs scanning directories up to the last entry;
-application programs can abort a directory scan at an arbitrary point, yet
-file system shall release all resources required for storing state
-information of the scan after at least the lock on the scanned directory is
-released.
+Unfortunately, this packet is one of the hardest to implement as
+directory contents may change between two {\tt ACTION\_EXAMINE\_OBJECT} packets.
+In particular, file
+systems shall handle the situation gracefully in which the object from
+the previous iteration identified by {\tt
+  fib\_DiskKey}\key{fib\_DiskKey} has been deleted, moved or replaced
+by another object, or in which {\tt dp\_Arg1} is a different
+lock\key{Lock} than the lock that was used to start the scan by {\tt
+  ACTION\_EXAMINE\_OJBECT}\key{ACTION\_EXAMINE\_OJBECT}. The file
+system may only assume that the lock in {\tt dp\_Arg1} is a lock on
+the same directory on which the scan has been started. Similarly, {\tt
+  dp\_Arg2} may have changed from the last iteration, and the file
+system shall only depend on {\tt fib\_DiskKey}\key{fib\_DiskKey} and
+{\tt fib\_DirEntryType}\key{fib\_DirEntryType} being identical
+compared to the last iteration, all other entries can be potentially
+trashed or inconsistent. Thus, the file system shall only use these
+two elements of the {\tt FileInfoBlock}\key{FileInfoBlock}
+to store state information. Also, file systems shall not
+depend on application programs scanning directories up to the last
+entry; application programs can abort a directory scan at an arbitrary
+point, yet file system shall release all resources required for
+storing state information of the scan after at least the lock on the
+scanned directory is released.
 \smallskip{}
 
 A possible implementation strategy is to store full state information in the
