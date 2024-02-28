@@ -3357,6 +3357,13 @@ In case of error, {\tt DupLock()}\key{DupLock()} returns {\tt ZERO}, and
 then {\tt IoErr()}\key{IoErr()} returns an error code identifying the
 error. On success, {\tt IoErr()} is reset. It is not possible to copy an
 exclusive lock.
+\smallskip{}
+
+It is currently not possible to duplicate the {\tt ZERO}
+lock\key{ZERO lock} safely, AmigaDOS up to the most recent version
+simply returns {\tt ZERO} in such a case, but without setting {\tt IoErr()}.
+This means that application programs are not able to distinguish this case
+from the error case.
 
 \subsection{Obtaining the Parent of an Object} \label{sec:parentdir}
 
@@ -4349,7 +4356,7 @@ remain unsupported by the ROM file systems.
 The {\tt fib\_Reserved}\mkey{fib\_Reserved} field is currently unused and shall not be
 accessed.
 
-\subsection{Retrieving Information on an Directory Entry}
+\subsection{Retrieving Information on an Directory Entry} \label{sec:examine}
 
 The {\tt Examine()}\mkey{Examine()} function fills information on an
 object identified by a lock\key{Lock} into a {\tt FileInfoBlock}\key{FileInfoBlock}.
@@ -4364,12 +4371,17 @@ BOOL Examine(BPTR,struct FileInfoBlock *)
 This function fills out the {\tt FileInfoBlock}\key{FileInfoBlock} providing information
 on the object identified by {\tt lock}. The structure is discussed in
 section~\ref{sec:fib} in more detail. As the {\tt Lock()}\key{Lock()}
-function always resolves links, this function will not return a {\tt
-  fib\_DirEntryType} that corresponds to a link.
+function always resolves links, this function will not return a
+{\tt fib\_DirEntryType} that corresponds to a link.
 \smallskip{}
 
-The function returns non-zero in case of success, and $0$ for failure. In
-either case, {\tt IoErr()} is filled, by $0$ on success, on an error code on
+If the {\tt lock} is {\tt ZERO}\key{ZERO lock}, this function will
+examine the root directory of the default file system of the calling
+process, i.e.\ typically {\tt SYS:}.
+\smallskip{}
+
+The function returns non-zero in case of success, and~$0$ for failure. In
+either case, {\tt IoErr()} is filled, by~$0$ on success, on an error code on
 failure.
 
 \punchline{Keep it Aligned!}{As with most BCPL structures, the
@@ -4441,7 +4453,8 @@ identified by {\tt lock} and deposits this information in the {\tt
   FileInfoBlock}\key{FileInfoBlock} described in~\ref{sec:fib}. The
 {\tt lock} shall be a lock\key{Lock} on a directory, in particular, and
 shall have been prepared for a directory scan by
-{\tt Examine()}\key{Examine()} first.
+{\tt Examine()}\key{Examine()} first. The {\tt ZERO} lock\key{ZERO lock} to identify
+the root directory of a volume is typically \emph{not sufficient} here.
 \smallskip{}
 
 Unlike {\tt Examine()}\key{Examine()} and {\tt
@@ -18909,13 +18922,13 @@ from {\tt dp\_Res2}.
 
 \section{Packets for Examining Objects} \label{sec:actionfib}
 
-The packets in this section implement the functions of section~\ref{sec:fib}
-on packet level, i.e.\ they retrieve information from the file system on the
-metadata of objects and allow to scan all objects of a
-directory. Unfortunately, the packets in this section are the hardest to
-implement in a robust way as the directory contents can change while a
-directory scan is active, e.g.\ because files or directories are created or
-deleted.
+The packets in this section implement the functions of
+section~\ref{sec:fib} on packet level, i.e.\ they retrieve information
+from the file system on the metadata of objects identified by
+locks\key{Lock}. They also allow to iterate over a directory and
+receive information from all objects within. Unfortunately,
+implementing the packets in this section in a robust way is nontrivial
+as directory contents can change while the scan is active.
 
 \subsection{Examining a Locked Object} \label{sec:actionexamineobject}
 
@@ -18933,55 +18946,67 @@ data.
 \tt dp\_Res2  & Error code \\ \hline
 \end{rkrmtable}
 
-This packet implements the {\tt Examine()}\key{Examine()} function of the
-\emph{dos.library} and retrieves metainformation on the object represented
-by the lock\key{Lock} in {\tt dp\_Arg1}. This information is provided in a {\tt
-  FileInfoBlock} structure that is documented in section~\ref{sec:fib}.
+This packet implements the {\tt Examine()}\key{Examine()} function of
+the \emph{dos.library}, see section~\ref{sec:examine}. It fills the {\tt
+  FileInfoBlock} structure pointed to by {\tt dp\_Arg2} with
+information on the object identified by the lock in
+{\tt dp\_Arg1}. See section~\ref{sec:fib} for the definition of this
+structure.
 \smallskip{}
 
-However, as the AmigaDOS handler design is due to historic reasons based on
-BCPL, small differences exist between how this packet operates and how the
+However, as the AmigaDOS handler design is based on BCPL,
+small differences exist between how this packet operates and how the
 {\tt Examine()} function provides its results to the caller. In specific,
 the {\tt fib\_FileName} and {\tt fib\_Comment}\key{fib\_Comment} elements shall be filled with
 a BSTRs, i.e.\ the first character is the length of the file name or the
 comment. The conversion to a {\tt NUL}-terminated C string is performed by
-the \emph{dos.library}.
+the \emph{dos.library} external to the file system.
 \smallskip{}
 
-The elements {\tt fib\_DirEntryType}\key{fib\_DirEntryType} and {\tt fib\_EntryType}\key{fib\_EntryType} shall be
-filled with the same value as some programs check one and others the other
-element. In particular, the value filled in shall be taken from
-table~\ref{table:direntrytypes}. The value~0 shall be avoided as some
-programs check for directories by testing against a positive value whereas
-some others check for a non-negative value, i.e.\ accept~0 as a directory.
+The elements {\tt fib\_DirEntryType}\key{fib\_DirEntryType} and {\tt
+  fib\_EntryType}\key{fib\_EntryType} shall be filled with a value
+from table~\ref{table:direntrytypes} in section~\ref{sec:fib},
+identifying the type of the object. As programs are not consistent on
+the element they read, both should be filled with the same value. The
+value~0 should be avoided as some programs identify directories by
+testing against a positive value whereas others check for a
+non-negative value, i.e.\ accept~0 as a directory.
 \smallskip{}
 
 The fields {\tt fib\_OwnerUID}\key{fib\_OwnerUID} and {\tt
   fib\_OwnerGID}\key{fib\_OwnerGID} shall be set to~0, unless the file
 system has an idea on user and group IDs --- unfortunately AmigaDOS cannot
 make use of these values anyhow, and it is not documented how these fields
-shall be interpreted; they are probably an opaque value.  {\tt
-  fib\_Reserved} shall be left alone, in particular file systems \emph{shall
-not} use it to store internal state information. Such information may
-\emph{only} go into {\tt fib\_DiskKey}\key{fib\_DiskKey}, which is an element application
+shall be interpreted; they are probably an opaque value. {\tt fib\_Reserved} shall
+be left alone, in particular file systems \emph{shall not} use it to store
+internal state information. Such information may \emph{only} go
+into {\tt fib\_DiskKey}\key{fib\_DiskKey}, which is an element application
 programs, i.e.\ callers of the \emph{dos.library}, shall not interpret.
 \smallskip{}
 
-This packet is also used to start a scan over the contents of a
-directory. In such a case, the examined object is the directory itself,
-i.e.\ the lock\key{Lock} in {\tt dp\_Arg1} is on a directory. As such, the file system
-should prepare for a scan over this directory and potentially initialize an
-internal state machine.
+If {\tt dp\_Arg1} is {\tt ZERO}, then the root directory of the name
+is examined\key{ZERO lock}. In such a case, {\tt fib\_FileName} shall be
+filled with the name of the volume.
+\smallskip{}
+
+This packet is also used to initiate a scan over a directory to
+examine all objects within in it. Then {\tt dp\_Arg1} is the lock of
+the directory to be scanned. File systems may use this packet to
+initialize internal state information stored in this lock for the
+scan, section~\ref{sec:actionexnext} provides more information why
+this might be necessary. Depending on the file system, the {\tt ZERO}
+lock may then be not suitable to scan the contents of the root directory, in which
+case applications need to obtain a lock on ``{\tt :}'' explicitly.
 \smallskip{}
 
 This function returns a boolean success code in {\tt dp\_Res1}, it
 shall be either set to {\tt DOSTRUE} in case information on the locked
-object could be retrieved and inserted into the {\tt FileInfoBlock}\key{FileInfoBlock}
-given by {\tt dp\_Arg2}. In that case, {\tt dp\_Res2} shall be set
+object could be retrieved and was inserted into the {\tt FileInfoBlock}\key{FileInfoBlock}
+given by {\tt dp\_Arg2}. In case of success, {\tt dp\_Res2} shall be set
 to~0. In case of an error, {\tt dp\_Res1} shall be set to {\tt
   DOSFALSE} and {\tt dp\_Res2} to an error code.
 
-\subsection{Scanning Directory Contents}
+\subsection{Scanning Directory Contents} \label{sec:actionexnext}
 
 The {\tt ACTION\_EXAMINE\_NEXT}\mkey{ACTION\_EXAMINE\_NEXT} continues a scan
 over the directory contents and delivers meta-information on the subsequent
