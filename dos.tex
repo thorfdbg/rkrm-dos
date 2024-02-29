@@ -17334,7 +17334,7 @@ of zero or more entries of the following variably sized structure:
 
 \begin{rkrmtabular}{Directory Cache Entry} \label{table:dircachenetry}
 \begin{longtable}{|l|l|l|} \hline
-{\bf Size} & {\bf Content} & {\bf Notes} \\ \hline \hline
+{\bf Size (bits)} & {\bf Content} & {\bf Notes} \\ \hline \hline
 32         & \tt Key     & key of the referenced object \\ \hline
 32         & \tt Size    & size of the object in bytes \\ \hline
 32         & \tt PrtBits & protection bits of the object \\ \hline
@@ -19125,29 +19125,48 @@ through a pattern or through a hook.
 \end{rkrmtable}
 
 This packet implements the {\tt ExAll()}\key{ExAll()} function of the
-\emph{dos.library} and thus takes parameters similar to the above
+\emph{dos.library}, see section~\ref{sec:exall}, and thus takes parameters similar to the above
 function. Note that unlike many other packets, {\tt dp\_Arg2} and {\tt
   dp\_Arg5} are regular pointers and not BPTRs\footnote{The information on
 {\tt dp\_Arg5} in~\cite{Bantam} is incorrect, it is really a pointer and not
-a BPTR}. If the file system does not implement this packet,
+a BPTR}.
+\smallskip{}
+
+This packet was introduced in AmigaDOS~36, but if the file system does not implement it,
 i.e.\ returns {\tt ERROR\_ACTION\_NOT\_KNOWN}\key{ERROR\_ACTION\_NOT\_KNOWN}, then the \emph{dos.library}
 emulates it using {\tt ACTION\_EXAMINE\_OBJECT}\key{ACTION\_EXAMINE\_OBJECT}
 and {\tt ACTION\_EXAMINE\_NEXT}\key{ACTION\_EXAMINE\_NEXT}.
+\medskip{}
+
+Packet arguments are as follows:
 \smallskip{}
 
-{\tt dp\_Arg1} is a lock\key{Lock} on the directory to be examined.
+{\tt dp\_Arg1} is a lock\key{Lock} on the directory to be examined. This lock cannot
+be {\tt ZERO} by the requirements of {\tt ExAll()}\key{ExAll()}, see section~\ref{sec:exall}.
 \smallskip{}
 
 {\tt dp\_Arg2} is a pointer to the buffer to be filled with information on
-the objects found in the directory, it is \emph{not} a BPTR. This buffer is
+the objects found in the directory, it is \emph{not} a BPTR. This buffer shall be
 filled with a singly linked list of {\tt ExAllData}\key{ExAllData} structures, see
-section~\ref{sec:exall} for the definition of this structure. Only the
-elements requested by {\tt dp\_Arg4} are filled, remaining entries are
-undefined.
+again section~\ref{sec:exall} for the definition of this structure. Only the
+elements requested by {\tt dp\_Arg4} are filled. Remaining entries are
+undefined and need not to be present at all, i.e.\ only the minimal amount of information requested may be
+filled into memory, using the unused elements to store subsequent (incomplete)
+{\tt ExAllData} structures.
 \smallskip{}
 
-{\tt dp\_Arg3} is the size of the buffer provided in {\tt dp\_Arg2} in
-bytes.
+In addition, file systems shall align the {\tt ExAllData}\key{ExAllData} in the buffer
+to word boundaries to allow their interpretation also by the less capable
+members of the 68K family; that is, the {\tt ed\_Next} element pointing to a subsequent
+structure shall be even. For the last filled structure, this pointer
+shall be set to {\tt NULL} to terminate the list, even though the number of structures
+filled shall also be made available in the {\tt eac\_Entries} element of the {\tt ExAllControl} structure.
+In other words, the file system shall build a {\tt NULL}-terminated singly linked list of {\tt ExAllData}
+structures that are properly aligned.
+\medskip{}
+
+{\tt dp\_Arg3} is the size of the buffer in bytes to which {\tt dp\_Arg2} points to, and into which
+the result of the scan is filled.
 \smallskip{}
 
 {\tt dp\_Arg4} defines which elements of the {\tt ExAllData}\key{ExAllData} are filled. The
@@ -19155,21 +19174,21 @@ encoding of this argument is given by table~\ref{table:exalltypes} in
 section~\ref{sec:exall}.
 \smallskip{}
 
-{\tt dp\_Arg5} is a pointer to a {\tt ExAllControl} structure, also defined
+{\tt dp\_Arg5} is a pointer to an {\tt ExAllControl}\key{ExAllControl} structure, also defined
 in section~\ref{sec:exall}. A detailed description of this structure is also
-provided in section~\ref{sec:exall}. Note that this is really a regular
-pointer, not a BPTR.
+provided there. Note that this is also a regular pointer, not a BPTR.
 \smallskip{}
 
-The file system shall provide in the {\tt eac\_Entries} element of
-this structure the number of {\tt ExAllData}\key{ExAllData} structures it could fit into
-the target buffer provided by {\tt dp\_Arg2}.
+The file system shall provide in the {\tt eac\_Entries} element of the
+{\tt ExAllControl}\key{ExAllControl} structure the number of
+{\tt ExAllData}\key{ExAllData} structures it could fit into the target
+buffer pointed to by {\tt dp\_Arg2}.
 \smallskip{}
 
-It may store internal state information of the directory scanner in {\tt
-  eac\_LastKey}. This state information could, for example, correspond to
+The file system may store internal state information of the directory scanner in
+{\tt eac\_LastKey}. This state information could, for example, correspond to
 the {\tt fib\_DiskKey}\key{fib\_DiskKey} in the {\tt FileInfoBlock}\key{FileInfoBlock}
-identifying an element in a directory. It is zero-initialized before the
+identifying an element in a directory at which to continue an interrupted scan. It is zero-initialized before the
 first packet, and thus the file system may assume that a value of~0 for the
 key identifies the start of the scan.
 \smallskip{}
@@ -19181,48 +19200,50 @@ present, only directory entries whose name matches the pattern shall be
 filled into the target buffer.
 \smallskip{}
 
-{\tt eac\_MatchFunc}\key{eac\_MatchFunc} provides even finer control of which elements are
+{\tt eac\_MatchFunc}\key{eac\_MatchFunc} provides even finer control of which objects are
 filled into the target buffer; it supplies a {\tt Hook} structure whose
-{\tt h\_Entry} function is called for each candidate directory entry. If the
+{\tt h\_Entry} function shall be called for each candidate directory entry. If the
 hook returns non-zero, the {\tt ExAllData}\key{ExAllData} copied to the buffer shall be
 considered accepted and shall remain in the buffer; if it returns zero, this
-candidate entry is rejected and will be removed from the final
+candidate entry is rejected and shall not appear in the 
 output. Calling conventions of this hook are also described in
 section~\ref{sec:exall}.
 \medskip{}
 
-The same precautions as for {\tt
-  ACTION\_EXAMINE\_NEXT}\key{ACTION\_EXAMINE\_NEXT} hold for this packet,
-too. In particular, the file system shall be prepared for the
-directory to get modified between scans, by either adding, removing,
-renaming or moving objects out or into the directory. Using a disk block or
-a pointer to a structure representing a specific object as {\tt
-  eac\_LastKey}\key{eac\_LastKey} is therefore discouraged. Similarly, {\tt dp\_Arg1} will be
-a lock to the same directory, though may not necessarily be the identical
-lock\key{Lock} as used in the previous iteration over the same directory, only the
-directory that is locked may assumed to be the same. In other words, {\tt
-  eac\_DiskKey}\key{eac\_DiskKey} shall hold sufficient state information to reconstruct the
-point from which the scan is to be continued. What is, however, is ensured
+The same precautions as for {\tt ACTION\_EXAMINE\_NEXT}\key{ACTION\_EXAMINE\_NEXT}
+hold for {\tt ACTION\_EXAMINE\_ALL}\key{ACTION\_EXAMINE\_ALL}, too.
+In particular, the file system shall be prepared for the
+directory to get modified within scans, by either adding, removing,
+renaming or moving objects out of or into the directory. Using a disk block or
+a pointer to a structure representing a specific object as
+{\tt eac\_LastKey}\key{eac\_LastKey} is therefore discouraged.
+Similarly, on subsequent requests forming a scan of a directory, the
+{\tt ExAll()}\key{ExAll()} interface requires that {\tt dp\_Arg1} is
+a lock to the same directory, though it need not necessarily be the identical
+lock\key{Lock} as used in the previous iteration over the same directory.
+In other words, {\tt eac\_DiskKey}\key{eac\_DiskKey} shall hold sufficient
+state information to reconstruct the point from which the scan can be continued. What is, however, is ensured
 is that the pointer to the {\tt ExAllControl}\key{ExAllControl} structure
-stored in {\tt dp\_Arg5} did not change and the file system may depend on the pointer
-having the same value as on a the previous iteration over a directory. Also,
-file systems may depend on the client sending a packet of type {\tt
-  ACTION\_EXAMINE\_ALL\_END}\key{ACTION\_EXAMINE\_ALL\_END} to abort a scan
+stored in {\tt dp\_Arg5} does not change between requests, and the file system may depend on the pointer
+having the same value as on a the previous (incomplete) request for the directory. Also,
+file systems may depend on the client sending a packet of type
+{\tt ACTION\_EXAMINE\_ALL\_END}\key{ACTION\_EXAMINE\_ALL\_END} to abort a scan
 before reaching the end of the directory.
 \smallskip{}
 
-This packet shall be replied with {\tt dp\_Res1} set to {\tt DOSTRUE} if not
+The {\tt ACTION\_EXAMINE\_ALL}\key{ACTION\_EXAMINE\_ALL} packet shall be replied
+with {\tt dp\_Res1} set to {\tt DOSTRUE} if not
 all entries could be fit into the buffer, i.e.\ if {\tt dp\_Arg3} bytes were
 not sufficient to hold all matching directory entries and at least another
 iteration over the directory is necessary to supply (some of) the missing
 entries. In such a case, {\tt dp\_Res2} shall also be set to~0. Such an
 incomplete scan is either continued with another {\tt ACTION\_EXAMINE\_ALL}\key{ACTION\_EXAMINE\_ALL}
-packet, or aborted by an {\tt ACTION\_EXAMINE\_ALL\_END}\key{ACTION\_EXAMINE\_ALL\_END} packet.
+packet, or will be aborted by an {\tt ACTION\_EXAMINE\_ALL\_END}\key{ACTION\_EXAMINE\_ALL\_END} packet.
 \smallskip{}
 
 In case the end of the directory has reached and all directory entries could
-be supplied, {\tt dp\_Res1} shall be set to~0, and {\tt dp\_Res2} to {\tt
-  ERROR\_NO\_MORE\_ENTRIES}. In case the directory scan had been aborted due
+fit into the buffer, {\tt dp\_Res1} shall be set to~0, and {\tt dp\_Res2} to
+{\tt ERROR\_NO\_MORE\_ENTRIES}. In case the directory scan had been aborted due
 to an error, {\tt dp\_Res1} shall be set to~0 and {\tt dp\_Res2} to an error
 code.
 
@@ -19230,8 +19251,8 @@ code.
 
 The packet {\tt ACTION\_EXAMINE\_ALL\_END}\mkey{ACTION\_EXAMINE\_ALL\_END}
 aborts a directory scan started with
-{\tt ACTION\_EXAMINE\_ALL}\key{ACTION\_EXAMINE\_ALL} that returned with {\tt
-  dp\_Res1} non-zero and thus indicated that the end of the directory has
+{\tt ACTION\_EXAMINE\_ALL}\key{ACTION\_EXAMINE\_ALL} that returned with a non-zero result in
+{\tt dp\_Res1} and thus indicated that the end of the directory has
 not yet been reached.
 
 \begin{rkrmtable}{\tt ACTION\_EXAMINE\_ALL\_END} \label{table:actionexamineallend}
