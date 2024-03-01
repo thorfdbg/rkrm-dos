@@ -4389,7 +4389,7 @@ failure.
   reason, it should be allocated from the heap. Section~\ref{sec:bptrs}
   provides some additional hints on how to allocate such structures.}
 
-\subsection{Retrieving Information from a File Handle}
+\subsection{Retrieving Information from a File Handle} \label{sec:examinefh}
 
 While {\tt Examine()}\key{Examine()} retrieves information a locked
 object, {\tt ExamineFH()}\mkey{ExamineFH()} retrieves the same
@@ -5462,7 +5462,7 @@ file system containing the link, it cannot know whether the link target is a
 file or a directory (or maybe another link), and therefore a single type is
 sufficient to identify them.
 
-\subsection{Creating Links}
+\subsection{Creating Links} \label{sec:makelink}
 
 The {\tt MakeLink()}\mkey{MakeLink()} function creates a hard link\key{Hard
   Link}, soft link\key{Soft Link} or external link\key{External Link} to an
@@ -19249,11 +19249,11 @@ code.
 
 \subsection{Aborting a Directory Scan}
 
-The packet {\tt ACTION\_EXAMINE\_ALL\_END}\mkey{ACTION\_EXAMINE\_ALL\_END}
-aborts a directory scan started with
-{\tt ACTION\_EXAMINE\_ALL}\key{ACTION\_EXAMINE\_ALL} that returned with a non-zero result in
-{\tt dp\_Res1} and thus indicated that the end of the directory has
-not yet been reached.
+The packet {\tt ACTION\_EXAMINE\_ALL\_END}\mkey{ACTION\_EXAMINE\_ALL\_END} aborts a
+directory scan started with {\tt ACTION\_EXAMINE\_ALL}\key{ACTION\_EXAMINE\_ALL}.
+that returned with a non-zero result in {\tt dp\_Res1} and thus indicated that the end of
+the directory has not yet been reached. It allows file systems to release resources
+associated to the scan.
 
 \begin{rkrmtable}{\tt ACTION\_EXAMINE\_ALL\_END} \label{table:actionexamineallend}
 {\bf DosPacket Element}   & {\bf Value}\\ \hline \hline
@@ -19267,44 +19267,46 @@ not yet been reached.
 \tt dp\_Res2  & Error code \\ \hline
 \end{rkrmtable}
 
-This packet implements the {\tt ExAllEnd()}\key{ExAllEnd()} function of the
-\emph{dos.library} and aborts a partial directory scan started with {\tt
-  ExAll()}\key{ExAll()} but for which neither the end of the directory has
-been reached nor an error code has been received. This packet may be used by
-an implementing file system to release any temporary resources
-allocated for the purpose of the scan.
+This packet implements the {\tt ExAllEnd()}\key{ExAllEnd()} function
+of the \emph{dos.library}, see section~\ref{sec:exallend}, and aborts
+a partial directory scan started with {\tt ExAll()}\key{ExAll()} but
+for which neither the end of the directory has been reached nor an
+error code has been received. This packet may be used by an
+implementing file system to release any temporary resources allocated
+for the purpose of the scan. It was introduced in AmigaDOS~39.
+\medskip{}
+
+Arguments are populated as follows:
 \smallskip{}
 
-{\tt dp\_Arg1} is the lock\key{Lock} on the directory on which a partial directory
+{\tt dp\_Arg1} is the lock\key{Lock} on the directory on which a partial
 scan has been started. It is not necessarily the original lock passed into
 {\tt ACTION\_EXAMINE\_ALL}\key{ACTION\_EXAMINE\_ALL}, but a lock on the same directory.
 \smallskip{}
 
 {\tt dp\_Arg2} and {\tt dp\_Arg3} are a pointer to a buffer and its
-size. This buffer, however, will not be touched and no data will be
+size. This buffer, however, should not be touched and no data should be
 deposited there; as this buffer is not necessarily the same as the one for
-which the scan has been started, this information is likely not very useful,
-but it is provided here anyhow.
+which the scan has been started, file systems may ignore these arguments.
 \smallskip{}
 
-{\tt dp\_Arg4} is a type information which would define the information that
-would go into the buffer provided by {\tt dp\_Arg2}; however, as this packet does not
-request to add any data to the buffer, it is probably not very
-helpful and file systems should probably ignore it as no useful
-decisions can be derived from what the requested information actually was.
+{\tt dp\_Arg4} would define which information would go into the buffer
+provided by {\tt dp\_Arg2}; the encoding of {\tt dp\_Arg4} is given by
+table~\ref{table:exalltypes} in section~\ref{sec:exall}. However, as
+this packet should not fill any data into the supplied buffer, file systems
+may also ignore it.
 \smallskip{}
 
 {\tt dp\_Arg5} is a pointer to a {\tt ExAllControl}\key{ExAllControl} structure, and the
-pointer provided here is identical to the pointer provided to {\tt
-  ACTION\_EXAMINE\_ALL}\key{ACTION\_EXAMINE\_ALL}. Thus, file systems
-may use this pointer value and specifically the {\tt eac\_DiskKey}\key{eac\_DiskKey} element
-therein to release any resources related to this scan.
-\smallskip{}
+pointer provided here is identical to the pointer provided to 
+{\tt ACTION\_EXAMINE\_ALL}\key{ACTION\_EXAMINE\_ALL} whose abortion is requested. Thus, file systems
+may use the pointer value and specifically the {\tt eac\_DiskKey}\key{eac\_DiskKey} element in the
+structure it points to to release any resources related to the scan.
+\medskip{}
 
 Before replying this packet, the file system shall set {\tt dp\_Res1}
-to a boolean success code whether it could abort the scan. If {\tt dp\_Res1}
-is set to {\tt DOSTRUE} indicating that the scan was aborted successfully,
-then {\tt dp\_Res2} shall also be set to~0.
+to a boolean success code indicating whether it could abort the scan. On success,
+{\tt dp\_Res1} shall be set to {\tt DOSTRUE}, and {\tt dp\_Res2} to~0.
 \smallskip{}
 
 If the file system does not implement this packet, it shall set
@@ -19317,22 +19319,22 @@ matches no entry, and then continues the scan with a
 packet. This would then clearly reach the end of the directory without
 overruning the buffer. However, due to a defect in the \emph{dos.library} up
 to the latest release, the (non-matching) pattern is a literal pattern and
-not a pre-parsed pattern and thus, actually, could match an entry in the
+not a pre-parsed pattern. It therefore could match an entry in the
 directory. Thus, it is advised to always implement
 {\tt ACTION\_EXAMINE\_ALL\_END}\key{ACTION\_EXAMINE\_ALL\_END}
 if {\tt ACTION\_EXAMINE\_ALL}\key{ACTION\_EXAMINE\_ALL} is implemented, even
 if it is just replied with success and no additional resources need to be released.
 \smallskip{}
 
-On any other error, {\tt dp\_Res1} shall be set to {\tt DOSFALSE} and {\tt
-  dp\_Res2} to an error code.
+On any other error, {\tt dp\_Res1} shall be set to {\tt DOSFALSE} and
+{\tt dp\_Res2} to an error code.
 
 \subsection{Examining from a File Handle}
 
-The {\tt ACTION\_EXAMINE\_FH}\mkey{ACTION\_EXAMINE\_FH} packet provides meta
-data on an object identified by a file handle\key{FileHandle} rather than a
+The {\tt ACTION\_EXAMINE\_FH}\mkey{ACTION\_EXAMINE\_FH} packet examines
+an object identified by a file handle\key{FileHandle} rather than a
 lock\key{Lock}; that is, it uses the (implied) lock of the opened file to
-retrieve information.
+retrieve information on the opened file.
 
 \begin{rkrmtable}{\tt ACTION\_EXAMINE\_FH} \label{table:actionexaminefh}
 {\bf DosPacket Element}   & {\bf Value}\\ \hline \hline
@@ -19343,32 +19345,33 @@ retrieve information.
 \tt dp\_Res2  & Error code \\ \hline
 \end{rkrmtable}
 
-This packet implements the {\tt ExamineFH()}\key{ExamineFH()} function of
-the \emph{dos.library} and retrieves information on an object from a
-file handle\key{FileHandle} rather than a lock\key{Lock}.
+This packet implements the {\tt ExamineFH()}\key{ExamineFH()} function
+of the \emph{dos.library}, see section~\ref{sec:examinefh}, and
+retrieves information on an object from a file handle\key{FileHandle}
+opened to this object rather than a lock\key{Lock}. This packet therefore
+allows to retrieve information on files from handlers
+that do not support locks. It was introduced in AmigaDOS~36.
 \smallskip{}
 
 {\tt dp\_Arg1} is a copy of the {\tt fh\_Arg1} element of the
 {\tt FileHandle} that is to be examined and thus serves to identify the
-object to be examined\footnote{Note, again, that the information in~\cite{Bantam} on {\tt
+object\footnote{Note that the information in~\cite{Bantam} on {\tt
   dp\_Arg1} is incorrect.}.
 \smallskip{}
 
-{\tt dp\_Arg2} is a BPTR to a {\tt FileInfoBlock}\key{FileInfoBlock} structure as documented in
-section~\ref{sec:fib}, and which shall be filled by the file system
-with the information on the object identified by {\tt dp\_Arg1}. As for the
-packet type {\tt ACTION\_EXAMINE\_OBJECT}\key{ACTION\_EXAMINE\_OBJECT}
-specified in section~\ref{sec:actionexamineobject}, the {\tt FileInfoBlock}
-passed out to the caller of the \emph{dos.library} and what the packet shall
-deliver differ. In specific, {\tt fib\_FileName}\key{fib\_FileName} and
-{\tt fib\_Comment}\key{fib\_Comment} shall be BSTRs with the length of the
-string in the zeroth element, and not {\tt NUL}-terminated C strings. The
-conversion to C strings happens within the \emph{dos.library}.
+{\tt dp\_Arg2} is a BPTR to a {\tt FileInfoBlock}\key{FileInfoBlock}
+structure as documented in section~\ref{sec:fib}, and which shall be
+filled by the handler with the information on the object
+identified by {\tt dp\_Arg1}. As for the packet type {\tt
+  ACTION\_EXAMINE\_OBJECT}\key{ACTION\_EXAMINE\_OBJECT} specified in
+section~\ref{sec:actionexamineobject}, the handler shall fill {\tt fib\_FileName}\key{fib\_FileName}
+and {\tt fib\_Comment}\key{fib\_Comment} with BSTRs. They are converted to {\tt NUL}-terminated
+C strings by the \emph{dos.library}.
 \smallskip{}
 
 Before replying this packet, the file system shall set {\tt dp\_Res1}
-to a boolean result code. On success, {\tt dp\_Res1} shall be set to {\tt
-  DOSTRUE} and {\tt dp\_Res2} to~0. On failure, {\tt dp\_Res1} shall be set
+to a boolean result code. On success, {\tt dp\_Res1} shall be set to
+{\tt DOSTRUE} and {\tt dp\_Res2} to~0. On failure, {\tt dp\_Res1} shall be set
 to {\tt DOSFALSE} and {\tt dp\_Res2} to an error code.
 
 \section{Packets for Working with Links}
@@ -19380,71 +19383,82 @@ on the interface within the \emph{dos.library} for links.
 
 \subsection{Creating Links}
 
-The {\tt ACTION\_MAKE\_LINK}\mkey{ACTION\_MAKE\_LINK} packet creates a link
+The {\tt ACTION\_MAKE\_LINK}\mkey{ACTION\_MAKE\_LINK} packet creates soft\key{Soft Link} or hard links\key{Hard Link}
 in a file system.
 
 \begin{rkrmtable}{\tt ACTION\_MAKE\_LINK} \label{table:actionmakelink}
 {\bf DosPacket Element}   & {\bf Value}\\ \hline \hline
 \tt dp\_Type  & \tt ACTION\_MAKE\_LINK (1021) \\ \hline
 \tt dp\_Arg1  & BPTR to a {\tt FileLock} \\ \hline
-\tt dp\_Arg2  & BPTR to BSTR of the link to create \\ \hline
+\tt dp\_Arg2  & BPTR to BSTR of the path of the link to create \\ \hline
 \tt dp\_Arg3  & BPTR to {\tt FileLock} or APTR to C-string \\ \hline
 \tt dp\_Arg4  & Type of the link, from table~\ref{table:linktypes} \\ \hline \hline
 \tt dp\_Res1  & Boolean result code \\ \hline
 \tt dp\_Res2  & Error code \\ \hline
 \end{rkrmtable}
 
-This packet implements the {\tt MakeLink()}\key{MakeLink()} function of the
-\emph{dos.library} and as such creates soft- or hardlinks within the
-file system.
+This packet implements the {\tt MakeLink()}\key{MakeLink()} function
+of the \emph{dos.library}, see section~\ref{sec:makelink}, and as such
+creates soft\key{Soft Link}, hard\key{Hard Link} or external links\key{External Link}
+within the file system. It was added in AmigaDOS~36. 
+\smallskip{}
+
+Arguments are populated as follows:
 \smallskip{}
 
 {\tt dp\_Arg1} is a BPTR to a {\tt FileLock}\key{FileLock} structure that identifies the
 directory within which the object is to be created.
 \smallskip{}
 
-{\tt dp\_Arg2} is a BPTR to a BSTR that provides the name of the link to be
-created.
+{\tt dp\_Arg2} is a BPTR to a BSTR that provides the path of the link
+to be created. This path is logically appended to the path of the
+directory given by {\tt dp\_Arg1}, and the last component of this path
+is the file name of the link.
 \medskip{}
 
 {\tt dp\_Arg3} identifies the target of the link, i.e.\ the object the link
 points to. If {\tt dp\_Arg4} is {\tt LINK\_HARD}\key{LINK\_HARD}, then this argument is a
-BPTR to a {\tt FileLock}\key{FileLock} structure identifying the target. If this
-{\tt FileLock}\key{FileLock} identifies an object on the same file system as {\tt
-  dp\_Arg1}, then a hard link\key{Hard Link} is created. If the object locked by {\tt
-  dp\_Arg3} is a file, then the created link will represent a file,
+BPTR to a {\tt FileLock}\key{FileLock} structure identifying the target. The type of the link
+then depends on whether this target is on the same or a different file system.
+\smallskip{}
+
+If the {\tt FileLock}\key{FileLock} identifies an object on the same file system as
+{\tt dp\_Arg1}, then a hard link\key{Hard Link} is created. If the object locked by
+{\tt dp\_Arg3} is a file, then the created link will represent a file,
 otherwise a directory.
 \smallskip{}
 
-Resolution of hard links\key{Hard Link} is up to the file system. That is, if the
-link is accessed, it is up to the file system to locate the target of
-the link and access it instead of the link. Multiple implementation
-strategies exist for hard links: Either, each object includes a reference
-count that is incremented for each directory entry pointing to it, that is
-for each link created; likewise, this counter is decremented each time a
-directory entry is removed. If the counter reaches~0, the object itself is
-deleted.
+Resolution of hard links\key{Hard Link} is up to the file system. That
+is, if the link is accessed, it is up to the file system to locate the
+target of the link and access it instead of the link. Multiple
+implementation strategies exist for hard links: Either, each object
+includes a reference counter that is incremented for each directory
+entry pointing to it, that is for each link created; likewise, this
+counter is decremented each time a directory entry is removed. If the
+counter reaches~0, the object itself is deleted. This strategy is used
+for example by the family of {\tt ext} file systems on Linux. Links
+cannot be distinguished from regular objects in this design as the
+link is just another directory entry pointing to the same file system object.
 \smallskip{}
 
 Alternatively, each link is pointing to the linked object, and the object
 itself contains a list of links that reference it. If a link is deleted, it
 is removed from its directory and from the list of links within the target
 object. If the object itself is deleted, one of the links becomes the object
-itself and the list of links is copied from the deleted object to this
-link. The FFS\key{Fast File System (FFS)} follows (mostly for backwards compatibility) this latter
-approach.
+itself and the list of links is copied from the deleted object to the
+link. The FFS\key{Fast File System (FFS)} follows this latter approach.
 \medskip{}
 
-If {\tt dp\_Arg4} is {\tt LINK\_HARD}\key{LINK\_HARD} and the {\tt FileLock}\key{FileLock} pointed to by
-{\tt dp\_Arg3} is on a different file system, then an external
-link\key{External Link} shall be
+If {\tt dp\_Arg4} is {\tt LINK\_HARD}\key{LINK\_HARD} and the
+{\tt FileLock}\key{FileLock} pointed to by {\tt dp\_Arg3} is on a different file
+system, then an external link\key{External Link} shall be
 created. That is, the file system addressed by the packet shall
 create a file or directory within its own file system in the directory
-identified by {\tt dp\_Arg1}, and this file or directory shall mirror the
+containing the link, and this file or directory shall mirror the
 contents of the link target given by {\tt dp\_Arg4} whenever the link or an
 object within the link is accessed; the file system shall thus implement
 a ``copy on read'' for the linked object and all objects within the linked
-object if this object is a directory.
+object --- if the link target is a directory.
 \smallskip{}
 
 If the target of such a link is deleted or an object within the linked
@@ -19458,19 +19472,22 @@ Currently, only the RAM-Handler\key{RAM-Handler} implements this type of link, a
 is there used to realize the {\tt ENV:} assign containing all preferences
 settings. The external link\key{External Link} pulls only those preferences settings into the
 RAM disk that are actually required, at the time they are required.
+Section~\ref{sec:links} contains more information on external links which
+were added in AmigaDOS~47.
 \medskip{}
 
-If {\tt dp\_Arg4} is {\tt LINK\_SOFT}\key{LINK\_SOFT}, then {\tt dp\_Arg3} is a pointer to a
-{\tt NUL}-terminated C string providing the target of the link. This string
-is interpreted as a path name relative to the location of the link source at
-the time the link is resolved\footnote{This is quite unusual as AmigaDOS
-otherwise depends on BSTR representation for packets.}.
+If {\tt dp\_Arg4} is {\tt LINK\_SOFT}\key{LINK\_SOFT}, then {\tt dp\_Arg3}
+is a pointer to a {\tt NUL}-terminated C string providing
+the target of the link. This string is stored in the file system and
+interpreted as a path name relative to the location of the link at the
+time the link is resolved\footnote{This is quite unusual as AmigaDOS
+  otherwise represents strings as BSTR, though that would limit the length of the link target.}.
 \smallskip{}
 
 Resolution of soft links\key{Soft Link} is performed within the \emph{dos.library} or
 within the client application as not all functions of the library implement
 soft link resolution. For a list of functions that \emph{do} implement it,
-see table~\ref{table:softenabled}.
+see table~\ref{table:softenabled} in section~\ref{sec:links}.
 \smallskip{}
 
 Upon accessing a soft link\key{Soft Link}, or a path containing a soft link, the file
@@ -19479,20 +19496,20 @@ error is returned, the sender of a packet accessing the link --- thus
 typically the \emph{dos.library} itself --- shall read the target of the
 link with the {\tt ReadLink()}\key{ReadLink()} function specified in
 section~\ref{sec:readlink}. This function then again contacts the file
-system containing the link with a {\tt
-  ACTION\_READ\_LINK}\key{ACTION\_READ\_LINK} which will construct from the
-link an updated path to the object.
+system containing the link with a {\tt ACTION\_READ\_LINK}\key{ACTION\_READ\_LINK}
+which will construct from the link an updated path to the object. Section~\ref{sec:actionreadlink}
+provides more details on this packet.
 \smallskip{}
 
 From this follows that a file system is not aware whether the target
 of a soft link\key{Soft Link} actually exists as it can only provide the path to the
-object, but not necessarily the object itself; in particular, soft links may
+object, but not necessarily the object itself; in particular, soft links\key{Soft Link} can
 cross file system boundaries. If the target of a soft link is deleted, the
 soft link itself remains and becomes a ``dangling'' link. When accessing
 such a link, its resolution fails with an error {\tt ERROR\_OBJECT\_NOT\_FOUND}\key{ERROR\_OBJECT\_NOT\_FOUND}.
 \medskip{}
 
-Upon replying the packet, {\tt dp\_Res1} shall be set to {\tt DOSTRUE} and
+Upon replying the {\tt ACTION\_MAKE\_LINK} packet, {\tt dp\_Res1} shall be set to {\tt DOSTRUE} and
 {\tt dp\_Res2} to~0 on success. On failure, {\tt dp\_Res2} shall be set to
 {\tt DOSFALSE} and {\tt dp\_Res1} to an error code.
 
@@ -19513,38 +19530,48 @@ link.
 \tt dp\_Res2  & Error code \\ \hline
 \end{rkrmtable}
 
-This packet implements the {\tt ReadLink()}\key{ReadLink()} function, see
-section~\ref{sec:readlink}, of the \emph{dos.library} and is used there to
-resolve soft links\key{Soft Link} and obtain the link target. Implementing this packet
-correctly requires, however, some care as the soft link may be in the middle
-of the path provided by {\tt dp\_Arg2} and not just its last component, and
-the soft link itself may be an absolute or relative path. This packet needs
-to provide from the original path an updated path that points to the
-intended location relative to the location of the soft link, and that is not
+This packet implements the {\tt ReadLink()}\key{ReadLink()} function,
+see section~\ref{sec:readlink}, of the \emph{dos.library} and is used
+there to resolve soft links\key{Soft Link} and obtain the link
+target. This packet was added in AmigaDOS~36.
+\smallskip{}
+
+Implementing this packet correctly requires, however, some care as the
+soft link may be in the middle of the path provided by {\tt dp\_Arg2}
+and not just at its last component, and the soft link itself may be an
+absolute or relative path. This packet needs to provide from the
+original path an updated path that points to the intended location
+relative to the location \emph{of the soft link}, and that is not
 necessarily the same as a path relative to {\tt dp\_Arg1}.
+\medskip{}
+
+Arguments of this packet are populated as follows:
 \smallskip{}
 
-{\tt dp\_Arg1} is a lock\key{Lock} to a directory in the file system to which
-this packet has been send and relative to which the path in {\tt dp\_Arg2}
-shall be interpreted. This \emph{need not} to be the directory containing
-the link.
+{\tt dp\_Arg1} is a lock\key{Lock} to a directory in the file system
+relative to which the path in {\tt dp\_Arg2} shall be
+interpreted. This \emph{need not} to be directly the directory containing the
+link. The {\tt lock} argument of {\tt ReadLink()} will be placed here.
 \smallskip{}
 
-{\tt dp\_Arg2} is a pointer to a path name containing a soft link\key{Soft Link} on this
-file system. This is, unlike in many other packets, not a BPTR to a
-BSTR but a pointer to a regular {\tt NUL}-terminated C string.
+{\tt dp\_Arg2} is a pointer to a path name relative to {\tt dp\_Arg1}
+which contains a soft link\key{Soft Link} as one of its components.
+The soft link \emph{need not to be} the last component of
+this path, it can also be one of the components in the middle of it.
+This argument is, unlike in many other packets, not a BPTR
+to a BSTR but a pointer to a regular {\tt NUL}-terminated C string.
 \smallskip{}
 
 The file system shall now proceed with soft link\key{Soft Link} resolution as
 follows: Starting from the directory given by {\tt dp\_Arg1}, it shall
 interpret the path in {\tt dp\_Arg2} component by component as explained in
-section~\ref{sec:paths}, until it finds a soft link. That is, colons (``{\tt
-  :}'') indicate that the scan should continue at the root directory of the
+section~\ref{sec:paths}, until it finds a soft link. That is, colons
+(``{\tt :}'') indicate that the scan shall continue at the root directory of the
 volume, an isolated slash (``{\tt /}'') shall enter the parent directory,
 and all other components terminated by a slash shall be interpreted as names
 of directories that shall be recursively entered. This process continues
 until either the end of the path is found, or --- and this is the purpose of
-this packet --- a soft link is detected.
+this packet --- a soft link is found.
 \smallskip{}
 
 If a soft link\key{Soft Link} is detected as part of the path, the target of the link as
@@ -19554,15 +19581,15 @@ absolute or relative path that shall be merged with the path provided in
 {\tt dp\_Arg2}.
 \smallskip{}
 
-In particular, if the path stored in the soft link\key{Soft Link} contains a colon (``{\tt
-  :}''), and hence is an absolute path, the components parsed off from {\tt
-  dp\_Arg2} up to the detection of the soft link shall be disregarded in
+In particular, if the path stored in the soft link\key{Soft Link} contains a
+colon (``{\tt :}''), and hence is an absolute path, the components parsed off
+from {\tt dp\_Arg2} up to the detection of the soft link shall be disregarded in
 order to start from the root directory. If no device or volume name is
 provided in the absolute link target, the file system shall insert
-the name of the current volume, and a colon, in order to provide an
+the name of the current volume and a colon, in order to provide an
 unambiguous anchor of the newly constructed path. The remaining of the path
-stored in the soft link is then concatenated to this device or volume
-specification. Finally, the rest of the components from {\tt dp\_Arg2}
+stored in the soft link is then concatenated to the volume
+name. Finally, the rest of the components from {\tt dp\_Arg2}
 behind the component name of the soft link are concatenated to this
 intermediate path, forming the final link target.
 \smallskip{}
@@ -19571,13 +19598,13 @@ If the path stored in the soft link\key{Soft Link} is a relative path, then it s
 concatenated to the path from {\tt dp\_Arg2} up to the component name of the
 soft link at which iterating through {\tt dp\_Arg2} was interrupted. The
 remaining components from {\tt dp\_Arg2} behind the component name of the
-soft link is then attached to this intermediate path, forming the final
+soft link shall then be attached to this intermediate path, forming the final
 result.
 \smallskip{}
 
 This procedure is tedious, but it ensures that the soft link\key{Soft Link} is interpreted
 relative to the path from which the client application detected it, even if
-the soft link is the middle of the supplied path and not contained in the
+the soft link is the middle of the supplied path and not contained directly in the
 directory provided by {\tt dp\_Arg1}. Note that the above algorithm only
 resolves a single soft link in a path; this is intentional, the
 \emph{dos.library} will send another {\tt ACTION\_READ\_LINK}\key{ACTION\_READ\_LINK} packet to the
@@ -19585,26 +19612,25 @@ same or another file system if the remaining path contains additional soft
 links, or even in case the soft link points to another soft link. It is
 therefore important at the level of client application --- or the
 \emph{dos.library} --- to detect endless loops of soft links pointing to
-each other. The \emph{dos.library} aborts soft link resolution after~15
-links.
+each other. The \emph{dos.library} aborts soft link resolution after the
+expansion of~15 links.
 \medskip{}
 
 {\tt dp\_Arg3} is the pointer (not a BPTR) to a target buffer into which the
-newly constructed path, with the soft link\key{Soft Link} resolved, shall be provided as a
-{\tt NUL}-terminated C string.
+path resolving the soft link shall be filled as a {\tt NUL}-terminated C string.
 \smallskip{}
 
 {\tt dp\_Arg4} is the size of this target buffer in bytes.
 \smallskip{}
 
-On an error, {\tt dp\_Res1} shall be set to~$-1$ or to $-2$ in case the
+On an error, {\tt dp\_Res1} shall be set to~$-1$, or to $-2$ in case the
 target buffer overflows and cannot take the full target
 path\footnote{Currently any negative value will do to indicate an error, and
 the \emph{dos.library} does not distinguish between $-1$ and $-2$ as result
 code. Unfortunately, even the latest version of the FFS\key{Fast File System (FFS)} will \emph{not}
 return a negative value but~$0$ in case of an error; this is a defect.}. In
 case of error, {\tt dp\_Res2} shall also be set to an error code. In
-particular, if the target buffer size {\tt dp\_Arg4} is too small to hold
+particular, if the target buffer size in {\tt dp\_Arg4} is too small to hold
 the resolved path, {\tt dp\_Res2} shall be set to {\tt
   ERROR\_LINE\_TOO\_LONG}\key{ERROR\_LINE\_TOO\_LONG} and {\tt dp\_Res1} to~$-2$.
 \smallskip{}
@@ -19614,10 +19640,11 @@ link\key{Soft Link}
 and the scanning algorithm aborted without finding one, this also
 consistutes an error that shall be reported by setting {\tt dp\_Res1}
 to~$-1$. This error is not handled consistently in AmigaDOS. The RAM-Handler\key{RAM-Handler}
-reports {\tt ERROR\_OBJECT\_WRONG\_TYPE}\key{ERROR\_OBJECT\_WRONG\_TYPE}, the FFS\key{Fast File System (FFS)} the error code
+reports {\tt ERROR\_OBJECT\_WRONG\_TYPE}\key{ERROR\_OBJECT\_WRONG\_TYPE},
+the FFS\key{Fast File System (FFS)} the error code
 {\tt ERROR\_OBJECT\_NOT\_FOUND}\key{ERROR\_OBJECT\_NOT\_FOUND}. While the former
 error looks more sensible, the latter is the right choice --- it helps an
-algorithm for soft link resolution to identify the case that it has probably
+algorithm resolving soft links to identify the case that it has probably
 not yet found the right directory of a multi-assign that contains the soft
 link. See also the code in section~\ref{sec:readlink}.
 \smallskip{}
@@ -19628,8 +19655,6 @@ terminating {\tt NUL}), and {\tt dp\_Res2} to~0.
 \smallskip{}
 
 The following example is a skeleton code implementing the above algorithm:
-% the RAM disk does not set path_before correctly by failing to initialize
-% path_pos. This defect is in finddir and not here...
 \begin{verbatim}
 /*
 ** Skeleton of an implementation of the readlink function
