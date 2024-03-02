@@ -4848,7 +4848,7 @@ While the functions in section~\ref{sec:fib} read directory entries,
 the functions listed in this section modify the directory and its entries,
 that is, they delete entries, or adjust metadata of directory entries.
 
-\subsection{Delete Objects on the File System}
+\subsection{Delete Objects on the File System} \label{sec:deletefile}
 
 The {\tt DeleteFile()}\mkey{DeleteFile()} function removes --- despite its
 name --- not only files, but also directories and links from a
@@ -4871,7 +4871,7 @@ path passed in as {\tt name}. It returns non-zero in case of success,
 or~$0$ in case of error. In either case, {\tt IoErr()}\key{IoErr()} is
 set, namely~$0$ on success or an error code in case of failure.
 
-\subsection{Rename or Relocate an Object}
+\subsection{Rename or Relocate an Object} \label{sec:rename}
 
 The {\tt Rename()}\mkey{Rename()} function changes the name of an
 object, or relocates it from one directory to another provided both
@@ -4939,7 +4939,7 @@ This function returns non-zero on success and~$0$ on error. In either
 case, the function sets {\tt IoErr()}\key{IoErr()} to~$0$ on success
 or to an error code otherwise.
 
-\subsection{Setting Protection Bits}
+\subsection{Setting Protection Bits} \label{sec:setprotection}
 
 The {\tt SetProtection()}\mkey{SetProtection()} function modifies the
 protection bits of a file system object, i.e.\ either a file or a
@@ -19850,7 +19850,7 @@ such as name, comment, creation date or protection flags.
 \subsection{Renaming or Moving Objects}
 
 The {\tt ACTION\_RENAME\_OBJECT}\mkey{ACTION\_RENAME\_OBJECT} changes the
-name of an object such as a file, directory or a link, and relocates it
+name of an object such as a file, directory or a link, or relocates it
 within the directory tree of a volume.
 
 \begin{rkrmtable}{\tt ACTION\_RENAME\_OBJECT} \label{table:actionrenameobject}
@@ -19864,12 +19864,16 @@ within the directory tree of a volume.
 \tt dp\_Res2  & Error code \\ \hline
 \end{rkrmtable}
 
-This packet implements the {\tt Rename()}\key{Rename()} function of the
-\emph{dos.library} and relocates and renames objects within the directory
-structure of a volume. This packet cannot relocate across volumes,
-i.e.\ {\tt dp\_Arg1} and {\tt dp\_Arg3} are locks\key{Lock} to objects within the same
-volume, and {\tt dp\_Arg2} and {\tt dp\_Arg4} represent paths within this
-volume.
+This packet implements the {\tt Rename()}\key{Rename()} function of
+the \emph{dos.library}, see section~\ref{sec:rename}, and relocates
+and/or renames objects within the directory structure of a
+volume. This packet cannot relocate across volumes, i.e.\
+{\tt dp\_Arg1} and {\tt dp\_Arg3} are locks\key{Lock} to objects within
+the same volume, and {\tt dp\_Arg2} and {\tt dp\_Arg4} represent paths
+within this volume.
+\smallskip{}
+
+Arguments are populated as follows:
 \smallskip{}
 
 {\tt dp\_Arg1} represents the directory to which the source {\tt dp\_Arg2}
@@ -19884,39 +19888,57 @@ that is to be renamed or moved.
 \smallskip{}
 
 {\tt dp\_Arg3} is the directory to which the target path {\tt dp\_Arg4} is
-relative to.
+relative to, represented as a lock.
 \smallskip{}
 
-{\tt dp\_Arg4} is the target path of the object, relative to {\tt
-  dp\_Arg3}.
+{\tt dp\_Arg4} is the target path of the object, relative to
+{\tt dp\_Arg3}. The location of the target is formed by logically appending the
+path from {\tt dp\_Arg4} to the directory in {\tt dp\_Arg3}.
+\medskip{}
+
+First, the file system needs to find a suitable target directory for
+the object to move into. For this, it shall walk the directory tree
+starting at {\tt dp\_Arg3}, resolving directories as given by the path
+in {\tt dp\_Arg4}. If any of the components in this path but the last
+component does not exist or is not a directory or not a hard link to a
+directory, the result shall be {\tt ERROR\_OBJECT\_NOT\_FOUND} or, if a
+soft link is in the path, {\tt ERROR\_IS\_SOFT\_LINK}.
 \smallskip{}
 
-Several cases for renaming exist the file system shall consider: If
-the last component does not yet exist within the file system, the object
-identified by {\tt dp\_Arg1} and {\tt dp\_Arg2} shall be moved into the
-directory represented by the second to last component of of {\tt dp\_Arg4}
-starting from {\tt dp\_Arg3}, or directly into {\tt dp\_Arg3} if {\tt
-  dp\_Arg4} only consists of a single component, and shall be renamed to the
-last component of the path in {\tt dp\_Arg4}.
+If the source and the target object are identical, though possibly
+only differ by case (i.e.\ lower/upper case is possibly different),
+then original object shall be renamed, giving the original object the
+file name from the last component of the target path.  This adjusts
+the case of the object name without changing the directory structure
+or the object location.
 \smallskip{}
 
-If the object identified by {\tt dp\_Arg3} and the path in {\tt dp\_Arg4}
-does already exist and represents a directory, the object shall be moved
-\emph{into} this directory, retaining its original name.
+If the last component in the target path is an existing directory or
+hard link\key{Hard Link} to an existing directory, the source object as identified by
+{\tt dp\_Arg1} and {\tt dp\_Arg2} shall be moved \emph{into} this
+directory under its original name, i.e. the name as given by the last
+component of the path in {\tt dp\_Arg2}.
 \smallskip{}
 
-If the last component does already exist and is a file, and this file is
-different from the source object, an error shall be generated. Renaming a
-file or directory to itself, or to a file name that only differs in case
-shall, however, be accepted, and shall adjust its case (i.e.\ changing
-letters in its name to lower or upper case is permissible).
+If the last component of the target path does not exist, it forms the new name
+of the target object, which will then be moved into the directory given by the
+target path up to the second to last component.
+\smallskip{}
+
+If the last component of the target path is a soft link\key{Soft Link}, the attempt to rename into a soft link
+shall fail with the error code {\tt ERROR\_IS\_SOFT\_LINK}.
+\smallskip{}
+
+If the last component of the target path is an existing file or a hard link to an
+existing file, renaming shall fail with {\tt ERROR\_OBJECT\_EXISTS}. That is,
+it is not permitted to rename into an existing file.
 \smallskip{}
 
 Particular care needs to be taken if the object to be relocated is a
 directory. In such a case, the file system shall test whether an
-attempt is made to move the object into itself, i.e.\ into one of the
+attempt is made to move the directory into itself or into one of the
 subdirectories of its own. As this would render the directory unreachable,
-an error shall be generated.
+the error {\tt ERROR\_OBJECT\_IN\_USE} shall be generated.
 \medskip{}
 
 Before replying the packet, {\tt dp\_Res1} shall be set to a boolean success
@@ -19939,20 +19961,35 @@ object from a directory, releasing the storage it occupies.
 \end{rkrmtable}
 
 This packet implements the {\tt DeleteFile()}\key{DeleteFile()} function of
-the \emph{dos.library}, which can delete files, directories and links.
+the \emph{dos.library}, see section~\ref{sec:deletefile}, which can delete files, directories
+and links.
 \smallskip{}
 
-{\tt dp\_Arg1} is a lock\key{Lock} to the directory to which the path in {\tt
-  dp\_Arg2} is relative. The {\tt DeleteFile()} function fills it with the
+{\tt dp\_Arg1} is a lock\key{Lock} to the directory to which the path in
+{\tt dp\_Arg2} is relative. The {\tt DeleteFile()} function fills it with the
 current directory of the calling process.
 \smallskip{}
 
-{\tt dp\_Arg2} is the path to the object to be deleted. The path can contain
-multiple components, in which case the file system need to walk the path
-starting at {\tt dp\_Arg1} until reaching its last component which is the
-object to be deleted. If the target is a directory, the file system
-shall check, in addition, if the directory is empty, and if not so, refuse
-to delete it.
+{\tt dp\_Arg2} is the path to the object to be deleted. The path can
+contain multiple components, in which case the file system need to
+walk the path starting at {\tt dp\_Arg1} until reaching its last
+component which is the object to be deleted. If the target is a
+directory, the file system shall check, in addition, if the directory
+is empty, and if not so, refuse to delete it with the error code
+{\tt ERROR\_DIRECTORY\_NOT\_EMPTY}.
+\smallskip{}
+
+If the target is a soft link\key{Soft Link} or a hard link\key{Hard Link},
+the link shall be deleted, and not the object the link points
+to. In particular, in this special case resolution of links, in
+particular soft links, is not necessary. This particular case depends
+on the asymmetry between links and regular entries of the Amiga file
+systems: Deleting a link to a non-empty directory is possible, though
+deleting the directory itself not, even if the link could replace it
+and adopt its entries. Other file systems that cannot distinguish
+between hard links and their link targets may resolve the situation
+differently, and for example refuse to delete hard links that point to
+non-empty directories.
 \smallskip{}
 
 Before replying the packet, {\tt dp\_Res1} shall be set to a boolean success
@@ -19976,32 +20013,48 @@ protection bits of a file system object.
 \end{rkrmtable}
 
 This packet implements the {\tt SetProtection()}\key{SetProtection()}
-function of the \emph{dos.library}; it changes the protection bits of an
-object on the file system to that given in {\tt dp\_Arg4}. For the
-definition of protection bits, see section~\ref{sec:fib},
-table~\ref{table:protectionbits}. Some file systems may support only
-a subset of all protection bits, or may not be able to carry them on all
-objects, such as directories; in such a case, they may ignore the request,
-or may only implement a subset of all bits.
+function of the \emph{dos.library} introduced in section~\ref{sec:setprotection};
+it changes the protection bits of an object on the file system to that given in {\tt dp\_Arg4}.
+For the definition of protection bits, see section~\ref{sec:fib},
+table~\ref{table:protectionbits}. Some file systems may support only a
+subset of all protection bits, or may not be able to carry them on all
+objects, such as directories or links; in such a case, they may ignore the
+request, or may only implement a subset of all bits.
 \smallskip{}
 
 {\tt dp\_Arg2} is a lock\key{Lock} of a directory which the path in {\tt dp\_Arg3} is
-relative to\footnote{This not a typo, {\tt dp\_Arg1} is really unused}.
+relative to\footnote{This is not a typo, {\tt dp\_Arg1} is really unused.}.
 \smallskip{}
 
-{\tt dp\_Arg3} is a path relative to {\tt dp\_Arg2} whose last component is
-the object whose protection bits are to be changed.
+{\tt dp\_Arg3} is a path relative to {\tt dp\_Arg2}. This path need
+not to consist of a single component, though the object whose protection bits shall be
+changed is the last component of this path. The file system needs to
+walk the provided path, starting from {\tt dp\_Arg2} to find the affected object.
 \smallskip{}
 
 {\tt dp\_Arg4} are the new protection bits as specified in
-table~\ref{table:protectionbits}. Note that the first four bits are shown
+table~\ref{table:protectionbits} in section~\ref{sec:fib}. Note that the first four bits are shown
 inverted by most system tools such as the {\tt List} command.
 \smallskip{}
 
-Before replying to this packet, the file system shall set {\tt
-  dp\_Res1} to a boolean result code. On success, {\tt dp\_Res1} shall be
-set to {\tt DOSTRUE} and {\tt dp\_Res2} shall be set to~0. On error, {\tt
-  dp\_Res1} shall be set to {\tt DOSFALSE} and {\tt dp\_Res2} to an error
+Links are a special case, and here file system authors need to decide
+whether the protection bits apply to the object itself or the
+directory entries representing the object. The FFS\key{Fast File System (FFS)} keps the
+protection bits of the object and links to the object always in
+sync. The RAM-Handler\key{RAM-Handler} ignores requests to change the
+protection bits of hard links\key{Hard Link}, but copies its
+bits always from the link target. Protection bits of soft
+links\key{Soft Link} are not particularly meaningful. The FFS creates
+upon an attempt to set their protection bits the usual {\tt
+  ERROR\_IS\_SOFT\_LINK}, whereas the RAM-Handler does not create this
+error if the last component of the path in {\tt dp\_Arg3} is a soft
+link. Instead, it sets the protection bits of the link.
+\medskip{}
+
+Before replying to this packet, the file system shall set
+{\tt dp\_Res1} to a boolean result code. On success, {\tt dp\_Res1} shall be
+set to {\tt DOSTRUE} and {\tt dp\_Res2} shall be set to~0. On error,
+{\tt dp\_Res1} shall be set to {\tt DOSFALSE} and {\tt dp\_Res2} to an error
 code.
 
 \subsection{Setting the Comment to an Object}
