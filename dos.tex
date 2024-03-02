@@ -5037,9 +5037,9 @@ not the case. User and group ID are purely metadata that is returned
 by the functions discussed in section~\ref{sec:fib}, they usually
 ignore them. AmigaDOS has no concept of the current user of a
 file system and thus cannot decide whether a user is
-privileged to access an object on a file system. In fact, all ROM
-based file systems delivered with AmigaDOS do not support setting the
-user or group ID.
+privileged to access an object on a file system. While versions~43 and later of the
+FFS\key{Fast File System (FFS)} support this function, the
+RAM-Handler\key{RAM-Handler} does not.
 
 \begin{verbatim}
 success = SetOwner( name, owner_info )
@@ -19901,8 +19901,8 @@ the object to move into. For this, it shall walk the directory tree
 starting at {\tt dp\_Arg3}, resolving directories as given by the path
 in {\tt dp\_Arg4}. If any of the components in this path but the last
 component does not exist or is not a directory or not a hard link to a
-directory, the result shall be {\tt ERROR\_OBJECT\_NOT\_FOUND} or, if a
-soft link is in the path, {\tt ERROR\_IS\_SOFT\_LINK}.
+directory, the result shall be {\tt ERROR\_OBJECT\_NOT\_FOUND}\key{ERROR\_OBJECT\_NOT\_FOUND} or, if a
+soft link is in the path, {\tt ERROR\_IS\_SOFT\_LINK}\key{ERROR\_IS\_SOFT\_LINK}.
 \smallskip{}
 
 If the source and the target object are identical, though possibly
@@ -19926,11 +19926,11 @@ target path up to the second to last component.
 \smallskip{}
 
 If the last component of the target path is a soft link\key{Soft Link}, the attempt to rename into a soft link
-shall fail with the error code {\tt ERROR\_IS\_SOFT\_LINK}.
+shall fail with the error code {\tt ERROR\_IS\_SOFT\_LINK}\key{ERROR\_IS\_SOFT\_LINK}.
 \smallskip{}
 
 If the last component of the target path is an existing file or a hard link to an
-existing file, renaming shall fail with {\tt ERROR\_OBJECT\_EXISTS}. That is,
+existing file, renaming shall fail with {\tt ERROR\_OBJECT\_EXISTS}\key{ERROR\_OBJECT\_EXISTS}. That is,
 it is not permitted to rename into an existing file.
 \smallskip{}
 
@@ -19938,7 +19938,7 @@ Particular care needs to be taken if the object to be relocated is a
 directory. In such a case, the file system shall test whether an
 attempt is made to move the directory into itself or into one of the
 subdirectories of its own. As this would render the directory unreachable,
-the error {\tt ERROR\_OBJECT\_IN\_USE} shall be generated.
+the error {\tt ERROR\_OBJECT\_IN\_USE}\key{ERROR\_OBJECT\_IN\_USE} shall be generated.
 \medskip{}
 
 Before replying the packet, {\tt dp\_Res1} shall be set to a boolean success
@@ -19976,7 +19976,7 @@ walk the path starting at {\tt dp\_Arg1} until reaching its last
 component which is the object to be deleted. If the target is a
 directory, the file system shall check, in addition, if the directory
 is empty, and if not so, refuse to delete it with the error code
-{\tt ERROR\_DIRECTORY\_NOT\_EMPTY}.
+{\tt ERROR\_DIRECTORY\_NOT\_EMPTY}\key{ERROR\_DIRECTORY\_NOT\_EMPTY}.
 \smallskip{}
 
 If the target is a soft link\key{Soft Link} or a hard link\key{Hard Link},
@@ -20045,8 +20045,8 @@ sync. The RAM-Handler\key{RAM-Handler} ignores requests to change the
 protection bits of hard links\key{Hard Link}, but copies its
 bits always from the link target. Protection bits of soft
 links\key{Soft Link} are not particularly meaningful. The FFS creates
-upon an attempt to set their protection bits the usual {\tt
-  ERROR\_IS\_SOFT\_LINK}, whereas the RAM-Handler does not create this
+upon an attempt to set their protection bits the usual
+{\tt ERROR\_IS\_SOFT\_LINK}\key{ERROR\_IS\_SOFT\_LINK}, whereas the RAM-Handler does not create this
 error if the last component of the path in {\tt dp\_Arg3} is a soft
 link. Instead, it sets the protection bits of the link.
 \medskip{}
@@ -20074,9 +20074,9 @@ or link.
 \end{rkrmtable}
 
 This packet implements the {\tt SetComment()}\key{SetComment()} function of
-the \emph{dos.library} and as such changes, adds or removes a comment on a
-file, directory or link. Not all file systems will support this request, or
-may only support comments on a subset of objects.
+the \emph{dos.library}, see section~\ref{sec:setcomment}, and as such changes,
+adds or removes a comment on a file, directory or link. Not all file systems will
+support this request, or may only support comments on a subset of objects.
 \smallskip{}
 
 {\tt dp\_Arg2} represents a directory relative to which the path in
@@ -20087,14 +20087,21 @@ may only support comments on a subset of objects.
 comment is to be changed.
 \smallskip{}
 
-{\tt dp\_Arg4} is a BPTR to a BSTR of the new comment to be set. If this
-string is empty, the comment will be removed.
+{\tt dp\_Arg4} is a BPTR to a BSTR of the new comment to be set. If
+this string is empty, the comment shall be removed. File systems shall
+also check the size of the comment and fail with the error code
+{\tt ERROR\_COMMENT\_TOO\_BIG}\key{ERROR\_COMMENT\_TOO\_BIG} if the comment is longer than what the
+file system and the {\tt FileInfoBlock}\key{FileInfoBlock} structure
+(see section~\ref{sec:fib}) supports. The latter limits the size of
+the comment to~79 characters. Note that the handling of overlong comments is
+different from handling overlong file names: The latter are truncated without
+error to the maximum size the file system supports.
 \smallskip{}
 
-Before replying to this packet, the file system shall set {\tt
-  dp\_Res1} to a boolean result code. On success, {\tt dp\_Res1} shall be
-set to {\tt DOSTRUE} and {\tt dp\_Res2} shall be set to~0. On error, {\tt
-  dp\_Res1} shall be set to {\tt DOSFALSE} and {\tt dp\_Res2} to an error
+Before replying to this packet, the file system shall set {\tt dp\_Res1} to a
+boolean result code. On success, {\tt dp\_Res1} shall be
+set to {\tt DOSTRUE} and {\tt dp\_Res2} shall be set to~0. On error,
+{\tt dp\_Res1} shall be set to {\tt DOSFALSE} and {\tt dp\_Res2} to an error
 code.
 
 \subsection{Setting the Creation Date of an Object} \label{sec:packetsetdate}
@@ -20113,13 +20120,13 @@ date of an object on a file system.
 \end{rkrmtable}
 
 This packet implements the {\tt SetFileDate()}\key{SetFileDate()} function
-of the \emph{dos.library} and sets the creation date of an object on a file
-system. Not all file systems will support this packet, or may only
-support it with reduced precision of the date.
+of the \emph{dos.library} from section~\ref{sec:setfiledate} and sets the
+creation date of an object on a file system. Not all file systems
+will support this packet, or may only support it with reduced precision of the date.
 \smallskip{}
 
-{\tt dp\_Arg2} represents a directory relative to which the path in {\tt
-  dp\_Arg3} is interpreted\footnote{The information in~\cite{Bantam} is
+{\tt dp\_Arg2} represents a directory relative to which the path in
+{\tt dp\_Arg3} is interpreted\footnote{The information in~\cite{Bantam} is
 incorrect, and {\tt dp\_Arg1} is, indeed, unused.}.
 \smallskip{}
 
@@ -20131,6 +20138,18 @@ last component is the object whose creation date shall be changed.
 {\tt dp\_Arg4} is a BPTR to a {\tt DateStamp} structure as specified in
 section~\ref{sec:dates} and defines the target date to install for the
 object.
+\smallskip{}
+
+The AmigaDOS file systems, the FFS\key{Fast File System (FFS)} and the
+RAM-Handler\key{RAM-Handler}, always keep the file date of hard links\key{Hard Link}
+and link targets in sync, and it is recommended that alternative file
+system implementations follow this strategy. The strategy for soft links\key{Soft Link}
+is not that uniform. While both file systems support a separate creation date for soft links, this
+packet adjusts the date of the link for the RAM-Handler, whereas it creates an
+{\tt ERROR\_IS\_SOFT\_LINK}\key{ERROR\_IS\_SOFT\_LINK} for the FFS, and by the help of the \emph{dos.library}, adjusts
+then the date of the link target. Given that the date is probably used to test whether a
+particular file is up to date, e.g.\ for {\tt make} utilities, the latter strategy is
+advisable.
 \smallskip{}
 
 Before replying to this packet, the file system shall set
@@ -20155,13 +20174,12 @@ and group ID of an object in a file system.
 \end{rkrmtable}
 
 This packet implements the {\tt SetOwner()}\key{SetOwner()} function of the
-\emph{dos.library} and is supposed to set a group and user ID of an object
-in a file system; the actual encoding of this information is specific to the
-file system and not defined by the \emph{dos.library} or the
-packet. {\tt dp\_Arg4} is a literal copy of the second argument of {\tt
-  SetOwner()}. Note further that most if not all AmigaDOS file
-systems do not implement this packet, and as AmigaDOS is not a multi-user
-system, the value of this packet is questionable.
+\emph{dos.library} (see~\ref{sec:setowner}) and is supposed to set a group and user ID of an object
+in a file system; the actual encoding of this information is not defined by the \emph{dos.library} or the
+packet. {\tt dp\_Arg4} is a literal copy of the second argument of
+{\tt SetOwner()}. Since AmigaDOS is not a multi-user system, the value of this packet
+is questionable; the FFS\key{Fast File System (FFS)} supports this packet since
+version~43, the RAM-Handler\key{RAM-Handler} does not implement it.
 \smallskip{}
 
 {\tt dp\_Arg2} represents a directory relative to which the path in {\tt
@@ -20172,10 +20190,23 @@ system, the value of this packet is questionable.
 changed. This path shall be interpreted relative to {\tt dp\_Arg2}.
 \smallskip{}
 
-{\tt dp\_Arg4} is a file system specific owner information; the
+{\tt dp\_Arg4} is an opaque owner information; the
 \emph{dos.library} does not define its meaning. This argument is a verbatim
-copy of the second argument of {\tt SetOwner()}.
+copy of the second argument of {\tt SetOwner()} and the FFS copies it directly into
+the {\tt Owner} field of the blocks of type {\tt ST.SHORT}, see
+section~\ref{sec:userdirblock} and following.
 \smallskip{}
+
+The FFS follows for hard\key{Hard Link} and soft links\key{Soft Link} the same strategy as for
+{\tt ACTION\_SET\_DATE}: The owner of hard links\key{Hard Link} and link
+targets are always kept in sync, and in case the owner of a soft link
+is supposed to be changed, the FFS\key{Fast File System (FFS)} signals
+the error {\tt ERROR\_IS\_SOFT\_LINK}\key{ERROR\_IS\_SOFT\_LINK}.
+With the help of the \emph{dos.library}, the owner of the link target
+is then changed --- if the file system of the link target supports
+this packet. This is also the recommended strategy. The RAM-Handler
+does currently not implement {\tt ACTION\_SET\_OWNER}.
+\medskip{}
 
 Before replying to this packet, the file system shall set
 {\tt dp\_Res1} to a boolean result code. On success, {\tt dp\_Res1} shall be
