@@ -19478,10 +19478,11 @@ were added in AmigaDOS~47.
 
 If {\tt dp\_Arg4} is {\tt LINK\_SOFT}\key{LINK\_SOFT}, then {\tt dp\_Arg3}
 is a pointer to a {\tt NUL}-terminated C string providing
-the target of the link. This string is stored in the file system and
-interpreted as a path name relative to the location of the link at the
+the target of the link. This string is not immediately interpreted by the file system and stored as-is;
+it is interpreted as a path name relative to the location of the link at the
 time the link is resolved\footnote{This is quite unusual as AmigaDOS
-  otherwise represents strings as BSTR, though that would limit the length of the link target.}.
+  otherwise represents strings as BSTR, though that would limit the length of the link target.},
+see section~\ref{sec:actionreadlink} for how soft link link resolution works.
 \smallskip{}
 
 Resolution of soft links\key{Soft Link} is performed within the \emph{dos.library} or
@@ -19663,6 +19664,55 @@ The following example is a skeleton code implementing the above algorithm:
 ** buffer is from dp_Arg3 and the target buffer
 ** size   is from dp_Arg4 and the size of the buffer.
 */
+
+/*
+** Representation of a file system object in a file
+** system... prototype. Extend as needed.
+*/
+struct node {
+  LONG type;  /* entry type, file, directory, link... */
+  LONG size;  /* size of the soft link name           */
+  ....
+};
+
+/*
+** Find the object from lock and string. This is a file
+** system internal function that need to be provided
+** by the user. 
+** path_before is the offset of the last component
+** of the path in the string that could be resolved
+** successfully. If a softlink is found in the
+** middle of the path, or some other error was found,
+** NULL is returned.
+** link_node is set to a pointer to a structure that
+** represents the link.
+** path_pos is set to the offset of the "/" behind 
+** the soft link if a soft link is in the middle.
+** If the link is the last component of the path, then
+** the node that represents the soft link is returned,
+** Otherwise, the node is returned.
+*/
+extern struct node *locatenode(BPTR lock,const UBYTE *path,
+                               LONG *path_before,
+                               struct node **linknode,
+                               LONG *path_pos);
+
+/*
+** copy the target of the soft link into the buffer behind
+** the path of the link as zero-terminated C string. 
+** This function also need to be provided by the 
+** implementation of the file system. It returns
+** the size of the soft link as result, or -1 on error.
+*/
+extern LONG readsoftlink(const struct node *,
+                         UBYTE *buffer,LONG size);
+
+/*
+** Will be filled into dp_Res2 on return, i.e.
+** what will be filled into IoErr()
+*/
+extern LONG res2;
+
 LONG readlink(BPTR lock, UBYTE *string,UBYTE *buffer, ULONG size)
 {
   struct node *node,*linknode;
@@ -19675,23 +19725,9 @@ LONG readlink(BPTR lock, UBYTE *string,UBYTE *buffer, ULONG size)
   ** for the name of the volume.
   */
   extern struct DosList *volumenode;
-  
+
   /*
-  ** Find the object from lock and string. This is a file
-  ** system internal function that need to be provided
-  ** by the user. 
-  ** path_before is the offset of the last component
-  ** of the path in the string that could be resolved
-  ** successfully. If a softlink is found in the
-  ** middle of the path, or some other error was found,
-  ** NULL is returned.
-  ** link_node is set to a pointer to a structure that
-  ** represents the link.
-  ** path_pos is set to the offset of the "/" behind 
-  ** the soft link if a soft link is in the middle.
-  ** If the link is the last component of the path, then
-  ** the node that represents the soft link is returned,
-  ** Otherwise, the node is returned.
+  ** Locate the first soft link in the path
   */
   node = locatenode(lock,string,&path_before,
                     &linknode,&path_pos);
@@ -19746,11 +19782,7 @@ LONG readlink(BPTR lock, UBYTE *string,UBYTE *buffer, ULONG size)
   memcpy(buffer,src,path_before);
 
   /*
-  ** copy the target of the soft link into the buffer behind
-  ** the path of the link as zero-terminated C string. 
-  ** This function also need to be provided by the 
-  ** implementation of the file system. It returns
-  ** the size of the soft link as result, or -1 on error.
+  ** Find the contents of the link
   */
   res = readsoftlink(node,buffer + path_before,size - path_before);
   if (res < 0)
@@ -19769,7 +19801,7 @@ LONG readlink(BPTR lock, UBYTE *string,UBYTE *buffer, ULONG size)
       /* Is relative to our root, but not necessarily 
       ** to the root of the caller, so fix up.
       */
-      char *volname = (char *)BADDR(volumenode->dl_Name);
+      char *volname = (char *)BADDR(volumenode->dol_Name);
       LONG len      = *volname; /* It's a BSTR */
       /* Check whether there is enough buffer */
       if (len + res >= size) {
