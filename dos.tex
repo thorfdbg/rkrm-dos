@@ -5892,7 +5892,7 @@ non-zero result code on success and then sets {\tt
   IoErr()}\key{IoErr()} to~0. On error, the function returns~0 and
 sets {\tt IoErr()} to a non-zero error code.
 
-\subsection{Canceling a Notification Request}
+\subsection{Canceling a Notification Request} \label{sec:endnotify}
 
 The {\tt EndNotify()}\mkey{EndNotify()} function cancels an issued
 notification request.
@@ -18587,8 +18587,9 @@ The file system will then store all such locks in a singly linked list
 starting at {\tt dol\_LockList}\key{dol\_LockList} and chained by {\tt fl\_Link}.
 If the same volume is then re-inserted into another drive, another
 instance of the same file system is able to pick up these locks and
-manages them instead. Thus, for example, a lock on an object in drive
-{\tt df0:} will remain valid even if the volume is removed and
+manages them instead; this requires patching {\tt fl\_Task} to point to
+the port of the file system that takes over the lock. Thus, for example, a lock on an object in drive {\tt df0:}
+will remain valid even if the volume is removed and
 re-inserted into {\tt df1:}.
 \smallskip{}
 
@@ -18881,7 +18882,7 @@ Upon reply, {\tt dp\_Res1} shall include a boolean success indicator,
 {\tt dp\_Res2} shall be~0, in the latter case, it shall contain an error
 code.
 
-\subsection{Releasing a Lock}
+\subsection{Releasing a Lock} \label{sec:actionfreelock}
 
 The packet {\tt ACTION\_FREE\_LOCK}\mkey{ACTION\_FREE\_LOCK} releases a
 lock\key{Lock} on a file system object.
@@ -18910,6 +18911,14 @@ attempt to release a lock twice. In a second step, file system
 shall release all internal resources related to the lock, until
 finally the {\tt FileLock} structure itself shall be disposed; it is
 \emph{not} allocated or released by the \emph{dos.library}.
+\smallskip{}
+
+If the volume the lock points to is currently not inserted, and
+the lock has not been claimed by another file system, i.e.\ its
+{\tt fl\_Task} element still points to the port of this file system and
+it is still in the {\tt dol\_LockList}\key{dol\_LockList}, the attempt
+to unlock the lock shall be satisfied, and the lock shall be
+removed from this list and then released.
 \smallskip{}
 
 When replying this packet, {\tt dp\_Res1} shall be set to {\tt DOSTRUE} on
@@ -19376,10 +19385,33 @@ to {\tt DOSFALSE} and {\tt dp\_Res2} to an error code.
 
 \section{Packets for Working with Links}
 
-The packets in this section interact with links; they create them, or in
-case of soft-links, resolve them and update a path given the
-link. Section~\ref{sec:links} provides background information on links and
-on the interface within the \emph{dos.library} for links.
+The packets in this section interact with links and defines the
+interface for working with links on the file system level. They mirror
+the functions of the \emph{dos.library} listed in
+section~\ref{sec:links} which also provides additional background
+information.
+\smallskip{}
+
+The packet interface consists of two packets: one for creating all
+type of links given the path of the link and the link target, and a
+second that is specific to soft links\key{Soft Link} only: this packet
+finds the path of the link target given a path containing a soft link
+as one of its components. It is mostly used by the \emph{dos.library}
+internally to resolve soft links transparently to applications.
+\smallskip{}
+
+Unlike soft links, hard links\key{Hard Link} are resolved entirely
+within the handler and do not require interaction with the
+\emph{dos.library}.
+\smallskip{}
+
+AmigaDOS~47 introduced another type of link, the \emph{external
+  link}\key{External Link}. When accessing the link, the file system
+containing the link interacts with the file system of the link target
+and copies the contents of the target into the link. Thus, external
+links implement a ``copy on read'' access. They are created by the
+same packet that also creates soft and hard links, and similar to hard links,
+do not require an additional packet for resolving them.
 
 \subsection{Creating Links}
 
@@ -19657,17 +19689,8 @@ terminating {\tt NUL}), and {\tt dp\_Res2} to~0.
 
 The following example is a skeleton code implementing the above algorithm:
 \begin{verbatim}
-/*
-** Skeleton of an implementation of the readlink function
-** lock   is from dp_Arg1 and a BPTR to a filelock
-** string is from dp_Arg2 and the path containing a link
-** buffer is from dp_Arg3 and the target buffer
-** size   is from dp_Arg4 and the size of the buffer.
-*/
-
-/*
-** Representation of a file system object in a file
-** system... prototype. Extend as needed.
+/* Representation of a file system object in a file
+** system... this is a prototype. Extend as needed.
 */
 struct node {
   LONG type;  /* entry type, file, directory, link... */
@@ -19675,8 +19698,7 @@ struct node {
   ....
 };
 
-/*
-** Find the object from lock and string. This is a file
+/* Find the object from lock and string. This is a file
 ** system internal function that need to be provided
 ** by the user. 
 ** path_before is the offset of the last component
@@ -19697,8 +19719,7 @@ extern struct node *locatenode(BPTR lock,const UBYTE *path,
                                struct node **linknode,
                                LONG *path_pos);
 
-/*
-** copy the target of the soft link into the buffer behind
+/* copy the target of the soft link into the buffer behind
 ** the path of the link as zero-terminated C string. 
 ** This function also need to be provided by the 
 ** implementation of the file system. It returns
@@ -19707,12 +19728,22 @@ extern struct node *locatenode(BPTR lock,const UBYTE *path,
 extern LONG readsoftlink(const struct node *,
                          UBYTE *buffer,LONG size);
 
-/*
-** Will be filled into dp_Res2 on return, i.e.
+/* Will be filled into dp_Res2 on return, i.e.
 ** what will be filled into IoErr()
 */
 extern LONG res2;
 
+/* Pointer to DosList of this handler, needed
+** for the name of the volume.
+*/
+extern struct DosList *volumenode;
+
+/* Skeleton of an implementation of the readlink function
+** lock   is from dp_Arg1 and a BPTR to a filelock
+** string is from dp_Arg2 and the path containing a link
+** buffer is from dp_Arg3 and the target buffer
+** size   is from dp_Arg4 and the size of the buffer.
+*/
 LONG readlink(BPTR lock, UBYTE *string,UBYTE *buffer, ULONG size)
 {
   struct node *node,*linknode;
@@ -19721,11 +19752,6 @@ LONG readlink(BPTR lock, UBYTE *string,UBYTE *buffer, ULONG size)
   LONG path_before;
   LONG path_pos;
   LONG res,len;
-  /* Pointer to DosList of this handler, needed
-  ** for the name of the volume.
-  */
-  extern struct DosList *volumenode;
-
   /*
   ** Locate the first soft link in the path
   */
@@ -19743,16 +19769,13 @@ LONG readlink(BPTR lock, UBYTE *string,UBYTE *buffer, ULONG size)
     }
   }
 
-  /* 
-  ** Check whether the found object is a softlink
-  */
+  /* Check whether the found object is a softlink */
   if (node->type != ST_SOFTLINK) {
     res2 = ERROR_OBJECT_WRONG_TYPE;
     return -1;
   }
 
-  /*
-  ** Check whether the link is in the middle or the end of
+  /* Check whether the link is in the middle or the end of
   ** the path.
   */
   if (is_dir) {
@@ -19765,8 +19788,7 @@ LONG readlink(BPTR lock, UBYTE *string,UBYTE *buffer, ULONG size)
     len    = 0;        /* softlink is last part of string */
   }
 
-  /*
-  ** Check whether there is sufficient room in the
+  /* Check whether there is sufficient room in the
   ** target buffer.
   */
   if (node->size + 1 + path_before + len >= size) {
@@ -19774,22 +19796,18 @@ LONG readlink(BPTR lock, UBYTE *string,UBYTE *buffer, ULONG size)
     return -2;
   }
 
-  /*
-  ** Copy the head of the link resolution path to the 
+  /* Copy the head of the link resolution path to the 
   ** target buffer, ready to append the contents of
   ** the link.
   */
   memcpy(buffer,src,path_before);
 
-  /*
-  ** Find the contents of the link
-  */
+  /* Find the contents of the link */
   res = readsoftlink(node,buffer + path_before,size - path_before);
   if (res < 0)
     return res; /* Deliver the error */
 
-  /*
-  ** If the link is absolute, i.e.\ contains a ':', then ignore the
+  /* If the link is absolute, i.e.\ contains a ':', then ignore the
   ** start of the string. 'res' is the length of the link location.
   */
   src = strchr(buffer + path_before,':');
@@ -19835,9 +19853,7 @@ LONG readlink(BPTR lock, UBYTE *string,UBYTE *buffer, ULONG size)
     }
   }
 
-  /*
-  ** The result is the length of the path created
-  */
+  /* The result is the length of the path created */
   return strlen(buffer);
 }
 \end{verbatim}
@@ -20218,8 +20234,11 @@ code.
 
 The packets in this section implement notification requests. Once a
 notification request has been registered, the file system informs a task
-through a signal or through a message send to a port. Notification requests
-are explained in section~\ref{sec:notification}.
+through a signal or through a message send to a port if the observed object
+changes. This mechanism is for example used by the {\tt IPrefs} program to
+load new preferences when they are modified through the preferences editors.
+The \emph{dos.library} interface for notification requests is introduced in
+section~\ref{sec:notification}.
 
 \subsection{Registering a Notification Request} \label{sec:packetaddnotify}
 
@@ -20234,68 +20253,99 @@ notification request at a file system.
 \tt dp\_Res2  & Error code \\ \hline
 \end{rkrmtable}
 
-This packet implements the {\tt StartNotify()}\key{StartNotify()} function
-of the \emph{dos.library}, registering a request at a file system to
-get informed on changes within the file system.
+This packet implements the {\tt StartNotify()}\key{StartNotify()}
+function of the \emph{dos.library}, see section~\ref{sec:startnotify},
+registering a request at a file system to get informed on changes
+on a file system object. Notification requests, and therefore this packet, have been
+introduced in AmigaDOS~36.
 \smallskip{}
 
 {\tt dp\_Arg1} is a C pointer\footnote{In~\cite{Bantam} this argument is
-  documented to be a BPTR, though this information incorrect.} to a {\tt
-  NotifyRequest}\key{NotifyRequest} structure that defines the object to be monitored, and the
-task, signal or message port to be triggered on such changes. This structure
-is specified in section~\ref{sec:startnotify}.
+  documented to be a BPTR, though this information incorrect.} to a
+{\tt NotifyRequest}\key{NotifyRequest} structure that defines the object
+to be monitored, and the task, signal or message port to be triggered
+on such changes. This structure is specified in section~\ref{sec:startnotify}.
 \smallskip{}
 
-The {\tt nr\_FullName} element of the {\tt NotifyRequest}\key{NotifyRequest} structure is
-already filled by an absolute path to the object to be monitored which may
-or may not yet exist. This path is filled in by the \emph{dos.library}
+The {\tt nr\_FullName} element of the {\tt NotifyRequest}\key{NotifyRequest} structure
+is already filled by an absolute path to the object to be monitored which may
+or may not yet exist. This path is computed by the \emph{dos.library}
 within the {\tt StartNotify()} function from the {\tt nr\_Name} element and
-the current directory of the calling process, and the file system may
-depend on this path.
+the current directory of the calling process, and the file system shall
+depend on this path and not on the contents of {\tt nr\_Name} which, from the
+perspective of the file system, is undefined and may not even be filled.
 \smallskip{}
 
-The file system should store this request in its internal
-structures, and then monitor the object identified by {\tt nr\_FullName} for
-changes. The following table lists the packets which shall or may trigger a
-notification request upon a monitored object:
+The file system should store this request in its internal structures,
+and then monitor the object and hard links\key{Hard Link} to the
+object identified by {\tt nr\_FullName} for changes. Notification
+requests on directories shall also monitor objects directly contained
+in this directory, though not contained recursively in one of its subdirectories.
+\smallskip{}
 
-\begin{rkrmtable}{Packets triggering a Notification}
+The following table lists the packets which shall or may trigger a
+notification request on a monitored object, or the parent directory
+within which an object is modified.
+
+\begin{rkrmtabular}{Packets triggering a Notification} \label{table:notifyingpackets}
+\begin{longtable}{|ll|} \hline
 {\bf Packet}   & {\bf Notes}\\ \hline \hline
 \tt ACTION\_WRITE\key{ACTION\_WRITE} & After closing the file with {\tt ACTION\_END} \\ \hline
 \tt ACTION\_SET\_FILE\_SIZE\key{ACTION\_SET\_FILE\_SIZE} & After closing the
 file with {\tt ACTION\_END} \\ \hline
 \tt ACTION\_FINDOUTPUT\key{ACTION\_FINDOUTPUT} & After closing the file with
-    {\tt ACTION\_END} \\ \hline \hline
+{\tt ACTION\_END} \\ \hline
+\tt ACTION\_FINDUPDATE\key{ACTION\_FINDUPDATE} & Only if the file was created, after
+closing it. \\ \hline
 \tt ACTION\_DELETE\_OBJECT\key{ACTION\_DELETE\_OBJECT} & Immediately \\ \hline
+\tt ACTION\_RENAME\_OBJECT\key{ACTION\_RENAME\_OBJECT} & Immediately \\ \hline
 \tt ACTION\_SET\_DATE\key{ACTION\_SET\_DATE} & Immediately \\ \hline
-\tt ACTION\_RENAME\key{ACTION\_RENAME} & Immediately \\ \hline \hline
+\tt ACTION\_CREATEDIR\key{ACTION\_CREATEDIR} & Immediately, when monitoring directories \\ \hline
+\tt ACTION\_MAKE\_LINK\key{ACTION\_MAKE\_LINK} & Immediately, for links created in monitored directories \\ \hline \hline
 \tt ACTION\_SET\_COMMENT\key{ACTION\_SET\_COMMENT} & Optionally \\ \hline
 \tt ACTION\_SET\_PROTECT\key{ACTION\_SET\_PROTECT} & Optionally \\ \hline
 \tt ACTION\_SET\_OWNER\key{ACTION\_SET\_OWNER} & Optionally \\ \hline
-\end{rkrmtable}
+\end{longtable}
+\end{rkrmtabular}
+
+Medium changes, {\tt ACTION\_INHIBIT}\key{ACTION\_INHIBIT},
+{\tt ACTION\_RENAME\_DISK}\key{ACTION\_RENAME\_DISK} and
+{\tt ACTION\_SERIALIZE\_DISK}\key{ACTION\_SERIALIZE\_DISK} shall
+\emph{never} trigger notification requests. However, if a medium is
+changed, and re-inserted into another drive, the notification requests
+need to be carried over to the file system of the drive into which the
+medium has been reinserted, in the same way locks are carried over from
+one file system to the other, see~\ref{sec:actionlocateobject}.
+This step also requires patching the {\tt nr\_Handler}\key{nr\_Handler} element
+of the file system such that the correct file system will be contacted for canceling
+the request.
+\smallskip{}
 
 If the {\tt NRF\_NOTIFY\_INITIAL}\key{NRF\_NOTIFY\_INITIAL} flag is set in {\tt nr\_Flags}, the
 file system shall send a notification immediately after receiving
 this packet, regardless of whether or not the object has been modified
 already. If {\tt NRF\_WAIT\_REPLY}\key{NRF\_WAIT\_REPLY} is set, and a {\tt NotifyMessage}\key{NotifyMessage} has
 already been send out, it shall rather note the modification, though defer
-any further notification on the same object until the former {\tt
-  NotifyMessage} has been replied. This avoids queuing up too many
+any further notification on the same object until the former
+{\tt NotifyMessage} has been replied. This avoids queuing up too many
 notifications at the client port.
-\smallskip{}
+The {\tt NRF\_MAGIC}\mkey{NRF\_MAGIC} bit in {\tt nr\_Flags} may be
+used by the handler to implement this functionality; it may mark those requests
+for which a message has been send, but no reply has been received yet.
+\medskip{}
 
 A notification event is either signalled through {\tt Signal()} or by
 sending a message to a {\tt MsgPort}:
 \smallskip{}
 
-If {\tt NRF\_SEND\_MESSAGE}\key{NRF\_SEND\_MESSAGE} is set in {\tt
-  nr\_Flags}, then a {\tt NotifyMessage}\key{NotifyMessage} is send to the
+If {\tt NRF\_SEND\_MESSAGE}\key{NRF\_SEND\_MESSAGE} is set in
+{\tt nr\_Flags}, then a {\tt NotifyMessage}\key{NotifyMessage} is send to the
 port indicated in {\tt nr\_Msg.nr\_Port}. This structure is also specified
 in section~\ref{sec:startnotify}. Its {\tt nm\_Class} element shall be set
 to {\tt NOTIFY\_CLASS}\key{NOTIFY\_CLASS}, and its {\tt nm\_Code} element to
-{\tt NOTIFY\_CODE}\key{NOTIFY\_CODE}, both are defined in {\tt
-  dos/notify.h}. In addition, {\tt nm\_NReq} shall point to the {\tt
-  NotifyRequest}\key{NotifyRequest} structure through which the object is monitored. The
+{\tt NOTIFY\_CODE}\key{NOTIFY\_CODE}, both are defined in
+{\tt dos/notify.h}. In addition, {\tt nm\_NReq} shall point to the
+{\tt NotifyRequest}\key{NotifyRequest} structure through which the object is monitored. The
 elements {\tt nm\_DoNotTouch} and {\tt nm\_DoNotTouch2} may be used for
 internal administration of the file system.
 \smallskip{}
@@ -20303,7 +20353,7 @@ internal administration of the file system.
 If {\tt NRF\_SEND\_SIGNAL}\key{NRF\_SEND\_SIGNAL} is set, then the file system should
 trigger a signal bit on the target task if the monitored object changes by
 \begin{verbatim}
-    Signal(nr->nr_Signal.nr_Task,1UL<<nr->nr_Signal.nr_SignalNum);
+  Signal(nr->nr_Signal.nr_Task,1UL<<nr->nr_Signal.nr_SignalNum);
 \end{verbatim}
 For this method, {\tt NRF\_WAIT\_REPLY} is, of course, non-functional.
 \medskip{}
@@ -20327,9 +20377,11 @@ a notification request and aborts monitoring the object in the
 \tt dp\_Res2  & Error code \\ \hline
 \end{rkrmtable}
 
-This packet implements the {\tt EndNotify()}\key{EndNotify()} function of
-the \emph{dos.library} and terminates monitoring the object in {\tt
-  nr\_FullName} element of the {\tt NotifyRequest}\key{NotifyRequest} structure.
+This packet implements the {\tt EndNotify()}\key{EndNotify()} function
+of the \emph{dos.library}, see section~\ref{sec:endnotify}, and
+terminates monitoring the object in {\tt nr\_FullName} element of the
+{\tt NotifyRequest}\key{NotifyRequest} structure. This packet was
+introduced along with notification requests in AmigaDOS~36.
 \smallskip{}
 
 {\tt nr\_Arg1} is a C-pointer to the structure that indicates which
@@ -20350,6 +20402,14 @@ been replied and was received again by the file system. The
 \emph{dos.library} replies all {\tt NotifyMessage}s it finds
 still pending in the port of the client application, but clearly cannot
 handle those messages that are still being processed.
+\smallskip{}
+
+If the notification request is on a volume that is currently not
+inserted, but the request has not been claimed by another file system,
+i.e.\ the {\tt nr\_Handler}\key{nr\_Handler} points still to a port of
+this file system, the request shall also be canceled and released as if it is
+still owned by this file system. This is similar to how locks on removed volumes are handled, see
+section~\ref{sec:actionfreelock}.
 \smallskip{}
 
 Upon replying this packet, {\tt dp\_Res1} shall be set to a boolean success
