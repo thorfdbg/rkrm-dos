@@ -20636,7 +20636,7 @@ be set to~0. On failure, {\tt dp\_Res1} shall be set to {\tt DOSFALSE} and
 \subsection{Initializing a New File System} \label{sec:actionformat}
 
 The {\tt ACTION\_FORMAT}\mkey{ACTION\_FORMAT} packet initializes a new file
-system on a disk, writing all administration information on it represting a
+system on a medium or partition, writing all administration information on it represting a
 blank volume. It therefore deletes all information stored previously on the
 medium, drive or partition.
 
@@ -20649,40 +20649,40 @@ medium, drive or partition.
 \tt dp\_Res2  & Error code\\ \hline
 \end{rkrmtable}
 
-This packet implements the {\tt Format()}\key{Format()} function of the
-\emph{dos.library}. It performs a soft-initialization of the drive, medium
-or partition currently inserted into the drive. Note, however, that it does
-not perform a low-level formatting, such as creating sectors on a floppy
-disk or issuing a low-level SCSI command. If this is intended, it must be
-performed by a client application, e.g.\ the {\tt Format} command of the
-Workbench disk. This packet only writes administrative information on a
-volume representing it in empty state. This packet is probably the only one
-that should be used while a file system is inhibited and would usually
-refuse to alter any information on disk, see also
-section~\ref{sec:packetinhibit}.
+This packet implements the {\tt Format()}\key{Format()} function of
+the \emph{dos.library} introduced in section~\ref{sec:format}. It
+was added in AmigaDOS~36. Before that release, the {\tt Format}
+command of the workbench included code to
+initialize the OFS or FFS\key{Fast File System (FFS)} disk structure.
 \smallskip{}
 
-{\tt dp\_Arg1} is a BPTR to a BSTR of the volume name the medium, partition
-or drive shall be given\footnote{The information in~\cite{Bantam} that the
+When the file system receives this packet, it performs a
+soft-initialization of the partition or medium currently
+inserted. Note, however, that it does not perform
+low-level formatting, such as creating sectors on a floppy disk or
+issuing a low-level SCSI command. If this is intended, formatting must be
+performed by a client application, e.g.\ by using the {\tt TD\_FORMAT} command of
+the underlying exec device. This packet only writes administration information
+on a volume that represents it in empty state. This packet and
+{\tt ACTION\_SERIALIZE\_DISK}\key{ACTION\_SERIALIZE\_DISK}
+are the only packets that shall only be used while the file system is inhibited,
+see also section~\ref{sec:packetinhibit}.
+\smallskip{}
+
+{\tt dp\_Arg1} is a BPTR to a BSTR of the volume name the medium or partition
+shall be given\footnote{The information in~\cite{Bantam} that the
 new volume name is in {\tt dp\_Arg2} and the {\tt DosType} is in {\tt
-  dp\_Arg3} is incorrect.}. Typically, this packet will be
-issued while the drive is inhibited, and thus the {\tt DosList}\key{DosList} structure
+  dp\_Arg3} is incorrect.}. This packet shall be
+issued while the file system is inhibited, and thus the {\tt DosList}\key{DosList} structure
 representing the volume will be created or updated at the time the file
-system is unhibited. Otherwise, if the handler also allows an {\tt
-  ACTION\_FORMAT}\key{ACTION\_FORMAT} while not being inhibited, it should update the {\tt
-  DosList} immediately, in particular its {\tt dol\_Name}\key{dol\_Name}, to the name given
-by this argument.
+system is unhibited.
 \smallskip{}
 
-{\tt dp\_Arg2} is file system specific information that may be used
+{\tt dp\_Arg2} contains file system specific information that may be used
 to define its flavour. For example, for the FFS\key{Fast File System (FFS)} {\tt dp\_Arg2} carries the
 {\tt DosType}, which shall be one of the values documented in
-table~\ref{table:ffsflavours} in section~\ref{sec:envec}. If such a change
-of the {\tt DosType} also happens, and the handler allows formatting while
-not being inhibited, the {de\_DosType}\key{de\_DosType} in the environment vector linked
-through {\tt dol\_Dostype} shall be updated as well. Otherwise, this update
-will happen when the file system is uninhibited. The {\tt Format()}
-function will take {\tt dp\_Arg2} from its third argument.
+table~\ref{table:ffsflavours} in section~\ref{sec:envec}.
+The {\tt Format()} function will take {\tt dp\_Arg2} from its third argument.
 \smallskip{}
 
 Before replying this packet, {\tt dp\_Res1} shall be set to a boolean success
@@ -20707,7 +20707,7 @@ This packet is not exposed by the \emph{dos.library}. The packet interface
 e.g.\ {\tt DoPkt()}\key{DoPkt()}, needs to be used to issue it. The purpose
 of this packet is to ensure that the volume inserted in a drive is unique
 and distinguishable from other volumes. Along with {\tt
-  ACTION\_FORMAT}\key{ACTION\_FORMAT}, this packet should be issued while
+  ACTION\_FORMAT}\key{ACTION\_FORMAT}, this packet shall only be issued while
 the file system is inhibited, see sections~\ref{sec:inhibit}
 and~\ref{sec:packetinhibit}.
 \smallskip{}
@@ -20716,7 +20716,7 @@ This packet does not take any arguments, it affects the currently inserted
 volume. The FFS\key{Fast File System (FFS)} implements this packet by setting the volume creation date to the
 system date; other file systems can include volume IDs or other means to
 uniquely label disks. The {\tt DiskCopy} command of the Workbench uses this
-packet after performing its job to ensure that the copy of a disk is
+packet after copying the disk content to ensure that the copy is
 distinguishable from its original.
 \smallskip{}
 
@@ -20754,7 +20754,7 @@ equality.
 
 {\tt dp\_Arg1} is a boolean indicator that, if non-zero, enables write
 protection, and if {\tt DOSFALSE} releases it. Any attempt to write data to
-the protected medium, device or partition shall fail with the error code
+the protected medium or partition shall fail with the error code
 {\tt ERROR\_DISK\_WRITE\_PROTECTED}\key{ERROR\_DISK\_WRITE\_PROTECTED}, including an attempt to set a write
 protection on an already write protected file system, regardless of the
 password key used for re-protection.
@@ -20762,10 +20762,20 @@ password key used for re-protection.
 
 {\tt dp\_Arg2} is an integer password hash key that is stored internally in
 the file system when the write protection is set, and compared against if it
-is to be released again. If the stored password hash is not equal to the
+is to be released again. If this has is 0, then any password releases the lock;
+otherwise, if the stored password hash is not equal to the
 original hash, attempting to release the protection shall fail with
 {\tt ERROR\_INVALID\_COMPONENT\_NAME}\key{ERROR\_INVALID\_COMPONENT\_NAME}.
-\smallskip{}
+\medskip{}
+
+Version 47 of the {\tt Lock} command uses currently the following algorithm to compute a
+hash key\footnote{The algorithm in~\cite{guru} is no longer up to date, the algorithm shown here has not been
+changed since at least version 40.}:
+\begin{verbatim}
+arg2  = 0;
+while (*password)
+  arg2  = 10 * arg2 + *password++;
+\end{verbatim}
 
 Before replying this packet, {\tt dp\_Res1} shall be set to a boolean success
 indicator. On success, it shall be set to {\tt DOSTRUE} and {\tt dp\_Res2} shall
