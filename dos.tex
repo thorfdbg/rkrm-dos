@@ -20471,7 +20471,7 @@ struct DosList *dl;
   dl = (struct DosList *)BADDR(DoPkt0(port,ACTION_CURRENT_VOLUME));
   if (dl) {
     /* dol_Name is always a 0-terminated BSTR */
-    strncpy(name,dl->dol_Name + 1,sizeof(name));
+    strncpy(name,(UBYTE *)BADDR(dl->dol_Name) + 1,sizeof(name));
     name[sizeof(name)-1] = 0;
   } else name[0] = 0;
   UnLockDosList(LDF_VOLUMES|LDF_READ);
@@ -20772,9 +20772,12 @@ Version 47 of the {\tt Lock} command uses currently the following algorithm to c
 hash key\footnote{The algorithm in~\cite{guru} is no longer up to date, the algorithm shown here has not been
 changed since at least version 40.}:
 \begin{verbatim}
-arg2  = 0;
-while (*password)
-  arg2  = 10 * arg2 + *password++;
+ULONG ComputeHash(const UBYTE *password) {
+  ULONG arg2  = 0;
+  while (*password)
+    arg2  = 10 * arg2 + *password++;
+  return arg2;
+}
 \end{verbatim}
 
 Before replying this packet, {\tt dp\_Res1} shall be set to a boolean success
@@ -20996,9 +20999,9 @@ void WindowSize(BPTR file,LONG *width,LONG *height)
 /* Retrieve the cursor position from a console
 ** connected to a file handle "file"
 */
-void CursorPosition(LONG *x,LONG *y)
+void CursorPosition(BPTR file,LONG *x,LONG *y)
 {
-  ParsePosition(stdOut,'R',x,y);
+  ParsePosition(file,'R',x,y);
 }
 
 /*
@@ -21166,19 +21169,19 @@ be closed again, and the console can also be iconified again.
 \smallskip{}
 
 To implement this packet, the console should keep a counter to track the
-number of times its resources have been provided to clients. An {\tt
-  ACTION\_DISK\_INFO} increments it, and {\tt
-  ACTION\_UNDISK\_INFO} decrements it. As long as the counter is non-zero,
-the window shall be open and the connection to the device implementing the
+number of times its resources have been provided to clients. An
+{\tt ACTION\_DISK\_INFO} increments it, and {\tt ACTION\_UNDISK\_INFO}
+decrements it. As long as the counter is non-zero,
+the window shall remain open and the connection to the device implementing the
 console functionality shall be established. This includes that the window
-needs to be forced open on the first {\tt ACTION\_DISK\_INFO} if it is
-closed, either by iconification or because it is an {\tt AUTO} window that
-was closed by the user.
+needs to be forced open on the first {\tt ACTION\_DISK\_INFO} if it was
+closed, either because it is not yet open, is iconified or because it is an {\tt AUTO} window
+that has been closed by the user.
 \medskip{}
 
 This packet does not take any arguments. Even though there is practically no
-reason why this packet could fail, the console handler shall set {\tt
-  dp\_Res1} to {\tt DOSTRUE} and {\tt dp\_Res2} to~0 on success. On an
+reason why this packet could fail, the console handler shall set
+{\tt dp\_Res1} to {\tt DOSTRUE} and {\tt dp\_Res2} to~0 on success. On an
 error, if such an error should be possible, {\tt dp\_Res1} shall be set to
 {\tt DOSFALSE} and {\tt dp\_Res2} to an error code.
 
@@ -21199,7 +21202,7 @@ start of the output buffer of the console.
 
 This packet is not exposed by the \emph{dos.library}, it rather needs to be
 issued through the packet interface, e.g.\ {\tt DoPkt()}\key{DoPkt()}. This packet injects
-a line at the end of the output buffer of the console. This buffer keeps all
+a line at the top of the output buffer of the console. This buffer keeps all
 lines entered by the user, and lines injected by {\tt ACTION\_STACK}\key{ACTION\_STACK} and
 {\tt ACTION\_QUEUE}\key{ACTION\_QUEUE}. The number of lines in this output buffer can be
 obtained through {\tt ACTION\_WAIT\_CHAR}\key{ACTION\_WAIT\_CHAR} which delivers the line count in
@@ -21266,7 +21269,7 @@ console, including user input.
 
 Lines injected into the console output buffer are not echoed on the screen.
 ARexx uses this packet to employ the console as ``external stack''. This
-packet places a line at the end of this stack, i.e.\ queues them up.
+packet places a line at the end of this stack, i.e.\ queues them.
 \medskip{}
 
 {\tt dp\_Arg1} is a copy of the {\tt fh\_Arg1} element of
@@ -21281,7 +21284,7 @@ to be injected into the output buffer of the console.
 \smallskip{}
 
 Upon replying this packet, {\tt dp\_Res1} shall be set to the number of
-characters that could be stacked in the output buffer of the console, or
+characters that could be queued in the output buffer of the console, or
 to~$-1$ in case of failure. On success, {\tt dp\_Res2} shall be set to~0, or
 to an error code on failure.
 
@@ -21304,7 +21307,7 @@ This packet is not exposed by the \emph{dos.library}, it rather needs to be
 issued through the packet interface, e.g.\ {\tt DoPkt()}\key{DoPkt()}. This packet injects
 characters into the input buffer of the console, at the same place
 keystrokes are recorded. Such characters are echoed on the console, or
-executed in case of control sequences. E.g, this packet allows also to move
+executed in case of control sequences. E.g, this packet also allows to move
 the cursor left or right, or erase the current line by emulating the
 corresponding keystrokes.
 \smallskip{}
@@ -21316,7 +21319,7 @@ this packet, it is there implemented incorrectly and does not impact the
 keyboard buffer. This was fixed in V47.}. The main user of this packet is
 the Shell which injects TAB-expanded file names into the console. The
 {\tt ConClip} command also uses this packet to insert the paths of icons
-dropped on the console.
+dropped on the console window.
 \medskip{}
 
 {\tt dp\_Arg1} is a copy of the {\tt fh\_Arg1} element of
@@ -21324,7 +21327,7 @@ a {\tt FileHandle} structure interfacing to the console.
 \smallskip{}
 
 {\tt dp\_Arg2} is a C pointer (not a BPTR) to an array of characters
-to be injected into the output buffer of the console.
+to be injected into the output buffer of the console. It may contain control sequences.
 \smallskip{}
 
 {\tt dp\_Arg3} is the size of the buffer in characters.
@@ -21353,8 +21356,8 @@ have been injected into the output buffer and thus reverts any {\tt
 This packet is not exposed by the \emph{dos.library}, it rather needs to be
 issued through the packet interface, e.g.\ {\tt DoPkt()}\key{DoPkt()}. This packet removes
 any lines injected by {\tt ACTION\_STACK}\key{ACTION\_STACK} and {\tt ACTION\_QUEUE}\key{ACTION\_QUEUE} from
-the output buffer of the console and thus reverts their results. User
-keyboard inputs remain unaffected. Thus, this packet resets the line stack
+the output buffer of the console and thus reverts their results.
+Keyboard inputs remain unaffected. Thus, this packet resets the line stack
 in the console. The intended purpose this packet is ARexx which,
 however, at the time of writing does not use it.
 \smallskip{}
@@ -21365,6 +21368,7 @@ a {\tt FileHandle} structure interfacing to the console.
 
 {\tt dp\_Arg2} shall be~0. This element is reserved for future use as a
 priority and shall be zero-initialized for forewards compatibility.
+\smallskip{}
 
 Upon replying this packet, {\tt dp\_Res1} shall be set to {\tt DOSTRUE} and
 {\tt dp\_Res2} to~0 on success. On error, {\tt dp\_Res1} shall be set to
@@ -21384,11 +21388,11 @@ window, if it is open, and brings it to the foreground.
 
 This packet is not exposed by the \emph{dos.library}. The packet interface,
 e.g.\ {\tt DoPkt()}\key{DoPkt()}, is required to issue it. This packet brings the window
-associated console, should such a window exist, to foreground and activates
+associated to the console, should such a window exist, to foreground and activates
 it. If the console is a serial console or the console window is closed or
-iconified, no activity is performed and no error is reported. Unlike {\tt
-  ACTION\_DISK\_INFO}\key{ACTION\_DISK\_INFO}, it will not force the window open if the window is
-currently closed.
+iconified, no activity is performed and no error is reported. Unlike
+{\tt ACTION\_DISK\_INFO}\key{ACTION\_DISK\_INFO}, it will not force the window open if
+the window is currently closed.
 \smallskip{}
 
 The primary user of this packet is the {\tt ConClip} tool
@@ -21401,7 +21405,7 @@ Upon replying this packet, {\tt dp\_Res1} shall be set to {\tt DOSTRUE} and
 {\tt dp\_Res2} to~0 on success. On error, {\tt dp\_Res1} shall be set to
 {\tt DOSFALSE} and {\tt dp\_Res2} to an error code.
 
-\subsection{Change the Target Port to Receive BREAK signals} \label{sec:action_change_signal}
+\subsection{Change the Target Port to Receive Break Signals} \label{sec:action_change_signal}
 
 The {\tt ACTION\_CHANGE\_SIGNAL}\mkey{ACTION\_CHANGE\_SIGNAL} packet sets a
 {\tt MsgPort} to whose task the console sends break signals generated by
@@ -21427,11 +21431,11 @@ is send.
 Despite this port, the console also sends break signals to the last process
 that issued an {\tt ACTION\_WRITE}\key{ACTION\_WRITE} request, provided this process is not a
 Shell process running in background. To avoid race conditions of
-applications forgetting to reset this port, the console resets this port
+applications forgetting to reset this port, the console implicitly deactivates this port
 whenever an {\tt ACTION\_CLOSE}\key{ACTION\_CLOSE} is received from the \emph{break port},
 i.e.\ whenever the process to which this port belongs closes its connection
 to the console. Furthermore, the console also tests the validity of the
-\emph{break port} by testing whether its {\tt mp\_Task} field is known to
+break port by testing whether its {\tt mp\_Task} field is known to
 the exec scheduler.
 \smallskip{}
 
