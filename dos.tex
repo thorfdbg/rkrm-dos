@@ -20784,7 +20784,7 @@ be set to~0. On failure, {\tt dp\_Res1} shall be set to {\tt DOSFALSE} and
 
 \section{Packets for Interactive Handlers} \label{sec:packetsinteractive}
 
-The packet types documented in this section are specific for handlers that
+The packet types documented in this section are specific for interactive handlers, e.g.\ handlers that
 interact with the environment of the computer system. Examples for
 interactive handlers are the CON-Handler\key{CON-Handler} interacting with the user through a
 window, the Aux-Handler which makes a console available through the serial
@@ -20805,15 +20805,15 @@ characters becoming available on an interactive handler.
 \end{rkrmtable}
 
 This packet implements the {\tt WaitForChar()}\key{WaitForChar()} function
-of the \emph{dos.library}. As such, it checks whether (interactive) input is
+of the \emph{dos.library}, see section~\ref{sec:waitforchar}. As such, it checks whether (interactive) input is
 available to satisfy a potential {\tt Read()}\key{Read()}. Note that this packet does
 not receive an indicator of a file handle\key{FileHandle}, thus even if input is available,
-it is not specified which {\tt ACTION\_READ}\key{ACTION\_READ} packet will receive the
+it is not clear which {\tt ACTION\_READ}\key{ACTION\_READ} packet will retrieve the
 available data.
 \smallskip{}
 
 {\tt dp\_Arg1} provides the timeout in ticks, where a tick is~20ms long, see
-also section~\ref{sec:dates}.
+also chapter~\ref{sec:dates}.
 \smallskip{}
 
 This packet instructs the handler to wait at most {\tt dp\_Arg1} ticks. If
@@ -20821,12 +20821,12 @@ no input becomes available within this time period, {\tt dp\_Res1} shall be
 set to {\tt DOSFALSE} and {\tt dp\_Res2} to~0.
 \smallskip{}
 
-If at least a single character of input becomes available, {\tt dp\_Res1}
+If at least a single character of input becomes available within the timeout period, {\tt dp\_Res1}
 shall be set to {\tt DOSTRUE}. If the handler implements line buffering such
 as the CON-Handler\key{CON-Handler}, then {\tt dp\_Res2} shall be set to the number of lines
-available in the output buffer. This feature is, for example, used by the
-ARexx interpreter. If it does not implement line buffering, {\tt dp\_Res2}
-should be set to~0.
+available in the output buffer of the handler. This feature is, for example, used by the
+ARexx interpreter for implementing the {\tt LINES()} command. If the handler does not implement
+line buffering, {\tt dp\_Res2} shall be set to~0.
 \smallskip{}
 
 In case of an error, {\tt dp\_Res1} shall be set to {\tt DOSFALSE} and
@@ -20847,50 +20847,51 @@ buffering.
 \end{rkrmtable}
 
 This packet implements the {\tt SetMode()}\key{SetMode()} function of the
-\emph{dos.library}. {\tt dp\_Arg1} is a copy of the second argument of this
-function.
+\emph{dos.library} defined in section~\ref{sec:setmode}. {\tt dp\_Arg1} is a
+copy of the second argument of this function.
 \smallskip{}
 
 The purpose of this packet is to adjust the buffer mode of a console. The
 CON-Handler\key{CON-Handler}, responsible for all types of consoles, serves both the {\tt
   CON:}, the {\tt RAW:} and (through an indirection layer) the {\tt AUX:}
-device, all of which are incarnations of the same handler configured
-differently; the CON-Handler\key{CON-Handler} described in section~\ref{sec:console}.
+devices, all of which are incarnations of the same handler configured
+differently; the CON-Handler\key{CON-Handler} is described in section~\ref{sec:console} in
+more detail.
 \smallskip{}
 
-In particular, {\tt CON:} and {\tt RAW:} interact with the user through a
-window of the graphical user interface; they are just two modes of the in
-total three modes of the console. With this packet, a {\tt CON:} window can
-be converted into a {\tt RAW:} window and vice-versa, and into a third type
-of window for which no distinct device name exists.
+In particular, the devices {\tt CON:} and {\tt RAW:} are just two
+modes of the in total three modes of the graphical console. With this
+packet, a {\tt CON:} window can be converted into a {\tt RAW:} window
+and vice-versa, and into a third type of window for which no distinct
+device name is created.
 \smallskip{}
 
 The same type of mode switch can also be performed for the serial terminal
-represented by the {\tt AUX:} window, which also exists in three modes in
-total, though usually only one of them is exposed to the user as {\tt AUX:}
-device. This packet makes two additional configurations available.
+represented by the {\tt AUX:} device, which also exists in three modes in
+total, though usually only one of them is exposed to the user as {\tt AUX:}.
+This packet makes two additional modes available.
 \medskip{}
 
 {\tt dp\_Arg1} defines the mode into which the console shall be switched. In
 total three modes are available, regardless whether the console is a
 graphical console in a window or a serial console on an external
 terminal. The modes are defined in table~\ref{table:conmodes} in
-section~\ref{sec:setmode}.
+section~\ref{sec:setmode} and explained in more detail in section~\ref{sec:conmodes}.
 \smallskip{}
 
 Only values between 0 and 2 shall be provided in {\tt dp\_Arg1}; all other
-values are reserved for future use and may or may not correspond to modes
-that are currently not documented. The console does not generate an error if
-an invalid mode is requested, but may interpret this mode change request in
-an unexpected way.
+values are reserved for future use; some third party implementations also
+support a mode~3 that is not documented here. For backwards compatibility, interactive
+handlers should interpret the value $-1$ (thus, {\tt DOSTRUE}) identical to 1, i.e.\
+switch to the unbuffered raw mode.
 \smallskip{}
 
-Before replying this packet, the console shall set {\tt dp\_Res1} to {\tt
-  DOSTRUE} and {\tt dp\_Res2} to~0 in case the mode switch could be
-performed. Otherwise, if the mode switch is not possible, the console shall
+Before replying this packet, the handler shall set {\tt dp\_Res1} to
+{\tt DOSTRUE} and {\tt dp\_Res2} to~0 in case the mode switch could be
+performed. Otherwise, if the mode switch is not possible, the handler shall
 set {\tt dp\_Res1} to {\tt DOSFALSE} and {\tt dp\_Res2} to an error code.
 
-\subsection{Retrieving IORequest and the Window Pointer from the Console} \label{sec:diskinfoconsole}
+\subsection{Retrieving IORequest and Window Pointer from the Console} \label{sec:diskinfoconsole}
 
 The {\tt ACTION\_DISK\_INFO}\key{ACION\_DISK\_INFO} packet retrieves from a
 console pointers to its underlying resources.
@@ -20919,19 +20920,19 @@ the mode the console is in:
 {\tt 'RAW\textbackslash0'} & Raw mode \\ \hline
 \end{rkrmtable}
 
-Section~\ref{sec:console} provides more information on console modes; they
+Section~\ref{sec:conmodes} provides more information on console modes; they
 describe whether the console buffers entire lines and which key presses are
 reported how.
 \smallskip{}
 
-The {\tt id\_VolumeNode} element of the {\tt InfoData}\key{InfoData} structure provided in
-{\tt dp\_Arg1} is filled with a pointer to the intuition window the console
+The {\tt id\_VolumeNode}\key{id\_VolumeNode} element of the {\tt InfoData}\key{InfoData}
+structure provided in {\tt dp\_Arg1} is filled with a pointer to the intuition window the console
 runs in. For a serial console, or a console running on any other device,
 this element remains {\tt NULL}.
 \smallskip{}
 
-The {\tt id\_InUse}\key{id\_InUse} element is filled with a pointer to the {\tt IoRequest}
-structure (see {\tt exec/io.h}) which is used to communicate with the device
+The {\tt id\_InUse}\key{id\_InUse} element is filled with a pointer to the {\tt IORequest}
+structure (see {\tt exec/io.h}) which is used to communicate with the exec device
 the handler operates on. For a graphical console, this is a {\tt IORequest}
 to the {\tt console.device}; for the {\tt AUX:} console, it is an {\tt
   IORequest} to the corresponding device the console runs on, e.g.\ of
@@ -20962,7 +20963,7 @@ the {\tt console.device}.
 Often, applications (mis-)use this packet to retrieve the current cursor
 position or the dimensions of the window in character positions, assuming
 that the {\tt IORequest} pointer in {\tt id\_InUse} is, actually,
-corresponding to a \emph{console.device} and as such {\tt io\_Unit} of the
+corresponding to a {\tt console.device} and as such {\tt io\_Unit} of the
 request is a pointer to a {\tt ConUnit}. However, this assumption may not be
 true, and console dimensions and the cursor position cannot be obtained in
 general in this way.
