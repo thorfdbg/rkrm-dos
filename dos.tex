@@ -21688,8 +21688,7 @@ code.
 
 \subsection{Shutdown a Handler} \label{sec:packetactiondie}
 
-The packet {\tt ACTION\_DIE}\mkey{ACTION\_DIE} requests a file system or
-handler to unmount its volumes and terminate.
+The packet {\tt ACTION\_DIE}\mkey{ACTION\_DIE} requests a file system unmount its volumes and terminate.
 
 \begin{rkrmtable}{\tt ACTION\_DIE} \label{table:actiondie}
 {\bf DosPacket Element}   & {\bf Value}\\ \hline \hline
@@ -21706,58 +21705,60 @@ device list\key{Device List} to {\tt NULL}, and then terminate the process.
 \smallskip{}
 
 A file system may not exit as long as client programs cache copies of
-its {\tt MsgPort}; this port is typically the {\tt pr\_MsgPort} of the
+its {\tt MsgPort}(s); this is typically the {\tt pr\_MsgPort} of the
 handler process which is released by AmigaDOS as soon as the process
-exits, and it will thus become unusable. At least all file handles\key{FileHandle}
-and locks\key{Lock} need to indicate that the file system is no longer usable. Either,
-the file system may refuse to exit if some file handles using it are still
-open, or some locks are not yet unlocked. Alternatively, the file system
-may zero out the {\tt fh\_Type} element of all files open to it, thus
-essentially turning them into {\tt NIL:} file handles, also zero out the
-{\tt fl\_Task} elements of all active locks, and link them in {\tt dol\_LockList}
-of the {\tt DosList} of their corresponding volume as if the volume had been
-ejected, see also section~\ref{sec:devicelist}.
+exits, and it will thus become unusable. At least all file
+handles\key{FileHandle}, locks\key{Lock} and {\tt
+  NotifyRequest}\key{NotifyRequest} need to indicate that the file
+system is no longer usable. Either, the file system may refuse to exit
+if some of these resources are still in use.  Alternatively, the file
+system may zero out the {\tt fh\_Type} element of all files open to
+it, thus essentially turning them into {\tt NIL:} file handles, also
+zero out the {\tt fl\_Task} elements of all active locks, and link
+them in {\tt dol\_LockList} of the {\tt DosList} of their
+corresponding volume as if the volume had been ejected, see also
+chapter~\ref{sec:devicelist}. There is unfortunately no easy way how
+to terminate a {\tt NotifyRequest}, and if some of them are still pending,
+the file system cannot quit and {\tt ACTION\_DIE} shall fail.
 \smallskip{}
 
 As next step, references to the file system port(s) shall be removed from the
-device list\key{Device List}. To gain access to the device list, use {\tt
-  AttemptLockDosList()}\key{AttemptLockDosList()} as a blocking semaphore
+device list\key{Device List}. To gain access to the device list, the file system should use
+{\tt AttemptLockDosList()}\key{AttemptLockDosList()} as a blocking semaphore
 may cause a deadlock. If the list is not accessible at this time, the file
 system cannot safely shut down and {\tt ACTION\_DIE} shall fail. If the
 device list is accessible, the file system shall set the {\tt dol\_Task}
 elements of the volumes it administrates and the device node it is
-represented by to {\tt NULL}. This will request from AmigaDOS to launch a
+represented by to {\tt NULL}. This will request AmigaDOS to launch a
 new file system from the {\tt dol\_SegList} segment\key{Segment} as soon as a client
-requests again access it through its device name.
+requests to access it through its device name.
 \smallskip{}
 
-Unfortunately, even these precautions are not fully sufficient for safely
-unmounting a device because a client program can request a handler message
-port via {\tt GetDeviceProc()}\key{GetDeviceProc()} or {\tt
-  DeviceProc()}\key{DeviceProc()} any time for direct communication and
-buffer the returned port outside of the classical AmigaDOS objects. Thus, a
-handler has no direct control of where cached copies of its port(s) are
-held, and thus whether it can safely terminate. This limits the utility of
-this packet to system debugging tools.
+Unfortunately, even these precautions are not fully sufficient for
+safely unmounting a device because a client program can request a
+handler message port via {\tt GetDeviceProc()}\key{GetDeviceProc()} or
+{\tt DeviceProc()}\key{DeviceProc()} any time for direct communication
+and buffer the returned port beyond reach. Thus, a handler has no
+direct control of where cached copies of its port(s) are held, and
+thus whether it can safely terminate. This limits the utility of this
+packet to system debugging tools.
 \smallskip{}
 
 In case the file system can foresee that it cannot safely exit at the
-time the request is made, this packet shall fail by setting {\tt
-  dp\_Res1} to {\tt DOSFALSE} and {\tt dp\_Res2} to an error code,
-e.g.\ {\tt ERROR\_OBJECT\_IN\_USE}\key{ERROR\_OBJECT\_IN\_USE}. In case termination is seemingly
-possible, the file system shall check for any pointers to its {\tt
-  MsgPort}(s) in the device list\key{Device List} and replace them by {\tt NULL}, thus
-requesting from the \emph{dos.library} to create a new instance of the
-file system if needed. Then, this packet shall be replied by setting
+time the request is made, this packet shall fail by setting {\tt dp\_Res1} to {\tt DOSFALSE}
+and {\tt dp\_Res2} to an error code, e.g.\ {\tt ERROR\_OBJECT\_IN\_USE}\key{ERROR\_OBJECT\_IN\_USE}.
+If termination is seemingly possible, this packet shall be replied by setting
 {\tt dp\_Res1} to {\tt DOSTRUE} and {\tt dp\_Res2} to~0.
 \smallskip{}
 
-After unmounting the volume and replying to this packet, the {\tt
-  MsgPort}(s) of this handler or file system used for packet
-communication may still contain packets that were submitted after {\tt
-  ACTION\_DIE}\key{ACTION\_DIE} has been received. In order to avoid a deadlock or a
-crash, the file system still needs to reply these packets, for example
-by the default result codes from table~\ref{table:unimp}, see also
+After unmounting the volume and replying to this packet, the
+{\tt MsgPort}(s) of this handler or file system used for packet
+communication may still contain packets that were submitted after
+{\tt ACTION\_DIE}\key{ACTION\_DIE} has been received. In order to avoid a
+deadlock or a crash, the file system still needs to reply these
+packets, for example by the default result codes from
+table~\ref{table:unimp} in section~\ref{sec:handlermain}; additional
+details on how to terminate a handler are found in
 section~\ref{sec:terminatehandler}.
 \smallskip{}
 
@@ -21765,9 +21766,9 @@ Some handlers do not initialize the {\tt dol\_Task}\key{dol\_Task} element of it
 {\tt DosList}\key{DosList} entrie(s) with an address of their port(s); handlers
 that are not file systems such as the CON-Handler\key{CON-Handler} are typical
 examples. Such handlers shall terminate themselves without requiring
-an {\tt ACTION\_DIE}\key{ACTION\_DIE} when the last resource opened on them
+an {\tt ACTION\_DIE}\key{ACTION\_DIE} when the last resource opened
 had been shut down, i.e.\ all file handles\key{FileHandle} have been closed, all locks\key{Lock} (if
-they are supported at all) have been unlocked and all notification requests
+they are supported at all) have been unlocked and all {\tt NotifyRequest}s
 (if supported) had been canceled.
 
 \subsection{Do Nothing}
@@ -21803,11 +21804,11 @@ The packets in this section shall never be sent to a handler or filesystem
 as part of an application request. Instead, these packets are only used
 internally within the handler, and are rather an implementation trick to
 uniform the handler event processing. While regular {\tt DosPackets}\key{DosPacket} are
-carried by an exec message, the packets listed here are instead linked to an
+carried by an exec message, the packets listed here are linked to an
 {\tt IORequest} (see {\tt exec/io.h}). This allows using a shared port,
 typically the {\tt pr\_MsgPort} of the handler process, for receiving
-replied {\tt IORequest}s and incoming packets as both appear as {\tt
-  DosPackets}.
+replied {\tt IORequest}s and incoming packets as both appear as
+{\tt DosPackets}.
 \smallskip{}
 
 The {\tt io\_Message.mn\_Node.ln\_Name} points to the {\tt DosPacket}
@@ -21821,7 +21822,7 @@ the packet interface of the handler as one of the packet types listed here.
 \subsection{Receive a Returning Read}
 
 The {\tt ACTION\_READ\_RETURN}\mkey{ACTION\_READ\_RETURN} packet is part of a returning {\tt CMD\_READ}
-or similar read {\tt IORequest} sent to an exec device and indicates that
+or similar input {\tt IORequest} sent to an exec device and indicates that
 reading data completed.
 
 \begin{rkrmtable}{\tt ACTION\_READ\_RETURN} \label{table:readreturn}
@@ -21838,7 +21839,7 @@ replied.
 \subsection{Receive a Returning Write}
 
 The {\tt ACTION\_WRITE\_RETURN}\mkey{ACTION\_WRITE\_RETURN} packet is part of a returning {\tt CMD\_WRITE}
-or similar write {\tt IORequest} sent to an exec device and indicates that
+or similar output {\tt IORequest} sent to an exec device and indicates that
 writing data completed.
 
 \begin{rkrmtable}{\tt ACTION\_WRITE\_RETURN} \label{table:writereturn}
@@ -21855,7 +21856,7 @@ replied.
 \subsection{Receive a Returning Timer Request}
 
 The {\tt ACTION\_TIMER}\mkey{ACTION\_TIMER} packet is part of a returning {\tt TR\_ADDREQUEST},
-a {\tt timer.device} request to wait for a time period. 
+a {\tt timer.device} request to wait for a certain time period. 
 
 
 \begin{rkrmtable}{\tt ACTION\_TIMER} \label{table:actiontimer}
@@ -21886,13 +21887,13 @@ list does not claim to be complete:
 \tt ACTION\_EVENT(6) & obsolete, used by the BCPL file system \\ \hline
 \tt ACTION\_DISK\_TYPE(32) & obsolete, used by the BCPL file system \\ \hline
 \tt ACTION\_DISK\_CHANGE(33) & not used, not related to {\tt C:DiskChange} \\ \hline
-\tt ACTION\_FINDREADONLY(1009) & open a file for exclusive reading \\ \hline
-\tt ACTION\_FINDONEWRITER(1010) & open a file for exclusive writing \\ \hline
+\tt ACTION\_FINDREADONLY(1009) & open a file for exclusive read access \\ \hline
+\tt ACTION\_FINDONEWRITER(1010) & open a file for exclusive write access \\ \hline
 \tt ACTION\_DIRECT\_READ(1900) & used by the CDTV \\ \hline
 \tt ACTION\_DOUBLE(2000) & create two file handles\key{FileHandle} for a pipe \\ \hline
-\tt ACTION\_PEEK(2005) & retrieve console input line \\ \hline
-\tt ACTION\_REPLACE(2006) & replace console input line \\ \hline
-\tt ACTION\_GET\_HISTORY(2007) & retrieve history of the console \\ \hline
+\tt ACTION\_PEEK(2005) & retrieve the current console input line \\ \hline
+\tt ACTION\_REPLACE(2006) & replace the current console input line \\ \hline
+\tt ACTION\_GET\_HISTORY(2007) & retrieve the history of the console \\ \hline
 \tt ACTION\_HANDLER\_DEBUG(2010) & install a debug hook into a handler \\ \hline
 \tt ACTION\_SET\_TRANS\_TYPE(2011) & configure LF/CR translation \\ \hline
 \tt ACTION\_NETWORK\_HELLO(2012) & network handler support package \\ \hline
