@@ -15942,7 +15942,7 @@ of operation accordingly. In such a case, the {\tt BAUD} and
 {\tt CONTROL} parameters in the mountlist are irrelevant and ignored,
 and the device becomes a lookalike of either {\tt PAR:} or {\tt PRT:}.
 
-\section{The Queue-Handler}
+\section{The Queue-Handler} \label{sec:queuehandler}
 
 The Queue-Handler\mkey{Queue-Handler} provides inter-process communication on the basis of
 AmigaDOS file handles\key{FileHandle}. It is used by the Shell to implement pipes; they
@@ -15986,15 +15986,15 @@ does not belong to the Queue-Handler, opening the anonymous pipe
 fails. Its purpose is in Shell command lines such as
 
 \begin{verbatim}
-list | type PIPE: hex
+Join A B to PIPE: | More
 \end{verbatim}
 
-where the reading end of the pipe is explicitly addressed as anonymous
-pipe, while the Shell connected the standard input of the {\tt Type}
+where the writing end of the pipe is explicitly addressed as anonymous
+pipe, while the Shell connected the standard output of the {\tt Join}
 command to a named pipe created for the purpose of the {\tt |}
 operator, see also section~\ref{sec:binaryops}. The anonymous {\tt PIPE:} connects to the named pipe created by the
 Shell. This construction is necessary here because the command line
-syntax of {\tt Type} does not offer to read from its input stream as
+syntax of {\tt Join} does not offer to write to its output stream as
 prepared by the Shell. Anonymous pipes were introduced in AmigaDOS~45.
 \smallskip{}
 
@@ -21907,43 +21907,48 @@ list does not claim to be complete:
 \end{rkrmtabular}
 
 \chapter{The AmigaDOS Shell} \label{sec:shell}
-The Shell\mkey{Shell} is the command line interpreter of AmigaDOS and is a simple
-language of itself. User applications can use services of the shell by
-requesting it to interpet a shell script\key{Shell Script} or launching a new shell in a
-user-provided console window, then interpreting commands entered by the
-user. The latter is called an \emph{interactive} shell, the former is
-non-interactive.
+The Shell\mkey{Shell} is the command line interpreter of AmigaDOS and
+implements a simple language. User applications can use services of
+the shell by requesting it to interpet a shell
+script\key{Shell Script} or launching a new shell in a user-provided console window,
+then interpreting commands entered by the user. The latter is called
+an \emph{interactive} shell, the former is non-interactive.
 \smallskip{}
 
-The Shell is built into the ROM of the kickstart, even though AmigaDOS
-is flexible enough to allow custom shells\key{Shell} and make them available to user
-applications. The Shell is also responsible for booting up the system by
-executing the {\tt Startup-Sequence} script in the {\tt S:} assign.
+The Shell is built into the Kickstart ROM, even though AmigaDOS is
+flexible enough to allow custom shells\key{Shell} and make them
+available to user applications. The Shell is also responsible for
+booting up the system by executing the {\tt Startup-Sequence} script
+in the {\tt S:} assign.
 
 \section{The Shell Syntax} \label{sec:shellsyntax}
 
-The Shell reads commands along with its arguments line by line from the
-console or a script\key{Shell Script}. Each line consists of at least one command upfront and
-its arguments, where the arguments amongst each other and the command are
-are separated by spaces, tabulators or by equals-signs (``{\tt = }'') which
-separates keywords from its values. The command refers to a file within the
-\emph{path}, a list of directories that can be adjusted by the user. It
-always contains the current directory and the {\tt C:} assign, though
-additional directories can be added or removed with the {\tt path} command
-any time.
+The Shell reads commands along with its arguments line by line from
+the console or a script\key{Shell Script}. Each line consists of at
+least one command and its arguments, all separated by spaces or
+tabulators. Each argument is either a value, e.g.\ a file name or a
+number, or a pair of a keyword and a value. The keyword may be either
+separated by blank spaces or tabulators from its value, or by an
+(``{\tt = }''), without any spaces or tabulators in between. The
+command refers to an executable file within the \emph{path}, which is
+a list of directories that can be adjusted by the user. It always
+contains the current directory and the {\tt C:} assign, though
+additional directories can be added or removed with the {\tt Path}
+command any time.
 \smallskip{}
 
-The following sections describe the Shell syntax in detail. Even though it
-stems from the Tripos system, AmigaDOS added over the years features such as
-variable\key{Shell Variable} substitution, compound commands including pipes, backtick expansion
-and additional redirection operators. 
+The following sections describe the Shell syntax in detail. Even
+though it stems from the Tripos system, AmigaDOS added over the years
+features such as variable\key{Shell Variable} substitution, compound
+commands including pipes, backtick expansion and additional
+redirection operators.
 
 \subsection{Input/Output Redirection} \label{sec:redirection}
 
-Commands receive from the shell\key{Shell} an input and output stream, and a console
+Commands receive from the Shell\key{Shell} an input and output stream, and a console
 handler to which commands can refer by the special file name
-``{\tt *}''\key{* (file name)}. Optionally, they can be provided with an error stream through which
-diagnostic messages are printed. The shell allows redirecting or creating
+``{\tt *}''\key{* (file name)}. Optionally, commands can be provided with an error stream through which
+diagnostic messages are printed. The Shell allows redirecting or creating
 these streams by operators on the command line that shall also be separated
 by the spaces or tabulators from the arguments and the command.
 \smallskip{}
@@ -21959,7 +21964,7 @@ The shell\key{Shell} supports the following redirection operators\mkey{Redirecti
     not yet exist.
   \item[{\tt <}{\it path}] redirects the input of a command from an
     already existing file which must exist; otherwise, an error is
-    indicated.
+    created.
   \item[{\tt <{}<}{\it ind}] uses the current console or the shell
     script itself from which the command is run as input, line by line,
     until a line starting with {\tt ind} is found. The indicator can be
@@ -21971,15 +21976,17 @@ The shell\key{Shell} supports the following redirection operators\mkey{Redirecti
   \item[{\tt *>}{\it path}] redirects the error output of the command to the
     given path. If this path identifies an interactive stream (see
     section~\ref{sec:isinteractive}), such as a console, then the console
-    process of the command is set to it as well. This will also redirect
-    output of commands that prints errors to the {\tt *}\key{* (file name)} file that
-    is contacted for this special file name.
+    process of the command is also set to the handler of the stream.
+    Changing the console process will also redirect output of commands that
+    print errors to the {\tt *}\key{* (file name)} file representing the
+    console.
    \item[{\tt *>{}>}{\it path}] appends the error output of a command to a
      file, or creates a new file for error output if it does not yet
      exist. If the target file is interactive, the console process of the
      command is also updated.
    \item[{\tt *<>}] creates a standard error stream and redirects it to the
-     standard output. If none of the three above redirection operators are
+     standard output, that is, errors go into the same file into which output
+     is redirected. If none of the three above redirection operators are
      present, then (unlike in other operating systems) the command
      \emph{does not} receive a standard error stream. What happens in such a
      case with error output is specific to the implementation of the
@@ -21988,7 +21995,7 @@ The shell\key{Shell} supports the following redirection operators\mkey{Redirecti
      present.
 \end{itemize}
 
-Where the redirection is placed within a command line does typically not
+Where the redirection operator is placed within a command line does typically not
 matter, e.g.\ wether it is directly following the command or placed at the
 end of the command line. There are, however, three exceptions the shell
 makes when parsing the command line:
@@ -21999,21 +22006,23 @@ itself shall be placed directly following the command. The same applies if
 the shell\key{Shell Variable} variable {\tt oldredirect} is set to {\tt on}. In the above cases,
 redirections placed at a later point of the command line will become part of
 the command line arguments. That is, for {\tt Run}, the command run in back
-will redirect its streams rather than the streams of the {\tt Run} command,
+will redirect its streams rather than the output of the {\tt Run} command,
 and for {\tt Alias}, the redirection will become part of the alias\key{Alias} and will
 become active when the alias is expanded. The {\tt oldredirect} variable
-will do likewise for all other commands. However, they will typically not
-interpret redirection requests in a useful way and will instead take the
-angle brackets as regular arguments.
+will do likewise for all other commands which then need to parse redirection
+operators manually as they appear as part of their command line. Most executables
+are not prepared to interpret redirection operators, however.
 
 \subsection{Compound Commands and Binary Operators} \label{sec:binaryops}
 
 The Shell allows combining multiple commands on the command line, then
-forming \emph{compound} commands. The following operators go \emph{between}
-commands such that the last argument of the first command is directly to the
-left of such an operator, and the next argument start to the right. As for
-arguments, these operators need to be separated by arguments and commands
-with blank spaces or tabulators:\mkey{Compound Command (Shell)}
+forming \emph{compound} commands. The following operators go
+\emph{between} commands such that the last argument of the first
+command is directly to the left of such an operator, and the next
+command follows immediately to the right of the operator. As for
+arguments, these operators need to be separated by blank spaces or
+tabulators from the surrounding commands or arguments:
+\mkey{Compound Command (Shell)}
 
 \begin{itemize}
   \item[{\tt |}] The vertical bar creates a pipe such that the standard
@@ -22021,8 +22030,10 @@ with blank spaces or tabulators:\mkey{Compound Command (Shell)}
     command to its right. As some commands require an explicit file name
     they read data from, or they write data to, the pipe itself can be
     explicitly addressed through the {\tt PIPE:} file name, both for the
-    reading and the writing end. Pipes require the Queue-Handler, which is
-    mounted by the Kickstart during the system startup.
+    reading and the writing end. Pipes require the Queue-Handler
+    (see section~\ref{sec:queuehandler}), which is mounted by the
+    System-Startup module described in section~\ref{sec:sysstartup} during
+    bootstrapping the system.
   \item[{\tt ||}] Two vertical bars concatenate the output of two commands
     together into one common stream which can then redirected to a common
     output\footnote{This syntax is different from the {\tt bash} operator
@@ -22032,12 +22043,35 @@ with blank spaces or tabulators:\mkey{Compound Command (Shell)}
     to execute the command to its right.
 \end{itemize}
 
-The brackets ``{\tt (}'' and ``{\tt )}'' group commands and execute the
-grouped command in a separate process in a sub-shell. For this, both the
-opening and closing bracket shall be separated by commands and arguments by
-at least a single space or tabulator as otherwise the shell\key{Shell} interprets them
-as part of the command or arguments. This provides logical grouping of
-commands into compound commands.
+The brackets ``{\tt (}'' and ``{\tt )}'' group commands and execute
+the grouped command in a separate process in a sub-shell. Similar to
+all other operators listed in this section, both the opening and
+closing bracket shall be separated by spaces or tabulators
+from commands and arguments as otherwise the shell\key{Shell}
+interprets them as part of the command or arguments. Brackets provide
+logical grouping of commands into compound commands.
+\smallskip{}
+
+Thus, for example, the command line
+\begin{verbatim}
+List | More
+\end{verbatim}
+will pipe the output of the {\tt list} command through the pager, and the command line
+\begin{verbatim}
+echo "Current Directory Content:" || List | More
+\end{verbatim}
+will print an additional title on top which will also be run through the pager.
+
+The command line
+\begin{verbatim}
+( List && Dir ) >ram:Directory
+\end{verbatim}
+will run both the {\tt List} and {\tt Dir} command on the current
+directory one after another, and the joined output of both commands,
+as run in a sub-shell, will be redirected into a file in
+{\tt RAM:}. Note that spaces are placed between the brackets and the
+commands as otherwise they would be parsed as part of the command
+name.
 
 \subsection{Unary Shell Operators} \label{sec:unaryops}
 
@@ -22048,15 +22082,15 @@ between commands, but only at their end or at the end of the command line.
 \item[\&] The ampersand operator works similar to the {\tt Run} command, it starts
   the command line within which it appears in background. The command will
   receive a new logical console, and its output and error streams will be
-  redirected to this console, unless of course redirected explicitly to
-  other files. Unfortunately, at this time, the ROM-based CON-Handler\key{CON-Handler}
+  redirected to this console, unless additional operators redirect the streams
+  to other files explicitly. Unfortunately, at this time, the ROM-based CON-Handler\key{CON-Handler}
   does not take advantage of this information and will simply merge the
   output of the process run back with that of the regular shell\key{Shell}, though
-  extended CON-Handlers use this information for job control and hold
+  third party handlers use this information for job control and hold
   the output of the background process until made explicitly active.
 \item[+] The plus operator shall only appear at the end of a command line.
   If it is present, it injects a line-feed and the following line of the
-  current input of the shell\key{Shell} into the argument line of the command. It thus
+  current input of the Shell\key{Shell} into the argument line of the command. It thus
   forms an argument string that consists of multiple lines. Only very few
   commands can actually process a line-feed as part of their argument line,
   most will ignore all characters behind the first line feed. One particular
@@ -22065,10 +22099,25 @@ between commands, but only at their end or at the end of the command line.
   stream, building it from a string using a technique similar to that
   explained in section~\ref{sec:stringstreams}. This sub-shell will thus
   receive a shell script\key{Shell Script} as input which consists of multiple lines, and will
-  execute the commands one after another.
-\item[;] The semicolon ends a command line and starts a commend. All
+  execute the commands one after another. In combination with the {\tt Run}
+  command, the plus (``{\tt +}'') operator therefore indicates that the following
+  line forms an additional command line of a shell script that is executed in
+  background.
+\item[;] The semicolon ends a command line and starts a comment. All
   characters beyond the semicolon are ignored.
 \end{itemize}
+
+Thus
+\begin{verbatim}
+Run List +
+Dir
+\end{verbatim}
+runs the {\tt List} command in background, which is followed by the
+{\tt Dir} command. The same can be accomplished, though in a more
+compact form, by
+\begin{verbatim}
+( List && Dir ) &
+\end{verbatim}
 
 \subsection{Quoting and Escaping} \label{sec:shellquotes}
 
@@ -22076,7 +22125,7 @@ To allow spaces, tabulators, equals-signs and the above operators as parts
 of command names and arguments, e.g.\ to handle file names containing such
 characters, the Shell allows quoting. Blank spaces, tabulators, semicola and
 equals-signs within double quotes (``{\tt "}'') become part of the argument,
-and are not interpreted by the shell\key{Shell}. A quote only starts a quoted argument
+and are not interpreted by the Shell\key{Shell}. A quote only starts a quoted argument
 or command and is thus a functional element of the Shell if it is preceeded
 by a blank space or a tabulator, quotes \emph{within} an otherwise unquoted
 argument are literals and stand for itself. A quote, however, does terminate
@@ -22110,26 +22159,40 @@ Shell:
 
 As the Shell does not perform substitutions for the above sequences, they
 can also appear within the command line of the executed program, which is
-then responsible to perform the above substitutions correctly itself. In
-particular, the above sequences are not substituted outside of double
+then responsible to perform the above substitutions correctly itself. Thus, the command
+\begin{verbatim}
+Echo "Hello*NThere"
+\end{verbatim}
+prints the word {\tt Hello} on one line, and {\tt There} on a new line
+below, though the {\tt Echo} command receives the command line {\tt "Hello*NThere"} including
+the quotes and the escape sequence. Replacement of ``{\tt *N}'' with the line feed happens inside of
+the {\tt Echo} command, or more precisely, within the {\tt ReadArgs()}\key{ReadArgs()} function.
+\smallskip{}
+
+The above sequences are \emph{not} substituted outside of double
 quotes, and therefore, are literals there. This allows, for example, to use
 ``{\tt *}''\key{* (file name)} as file name --- without quotes --- representing the current
-code.
+code. The command
+\begin{verbatim}
+Echo Hello*NThere
+\end{verbatim}
+therefore prints {\tt Hello*NThere} on the console, without any line feed, unchanged.
 \smallskip{}
 
 Proper interpretation and escape sequence substitution is ensured if the
-command uses the {\tt ReadArgs()}\key{ReadArgs()} or {\tt
-  ReadItem()}\key{ReadItem()} functions of the \emph{dos.library}. This
-distribution of responsibilities has the inconvenient side effect that some
-third-party argument parsers, e.g.\ the ones provided by some C compilers, do
-not fully support the (admittedly unorthogonal) quotation and escaping rules
-of the Shell and thus do not deliver the expected results.
+command uses the {\tt ReadArgs()}\key{ReadArgs()} or {\tt ReadItem()}\key{ReadItem()}
+functions of the \emph{dos.library}, see section~\ref{sec:readargs} and following.
+This distribution of responsibilities has the inconvenient side effect
+that some third-party argument parsers, e.g.\ the ones provided by
+some C compilers, do not fully support the (admittedly unorthogonal)
+quotation and escaping rules of the Shell and thus do not deliver the
+expected results.
 \medskip{}
 
 The second class of escape sequences is transparently substituted by the
 Shell, and thus no additional burden arises for the executed program to
-handle them\footnote{This inconsistency can probably be only understood in
-historical contents as variable expansion and backtick substitution were
+interpret them\footnote{This inconsistency can probably be only understood in
+historical context as variable expansion and backtick substitution were
 later Amiga specific extensions to the original Tripos Shell.}. Unlike the
 above, the following sequences are \emph{also} interpreted outside of
 quotes, everywhere on the command line:
@@ -22150,30 +22213,46 @@ quotes, everywhere on the command line:
   literal square bracket into the expanded alias.
 \end{itemize}
 
+The following examples illustrate the consequences of the above syntax. While
+\begin{verbatim}
+Echo *$
+\end{verbatim}
+prints a {\tt \$} sign, even the asterisk is outside of quotes, though
+\begin{verbatim}
+Echo *[
+\end{verbatim}
+prints {\tt *{[}} because the command is not part of an alias substitution, though
+\begin{verbatim}
+Alias PrintBracket Echo *[
+\end{verbatim}
+creates an alias that prints {\tt {[}} because \emph{now} the bracket is escaped by an
+asterisk and not interpreted as a syntactical element of the alias definition.
+
 \subsection{Variables and Variable Expansion} \label{sec:variableexpansion}
 
 The AmigaDOS shell\mkey{Shell Variable} supports variables, both local to the shell and
 system-global, and expands variables as part of the regular command line
 parsing. A variable is indicated by a string starting with a dollar-sign
 (``{\tt \$}'') and followed by alpha-numerical characters, i.e.\ 0-9, A-Z and
-a-z. Variable names are case-insensitive. The lst character that is outside
+a-z. Variable names are case-insensitive. The last character that is outside
 this range terminates the variable name. \mkey{Variable Substitution}
 \smallskip{}
 
 An equivalent but more flexible way of referring to a variable is by
 enclosing the variable name after the ``{\tt \$}'' sign in braces,
-i.e.\ ``{\tt \$\{{\it name}\}}'' within which all other characters are
-allowed as components of the name as well.
+i.e.\ ``{\tt \$\{{\it name}\}}'' within which all other characters except
+the closing brace are allowed as components of the name as well.
 \smallskip{}
 
-Local variables are represented as entries in the {\tt pr\_LocalVars} list
-that is part of the process structure that represents the Shell, see
-section~\ref{sec:process}. When expanding variables, the Shell first checks
-there for a variable of a matching name. Only if that fails, the Shell tests
-for global variables. They are represented as files in the {\tt ENV:}
-assign, which is typically an external link\key{External Link} within the {\tt RAM:} device
-copying elements from the {\tt ENVARC:} assign. That is, local variables
-take priority over global variables.
+Local variables are represented as entries in the {\tt pr\_LocalVars}
+list that is part of the process structure that represents the Shell,
+see chapter~\ref{sec:process} and section~\ref{sec:getvar}. When expanding
+variables, the Shell first checks there for a variable of a matching
+name. Only if that fails, the Shell tests for global variables. They
+are represented as files in the {\tt ENV:} assign, which is typically
+an external link\key{External Link} within the {\tt RAM:} device
+copying elements from the {\tt ENVARC:} assign. That is, local
+variables take priority over global variables.
 \smallskip{}
 
 Variables\key{Shell Variable} are substituted by the Shell \emph{before} the resulting argument
@@ -23514,7 +23593,7 @@ The functions in this section provide access to local and global
 shell\key{Shell Variable} variables, get and set them, or check whether a
 particular variable is defined.
 
-\subsection{Read a Shell Variable}
+\subsection{Read a Shell Variable} \label{sec:getvar}
 
 The {\tt GetVar()}\mkey{GetVar()} function reads the contents of a global or
 local shell\key{Shell Variable} variable or alias\key{Alias} and copies its contents to a buffer.
