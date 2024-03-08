@@ -4256,7 +4256,7 @@ or an ARexx script. If this flag is set, and the script is
 given as command to the Shell, it will forward this file to a
 suitable script interpreter, such as ARexx or {\tt Execute}. AmigaDOS
 versions 45 and up also allow additional script interpreters, to be indicated in
-the first line of a shell script, see section~\ref{sec:cmdexecution} for the details.
+the first line of a shell script, see section~\ref{sec:cmdlocation} for the details.
 \smallskip{}
 
 The {\tt FIBB\_HOLD}\mkey{FIBB\_HOLD} flag indicates whether a command 
@@ -18778,7 +18778,7 @@ directory of the currently inserted volume if {\tt dp\_Arg1} is
 {\tt ZERO}\key{ZERO lock}. The name of the directory to be created is given by the last
 component of the path in {\tt dp\_Arg2}, all components in the path
 upfront must exist or the packet shall fail with the error
-{\tt ERROR\_OBJECT\_NOT\_FOUND}\key{\tt ERROR\_OBJECT\_NOT\_FOUND}, i.e.\
+{\tt ERROR\_OBJECT\_NOT\_FOUND}\key{ERROR\_OBJECT\_NOT\_FOUND}, i.e.\
 this packet does not attempt to create directories recursively.
 \smallskip{}
 
@@ -21942,7 +21942,7 @@ though it stems from the Tripos system, AmigaDOS added over the years
 features such as variable\key{Shell Variable} substitution, compound
 commands including pipes, backtick expansion and additional
 redirection operators.
-
+'
 \subsection{Input/Output Redirection} \label{sec:redirection}
 
 Commands receive from the Shell\key{Shell} an input and output stream, and a console
@@ -22025,7 +22025,7 @@ tabulators from the surrounding commands or arguments:
 \mkey{Compound Command (Shell)}
 
 \begin{itemize}
-  \item[{\tt |}] The vertical bar creates a pipe such that the standard
+  \item[{\tt |}] The vertical bar creates a pipe\mkey{Pipe}\mkey{| Operator} such that the standard
     output of the command to the left becomes the standard input of the
     command to its right. As some commands require an explicit file name
     they read data from, or they write data to, the pipe itself can be
@@ -22034,17 +22034,17 @@ tabulators from the surrounding commands or arguments:
     (see section~\ref{sec:queuehandler}), which is mounted by the
     System-Startup module described in section~\ref{sec:sysstartup} during
     bootstrapping the system.
-  \item[{\tt ||}] Two vertical bars concatenate the output of two commands
-    together into one common stream which can then redirected to a common
-    output\footnote{This syntax is different from the {\tt bash} operator
-    that looks similar.}.
-  \item[{\tt \&\&}] Sequences two commands, first executes the one to the
+  \item[{\tt ||}] Two vertical bars concatenate\mkey{|| Operator}.
+    the output of two commands together into one common stream which
+    can then redirected to a common output\footnote{This syntax is
+    different from the {\tt bash} operator that looks similar.}
+  \item[{\tt \&\&}] Sequences\mkey{\&\& Operator} two commands, first executes the one to the
     left, and if its return value is below the {\tt FailAt} value, continues
     to execute the command to its right.
 \end{itemize}
 
 The brackets ``{\tt (}'' and ``{\tt )}'' group commands and execute
-the grouped command in a separate process in a sub-shell. Similar to
+the grouped command\mkey{( Operator} in a separate process in a sub-shell. Similar to
 all other operators listed in this section, both the opening and
 closing bracket shall be separated by spaces or tabulators
 from commands and arguments as otherwise the shell\key{Shell}
@@ -22079,7 +22079,7 @@ In addition, the Shell recognizes two unary operators that do not stand
 between commands, but only at their end or at the end of the command line.
 
 \begin{itemize}
-\item[\&] The ampersand operator works similar to the {\tt Run} command, it starts
+\item[\&] The runback operator\mkey{\& Operator} works similar to the {\tt Run} command, it starts
   the command line within which it appears in background. The command will
   receive a new logical console, and its output and error streams will be
   redirected to this console, unless additional operators redirect the streams
@@ -22088,7 +22088,7 @@ between commands, but only at their end or at the end of the command line.
   output of the process run back with that of the regular shell\key{Shell}, though
   third party handlers use this information for job control and hold
   the output of the background process until made explicitly active.
-\item[+] The plus operator shall only appear at the end of a command line.
+\item[+] The plus operator\mkey{+ Operator} shall only appear at the end of a command line.
   If it is present, it injects a line-feed and the following line of the
   current input of the Shell\key{Shell} into the argument line of the command. It thus
   forms an argument string that consists of multiple lines. Only very few
@@ -22103,7 +22103,7 @@ between commands, but only at their end or at the end of the command line.
   command, the plus (``{\tt +}'') operator therefore indicates that the following
   line forms an additional command line of a shell script that is executed in
   background.
-\item[;] The semicolon ends a command line and starts a comment. All
+\item[;] The semicolon\mkey{; Operator} ends a command line and starts a comment. All
   characters beyond the semicolon are ignored.
 \end{itemize}
 
@@ -22113,24 +22113,25 @@ Run List +
 Dir
 \end{verbatim}
 runs the {\tt List} command in background, which is followed by the
-{\tt Dir} command. The same can be accomplished, though in a more
-compact form, by
+{\tt Dir} command run afterwards in background, too. The same can be
+accomplished, though in a more compact form, by
 \begin{verbatim}
 ( List && Dir ) &
 \end{verbatim}
 
 \subsection{Quoting and Escaping} \label{sec:shellquotes}
 
-To allow spaces, tabulators, equals-signs and the above operators as parts
-of command names and arguments, e.g.\ to handle file names containing such
-characters, the Shell allows quoting. Blank spaces, tabulators, semicola and
-equals-signs within double quotes (``{\tt "}'') become part of the argument,
-and are not interpreted by the Shell\key{Shell}. A quote only starts a quoted argument
-or command and is thus a functional element of the Shell if it is preceeded
-by a blank space or a tabulator, quotes \emph{within} an otherwise unquoted
-argument are literals and stand for itself. A quote, however, does terminate
-a quoted string even if it is \emph{not} followed by a blank space or
-tabulator.\mkey{Escape Sequence (Shell)}
+To allow inclusion of spaces, tabulators, equals-signs and the above
+operators in command names and arguments, e.g.\ to handle file names
+containing such characters, the Shell provides quoting. Blank spaces,
+tabulators, semicola and equals-signs within double quotes
+(``{\tt "}'') become part of the argument, and are not interpreted by the
+Shell\key{Shell}. A quote only starts a quoted argument or command and
+is thus a functional element of the Shell if it is preceeded by a
+blank space or a tabulator, quotes \emph{within} an otherwise unquoted
+argument are literals and stand for itself. A quote, however, does
+terminate a quoted string even if it is \emph{not} followed by a blank
+space or tabulator.\mkey{Escape Sequence (Shell)}
 \smallskip{}
 
 The Shell recognizes the asterisk ``{\tt *}''\key{* (file name)} as an escape character, and
@@ -22286,32 +22287,33 @@ parser.
 \subsection{Backtick Expansion} \label{sec:backtick}
 
 After variable expansion, the Shell checks the command line for backticks,
-(``{\tt `}''). The characters within two terminating backticks form a
+(``{\tt `}''). The string within two terminating backticks form a
 command itself that is executed \emph{before} interpretation of the
 containing command line continues, and the standard output of the enclosed
-commands is substituted for the command line within the backticks. As this
-output may include line feeds, these are furthermore substituted with blank
+commands is substituted into the command line within the backticks. As this
+output can include line feeds, these are furthermore substituted with blank
 spaces.\mkey{Backtick Expansion}
 \smallskip{}
 
-Note that the result of the executed commands may even contain functional
-syntax elements of the Shell, e.g.\ angle brackets as output of the command
-in backticks will become shell\key{Shell} stream redirection operators which are then
-further interpreted by the shell. Needless to say, this can cause bad
-surprises.
+Note that the result of the executed commands may even contain syntax
+elements of the Shell, e.g.\ angle brackets as output of a command
+will become shell\key{Shell} stream redirection operators. Needless to say,
+this can cause bad surprises.
 \smallskip{}
 
-The backticked sequence can itself be enclosed in double quotes. While this
-avoids the above surprise, it will necessarily only generate a single
-logical argument. Only in that case, namely a backticked sequence contained
-in another pair of double quotes, the Shell performs backwards escaping of
-asterisks and double quotes --- as for variable expansion. Each double
-quote or asterisk in the output of the quoted backticked command is escaped
-with (another) asterisk. This ensures that the resulting output string
-within double quotes retains its original value once interpreted through
-{\tt ReadItem()}\key{ReadItem()} or {\tt ReadArgs()}\key{ReadArgs()}. Note
-that backwards-escaping does not take place without the additional layer of
-double quotes surrounding the backticked command, same as in variable
+The backticked sequence may be enclosed in double quotes which avoids
+potential interpretation as Shell operators. However, a quoted string
+it will necessarily only generate a single argument or command. Only
+in that case, namely a backticked sequence contained in another pair
+of double quotes, the Shell performs backwards escaping of asterisks
+and double quotes --- same as for variable expansion. Each double
+quote or asterisk in the output of the quoted backticked command is
+escaped with (another) asterisk. This ensures that the resulting
+output string within double quotes retains its original value once
+interpreted through {\tt ReadItem()}\key{ReadItem()} or
+{\tt ReadArgs()}\key{ReadArgs()}. Note that reverse escaping does not
+take place without the additional pair of double quotes surrounding
+the backticked command --- this is also similar to variable
 substitution.
 
 \subsection{Alias Substitution} \label{sec:alias}
@@ -22323,74 +22325,170 @@ potentially be an alias; the remaining arguments right to it do not go
 through alias expansion.\mkey{Alias Substitution}
 \smallskip{}
 
-Aliases are always local to the executing Shell, AmigaDOS keeps them in the
-same list as local Shell variables\key{Shell Variable}. If the leftmost element fits a
-defined alias, this element is removed, and replaced by the contents of the
-alias. If this contents contains a pair of opening and closing square
-brackets, that is the sequence ``{\tt {[}{]}}'', then the brackets are
-replaced by all remaining arguments of the same component of the compound
-command. The result of alias\key{Alias} expansion is another command that undergoes
-alias expansion again, except that the same alias cannot be used twice to
-avoid endless recursion.
-
-\subsection{Command Execution} \label{sec:cmdexecution}
-
-After alias expansion, the Shell takes the leftmost element of each
-component of a compound command as a command to be executed. The Shell
-attempts to locate this command first on the list of resident commands, see
-section~\ref{sec:resident}, but only if the command is not quoted. If no
-match is found there, or the command is quoted, then the Shell keeps looking
-in the current directory, and if it is not found there, in all elements of
-the \emph{path}, as set by the {\tt path} command. If no matching file or
-directory is found there, the Shell finally looks into the {\tt C:}
-directory\footnote{Note that unlike under unixoid systems, the current
-directory is always an implicit first member of the path and cannot be
-removed from it.}.
+Aliases are always local to the executing Shell, AmigaDOS keeps them
+in the same list as local Shell variables\key{Shell Variable}. Thus,
+if an alias is created or updated, this only affects the Shell within
+which such a change has been triggered. To create a system-wide
+permanent alias, they should be defined in a script file such as
+{\tt S:Shell-Startup} that is executed for each Shell initiated.
 \smallskip{}
 
-Once a matching file system object has been found, the Shell attempts to
-``execute'' it and for that checks its type and contents. If this
-``command'' turns out to be a directory, the Shell performs an implicit
-change to this directory by inserting a {\tt CD} command upfront, and then
-triggers iteratively command execution again with this replacement.
+Aliases are executed and expanded as if they were commands. If the
+leftmost word of a command line fits a defined alias, this element is
+removed, and replaced by the contents of the alias. If this contents
+contains a pair of opening and closing square brackets, that is the
+sequence ``{\tt {[}{]}}'', then the brackets are replaced by all
+remaining arguments of the same component of the compound command
+containing the alias, otherwise the remaining arguments are inserted
+right behind the expanded alias. The result of alias\key{Alias}
+expansion is another command that undergoes alias expansion again,
+except that the same alias cannot be used twice in the same command
+line to avoid endless recursion.
 \smallskip{}
 
-If the {\tt s} protection bit is set, see section~\ref{sec:fib}, the Shell
-assumes that command is actually a script\key{Shell Script}. If this script starts with the
-magic character sequence ``{\tt /*}'', it is assumed to be a Rexx script and an
-implicit {\tt RX} command is prepended to the command line. If the script
-starts with the two-character sequence ``{\tt \#!}'' or ``{\tt ;!}'', then the
-remaining first line of the script file contains the path of the command
-interpreter which is injected into the Shell command line upfront the script
-file, and command interpretation starts again.
+Thus, for example
+\begin{verbatim}
+Alias XDump Type [] HEX
+\end{verbatim}
+creates an alias that creates a hexdump of the file provided as argument. A command line such as
+\begin{verbatim}
+XDump S:Startup-Sequence | More
+\end{verbatim}
+then creates a hex-dump of the startup-sequence and pipes it through the pager. The above
+compound command expands into
+\begin{verbatim}
+Type S:Startup-Sequence HEX | More
+\end{verbatim}
+
+\subsection{Locating and Identifying Commands} \label{sec:cmdlocation}
+
+After alias expansion, the Shell continues to with the location and
+identification of commands. The purpose of these steps is to find a
+segment\key{Segment} of an executable binary to which command
+execution is delegated.
 \smallskip{}
 
-If none of the above conditions hold true and the {\tt s} protection bit is
-set, the Shell assumes that this file is a Shell script\key{Shell Script} prepends an {\tt
-  Execute} command upfront the script file name, thus interpretiing it
-through the Shell itself --- more on the Execute command in
+The leftmost word of each component of a compound command is the name
+of the command to be executed. If this name is not quoted, the Shell
+attempts to locate this name first on the list of resident commands,
+see section~\ref{sec:resident}. If no match is found there, or the
+command is quoted, then the Shell keeps looking for it in the current
+directory, for either a file of the given name, or a directory of the
+given name. If no match is found there, searching for commands is
+continued in all directores in the \emph{path}, though from this point
+on only files (or links to files) are considered. The path\key{Path}
+can be adjusted by the {\tt Path} command which adds or removes
+directories. If no matching file is found there either, the Shell
+finally looks into the {\tt C:} assign. Note that unlike unixoid
+systems, the current directory is always an implicit first member of
+the path and cannot be removed from it, and the {\tt C:} directory is
+also the implicit last member of the path.
+\smallskip{}
+
+If a matching file system object has been found, the Shell checks its
+type, protection bits and its contents. If the matching object turns
+out to be a directory, the Shell performs an implicit change to this
+directory by inserting a {\tt CD} command upfront, and then triggers
+iteratively command execution again with this insertion. In such a
+case, the segment that performs execution is that of the built-in
+{\tt CD} command on the Shell resident list of commands.
+\smallskip{}
+
+If the {\tt e} protection bit is set indicating an executable file,
+the Shell attempts to load the file through
+{\tt LoadSeg()}\key{LoadSeg()} returning the segment for execution;
+alternatively, if a match on the resident list is found, the use
+counter of the segment is incremented, and the segment is taken from
+there.
+\smallskip{}
+
+If the {\tt s} protection bit is set, see section~\ref{sec:fib}, the
+Shell assumes that command is actually a script\key{Shell Script}. If
+this script starts with the magic character sequence ``{\tt /*}'', it
+is assumed to be a Rexx script and an {\tt RX} command is injected
+upfront and command execution is repeated from start. If the script
+starts with the two-character sequence ``{\tt \#!}'' or ``{\tt ;!}'',
+then the remaining first line of the script file contains the path of
+the command interpreter which is then also inserted upfront the name
+of the script, and command execution is retried with the updated
+command line. If none of the above conditions hold true and the {\tt
+  s} protection bit is set, the Shell assumes that this file is a
+Shell script\key{Shell Script} and prepends an {\tt Execute} command
+upfront the script name, thus forcing to interpret it through the
+Shell itself --- more on the Execute command is found in
 section~\ref{sec:executecmd}.
 \smallskip{}
 
-If the {\tt e} protection bit is set indicating an executable file, the
-Shell attempts to load the file through {\tt LoadSeg()}\key{LoadSeg()} and,
-after performing input, output and error stream redirection, transfers
-program execution to this binary through {\tt
-  RunCommand()}\key{RunCommand()}, passing it the remaining command line
-arguments.
+If the {\tt e} protection bit is \emph{not} set, but the
+shell\key{Shell Variable} variable {\tt \$VIEWER} is set, then the
+Shell attempts to check whether the system \emph{datatypes.library} is
+able to identify the file. If so, the Shell prepends the contents of
+this variable to the command line and then reiterates command
+execution for locating a suitable viewer for the file. By setting
+{\tt \$VIEWER} to the system program {\tt MultiView}, the Shell can
+therefore display any system-known datatype by just typing its name.
 \smallskip{}
 
-If the {\tt e} protection bit is \emph{not} set, but the shell\key{Shell Variable}
-variable {\tt \$VIEWER} is set, then the Shell attempts to check whether the
-system \emph{datatypes.library} knows anything about the file. If so, the
-Shell prepends the contents of this variable to the command line and then
-continues execution. By setting {\tt \$VIEWER} to the system program {\tt
-  MultiView}, the Shell can therefore display any system-known datatype by
-just typing its name.
+Finally, if none of the above conditions is true, or {\tt LoadSeg()}
+failed, the Shell indicates an error that the file is not executable.
+
+\subsection{Execution of Commands} \label{sec:cmdexecution}
+
+Once a segment to be executed has been found, either explicitly or
+implicitly, input and output streams are opened or created when
+interpreting the redirection operators in section~\ref{sec:redirection}, and input,
+output and error streams of the command are setup.
 \smallskip{}
 
-Finally, if none of the above conditions is true, or {\tt LoadSeg()} failed,
-the Shell indicates an error that the file is not executable.
+Without any of the binary operators of section~\ref{sec:binaryops},
+the Shell then starts the binary, overloading the Shell process using
+the {\tt RunCommand()}\key{RunCommand()} function of the
+\emph{dos.library}, see section~\ref{sec:runcommand}.
+\smallskip{}
+
+If the command is the left component of a compound command connected
+with a pipe ``{\tt |}'' operator\key{Pipe}\key{| Operator}, a suitable name for a {\tt PIPE:}
+is constructed and opened, and connected to the output stream
+of the command, which is then run in background. While this left part
+of the pipe is already executing, the shell continues to parse its
+right side, locates an executable as described in section~\ref{sec:cmdlocation},
+and connects its standard input to the pipe created. Again, the shell
+checks iteratively whether another pipe operator follows, and then
+creates another unique name for a pipe, starts executing the next
+component of the compound command in background, and continues until
+the last component, which is finally executing directly in the Shell
+by {\tt RunCommand()}\key{RunCommand()}
+\smallskip{}
+
+The concatenation operator ``{\tt ||}''\key{|| Operator} is also
+implemented as a pipe whose left hand side is executed in background,
+writing data into the pipe, and whose right side first copies the
+contents of its input stream, i.e.\ the output of the left command, to
+its own output stream, and then starts execution of the segment loaded
+on the right hand side, merging it this way with the output of the
+left side. The right hand command will not receive any data from the
+standard input has it has been already copied before by the shell.
+\smallskip{}
+
+The sequencing operator ``{\tt \&\&}''\key{\&\& Operator} just
+executes first its left command in the current Shell, and then
+continues with its right hand side. No pipe is created between them.
+\smallskip{}
+
+The bracket operators ``{\tt (}'' and ``{\tt )}''\key{( Operator} are
+actually not operators at all, but is just a command by itself whose
+arguments are truncated by the closing bracket.  The bracket command
+is found on the resident list as Shell builtin command.
+\smallskip{}
+
+The runback operator ``{\tt \&}'', as its name suggests, starts a
+subshell and executes the command upfront there. This mechanism
+\emph{does not} use the {\tt Run} command.
+\smallskip{}
+
+The ``{\tt +}'' sign, finally, does not execute anything. It just
+inserts a line feed into the Shell command buffer, and requests the
+next input line from the user.
 
 \subsection{The Execute Command} \label{sec:executecmd}
 
