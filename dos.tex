@@ -22433,18 +22433,18 @@ file is not executable.
 \subsection{The Execute Command} \label{sec:executecmd}
 
 Unlike its name suggests, the {\tt Execute} command does not actually
-perform interpretation Shell scripts\mkey{Shell Script} and does not ``execute'' them
-directly. Instead, it performs argument substitution within an existing
-shell\key{Shell} script through a simple interpreter, and then leaves the execution of
-the resulting script to the Shell itself by adjusting its command input
-stream. Thus, {\tt Execute} does not actually execute anything, it rather
-prepares a script for execution through the Shell.\mkey{Execute (command)}
+interpret Shell scripts\mkey{Shell Script}. Instead, it performs argument
+substitution within an existing Shell\key{Shell} script through a simple
+pattern matching process, and then leaves the execution of the resulting
+script to the Shell by adjusting its command input stream. Thus, {\tt
+  Execute} does not actually execute anything, it rather prepares a script
+for execution through the Shell.\mkey{Execute (command)}
 \smallskip{}
 
 Argument substitution through {\tt Execute} is controlled through additional
 syntax elements that are only implemented within {\tt Execute} and that are
 unrelated, and even partially conflicting with the syntax elements of the
-Shell itself\footnote{This is probably another historical accident from
+Shell\footnote{This is probably another historical accident from
 Tripos legacy}.
 \smallskip{}
 
@@ -22452,12 +22452,12 @@ Argument substitution and its syntax elements are controlled through
 ``pseudo''-commands that are only interpreted though {\tt Execute} but
 removed before the resulting script is fed back into the Shell. All these
 pseudo-command start by default with a dot (``{\tt .}''), though even this
-character can be changed through a pseudo-command. Such pseudo-commands
+character can be changed through another pseudo-command. Such pseudo-commands
 controlling the {\tt Execute} syntax elements shall be placed at the top of
-scripts\key{Shell Script} as the {\tt Execute} one-pass interpreter needs to see them
-first. If none of these pseudo-commands are present, {\tt Execute} bypasses
-argument substitution and feeds the script unaltered into the Shell, without
-further processing.
+scripts\key{Shell Script} as the {\tt Execute} one-pass interpreter needs to
+see them first. If the first line of the script does not contain a pseudo-command, {\tt Execute}
+bypasses argument substitution completely and feeds the script unaltered into the Shell
+by adjusting its command input stream to the script.
 \medskip{}
 
 The following pseudo-commands are supported by the {\tt Execute}:
@@ -22469,23 +22469,24 @@ for the sake of simplicity, the following pseudo-commands are all shown with
 this default.
 \smallskip{}
 
-{\tt .key}\mkey{.KET} or {\tt .k}\key{.K} defines which arguments a shell script\key{Shell Script} takes. The
+{\tt .key}\mkey{.KET} or {\tt .k}\key{.K} defines which arguments a Shell script\key{Shell Script} takes. The
 argument is a {\tt ReadArgs()}\key{ReadArgs()} type template, defining the
-type of the command line arguments the shell script takes, and also the
+type of the command line arguments of the script, and also the
 names of the formal parameters which will be substituted with the arguments
 provided during invokation of the script. Clearly, only a single {\tt .key}
-pseudo-command shall be present within a script.
+pseudo-command shall be present within a script. Such command templates are
+discussed in section~\ref{sec:readargs}.
 \smallskip{}
 
 {\tt .default}\mkey{.DEFAULT} or {\tt .def}\mkey{.DEF} defines defaults for arguments that are not
 present on the command line that invoked the script\key{Shell Script}. It takes two arguments,
 first the key --- the formal name of the parameter for which a default is to
-be provided --- and the default value itself. Key and default value can be
+be provided --- and the default value itself. Key and default value may be
 either separated by blank spaces, tabulators, or an equals-sign ``({\tt
-  =})''. If no default value is provided, an empty string is used. One {\tt
-  .default} peudo-command can be provided per formal parameter. Another
+  =})''. If no default value is provided, an empty string is used. A single
+{\tt .default} pseudo-command can be provided per formal parameter. Another
 mechanism to provide default parameters is through the ``{\tt \$}''
-character.
+character, see below.
 \smallskip{}
 
 {\tt .bra}\mkey{.BRA} defines the character that marks the beginning of a formal
@@ -22494,14 +22495,14 @@ parameters would be to place them in local variables\key{Shell Variable}, and le
 perform the substitution\footnote{This is another historical accident,
 likely.}. However, {\tt Execute} uses another syntax by which formal
 parameters are enclosed in pairs of characters, one starting the parameter,
-and one ending it. The initial character is by default the ``{\tt <}'' sign,
+and another ending it. The initial character is by default the ``{\tt <}'' sign,
 but the {\tt .bra} pseudo-command can change it. As ``{\tt <}'' also
 redirects the standard input of commands, this default is probably not a
 very wise choice, and it should be changed by {\tt .bra}. Suggested
 alternatives are curly or square brackets.
 \smallskip{}
 
-{\tt .ket}\key{.KET} defines the character that marks the end of a formal parameter
+{\tt .ket}\key{.KET} or {\tt .k} defines the character that marks the end of a formal parameter
 that is to be substituted. This is by default the ``{\tt >}'' sign,
 i.e.\ formal parameters are enclosed in pairs of angle
 brackets. Unfortunately, this default is not a very wise choice as it makes
@@ -22512,21 +22513,46 @@ bracket.
 
 {\tt .dollar}\mkey{.DOLLAR} or {\tt .dol}\mkey{.DOL} defines the character that defines an
 alternative mechanism for providing defaults for formal parameters. Without
-this pseudo-command, this character is the dollar sign (``{\tt \$}'') An
-optional ``{\tt \$}'' sign, or its replacement defined through this
-pseudo-command, separates the formal parameter from its default value. The
-formal name, the ``{\tt \$}'' sign, and its default are all enclosed in this
-order in the angle brackets, or the characters defined by {\tt .bra} and
-{\tt .ket}. Two ``{\tt \$}'' signs in angle brackets expand to the Shell
-number and may be used as unique identifier, e.g.\ to generate a file name of
-a temporary file. Even though the ``{\tt \$}'' sign as syntax element for
-default value separation is only active within {\tt .bra} and {\tt .ket}, it
-is still a bad choice as it conflicts with the Shell syntax which uses the
-same character to indicate Shell variables\key{Shell Variable}.
+this pseudo-command, the character for providing defaults is the dollar sign
+(``{\tt \$}''). Thus, for example, with all defaults active, the script
+\begin{verbatim}
+.key FILE
+
+echo <FILE$Help>
+\end{verbatim}
+echos the contents of the format parameter ``{\tt FILE}'' defined through the
+{\tt .key} command, though if not present, prints ``{\tt Help}''.
+\smallskip{}
+
+Thus, an optional ``{\tt \$}'' sign, or its replacement defined through this
+pseudo-command, separates the formal parameter from its default value during
+substitution. The formal name, the ``{\tt \$}'' sign, and its default are
+all enclosed in this order in the angle brackets, as seen in the example
+above, or in whatever the angle brackets were replaced with by the {\tt
+  .bra} and {\tt .ket} commands.
+\smallskip{}
+
+Two ``{\tt \$}'' signs in angle brackets expand to the Shell number and may
+be used as unique identifier, e.g.\ to generate a file name of
+a temporary file. The following script
+\begin{verbatim}
+.dot . ;ensure that argument substitution is on
+echo "The shell number is <$$>"
+\end{verbatim}
+prints the current shell number on the console. The topmost pseudo-command
+of this script is only required to ensure that {\tt Execute} performs
+argument substitution --- without it, the ``{\tt <\$\$>}'' token would be
+printed literally.
+\smallskip{}
+
+Even though the ``{\tt \$}'' sign as syntax element for default value
+separation is only active within {\tt .bra} and {\tt .ket}, it is still a
+bad choice as it conflicts with the Shell syntax which uses the same
+character to indicate Shell variables\key{Shell Variable}.
 \medskip{}
 
-Formal argument substitution otherwise follows the same path as variable
-expansion, and {\tt Execute} attempts to preserve the original command line
+Formal argument substitution otherwise follows the same lines as variable
+substitution, and {\tt Execute} attempts to preserve the original command line
 arguments as good as possible. That is, if a formal parameter is enclosed
 within double quotes in the script\key{Shell Script}, asterisks and double quotes are escaped
 properly. If the formal parameter included spaces or tabulators and thus was
@@ -22539,30 +22565,33 @@ parameter in scripts.
 \medskip{}
 
 The generated script\key{Shell Script} after substitution of formal parameters is placed
-into the {\tt T:} assign, its name in {\tt cli\_CommandFile}\key{cli\_CommandFile} and the
+in the {\tt T:} assign, its name in {\tt cli\_CommandFile}\key{cli\_CommandFile} and the
 command input of the invoking Shell, namely {\tt cli\_CurrentInput}\key{cli\_CurrentInput}
 (see section~\ref{sec:clistruct}), is redirected to a file
-  handle\key{FileHandle} to this temporary script. Thus, the shell\key{Shell} continues
+handle\key{FileHandle} to this temporary script. Thus, the Shell\key{Shell} continues
 execution of commands, but rather takes its input from the temporary
-file rather than its current input. As this construction would forbid
+file rather than its current input, e.g.\ the console. As this construction would forbid
 the recursive execution of another Shell script\key{Shell Script} within a Shell script,
 the Shell detects {\tt Execute} as a special case for which it keeps a
-``stack'' of script files and active redirections. Through that, it
-provides each recursive execution a ``clean''
-environment\footnote{This is a major difference compared to previous
-  versions of AmigaShell which instead resolved this situation by
-  appending recursively executed scripts to each other. This
-  construction had a series of bad side effects, one being that a
-  script could not skip backwards over an {\tt Execute} command.} that
-allows redirection of its input. Once {\tt cli\_CurrentInput}
-exhausted, the Shell terminates execution there, closes the file
-  handle\key{FileHandle} stored there, deletes the temporary file whose name is
-stored in {\tt cli\_CommandFile} and, depending on how it was
-initiated and configured, continues execution from {\tt
-  cli\_StandardInput}\key{cli\_StandardInput}. The {\tt System()}\key{System()}\key{System()} function with
-a non-{\tt NULL} {\tt command} argument will terminate after {\tt
-  cli\_CurrentInput} runs out of data, otherwise the shell\key{Shell} switches
-over to {\tt cli\_StandardInput}, see section~\ref{sec:cliinitrun}.
+stack of script files and active redirections. Through that, it
+provides each recursive {\tt Execute} a clean
+environment that allows redirection of the command input through another
+nested instance of {\tt Execute}.
+\smallskip{}
+
+This is a major difference compared to AmigaDOS 40 and below which instead
+resolved this situation by appending recursively executed scripts to each
+other. This construction had a series of bad side effects, one being that a
+script could not skip backwards over an {\tt Execute} command.
+\smallskip{}
+
+Once {\tt cli\_CurrentInput} exhausted, the Shell terminates execution
+there, closes this file handle\key{FileHandle}, deletes the temporary file
+whose name is stored in {\tt cli\_CommandFile} and, depending on how it was
+initiated and configured, continues execution from
+{\tt cli\_StandardInput}\key{cli\_StandardInput} or terminates.
+More on Shell processing of scripts and its configuration through
+{\tt System()} is found in sections~\ref{sec:usershells} and \ref{sec:cliinitrun}.
 
 \section{Shell Process Control}
 
