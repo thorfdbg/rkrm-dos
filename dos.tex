@@ -22982,14 +22982,14 @@ The {\tt RunCommand()}\mkey{RunCommand()} runs a shell\key{Shell} command from a
 process, and overloads the process with the command.
 
 \begin{verbatim}
-rc = RunCommand(seglist, stacksize, argptr, argsize)
+rc = RunCommand(seglist, stacksize, argptr, argsize) /* since V36 */
 D0                D1         D2       D3      D4
 
 LONG RunCommand(BPTR, ULONG, STRPTR, ULONG)
 \end{verbatim}
 
 This function runs a command from the calling process, and provides for this
-command its own stack, and its own arguments. It does not create a new
+command its own stack and its own arguments. It does not create a new
 process nor a new shell\key{Shell}, but executes the command as part of the caller. The
 AmigaDOS Shell uses this function to execute loaded commands within its
 context.
@@ -22997,8 +22997,8 @@ context.
 
 The {\tt seglist} argument is a BPTR to the first segment\key{Segment} of the executable
 to start, for example as returned by {\tt LoadSeg()}\key{LoadSeg()} for
-disk-based commands, or {\tt FindSegment()}\key{FindSegment()} for resident
-commands.
+disk-based commands, or as the {\tt seg\_Seg}\key{seg\_Seg} element of
+resident commands, see section~\ref{sec:resident}.
 \smallskip{}
 
 The {\tt stacksize} argument is the size of the stack in bytes to be
@@ -23013,21 +23013,22 @@ section~\ref{sec:stackcookie}, and from that potentially increases the size.
 The {\tt argptr} and {\tt argsize} arguments provide command line arguments
 that are passed to the command. They are provided through several
 mechanisms: First, the CPU register {\tt a0} is loaded with {\tt argptr} and
-register {\tt d0} is filled with {\tt argsize}. Second, the {\tt
-  pr\_Arguments}\key{pr\_Arguments} element of the process is temporarly replaced by {\tt
-  argptr}, see also section~\ref{sec:process}, and thus the arguments are
+register {\tt d0} is filled with {\tt argsize}. Second, the
+{\tt pr\_Arguments}\key{pr\_Arguments} element of the process is temporarly
+replaced by {\tt argptr}, see also chapter~\ref{sec:process}, and thus the arguments are
 made available to~{\tt GetArgStr()}\key{GetArgStr()}. Third, a buffer for
 the input file handle\key{FileHandle} {\tt pr\_CIS} of the caller is allocated and filled
 with a copy of the argument line; more on the file handle structure is in
-section~\ref{sec:filehandle}. Thus, buffered I/O operations as those listed
+section~\ref{sec:filehandle}. Thus, buffered read operations as those listed
 in section~\ref{sec:bufferedio} will retrieve the arguments. This step is
-necessary to make the arguments available to {\tt
-  ReadArgs()}\key{ReadArgs()}, the AmigaDOS argument parser.
+necessary to make the arguments available to
+{\tt ReadArgs()}\key{ReadArgs()}, see section~\ref{sec:readargs}, 
+the AmigaDOS argument parser.
 \smallskip{}
 
 The {\tt ReadArgs()}\key{ReadArgs()} function, and probably many other
-parsers require that the argument is terminated by a newline, hex {\tt
-  0x0a}. While it is possible to provide an argument string containing more
+parsers require that the argument is terminated by a newline, hex
+{\tt 0x0a}. While it is possible to provide an argument string containing more
 than one newline character, {\tt ReadArgs()}\key{ReadArgs()} will ignore all
 arguments behind the first newline. However, some commands such as {\tt Run}
 will make use of the entire string.
@@ -23040,8 +23041,8 @@ returns.
 \smallskip{}
 
 As the program name \emph{is not} part of the command line arguments, it is
-advisable to set the path and file name of the loaded program {\tt
-  SetProgramName()}\key{SetProgramName()} upfront, more on this function in
+advisable to set the path and file name of the loaded program
+{\tt SetProgramName()}\key{SetProgramName()} upfront, more on this function in
 section~\ref{sec:setprogramname}. The startup code of many C compilers will
 construct {\tt argv[0]} from it.
 \smallskip{}
