@@ -23060,23 +23060,23 @@ particular signals, as for example those to break process or a shell
 script\key{Shell Script}, are set in the process of the caller.
 
 \begin{verbatim}
-signals = CheckSignal(mask)
+signals = CheckSignal(mask) /* since V36 */
 D0                    D1
 
 ULONG CheckSignal(ULONG)
 \end{verbatim}
 
-This function tests those signals that are set in the {\tt mask} and
-returns their state. Typical signals to check for are defined in {\tt
-  dos/dos.h} and include those bits that are set by {\tt Ctrl-C}
-through {\tt Ctrl-F} console key combinations. The function returns a
-mask of all signals set in the process, and clears those signals that
-are set in the mask. A typical example is
+This function tests those signals that are set in the {\tt mask} and returns
+their state. Typical signals to check for are defined in {\tt dos/dos.h} and
+include those bits that are set by the {\tt Ctrl-C} through {\tt Ctrl-F} console
+key combinations. The function returns all signals set in the process
+\emph{and} the mask, and clears the signals in the mask. This is unlike the
+exec function {\tt SetSignal()} which returns the complete signal mask of
+the process, and not only those requested in the argument. A typical example is
 
 \begin{verbatim}
-if (CheckSignal(SIGBREAKF_CTRL_C)) {
+if (CheckSignal(SIGBREAKF_CTRL_C))
   break; /* abort the command */
-}
 \end{verbatim}
 
 which checks whether the user pressed {\tt Ctrl-C}, and also clears
@@ -23085,14 +23085,14 @@ this bit. This function does not alter {\tt IoErr()}\key{IoErr()}.
 \subsection{Request a Function of the Shell} \label{sec:doshellmethod}
 
 The {\tt DoShellMethod}\mkey{DoShellMethod()} function requests from the
-shell\key{Shell} of the calling process a specific function. The {\tt
-  DoShellMethodTagList()}\mkey{DoShellMethodTagList()} function belongs to
+shell\key{Shell} of the calling process a specific function. The
+{\tt DoShellMethodTagList()}\mkey{DoShellMethodTagList()} function belongs to
 the same entry point of the \emph{dos.library}, though uses a different
 calling convention that receives the tag list as an explicit pointer instead
 of a variably sized argument list.
 
 \begin{verbatim}
-ptr = DoShellMethodTagList(method, tags)
+ptr = DoShellMethodTagList(method, tags) /* since V47 */
 D0                           D0     A0
 
 APTR DoShellMethodTagList(ULONG, struct TagItem *)
@@ -23104,13 +23104,12 @@ APTR DoShellMethod(ULONG, ULONG, ...)
 
 This function requests the from the shell\key{Shell} of the calling process the
 execution of a function identified by {\tt method}. The arguments to the
-shell\key{Shell} are provided in the tag list, or by a list of tags terminated by {\tt
-  TAG\_DONE}. The return value of the shell is provided in {\tt ptr}, a
+shell\key{Shell} are provided in the tag list, or by a list of tags
+terminated by {\tt TAG\_DONE}. The return value of the shell is provided in {\tt ptr}, a
 secondary return code is provided in {\tt IoErr()}.
 \medskip{}
 
-The AmigaDOS Shell supports the following methods defined in {\tt
-  dos/shell.h}:
+The AmigaDOS Shell supports the following methods defined in {\tt dos/shell.h}:
 \smallskip{}
 
 {\tt SHELL\_METH\_METHODS}\mkey{SHELL\_METH\_METHODS} returns a {\tt const} array of methods the
@@ -23121,10 +23120,9 @@ shall support this method.
 
 {\tt SHELL\_METH\_GETHIST}\mkey{SHELL\_METH\_GETHIST} is a method of the AmigaDOS Shell that provides
 read-only access to the history. It does not take any arguments. The
-returned pointer is a {\tt MinList} structure, see {\tt exec/lists.h}. Each
-node in this list consists of a {\tt HistoryNode} structure, defined in {\tt
-  dos/shell.c}:
-
+returned pointer is a {\tt MinList} structure, see {\tt exec/lists.h}.
+Each node in this list consists of a {\tt HistoryNode} structure, defined
+in {\tt dos/shell.c}: \mkey{HistoryNode}
 \begin{verbatim}
 struct HistoryNode {
   struct MinNode  hn_Node;
@@ -23133,7 +23131,7 @@ struct HistoryNode {
 \end{verbatim}
 
 The {\tt hn\_Line} is a pointer to a command in the history of the
-shell\key{Shell}. This command is \emph{not} terminated by a newline, but only by a
+Shell\key{Shell}. This command is \emph{not} terminated by a newline, but only by a
 {\tt NUL}. The caller \emph{shall not} alter this list. 
 \smallskip{}
 
@@ -23141,41 +23139,42 @@ shell\key{Shell}. This command is \emph{not} terminated by a newline, but only b
 Shell. This method does not take any arguments.
 \smallskip{}
 
-{\tt SHELL\_METH\_ADDHIST}\mkey{SHELL\_METH\_ADDHIST} adds an entry to the newest end of the AmigaDOS
+{\tt SHELL\_METH\_ADDHIST}\mkey{SHELL\_METH\_ADDHIST} adds an entry to the new end of the AmigaDOS
 Shell history and make it accessible to the user through the cursor
 keys. This method takes a single tag, namely {\tt SHELL\_ADDH\_LINE}. The
-argument of this tag is a {\tt UBYTE *} to a {\tt NUL}-terminated string,
-namely the entry to add to the history. The Shell copies the provided
-string, and may strip initial or trailing spaces. It may also limit the size of
+argument of this tag is a {\tt const UBYTE *} to a {\tt NUL}-terminated string,
+and defines the entry to be added to the history. The Shell copies the provided
+string, and can strip initial or trailing spaces. It can also limit the size of
 the history buffer by releasing the oldest entry or entries. This method
 returns a non-zero result on success, or {\tt NULL} on error.
 \smallskip{}
 
-{\tt SHELL\_METH\_FGETS}\mkey{SHELL\_METH\_FGETS} retrieves a single line from the console the shell\key{Shell}
-runs in, while offering access to TAB expansion and access to the
-history. The difference between this method and the {\tt
-  FGets()}\key{FGets()} function is that the latter provides elementary line
-editing functions of the console, but does not have access to Shell internal
-states such as the path of the caller requird for TAB
+{\tt SHELL\_METH\_FGETS}\mkey{SHELL\_METH\_FGETS} retrieves a single line
+from the console the Shell\key{Shell} runs in, while offering access
+to TAB expansion and access to the history. The difference between this
+method and the {\tt FGets()}\key{FGets()} function is that while the latter
+provides elementary line editing functions of the console, it does not
+have access to Shell internal states such as the path of the caller required for TAB
 expansion\footnote{Readers beware: TAB expansion and the history are
-\emph{not} console features, but Shell features.}.
+\emph{not} console features, but Shell features.}. If this Shell method is
+used, TAB expansion is available based on the path and configuration of the Shell.
 \smallskip{}
 
 This method takes a single optional boolean tag, {\tt SHELL\_FGETS\_FULL},
 defined in {\tt dos/shell.h}. If this tag is {\tt DOSFALSE}, which is the
 default, then the Shell is instructed to read a string from the console that
-corresponds to a path or multiple paths relatively to the current directory
-of the caller. TAB expansion will only scan the current directory for
-matches. This mode is useful for requesting a file or multiple files from
-the user, and it is for example used by the AmigaDOS argument parser, {\tt
-  ReadArgs()}\key{ReadArgs()}, when the input is a quesion mark (``{\tt
-  ?}'') and more input is required from the user.
+corresponds to a path relative to the current directory of the caller.
+TAB expansion will only scan the current directory for matches. This
+mode is useful for requesting a file or multiple files from the user,
+and it is for example used by the AmigaDOS argument parser,
+{\tt ReadArgs()}\key{ReadArgs()}, when the input is a quesion mark
+(``{\tt ?}'') and more input is required from the user.
 \smallskip{}
 
 If {\tt SHELL\_FGETS\_FULL}\mkey{SHELL\_FGETS\_FULL} is non-zero, then a full command line is
 requested from the shell\key{Shell}. This implies that the first argument of the input
-requested from the console is a command, and is thus located somewhere on
-the \emph{path} of the caller. Thus, when performing TAB expansion within
+requested from the console is a command, and is thus located somewhere in
+the path\key{Path} of the caller. Thus, when performing TAB expansion within
 the first argument, the entire path is scanned, and not just the current
 directory.
 \smallskip{}
@@ -23185,9 +23184,9 @@ this string is kept within Shell internal buffers, the caller shall make a
 copy of the string before calling another method of the Shell.
 \medskip{}
 
-If {\tt DoShellMethod}\key{DoShellMethod()} is called from a process that is
-not part of a shell\key{Shell}, it returns {\tt NULL} and sets {\tt
-  IoErr()}\key{IoErr()} to {\tt ERROR\_OBJECT\_WRONG\_TYPE}\key{ERROR\_OBJECT\_WRONG\_TYPE}.
+If {\tt DoShellMethod}\key{DoShellMethod()} is called from a process
+that is not part of a shell\key{Shell}, it returns {\tt NULL} and
+sets {\tt IoErr()}\key{IoErr()} to {\tt ERROR\_OBJECT\_WRONG\_TYPE}\key{ERROR\_OBJECT\_WRONG\_TYPE}.
 
 \subsection{Find a Shell Process by Task Number} \label{sec:findcliproc}
 
@@ -23195,7 +23194,7 @@ The {\tt FindCliProc()}\mkey{FindCliProc()} function finds a process by its
 task number.
 
 \begin{verbatim}
-proc = FindCliProc(num)
+proc = FindCliProc(num) /* since V36 */
 D0             D1
 
 struct Process *FindCliProc(ULONG)
@@ -23210,11 +23209,11 @@ as useful as it seems.
 
 The {\tt num} is the task number that identifies the process to locate. It
 is stored in the {\tt pr\_TaskNum}\key{pr\_TaskNum} element of the process structure, see
-section~\ref{sec:process}.
+chapter~\ref{sec:process}.
 \smallskip{}
 
 This function returns a pointer to the process structure, see
-section~\ref{sec:process} whose task number is {\tt num}. If no such process
+chapter~\ref{sec:process} whose task number is {\tt num}. If no such process
 exists, this function returns {\tt NULL}. However, even if it returns a
 non-{\tt NULL} result code, it is possible that the process has already
 exited and no longer exists when the function returns or an attempt is made
@@ -23234,13 +23233,13 @@ The {\tt MaxCli()}\mkey{MaxCli()} function returns the size of the process
 table.
 
 \begin{verbatim}
-number = MaxCli()
+number = MaxCli() /* since V36 */
 D0
 
 LONG MaxCli(void)
 \end{verbatim}
 
-This function returns the number of entries the process table may
+This function returns the number of entries the process table can
 hold. However, this information is of limited value for various reasons:
 First, this information does \emph{not} correspond to the number of running
 processes, but only describes the number of entries the process table is
@@ -23248,8 +23247,7 @@ able to hold. Second, only shells\key{Shell} and commands run within or from she
 are recorded in the process table, and other processes as those started from
 the Workbench, or handlers, file systems or device drivers do not enter this
 table. Third, the size of this table changes dynamically depending on how
-many shell processes are active, even under the feed of the caller. Thus,
-this function should be avoided.
+many shell processes are active, even under the feed of the caller.
 \smallskip{}
 
 As the \emph{dos.library} does not protect the process table from
