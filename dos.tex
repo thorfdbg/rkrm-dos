@@ -22643,15 +22643,18 @@ LONG SystemTags(STRPTR, ULONG, ...)
 This function is the generic shell execution function that creates a shell
 in one or multiple modes, and executes the commands provided as first
 argument in that Shell. Hence, the first argument establishes a shell
-script\key{Shell Script}, encoded as a string. This string may contain multiple commands separated by newline
-characters, they will be executed one after another. Argument
-substitutions as by the {\tt Execute} command (see section~\ref{sec:executecmd})
-are \emph{not} performed, but otherwise the
-entire shell syntax is available, including shell variables\key{Shell Variable},
-compound commands, backtick substitution and pipes.
-If argument substitution is necessary, {\tt Execute} should be called
-as command in the first argument, receiving its input from a temorary file
-or a pipe.
+script\key{Shell Script}, encoded as a string, that is interpreted by the
+shell. If the string depletes, the shell terminates without continuing to
+pull commands from its input stream; this is in contrast to the {\tt Execute()}
+function in section~\ref{sec:execute}. This string may contain multiple
+(compound or simple) commands separated by newline characters, they will be
+executed one after another. Argument substitutions as by the {\tt Execute}
+command (see section~\ref{sec:executecmd}) are \emph{not} performed, but
+otherwise the entire shell syntax is available, including shell
+variables\key{Shell Variable}, compound commands, backtick substitution,
+redirection and pipes.  If argument substitution is necessary, {\tt Execute}
+should be called as command in the first argument, receiving its input from
+a temorary file or a pipe.
 \smallskip{}
 
 Depending on its arguments, this function is synchronous, i.e.\ waits for the
@@ -22748,8 +22751,8 @@ are read, i.e.\ a shell script\key{Shell Script} is supplied as stream, and not 
 This tag is only used if the {\tt command} argument is {\tt NULL} and then
 provides an alternative (stream-based) source for the script to be
 executed. This stream is \emph{always} closed on exit, and closure cannot be
-prevented by any other tag. If {\tt SYS\_Asynch}\key{SYS\_Asynch} is set and {\tt command} is
-{\tt NULL}, then the shell first reads commands from {\tt SYS\_CmdStream}\key{SYS\_CmdStream},
+prevented by any other tag. If {\tt SYS\_Asynch}\key{SYS\_Asynch} is set,
+then the shell first reads commands from {\tt SYS\_CmdStream}\key{SYS\_CmdStream},
 and once this stream reaches an EOF, it is closed and the shell\key{Shell} continues
 reading from {\tt SYS\_Input}\key{SYS\_Input} until this stream also reaches an EOF, or
 an {\tt EndCLI} command terminates the Shell. Thus, the configuration of providing a
@@ -22807,8 +22810,9 @@ bytes if the caller is not a shell process.
 is ``{\tt Background CLI}''. AmigaDOS~45 and before did not honor this tag.
 \smallskip{}
 
-{\tt NP\_Priority}\key{NP\_Priority} is the priority of the shell\key{Shell} process to be created. The
-default priority is~0.
+{\tt NP\_Priority}\key{NP\_Priority} is the priority of the shell\key{Shell}
+process to be created. The default priority is the priority of the calling
+process.
 \smallskip{}
 
 {\tt NP\_ConsoleTask}\key{NP\_ConsoleTask} provides a pointer to the {\tt MsgPort} of the console
@@ -22905,14 +22909,15 @@ where {\tt cmd} is a string stream (see section~\ref{sec:stringstreams})
 containing the commands to be executed, constructed from the first argument
 of {\tt Execute()}, and {\tt in} and {\tt out} are its second and third
 argument. The difference of {\tt System()} and {\tt Execute()} is only the
-result code, but they internally run into the same code.
+returned result, but they internally run into the same code.
 
 \subsection{Execute Shell Scripts (Legacy)} \label{sec:execute}
 
-The {\tt Execute()}\mkey{Execute()} function creates a new AmigaDOS shell\key{Shell},
-which then executes commands from a string, and continues executing commands
-from an input stream. This function is obsolete, and should be replaced by
-{\tt System()} which is more flexible.
+The {\tt Execute()}\mkey{Execute()} function creates a new AmigaDOS
+shell\key{Shell}, which then executes commands from a string, and once the
+string depletes, continues executing commands from an input stream. This
+function is obsolete, and should be replaced by {\tt System()} which is more
+flexible.
 
 \begin{verbatim}
 success = Execute( commandString, input, output )
@@ -22922,37 +22927,44 @@ BOOL Execute(STRPTR, BPTR, BPTR)
 \end{verbatim}
 
 This function is a deprecated function to create AmigaDOS shells\key{Shell} and
-interpret shell scripts\key{Shell Script} that has been superceeded by {\tt
-  System()}\key{System()}, see section~\ref{sec:system}.
+interpret shell scripts\key{Shell Script} that has been superceeded by
+{\tt System()}\key{System()}, see section~\ref{sec:system}.
 \smallskip{}
 
-The first argument is a string containing a shell script\key{Shell Script}. If this argument
-is {\tt NULL} and thus no command string is present, a new shell\key{Shell} is created
-and run asynchronously in the background, i.e.\ {\tt Execute()} returns then
-immediately. The new shell\key{Shell} receives its input, and thus its commands from
-the file handle\key{FileHandle} provided as second argument. The output of the commands go
-to the stream provided as third argument if non-{\tt ZERO}, or to a console
-cloned by opening ``{\tt *}''\key{* (file name)} from the console task of caller if possible,
-or to a {\tt NIL:} handle if this fails.
+The first argument is a string containing a shell script\key{Shell Script}
+with lines separated by line feed characters. If this argument is {\tt NULL}
+and thus no command string is present, a new Shell\key{Shell} is created and
+run asynchronously in the background, i.e.\ {\tt Execute()} returns then
+immediately. The new Shell\key{Shell} receives its input, and thus its
+commands from the file handle\key{FileHandle} provided as second
+argument. The output of the commands go to the stream provided as third
+argument if non-{\tt ZERO}, or to a console cloned by opening ``{\tt
+  *}''\key{* (file name)} from the input stream, or the console task of
+caller, or to a {\tt NIL:} handle if everything else fails.
 \smallskip{}
 
 If the first argument is non-{\tt NULL}, the {\tt Execute()} command is synchronous
-and will not return until the shell\key{Shell} completed its job. It first reads
-commands from the the command string, and once this depletes, switches over
-to the stream provided by {\tt input}. If this does not exist, it returns at
-that point. Otherwise, it continues reading from {\tt input} until this
+and will not return until the Shell\key{Shell} completed its job. It first reads
+commands from the the command string, and once this depletes, checks whether
+the {\tt input} handle is {\tt ZERO}. If so, the Shell terminates at this
+point. Otherwise, it switches over
+reading commands from the stream provided by {\tt input} until this
 stream reaches its EOF, or an {\tt EndCLI} command terminates the Shell
-explicitly. The output of the shell
-goes through the {\tt output} stream provided as third argument. If the
+explicitly. The output of the Shell goes through the {\tt output} stream provided as third argument. If the
 third argument is {\tt ZERO}, and the input stream is interactive, AmigaDOS
-opens ``{\tt *}''\key{* (file name)} from the input stream handler if it is interactive, or
-otherwise disregards all output by providing a {\tt NIL:} handle as output.
+opens ``{\tt *}''\key{* (file name)} from the input stream handler,
+otherwise attempts to open the console from the console process
+of the caller, or if that is not possible, disregards all output by
+providing a {\tt NIL:} handle as output.
 \smallskip{}
 
 Unlike {\tt System()}\key{System()}, this function returns {\tt DOSTRUE} on
-success and {\tt DOSFALSE} in case creating the shell\key{Shell} failed. It also always
-executes commands through the boot shell\key{Boot Shell}, and not through a custom or user
-shell.
+success and {\tt DOSFALSE} in case creating the shell\key{Shell}
+failed. This implies that the result code of the last command executed is
+not available to the caller --- instead, if the Shell could be launched,
+{\tt DOSTRUE} is returned as success indicator. It also always executes
+commands through the Boot Shell\key{Boot Shell}, and not through a custom or
+user shell.
 \smallskip{}
 
 Except for the similarity in name, the {\tt Execute()}\key{Execute()}
@@ -22960,10 +22972,9 @@ function has nothing in common with the {\tt Execute} command described in
 section~\ref{sec:executecmd}. One does not depend on the other, i.e.\ {\tt
   C:Execute} is not necessary for {\tt Execute()}, and {\tt Execute} does
 not run into {\tt Execute()} either, but rather modifies the current input
-stream of the Shell. Under AmigaDOS version 1.3 and below, {\tt Execute()}
-depended on the {\tt Run} command, but this dependency has been removed long
-since. As of the latest version of AmigaDOS, {\tt Run} depends on the {\tt
-  System()}\key{System()} function.
+stream of the Shell. Under AmigaDOS version 34 and below, {\tt Execute()}
+was based on the {\tt Run} command, but this dependency has been removed long
+since. Since AmigaDOS~36, {\tt Run} depends on the {\tt System()}\key{System()} function.
 
 \subsection{Run a Command Overloading the Calling Process} \label{sec:runcommand}
 
