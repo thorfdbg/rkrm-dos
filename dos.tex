@@ -22711,7 +22711,10 @@ used to create new processes, defined in section~\ref{sec:createnewproc}.
 
 {\tt SYS\_Input}\mkey{SYS\_Input} This tag takes a BPTR to a file handle\key{FileHandle} as argument which
 becomes the input stream of the new shell\key{Shell}. If this tag is not provided, the
-input stream of the calling process ({\tt pr\_CIS}) will be used.
+input stream of the calling process ({\tt pr\_CIS}) will be used. If
+{\tt command} is {\tt NULL}, this stream will also be closed when the shell
+terminates, thus the caller needs to open a separate file handle as if
+{\tt SYS\_Async}\key{SYS\_Async} is set.
 \smallskip{}
 
 {\tt SYS\_InName}\mkey{SYS\_InName} This tag takes a string as argument. This string will be
@@ -22725,8 +22728,13 @@ to {\tt SYS\_Input}, it was introduced in AmigaDOS~47.
 used as output stream of the new shell\key{Shell}. This handle \emph{shall be
 different} from the handle provided by {\tt SYS\_Input}. If this tag is not
 present, the output stream of the calling process ({\tt pr\_COS})\key{pr\_COS} will be
-used for shell output. If this stream is explicitly set to {\tt ZERO}, then
-AmigaDOS will attempt to create one itself: If an input stream is present and interactive, and {\tt command} is
+used for shell output. If in addition the {\tt command} is {\tt NULL} and
+{\tt SYS\_Async} is not set, then {\tt SYS\_Output} is cloned by the
+mechanism of section~\ref{sec:clonehandle} if it is an interactive stream,
+or the console of the caller is used as an output stream. That is, even
+though {\tt System()} is in this case implicitly asynchronous, {\tt SYS\_Output} will \emph{not}
+be closed. If {\tt SYS\_Output} is explicitly set to {\tt ZERO}, then
+AmigaDOS will attempt to create an output stream itself: If an input stream is present and interactive, and {\tt command} is
 non-{\tt NULL} or {\tt SYS\_Asynch}\key{SYS\_Asynch} is non-zero, then the
 input stream is cloned through the ``{\tt *}''\key{* (file name)} file name,
 see~\ref{sec:clonehandle}. Otherwise, the handler provided through the
@@ -22818,10 +22826,13 @@ process.
 {\tt NP\_ConsoleTask}\key{NP\_ConsoleTask} provides a pointer to the {\tt MsgPort} of the console
 handler that is used for opening the ``{\tt *}''\key{* (file name)} and paths
 relative to ``{\tt CONSOLE:}''.
-This port will be copied to {\tt pr\_ConsoleTask}\key{pr\_ConsoleTask}.
-This tag is only used if the input stream of the new shell\key{Shell} is not
-interactive (see~\ref{sec:isinteractive}), and is otherwise overridden by the
-process {\tt MsgPort} port of the input file handle\key{FileHandle}.
+This port will be copied to {\tt pr\_ConsoleTask}\key{pr\_ConsoleTask}, but
+is potentially overridden by the process {\tt MsgPort} of the input or
+output file handle\key{FileHandle} if they are interactive. If {\tt command}
+is {\tt NULL}, then an interactive output handle will provide the
+console. Otherwise, an interactive input handle will override
+{\tt NP\_ConsoleTask}, and will also request with {\tt ACTION\_CHANGE\_SIGNAL}
+to deliver break signals to the created shell.
 \smallskip{}
 
 {\tt NP\_CopyVars}\key{NP\_CopyVars} is a boolean tag that specifies whether
@@ -22829,7 +22840,7 @@ local shell\key{Shell Variable} variables are copied into the new shell. The
 default is to copy the variables.
 \smallskip{}
 
-{\tt NP\_Path}\key{NP\_Path}\key{Path} contains BPtR to a linked list of
+{\tt NP\_Path}\key{NP\_Path}\key{Path} contains BPTR to a linked list of
 directory locks\key{Lock} that establish the path of the newly created
 shell\key{Shell}. The structure of this path is specified in
 section~\ref{sec:clistruct}. The path provided by this tag \emph{is not}
@@ -22910,6 +22921,11 @@ containing the commands to be executed, constructed from the first argument
 of {\tt Execute()}, and {\tt in} and {\tt out} are its second and third
 argument. The difference of {\tt System()} and {\tt Execute()} is only the
 returned result, but they internally run into the same code.
+\smallskip{}
+
+Under AmigaDOS~45 and before, this function closed the stream provided by
+{\tt SYS\_Input} in case the new shell could not be created, even if
+synchronous execution is requested. This was fixed in AmigaDOS~47.
 
 \subsection{Execute Shell Scripts (Legacy)} \label{sec:execute}
 
@@ -22937,25 +22953,28 @@ and thus no command string is present, a new Shell\key{Shell} is created and
 run asynchronously in the background, i.e.\ {\tt Execute()} returns then
 immediately. The new Shell\key{Shell} receives its input, and thus its
 commands from the file handle\key{FileHandle} provided as second
-argument. The output of the commands go to the stream provided as third
-argument if non-{\tt ZERO}, or to a console cloned by opening ``{\tt
-  *}''\key{* (file name)} from the input stream, or the console task of
-caller, or to a {\tt NIL:} handle if everything else fails.
+argument. This stream is closed when the background process terminates.
+The output goes to a clone of the output stream {\tt output}, obtained
+through an algorithm similar to the one in section~\ref{sec:clonehandle} if it is
+interactive. Otherwise, the console of the caller is used as output stream,
+and if that stream does not exist, output will be disregarded by providing a
+{\tt NIL:} handle to the shell created. In particular, {\tt output} will
+\emph{not} be closed.
 \smallskip{}
 
 If the first argument is non-{\tt NULL}, the {\tt Execute()} command is synchronous
 and will not return until the Shell\key{Shell} completed its job. It first reads
 commands from the the command string, and once this depletes, checks whether
 the {\tt input} handle is {\tt ZERO}. If so, the Shell terminates at this
-point. Otherwise, it switches over
-reading commands from the stream provided by {\tt input} until this
+point. Otherwise, it switches over reading commands from the stream provided by {\tt input} until this
 stream reaches its EOF, or an {\tt EndCLI} command terminates the Shell
 explicitly. The output of the Shell goes through the {\tt output} stream provided as third argument. If the
 third argument is {\tt ZERO}, and the input stream is interactive, AmigaDOS
 opens ``{\tt *}''\key{* (file name)} from the input stream handler,
 otherwise attempts to open the console from the console process
 of the caller, or if that is not possible, disregards all output by
-providing a {\tt NIL:} handle as output.
+providing a {\tt NIL:} handle as output. In this mode, neither {\tt input}
+nor {\tt output} will be closed when the function returns.
 \smallskip{}
 
 Unlike {\tt System()}\key{System()}, this function returns {\tt DOSTRUE} on
@@ -22975,6 +22994,10 @@ not run into {\tt Execute()} either, but rather modifies the current input
 stream of the Shell. Under AmigaDOS version 34 and below, {\tt Execute()}
 was based on the {\tt Run} command, but this dependency has been removed long
 since. Since AmigaDOS~36, {\tt Run} depends on the {\tt System()}\key{System()} function.
+\smallskip{}
+
+Under AmigaDOS~45 and up to AmigaDOS~36, this function closed the
+{\tt input} stream in case it could not create a new Shell.
 
 \subsection{Run a Command Overloading the Calling Process} \label{sec:runcommand}
 
@@ -23258,11 +23281,12 @@ long as the task switching remains disabled.
 \section{The CLI Structure} \label{sec:clistruct}
 
 The {\tt CommandLineInterface}\key{CommandLineInterface} structure is the
-public interface of an AmigaDOS shell\key{Shell}. Every command started from a shell
+public interface of a shell\key{Shell}, see section~\ref{sec:getcli} for
+its definition. Every command started from a shell
 has access to this structure through the {\tt pr\_CLI}\key{pr\_CLI} BPTR in its process
-structure, see section~\ref{sec:process}, which is actually the process
-structure of the shell calling the program, see
-section~\ref{sec:runcommand}.
+structure, see chapter~\ref{sec:process}. As commands run by the shell only
+overlay the shell process, see section~\ref{sec:runcommand}, the process
+structure is actually the process of the shell.
 \smallskip{}
 
 The functions listed in this section provide accessor functions to this
@@ -23288,40 +23312,46 @@ buffer. That is, the function then copies {\tt cli\_SetName}\key{cli\_SetName} i
 see section~\ref{sec:clistruct}. If the current directory path fits into
 {\tt len} bytes including a terminating {\tt NUL} byte, then this function
 returns {\tt DOSTRUE} and sets {\tt IoErr()}\key{IoErr()} to~0. Otherwise,
-it truncates the name, returns {\tt DOSFALSE} and sets {\tt
-  IoErr()}\key{IoErr()} to {\tt ERROR\_LINE\_TOO\_LONG}\key{ERROR\_LINE\_TOO\_LONG}, but still returns
+it truncates the name, sets {\tt IoErr()}\key{IoErr()} to
+{\tt ERROR\_LINE\_TOO\_LONG}\key{ERROR\_LINE\_TOO\_LONG}, but still returns
 {\tt DOSTRUE}.
 \smallskip{}
 
-The shell\key{Shell} itself does not update {\tt cli\_SetName}\key{cli\_SetName}, namely the field this
-function depends upon, itself. Rather, the {\tt CD}, {\tt SwapCD}, {\tt
-  PushCD} and {\tt PopCD} commands attempt to keep it consistent. However,
-if a command changes {\tt pr\_CurrentDir}\key{pr\_CurrentDir} without updating {\tt
-  cli\_SetName}, or calls {\tt SetCurrentDirName()}\key{SetCurrentDirName()}
+The Shell\key{Shell} does not update {\tt cli\_SetName}\key{cli\_SetName},
+namely the element this function depends upon, itself. Rather, the {\tt CD},
+{\tt SwapCD}, {\tt PushCD} and {\tt PopCD} commands attempt to keep it consistent.
+However, if a command changes {\tt pr\_CurrentDir}\key{pr\_CurrentDir}
+without updating {\tt cli\_SetName}, or calls {\tt SetCurrentDirName()}\key{SetCurrentDirName()}
 without updating the current directory of its processes, then the string
 supplied by this function may not correspond to the current directory the
 shell actually uses.
 \smallskip{}
 
 If the caller is not a shell\key{Shell} command, then the function uses the lock\key{Lock}
-representing the current directory of the calling process, namely {\tt
-  pr\_CurrentDir}\key{pr\_CurrentDir}, and converts it to a string by {\tt
-  NameFromLock()}\key{NameFromLock()}. This function, see
+representing the current directory of the calling process, namely
+{\tt pr\_CurrentDir}\key{pr\_CurrentDir}, and converts it to a string by
+{\tt NameFromLock()}\key{NameFromLock()}. This function, see
 section~\ref{sec:namefromlock}, also truncates its result to {\tt len} bytes
 and, if truncation was performed, sets {\tt IoErr()}\key{IoErr()} to {\tt
   ERROR\_LINE\_TOO\_LONG}\key{ERROR\_LINE\_TOO\_LONG} and returns {\tt DOSFALSE} if the directory name
 does not fit into {\tt len} bytes. On success, the function returns a
 non-zero result code, but it does not set {\tt IoErr()} consistently then.
+\smallskip{}
+
+This function had a defect in AmigaDOS~36 by not handling zero-sized buffers
+correctly. This was fixed in V37. Even the latest versions return
+{\tt DOSTRUE} if the caller is run from a shell, though the supplied buffer is
+too short and the directory name was truncated.
 
 \subsection{Set the Current Directory Name} \label{sec:setcurrentdirname}
 
 The {\tt SetCurrentDirName()}\mkey{SetCurrentDirName()} sets the buffer
 within which the shell\key{Shell} keeps the string representing the current
-directory. It does not update the current directory itself.
+directory. It does not update the lock\key{Lock} representing the current directory itself.
 
 \begin{verbatim}
 success = SetCurrentDirName(name)
-D0                        D1
+D0                          D1
 
 BOOL SetCurrentDirName(STRPTR)
 \end{verbatim}
@@ -24851,7 +24881,7 @@ suggested here:
 \end{longtable}
 \end{rkrmtabular}
 
-If bit {FN\_VALID}\mkey{FN\_VALID} {\tt flags} is~0 and {\tt IoErr()}\key{IoErr()} equals pointer to the
+If bit {\tt FN\_VALID}\mkey{FN\_VALID} {\tt flags} is~0 and {\tt IoErr()}\key{IoErr()} equals pointer to the
 pointer of the process structure of the caller, then initialization
 failed. At this point, the passed in packet has already been replied,
 and the shell\key{Shell} shall only release the resources it accquired so far and
