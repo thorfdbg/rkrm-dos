@@ -23300,7 +23300,7 @@ current directory of the shell\key{Shell} into the provided buffer if such a she
 exists, or retrieves the current directory of the calling process instead.
 
 \begin{verbatim}
-success = GetCurrentDirName(buf, len)
+success = GetCurrentDirName(buf, len) /* since V36 */
 D0                          D1   D2
 
 BOOL GetCurrentDirName(STRPTR, LONG)
@@ -23350,7 +23350,7 @@ within which the shell\key{Shell} keeps the string representing the current
 directory. It does not update the lock\key{Lock} representing the current directory itself.
 
 \begin{verbatim}
-success = SetCurrentDirName(name)
+success = SetCurrentDirName(name) /* since V36 */
 D0                          D1
 
 BOOL SetCurrentDirName(STRPTR)
@@ -23376,33 +23376,34 @@ incorrect. Thus, any attempt to change {\tt cli\_SetName}\key{cli\_SetName} thro
 function \emph{shall also} call {\tt CurrentDir()}\key{CurrentDir()} to make
 this change consistent to the Shell.
 
-\subsection{Obtaining the Current Program Name}
+\subsection{Obtaining the Current Program Name} \label{sec:getprogramname}
 
 The {\tt GetProgramName()}\mkey{GetProgramName()} function copies the name of
 the currently executed program into a buffer.
 
 \begin{verbatim}
-success = GetProgramName(buf, len)
+success = GetProgramName(buf, len) /* since V36 */
 D0                       D1   D2
 
 BOOL GetProgramName(STRPTR, LONG)
 \end{verbatim}
 
 This function fills {\tt buf} with the what the Shell assumes to be the name
-of the currently executed command. This name is taken from {\tt
-  cli\_CommandName}\key{cli\_CommandName}, see section~\ref{sec:clistruct}, where the shell\key{Shell}
-deposits it before executing a program. If the program name including {\tt
-  NUL} termination requires more than {\tt len} bytes, this function first
-truncates it and sets {\tt IoErr()}\key{IoErr()} to {\tt
-  ERROR\_LINE\_TOO\_LONG}\key{ERROR\_LINE\_TOO\_LONG}. If the name including
+of the currently executed command. This name is taken from
+{\tt cli\_CommandName}\key{cli\_CommandName}, see section~\ref{sec:clistruct}, where the shell\key{Shell}
+deposits it before executing a program. If the program name including
+{\tt NUL} termination requires more than {\tt len} bytes, this function first
+truncates it and sets {\tt IoErr()}\key{IoErr()} to
+{\tt ERROR\_LINE\_TOO\_LONG}\key{ERROR\_LINE\_TOO\_LONG}. If the name including
 a terminating {\tt NUL} byte fits into {\tt len} bytes, the name is copied
 and the function sets {\tt IoErr()}\key{IoErr()} to~0. In either case, even
 if the program name is truncated, the function returns {\tt DOSTRUE}.
 \smallskip{}
 
 If this function is not called from a shell\key{Shell} command, the function installs
-an empty string in {\tt buf} if {\tt len} is at least~1 and returns {\tt
-  DOSFALSE} and sets {\tt IoErr()} to {\tt ERROR\_OBJECT\_WRONG\_TYPE}\key{ERROR\_OBJECT\_WRONG\_TYPE}.
+an empty string in {\tt buf} if {\tt len} is at least~1 and returns
+{\tt DOSFALSE} and sets {\tt IoErr()} to
+{\tt ERROR\_OBJECT\_WRONG\_TYPE}\key{ERROR\_OBJECT\_WRONG\_TYPE}.
 \smallskip{}
 
 The Shell buffer that keeps the current command name is unfortunately due to
@@ -23416,64 +23417,83 @@ reflect the correct file name.
 
 \subsection{Set the Current Program Name} \label{sec:setprogramname}
 
-The {\tt SetProgramName()}\mkey{SetProgramName()} sets the name the shell\key{Shell}
-assumes the currently executing program has.
+The {\tt SetProgramName()}\mkey{SetProgramName()} sets the assumed name
+of the currently executed program.
 
 \begin{verbatim}
-success = SetProgramName(name)
+success = SetProgramName(name) /* since V36 */
 D0                        D1
 
 BOOL SetProgramName(STRPTR)
 \end{verbatim}
 
 If this function is called from a shell\key{Shell} command, it installs the supplied
-string as program name into {\tt cli\_CommandName}\key{cli\_CommandName},
+string as program name into {\tt cli\_CommandName}\key{cli\_CommandName}, see
 section~\ref{sec:clistruct}, and returns {\tt DOSTRUE}. If the supplied
 string does not fit into the Shell internal buffer, it is truncated without
 this function indicating failure.
 \smallskip{}
 
-If this function is not called from a shell\key{Shell} command, it returns {\tt
-  DOSFALSE}. This function does not change {\tt IoErr()}\key{Ioerr()} in any
+If this function is not called from a shell\key{Shell} command, it returns
+{\tt DOSFALSE}. This function does not change {\tt IoErr()}\key{Ioerr()} in any
 case.
 
-\subsection{Obtaining the Shell Prompt}
+\subsection{Obtaining the Shell Prompt} \label{sec:getprompt}
 
 The {\tt GetPrompt()}\mkey{GetPrompt()} function copies the prompt format
 string with all formatting instructions into a caller supplied function.
 
 \begin{verbatim}
-success = GetPrompt(buf, len)
+success = GetPrompt(buf, len) /* since V36 */
 D0                  D1   D2
 
 BOOL GetPrompt(STRPTR, LONG)
 \end{verbatim}
 
 If this function is called from a shell\key{Shell} command, it copies the prompt format
-string including a terminating {\tt NUL} into {\tt buf} if it fits into {\tt
-  len} bytes, potentially truncating it if it does not. If truncation was
+string including a terminating {\tt NUL} into {\tt buf} if it fits into
+{\tt len} bytes, potentially truncating it if it does not. If truncation was
 performed, {\tt IoErr()} is set to {\tt ERROR\_LINE\_TOO\_LONG}\key{ERROR\_LINE\_TOO\_LONG}, otherwise
 to~0. In either case, even if the string was truncated, the function returns
 {\tt DOSTRUE}.
 \smallskip{}
 
 If this function is not called from a shell\key{Shell} command, an empty string is
-copied into {\tt buf} if {\tt len} is at least~1, and {\tt
-  IoErr()}\key{IoErr()} is set to {\tt ERROR\_OBJECT\_WRONG\_TYPE}\key{ERROR\_OBJECT\_WRONG\_TYPE} and the
+copied into {\tt buf} if {\tt len} is at least~1, and
+{\tt IoErr()}\key{IoErr()} is set to {\tt ERROR\_OBJECT\_WRONG\_TYPE}\key{ERROR\_OBJECT\_WRONG\_TYPE} and the
 function returns {\tt DOSFALSE}.
 \smallskip{}
 
 The shell\key{Shell} prompt provided by this function is the unexpanded prompt
 including format strings as it is provided by the {\tt Prompt} command, and
 not the expanded prompt currently printed by the shell\key{Shell}.
+The AmigaDOS Shell recognizes the following strings:
 
-\subsection{Setting the Shell Prompt}
+\begin{itemize}
+  \item[{\tt \%S}] is replaced by the path of the current directory as
+    returned by {\tt GetCurrentDirName()}\key{GetCurrentDirName()}.
+  \item[{\tt \%N}] is substituted with the CLI number, which is the closest
+    analogon of a process ID AmigaDOS has to offer. This is taken from {\tt
+      pr\_TaskNum} of the process running the shell\key{Shell}, see also
+    chapter~\ref{sec:process}.
+  \item[{\tt \%R}] represents the return code of the last executed command
+    as contained in {\tt cli\_ReturnCode}.
+  \item[{\tt \%\%}] is the percent (``{\tt \%}'') sign itself.
+\end{itemize}
 
-The {\tt SetPrompt()}\mkey{SetPrompt()} sets the Shell prompt format string.
+The AmigaDOS Shell also expands variables\key{Shell Variable} as described in
+section~\ref{sec:variableexpansion} in the prompt, executes commands
+backticks, see section~\ref{sec:backtick}, and inejcts its output into the
+printed prompt. Any ``{\tt \%}'' sign included in expanded variables or backticks
+is \emph{not} a formatting command but stands for itself.
+
+\subsection{Setting the Shell Prompt} \label{sec:setprompt}
+
+The {\tt SetPrompt()}\mkey{SetPrompt()} sets the shell prompt format string.
 
 \begin{verbatim}
-success = SetPrompt(name)
-D0                D1
+success = SetPrompt(name) /* since V36 */
+D0                  D1
 
 BOOL SetPrompt(STRPTR)
 \end{verbatim}
@@ -23484,12 +23504,12 @@ Shell internal buffer. It returns {\tt DOSTRUE} even if the prompt is
 truncated.
 \smallskip{}
 
-If this function is not called from a shell\key{Shell} command, it returns {\tt
-  DOSFALSE}. In does not change {\tt IoErr()}\key{IoErr()} in any case.
+If this function is not called from a shell\key{Shell} command, it returns
+{\tt DOSFALSE}. In does not change {\tt IoErr()}\key{IoErr()} in any case.
 \smallskip{}
 
 The Shell prompt provided to this function may contain all format strings
-described in~\ref{sec:clistruct}, such as {\tt \%S} for the current path, or
+described in~\ref{sec:getprompt}, such as {\tt \%S} for the current directory, or
 Shell variables\key{Shell Variable} and backticks to construct a prompt
 dynamically. The shell-internal buffer size for the prompt is unfortunately
 quite limited. If longer prompts are required, they could be placed in a
@@ -23503,14 +23523,14 @@ calling process is executing, or {\tt NULL} in case the process is not run
 from a shell\key{Shell}.
 
 \begin{verbatim}
-cli_ptr = Cli()
+cli_ptr = Cli() /* since V36 */
 D0
 
 struct CommandLineInterface *Cli(void)
 \end{verbatim}
 
-This function returns a pointer to the {\tt
-  CommandLineInterface}\mkey{CommandLineInterface} structure that describes
+This function returns a pointer to the {\tt CommandLineInterface}\mkey{CommandLineInterface}
+structure that describes
 properties of the shell\key{Shell} the calling process runs within. The function
 returns {\tt NULL} if the caller is not part of a shell process.
 This structure, defined in {\tt dos/dos.h}, looks as follows:
@@ -23536,21 +23556,27 @@ struct CommandLineInterface {
 };
 \end{verbatim}
 
-The elements of this structure are as follows:
+Even though this function was introduced in AmigaDOS~36, a BPTR to the
+{\tt CommandLineInterface}\key{CommandLineInterface} structure is also found
+in the {\tt pr\_CLI} element of the process structure, see
+chapter~\ref{sec:process}. The elements of this structure are as follows:
 \smallskip{}
 
 {\tt cli\_Result2}\mkey{cli\_Result2} is the {\tt IoErr()}\key{IoErr()} the last executed
-command of the shell\key{Shell} left, or the Shell created itself when failing to
+command of the shell\key{Shell} left, or the shell created itself when failing to
 interpret or execute a command line. This element is for example used by the
-{\tt why} command to print a textual description of the error. The shell
-also copies this value into the {\tt \$Result2} Shell variable\key{Shell Variable}.
+{\tt Why} command to print a textual description of the error. The Shell
+also copies it into the {\tt \$Result2} Shell variable\key{Shell Variable}.
 \smallskip{}
 
 {\tt cli\_SetName}\mkey{cli\_SetName} is a BPTR to a BSTR containing the path of the current
 directory. This string is used to generate a shell\key{Shell} prompt; the AmigaDOS
 shell substitutes the ``{\tt \%S}'' format directive of the prompt by the
-string stored here. The {\tt CD} command and its {\tt PushCD}, {\tt
-  PopCD} and {\tt SwapCD} variants update this element.
+string stored here. The {\tt CD} command and its {\tt PushCD}, {\tt PopCD}
+and {\tt SwapCD} variants update this element. This element should be accessed
+through {\tt GetCurrentDirName()}\key{GetCurrentDirName()} and
+{\tt SetCurrentDirName()}\key{SetCurrentDirName()}, see
+sections~\ref{sec:getcurrentdirname} and~\ref{sec:setcurrentdirname}.
 \smallskip{}
 
 {\tt cli\_CommandDir}\mkey{cli\_CommandDir} contains a linked list of directories that are
@@ -23563,16 +23589,15 @@ struct PathComponent {
     BPTR pc_Lock;
 };
 \end{verbatim}
-where {\tt pc\_Next}\mkey{pc\_Next} is the BPTR to the next directory in the path or {\tt
-  ZERO} for the end of the list, and {\tt pc\_Lock}\mkey{pc\_Lock} is a lock\key{Lock} of the
+where {\tt pc\_Next}\mkey{pc\_Next} is the BPTR to the next directory in the
+path or {\tt ZERO} for the end of the list, and {\tt pc\_Lock}\mkey{pc\_Lock} is a lock\key{Lock} of the
 directory that will be scanned for a matching command file.
 \smallskip{}
 
 The current directory is always the first component of the
-path and thus checked first for matching files, even if
-{\tt cli\_CommandDir}\key{cli\_CommandDir} is {\tt ZERO}. The {\tt C:} directory
-is always the last component of a path and neither explicitly included in
-the linked list.
+path and not included in the above list. It is thus checked first for matching files, even if
+{\tt cli\_CommandDir}\key{cli\_CommandDir} is {\tt ZERO}. The {\tt C:} directory is always the last component of a path
+and neither explicitly included in the linked list.
 \smallskip{}
 
 The {\tt Path}\key{Path} command is used to print and adjust the path stored in this
@@ -23581,13 +23606,17 @@ list.
 
 {\tt cli\_ReturnCode}\mkey{cli\_ReturnCode} is the return code of the last executed command,
 i.e.\ the value the command left in the {\tt d0} CPU register when existing
-to the Shell. The shell\key{Shell} also copies this value to the {\tt \$RC} Shell
+to the shell. The Shell\key{Shell} also copies this value to the {\tt \$RC} Shell
 variable\key{Shell Variable}.
 \smallskip{}
 
 {\tt cli\_CommandName}\mkey{cli\_CommandName} is a BPTR to a BSTR containing the name of the
-currently executing command. It is placed here by the shell\key{Shell} before calling
-in.
+currently executing command. It is placed here by the shell\key{Shell}
+before executing it. It is typically used by the startup code of C compilers
+to fill the {\tt argv[0]} argument. This element should be accessed through
+{\tt GetProgramName()}\key{GetProgramName()} and
+{\tt SetProgramName()}\key{SetProgramName()},
+see sections~\ref{sec:getprogramname} and~\ref{sec:setprogramname}.
 \smallskip{}
 
 {\tt cli\_FailLevel}\mkey{cli\_FailLevel} contains the threshold at which executed commands will
@@ -23598,118 +23627,107 @@ currently executing script.
 \smallskip{}
 
 {\tt cli\_Prompt}\mkey{cli\_Prompt} contains a BPTR to BSTR that is used by the shell\key{Shell} to print
-the command prompt on interactive shells. The AmigaDOS Shell recognizes the
-following strings:
-
-\begin{itemize}
-  \item[{\tt \%S}] Replaced by the path of the current directory, namely the
-    contents of {\tt cli\_SetName}.
-  \item[{\tt \%N}] Substituted with the CLI number, which is the closest
-    analogon of a process ID AmigaDOS has to offer. This is taken from {\tt
-      pr\_TaskNum} of the process running the shell\key{Shell}, see also
-    section~\ref{sec:process}.
-  \item[{\tt \%R}] Represents the return code of the last executed command
-    as contained in {\tt cli\_ReturnCode}.
-  \item[{\tt \%\%}] The percent (``{\tt \%}'') sign itself.
-\end{itemize}
-
-The AmigaDOS Shell also expands variables\key{Shell Variable} as described in
-section~\ref{sec:variableexpansion} in the prompt, executes commands
-backticks, see section~\ref{sec:backtick}, and inejcts its output into the
-printed prompt. Any ``{\tt \%}'' sign included in expanded variables or backticks
-is \emph{not} a formatting command but stands for itself.
-\medskip{}
+the command prompt of interactive shells. The format strings the AmigaDOS
+Shell recognizes are listed in section~\ref{sec:getprompt}. This element
+should be accessed by {\tt GetPrompt()}\key{GetPrompt()} and
+{\tt SetPrompt()}\key{SetPrompt()}, see section~\ref{sec:getprompt} and~\ref{sec:setprompt}.
+\smallskip{}
 
 {\tt cli\_StandardInput}\mkey{cli\_StandardInput} is a BPTR to a file handle\key{FileHandle} that represents the primary
 source of commands. This file handle typically corresponds to a console
 window within which the shell\key{Shell} is executed. The {\tt Run} command will deposit
 here a string stream (see section~\ref{sec:stringstreams}) containing the
-command or commands to be run in background. The file handle provided
+command or commands to run in background. The file handle provided
 through the {\tt SYS\_Input}\key{SYS\_Input} or {\tt SYS\_InName}\key{SYS\_InName} tags of the {\tt
   System()}\key{System()} function will be placed here. Once this stream is
-exhaused, the Shell terminates.
+exhaused, the shell terminates.
 \smallskip{}
 
 {\tt cli\_CurrentInput}\mkey{cli\_CurrentInput} is a BPTR to a file handle\key{FileHandle} from which the
-shell\key{Shell} is currently executing commands. This stream is either comming
+shell\key{Shell} is currently executing commands. This stream is either coming
 from the {\tt SYS\_CmdStream}\key{SYS\_CmdStream} or {\tt SYS\_CmdIn}\key{SYS\_CmdIn} tags of the {\tt
-  System()}\key{System()} function, or a string stream constructed
+  System()}\key{System()} function (see~\ref{sec:system}), or a string stream constructed
 from its first argument. Also, the {\tt Execute}\key{Execute (command)} command, see
 section~\ref{sec:executecmd}, places here the file handle of the
 original or processed shell script\key{Shell Script} that is to be executed. Once this
-file is exhaused, the Shell will close it. This happens, for example,
-if a script reaches its end of file or is aborted by the {\tt Exit}
+file is exhaused, the shell will close it. This happens, for example,
+if a script reaches the EOF or is aborted by the {\tt Exit}
 command. Depending on how the shell was created and configured, see
-section~\ref{sec:cliinitrun}, the shell\key{Shell} then sets this BPTR to {\tt
-  cli\_StandardInput}\key{cli\_StandardInput} and continues execution, or in other
+section~\ref{sec:cliinitrun}, the shell\key{Shell} then sets {\tt cli\_CurrentInput} to
+{\tt cli\_StandardInput}\key{cli\_StandardInput} and continues execution, or in other
 configurations, terminates.
 \smallskip{}
 
 {\tt cli\_CommandFile}\mkey{cli\_CommandFile} is a BPTR to the BSTR of a temporary shell script\key{Shell Script}
 that is currently being executed. The only reason why its path is stored
-here is to allow the Shell to clean up such temporary scripts. Whenever the
+here is to allow the shell to clean up such temporary scripts. Whenever the
 {\tt Execute} command requires processing a script for argument
 substitution, it creates a temporary script in {\tt T:} whose name is stored
 in {\tt cli\_CommandFile}. Once its execution completes, the Shell ensures
 that this temporary script is deleted again. For details on how {\tt
-  Execute} actually works see section~\ref{sec:executecmd}.
+  Execute} works see section~\ref{sec:executecmd}.
 \smallskip{}
 
 {\tt cli\_Interactive}\mkey{cli\_Interactive} is a boolean flag that indicates whether the
-Shell is interactive, i.e.\ requesting data from the console. If this
+shell is interactive, i.e.\ requesting data from the console. If this
 boolean is non-zero and {\tt cli\_Background}\key{cli\_Background} is {\tt DOSFALSE}, a
-prompt is printed before attempting to read a command from {\tt
-  cli\_CurrentInput}\key{cli\_CurrentInput}. If the shell\key{Shell} is executing a script\key{Shell Script}, this element
+prompt is printed before attempting to read a command from
+{\tt cli\_CurrentInput}\key{cli\_CurrentInput}. If the shell\key{Shell} is executing a script\key{Shell Script}, this element
 is {\tt DOSFALSE} and the Shell then checks for a {\tt Ctrl-D} signal to
 potentially abort a running script.
 \smallskip{}
 
-{\tt cli\_Background}\mkey{cli\_Background} is a boolean that indicates whether the Shell runs in
+{\tt cli\_Background}\mkey{cli\_Background} is a boolean flag that indicates whether the shell runs in
 background. This flag is set for shells\key{Shell} that are started asynchronously or
 are equipped with a non-interactive (non-console) output stream. If this
-flag is cleared, then the shell also prints a message when its input stream
-reaches its EOF, indicating that the shell terminates.
+flag is cleared, and the shell is interactive, it prints prompts for
+requesting commands from the user. A shell not running in background also prints a message
+when its input stream reaches the EOF and it terminates.
 \smallskip{}
 
-{\tt cli\_CurrentOutput}\mkey{cli\_CurrentOutput} is currently not used by the Shell. It is currently
+{\tt cli\_CurrentOutput}\mkey{cli\_CurrentOutput} is currently not used by the Shell. It is 
 initialized with the same file handle\key{FileHandle} as {\tt cli\_StandardOutput}\key{cli\_StandardOutput}.
 \smallskip{}
 
-{\tt cli\_DefaultStack}\mkey{cli\_DefaultStack} is the minimum stack in long-words the Shell
-allocates for commands before executing them. The Shell also checks the
-command for a stack cookie, see section~\ref{sec:stackcookie}, that may
-enlarge the stack further. This element is set by the {\tt
-  Stack} command. Note that this element is \emph{not} the stack size of the
+{\tt cli\_DefaultStack}\mkey{cli\_DefaultStack} is the minimum stack in long-words the shell
+allocates for commands before executing them. The Shell also checks
+commands for stack cookies, see section~\ref{sec:stackcookie}, that may
+enlarge the stack further. This element is set by the
+{\tt Stack} command. Note that this element is \emph{not} the stack size of the
 shell\key{Shell} process itself, but a lower limit of the stack size for its clients.
 \smallskip{}
 
 {\tt cli\_StandardOutput}\mkey{cli\_StandardOutput} is the file handle\key{FileHandle} the shell\key{Shell} provides as default
-output handle to its clients, and to which it prints output. This handle is
-copied from the {\tt SYS\_Output}\key{SYS\_Output} or {\tt SYS\_OutName}\key{SYS\_OutName} tags of the {\tt
-  System()}\key{System()} function if they are provided.
+output handle to its clients, and to which it prints prompts and other messages. This handle is
+copied by the {\tt System()}\key{System()} function from the {\tt
+  SYS\_Output}\key{SYS\_Output} tag or obtained by opening the file name
+provided by the {\tt SYS\_OutName}\key{SYS\_OutName} tag. If none of the two
+are available, {\tt System()}\key{System()} will derive an suitable output
+file from the input stream or the console handler of its caller,
+see~\ref{sec:system}.
 \smallskip{}
 
 {\tt cli\_Module}\key{cli\_Module} is a BPTR to the first segment\key{Segment} of the command currently
-executed. The Shell also uses this BPTR to release loaded, non-resident
-commands. This BPTR is either filled with the segment provided by {\tt
-  LoadSeg()}\key{LoadSeg()} in section~\ref{sec:loadseg}, or an element of
+executed. The shell also uses this BPTR to release loaded, non-resident
+commands. It is either filled with the segment returned by
+{\tt LoadSeg()}\key{LoadSeg()} (see section~\ref{sec:loadseg}), or an element of
 the list of resident segments, see section~\ref{sec:resident}. A common
-technique for load and stay resident commands is to set this BPTR to {\tt
-  ZERO} to prevent the shell\key{Shell} from releasing the loaded program and thus keep
-it in memory.
+technique for implementing load and stay resident commands is to set this BPTR to
+{\tt ZERO} to prevent the shell\key{Shell} from releasing the memory of the loaded program.
 \medskip{}
 
 Even though the {\tt CommandLineInterface} structure is typically constructed
 by AmigaDOS, e.g.\ through the {\tt System()}\key{System()} function, it is
 sometimes necessary to create it manually. Allocation of this structure
 shall happen only through {\tt AllocDosObject()}\key{AllocDosObject()} as
-this structure contains some Shell-internal elements for extended Shell
-features. These extended features are instead accessible through the {\tt
-  DoShellMethod()}\key{DoShellMethod()} function specified in
+this structure contains some internal elements for extended shell
+features, see section~\ref{sec:allocdosobject} for details.
+These extended features are instead accessible through the
+{\tt DoShellMethod()}\key{DoShellMethod()} function specified in
 section~\ref{sec:doshellmethod}.
 \medskip{}
 
-This function does not change {\tt IoErr()}\key{IoErr()}.
+The {\tt Cli()}\key{Cli()} function does not change {\tt IoErr()}\key{IoErr()}.
 
 \section{Accessing Shell Variables} \label{sec:shellvariables}
 
