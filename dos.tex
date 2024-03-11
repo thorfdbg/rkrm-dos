@@ -23557,9 +23557,20 @@ struct CommandLineInterface {
 \end{verbatim}
 
 Even though this function was introduced in AmigaDOS~36, a BPTR to the
-{\tt CommandLineInterface}\key{CommandLineInterface} structure is also found
-in the {\tt pr\_CLI} element of the process structure, see
-chapter~\ref{sec:process}. The elements of this structure are as follows:
+{\tt CommandLineInterface}\key{CommandLineInterface} structure is also found in
+the {\tt pr\_CLI} element of the process structure, see
+chapter~\ref{sec:process}.
+\smallskip{}
+
+Some elements of this structure point string
+buffers of unspecified size and should therefore not be altered manually as
+any attempt to copy an oversized string into them could overwrite other
+system structures. Instead, the accessor functions from
+sections~\ref{sec:getcurrentdirname} to~\ref{sec:setprompt} should be
+preferred for reading, and shall be used for updating them.
+\medskip{}
+
+The elements of this structure are as follows:
 \smallskip{}
 
 {\tt cli\_Result2}\mkey{cli\_Result2} is the {\tt IoErr()}\key{IoErr()} the last executed
@@ -23602,7 +23613,7 @@ and neither explicitly included in the linked list.
 
 The {\tt Path}\key{Path} command is used to print and adjust the path stored in this
 list.
-\medskip{}
+\smallskip{}
 
 {\tt cli\_ReturnCode}\mkey{cli\_ReturnCode} is the return code of the last executed command,
 i.e.\ the value the command left in the {\tt d0} CPU register when existing
@@ -23669,20 +23680,27 @@ that this temporary script is deleted again. For details on how {\tt
 \smallskip{}
 
 {\tt cli\_Interactive}\mkey{cli\_Interactive} is a boolean flag that indicates whether the
-shell is interactive, i.e.\ requesting data from the console. If this
+shell is interactive, i.e.\ requesting data from the console. It is computed
+and updated by the shell itself. If this
 boolean is non-zero and {\tt cli\_Background}\key{cli\_Background} is {\tt DOSFALSE}, a
-prompt is printed before attempting to read a command from
-{\tt cli\_CurrentInput}\key{cli\_CurrentInput}. If the shell\key{Shell} is executing a script\key{Shell Script}, this element
+prompt is printed before attempting to read a command. If the shell\key{Shell} is executing a script\key{Shell Script}, this element
 is {\tt DOSFALSE} and the Shell then checks for a {\tt Ctrl-D} signal to
 potentially abort a running script.
 \smallskip{}
 
 {\tt cli\_Background}\mkey{cli\_Background} is a boolean flag that indicates whether the shell runs in
-background. This flag is set for shells\key{Shell} that are started asynchronously or
-are equipped with a non-interactive (non-console) output stream. If this
-flag is cleared, and the shell is interactive, it prints prompts for
+background. This flag is set by {\tt System()}\key{System()} and
+{\tt Execute()} for shells\key{Shell} that are started asynchronously or
+are equipped with a non-interactive (non-console) input or output
+stream. A synchronous {\tt System()} call with a non-{\tt NULL}
+{\tt command} argument, however, will always create a foreground shell.
+If this flag is cleared, and the shell is interactive, it prints prompts for
 requesting commands from the user. A shell not running in background also prints a message
-when its input stream reaches the EOF and it terminates.
+when its input stream reaches the EOF and it
+terminates\footnote{While~\cite{guru} documents that this flag determines
+whether the Shell terminates when its current input reaches an EOF, this is
+not correct since AmigaDOS~36. Instead, the startup flags from
+table~\ref{table:cliinitrunflags}, section~\ref{sec:cliinitrun} do.}.
 \smallskip{}
 
 {\tt cli\_CurrentOutput}\mkey{cli\_CurrentOutput} is currently not used by the Shell. It is 
