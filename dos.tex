@@ -23753,31 +23753,31 @@ The functions in this section provide access to local and global
 shell\key{Shell Variable} variables, get and set them, or check whether a
 particular variable is defined.
 
-\subsection{Read a Shell Variable} \label{sec:getvar}
+\subsection{Reading a Shell Variable} \label{sec:getvar}
 
 The {\tt GetVar()}\mkey{GetVar()} function reads the contents of a global or
 local shell\key{Shell Variable} variable or alias\key{Alias} and copies its contents to a buffer.
 
 \begin{verbatim}
-len = GetVar( name, buffer, size, flags ) 
-D0               D1     D2     D3    D4
+len = GetVar( name, buffer, size, flags ) /* since V36 */
+D0             D1     D2     D3    D4
 
 LONG GetVar( STRPTR, STRPTR, LONG, ULONG ) 
 \end{verbatim}
 
 The {\tt name} argument is the name of the variable to retrieve; this name
 may contain one or multiple forward slashes (``({\tt /})'') which structure
-variables hierarchically similar to directories on file systems. It is not
+variables hierarchically similar to directories in file systems. It is not
 case-sensitive. For global variables, this hierarchy is mapped to
-subdirectories within the {\tt ENV:} assign. There variables are represented
+sub-directories within the {\tt ENV:} assign. There variables are represented
 as files that may also be accessed through the file system functions of the
 \emph{dos.library}. Unless specified otherwise, this function first checks
 for local shell\key{Shell Variable} variables, but if no matching variable is found, it checks
-for a global variable of the name provided.
+for a global variable of the provided name.
 \smallskip{}
 
 The {\tt buffer} and {\tt size} arguments specify a buffer and its length
-into which the contents of the variable, if it exists, is copied. It is
+into which the contents of the variable or alias, if it exists, is copied. It is
 advisable to store only printable characters in variables, in which case any
 {\tt NUL} or line feed character truncates the contents of the
 variable. However, variables may also contain binary data; such binary data
@@ -23834,6 +23834,12 @@ or {\tt ERROR\_OBJECT\_NOT\_FOUND}\key{ERROR\_OBJECT\_NOT\_FOUND} if the
 variable\key{Shell Variable} could not be found. Any
 other error code resulting from reading from {\tt ENV:} is also forwarded to
 the caller through {\tt IoErr()}\key{IoErr()}.
+\medskip{}
+
+AmigaDOS~36 returned the full size of the variable, not the number of
+characters that could be read. This was changed in version~37 which also
+sets {\tt IoErr()}. The flag {\tt GVF\_DONT\_NULL\_TERM} only worked
+for local variables up to version~37. This was fixed in AmigaDOS~39.
 
 \subsection{Setting a Shell Variable}
 
@@ -23843,15 +23849,15 @@ variable or an alias\key{Alias}, potentially creating a new variable, or potenti
 deleting it.
 
 \begin{verbatim}
-success = SetVar( name, buffer, size, flags ) 
+success = SetVar( name, buffer, size, flags ) /* since V36 */
 D0                 D1     D2     D3    D4
 
 BOOL SetVar(STRPTR, STRPTR, LONG, ULONG ) 
 \end{verbatim}
 
-This function assigns the value in {\tt buffer} to the variable named {\tt
-  name}, possibly creating it if it does not exist, or deleting it if {\tt
-  buffer} is {\tt NULL}.
+This function assigns the value in {\tt buffer} to the variable or alias named
+{\tt name}, possibly creating it if it does not exist, or deleting it if
+{\tt buffer} is {\tt NULL}.
 \smallskip{}
 
 The {\tt name} argument is the name of the variable\key{Shell Variable} to create, update or
@@ -23860,7 +23866,7 @@ slashes (``{\tt /}'') which corresponds to a hierarchy of variables that
 work similar to directories and paths on regular file systems; this
 hierarchy is represented by directories in {\tt ENV:} for global variables,
 but is also available for local variables. This function potentially creates
-levels in the hierarchy, i.e.\ subdirectories for global variables, if
+levels in the hierarchy, i.e.\ sub-directories for global variables, if
 necessary.
 \smallskip{}
 
@@ -23887,17 +23893,18 @@ created. The following flags are defined in {\tt dos/var.h}:
 shell\key{Shell Variable} variable, local or global.
 \smallskip{}
 
-{\tt LV\_ALIAS}\key{LV\_ALIAS} sets, creates or deletes an alias\key{Alias}. Aliases can only be
-local. This is mutually exclusive to the above.
+{\tt LV\_ALIAS}\key{LV\_ALIAS} sets, creates or deletes an alias\key{Alias}.
+Aliases can only be local. This is mutually exclusive to the above.
 \smallskip{}
 
 If {\tt GVF\_GLOBAL\_ONLY}\key{GVF\_GLOBAL\_ONLY} is set, then a global
 variable\key{Shell Variable} is created, deleted
-or updated. This flag \emph{shall not} be combined with {\tt
-  LV\_ALIAS}\key{LV\_ALIAS}. If this flag is \emph{not} set, and {\tt buffer} is not {\tt
-  NULL}, this function only updates or creates local variables; it even
-creates a local variable if a global variable of the same name already
-exists. If this flag is \emph{not} set, and {\tt buffer} is {\tt NULL}, it
+or updated. This flag \emph{shall not} be combined with
+{\tt LV\_ALIAS}\key{LV\_ALIAS}. If {\tt GVF\_GLOBAL\_ONLY} is \emph{not} set, and
+{\tt buffer} is not {\tt NULL}, this function only updates
+or creates local variables; it even creates a local variable
+if a global variable of the same name already exists. If {\tt GVF\_GLOBAL\_ONLY}
+is \emph{not} set, and {\tt buffer} is {\tt NULL}, it
 first attempts to delete a local variable, and if none is found, attempts to
 delete a global variable of the matching name.
 \smallskip{}
@@ -23906,14 +23913,28 @@ If {\tt GVF\_LOCAL\_ONLY}\key{GVF\_LOCAL\_ONLY} is set, then only a local
 variable\key{Shell Variable} is created,
 deleted or updated. This flag only makes a difference if {\tt buffer} is
 {\tt NULL} as all other operations default to local variables anyhow.
+\smallskip{}
+
+If {\tt GVF\_SAVE\_VAR}\key{GVF\_SAVE\_VAR} is set, and a global variable is
+set or deleted, the change will be made permanent by mirroring it in the
+{\tt ENVARC:} directory\footnote{\cite{Bantam} does not document this flag,
+even though it is present.}.
 \medskip{}
 
-This function returns a non-zero return value in case of success. {\tt
-  IoErr()}\key{IoErr()} is then not set consistently. On error, this
+This function returns a non-zero return value in case of success.
+{\tt IoErr()}\key{IoErr()} is then not set consistently. On error, this
 function returns {\tt DOSFALSE} and {\tt IoErr()}\key{IoErr()} is set to an
-error code. If a variable\key{Shell Variable} is to be deleted by setting {\tt buffer} to {\tt
-  NULL}, and this variable does not exist, this function will set {\tt
-  IoErr()} to {\tt ERROR\_OBJECT\_NOT\_FOUND}\key{ERROR\_OBJECT\_NOT\_FOUND}.
+error code. If a variable\key{Shell Variable} is to be deleted by setting
+{\tt buffer}
+to {\tt NULL}, and this variable does not exist, this function will set
+{\tt IoErr()} to {\tt ERROR\_OBJECT\_NOT\_FOUND}\key{ERROR\_OBJECT\_NOT\_FOUND}.
+\smallskip{}
+
+Releases prior to AmigaDOS~47 did not clear the {\tt e} protection bit of
+the file(s) created in {\tt ENV:} or {\tt ENVARC:}. If a variable name
+contained two slashes such as {\tt //}, releases prior to AmigaDOS~47 would
+have crashed.
+
 
 \subsection{Finding a Shell Variable} \label{sec:findvar}
 
