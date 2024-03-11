@@ -23752,6 +23752,24 @@ The {\tt Cli()}\key{Cli()} function does not change {\tt IoErr()}\key{IoErr()}.
 The functions in this section provide access to local and global
 shell\key{Shell Variable} variables, get and set them, or check whether a
 particular variable is defined.
+\smallskip{}
+
+Local variables and aliases are represented
+as a {\tt LocalVar}\key{LocalVar} structure defined in
+section~\ref{sec:findvar} which is linked into the {\tt pr\_LocalVars}\key{pr\_LocalVars}
+list of the {\tt Process}\key{Process} structure, see
+chapter~\ref{sec:process}.
+\smallskip{}
+
+Global variables are files in a directory hierarchy of the {\tt ENV:}
+assign, which exists typically as an external link\key{External Link}
+in the RAM-Handler\key{RAM-Handler}.
+The functions in this section also allow to make changes to global variables
+permanent such that they survive a reboot. For that, the file representing
+the variable is updated in {\tt ENVARC:} which is typically a directory on the
+boot volume. The external link {\tt ENV:} usually points to this directory
+such that the RAM-Handler copies variables defined in {\tt ENVARC:} to {\tt ENV:}
+whenever they are requested.
 
 \subsection{Reading a Shell Variable} \label{sec:getvar}
 
@@ -23841,7 +23859,7 @@ characters that could be read. This was changed in version~37 which also
 sets {\tt IoErr()}. The flag {\tt GVF\_DONT\_NULL\_TERM} only worked
 for local variables up to version~37. This was fixed in AmigaDOS~39.
 
-\subsection{Setting a Shell Variable}
+\subsection{Setting a Shell Variable} \label{sec:setvar}
 
 The {\tt SetVar()}\mkey{SetVar()} assigns a value to a local or global
 shell\key{Shell Variable}
@@ -23935,15 +23953,14 @@ the file(s) created in {\tt ENV:} or {\tt ENVARC:}. If a variable name
 contained two slashes such as {\tt //}, releases prior to AmigaDOS~47 would
 have crashed.
 
-
 \subsection{Finding a Shell Variable} \label{sec:findvar}
 
-The {\tt FindVar()}\mkey{FindVar()} locates a local shell\key{Shell
-  Variable} variable or alias\key{Alias} of the calling process.
+The {\tt FindVar()}\mkey{FindVar()} locates a local
+shell\key{Shell Variable} variable or alias\key{Alias} of the calling process.
 
 \begin{verbatim}
-var = FindVar( name, type ) 
-D0                D1    D2
+var = FindVar( name, type ) /* since V36 */
+D0              D1    D2
 
 struct LocalVar * FindVar(STRPTR, ULONG ) 
 \end{verbatim}
@@ -23987,20 +24004,23 @@ struct LocalVar {
 };
 \end{verbatim}
 
-This structure shall never be allocated by the caller as it may grow in
+This structure shall never be allocated nor modified by the caller as it may grow in
 future releases. Instead, creation of variables\key{Shell Variable} shall only be created
-through {\tt SetVar()}\key{SetVar()}. The elements of this structure are as
-follows: 
+through {\tt SetVar()}\key{SetVar()}.
+\medskip{}
+
+The elements of this structure are as follows: 
 \smallskip{}
 
 {\tt lv\_Node}\mkey{lv\_Node} is a node structure as defined in {\tt exec/nodes.h}. It
-chains all local variables\key{Shell Variable} and aliases\key{Alias} of a process in the {\tt
-  pr\_LocalVars}\key{pr\_LocalVars} element of the process structure, see
-section~\ref{sec:process}. The {\tt lv\_Node.ln\_Name} element is the
+chains all local variables\key{Shell Variable} and aliases\key{Alias} of a
+process in the {\tt pr\_LocalVars}\key{pr\_LocalVars} element of the process
+structure, see chapter~\ref{sec:process}. The {\tt lv\_Node.ln\_Name} element is the
 full path to the variable, including all directory elements and its name,
 separated by forward slashes (``{\tt /}''). The type of the node, namely
 {\tt lv\_Node.ln\_Type} identifies whether this structure describes a
-variable or an alias. It can be either {\tt LV\_VAR}\key{LV\_VAR} or {\tt LV\_ALIAS}\key{LV\_ALIAS}.
+variable or an alias.
+It can be either {\tt LV\_VAR}\key{LV\_VAR} or {\tt LV\_ALIAS}\key{LV\_ALIAS}.
 \smallskip{}
 
 {\tt lv\_Flags}\mkey{lv\_Flags} contains flags. Currently, only a single flag is used here,
@@ -24027,7 +24047,7 @@ The {\tt DeleteVar()}\mkey{DeleteVar()} deletes a global or local
 shell\key{Shell Variable} variable or alias\key{Alias}.
 
 \begin{verbatim}
-success = DeleteVar( name, flags ) 
+success = DeleteVar( name, flags ) /* since V36 */
 D0                   D1    D2
 
 BOOL DeleteVar(STRPTR, ULONG ) 
@@ -24035,7 +24055,7 @@ BOOL DeleteVar(STRPTR, ULONG )
 
 This function removes a shell\key{Shell Variable} variable or alias\key{Alias} from the local or global
 pool of shell variables. This function is equivalent to {\tt
-  SetVar(name,NULL,0,flags)}\key{SetVar()}.
+  SetVar(name,NULL,0,flags)}\key{SetVar()} defined in section~\ref{sec:setvar}.
 \smallskip{}
 
 The {\tt name} argument is the name of the variable or alias\key{Alias} to remove. It
@@ -24065,14 +24085,19 @@ given name.
 
 If {\tt GVF\_LOCAL\_ONLY}\key{GVF\_LOCAL\_ONLY} is set, then only a local variable is to be
 deleted.
+\smallskip{}
+
+If {\tt GVF\_SAVE\_VAR}\key{GVF\_SAVE\_VAR} is set, and a global variable is
+deleted, the change will be made permanent by also deleting the variable in the
+{\tt ENVARC:} directory.
 \medskip{}
 
-This function returns a non-zero return value in case of success. {\tt
-  IoErr()}\key{IoErr()} is then not set consistently. On error, this
+This function returns a non-zero return value in case of success.
+{\tt IoErr()}\key{IoErr()} is then not set consistently. On error, this
 function returns {\tt DOSFALSE} and {\tt IoErr()}\key{IoErr()} is set to an
-error code. This function will set {\tt IoErr()} to {\tt
-  ERROR\_OBJECT\_NOT\_FOUND}\key{ERROR\_OBJECT\_NOT\_FOUND} if an attempt is made to delete a non-existing
-variable\key{Shell Variable} or alias\key{Alias}.
+error code. This function will set {\tt IoErr()} to
+{\tt ERROR\_OBJECT\_NOT\_FOUND}\key{ERROR\_OBJECT\_NOT\_FOUND} if an attempt
+is made to delete a non-existing variable\key{Shell Variable} or alias\key{Alias}.
 
 \section{Command Line Argument Parsing}
 
