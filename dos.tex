@@ -24531,8 +24531,7 @@ the template. {\tt IoErr()}\key{IoErr()} remains unmodified.
 AmigaDOS keeps a list of resident segments\key{Segment (resident)} that that are available
 immediately without requiring them to load from disk. This list of
 segments include resident commands, but also ROM-resident system segments
-that have been placed there during initialization of AmigaDOS through the
-System-startup module.
+that have been placed there during initialization of AmigaDOS.
 \smallskip{}
 
 This list of resident segments should not be confused with the exec list of
@@ -24548,9 +24547,9 @@ command is ``pure'', which means that it does not alter its code or data,
 and its code can be executed from several processes at once. Unfortunately,
 AmigaDOS makes no attempt to verify these requirements but only depends on
 this bit. The AmigaDOS Shell scans the list of resident commands, and if the
-requested command is not found there, searches the \emph{path} instead to
-load the command from disk.
-\medskip{}
+requested command is found there, it uses the resident segment instead of
+loading the command from disk, see also~\ref{sec:cmdexecution}.
+\smallskip{}
 
 Second, if a command has the {\tt p} and {\tt h} protection bits set, it is
 automatically added to the list of resident segments. The {\tt h} stands for
@@ -24562,27 +24561,29 @@ initialization to this list. This includes elementary commands such as
 {\tt CD} or {\tt Execute} that do not need to be loaded from disk.
 \smallskip{}
 
-Fourth, some segments\key{Segment (resident)} are added to the list during initialization of AmigaDOS
-through System-Startup. These include the CON-Handler\key{CON-Handler}, the RAM-Handler\key{RAM-Handler},
-the FFS\key{Fast File System (FFS)} which is named ``FileHandler'' there, and --- finally -- the Shell.
+Fourth, some non-command segments\key{Segment (resident)} are added to the list
+during initialization of AmigaDOS through System-Startup, see also
+section~\ref{sec:sysstartup}. These include the CON-Handler\key{CON-Handler}, the
+RAM-Handler\key{RAM-Handler}, the FFS\key{Fast File System (FFS)} which is
+represented by a resident segment named ``{\tt FileHandler}'', and --- finally -- the Shell.
 \smallskip{}
 
-The Shell is even added three times to this list. First, as {\tt
-  shell}\key{Shell (resident)}, which is the the shell that is used by
+The Shell is even added three times to this list. First, as
+``{\tt shell}''\key{Shell (resident)}, which is the the shell that is used by
 default by the {\tt Shell} icon and the {\tt System()}\key{System()}
-function. A user shell\key{Shell} may replace this entry and thus make it available by
-default to the entire system. Second, as {\tt BootShell}\key{BootShell},
+function. A user shell\key{Shell} may replace this entry and thus become
+accessible by the {\tt Shell} icon on the workbench.
+Second, as ``{\tt BootShell}''\key{BootShell},
 which shall remain unchanged. It always refers to the shell that booted the
-system, and is also the shell that is used by the {\tt
-  Execute()}\key{Execute()} function. Third, as {\tt CLI}\key{CLI}, which is
+system, and is also the shell that is used by the
+{\tt Execute()}\key{Execute()} function. Third, as ``{\tt CLI}''\key{CLI}, which is
 only present for legacy reasons and not used by the system at all, unless
-requested explicitly by the {\tt SYS\_CustomShell}\key{SYS\_CustomShell} tag of the {\tt
-  System()}\key{System()} function, see section~\ref{sec:system}.
+requested explicitly by the {\tt SYS\_CustomShell}\key{SYS\_CustomShell} tag
+of the {\tt System()}\key{System()} function, see section~\ref{sec:system}.
 \medskip{}
 
 A resident segment is described by the {\tt Segment} structure defined in
 {\tt dos/dos.h}:
-
 \mkey{Segment (resident)}
 \begin{verbatim}
 struct Segment {
@@ -24594,28 +24595,35 @@ struct Segment {
 \end{verbatim}
 
 This structure shall never be allocated by a user program, it is created by
-{\tt AddSegment()}\key{AddSegment()} instead. Its elements have the
-following function:
+{\tt AddSegment()}\key{AddSegment()} instead, see
+section~\ref{sec:addsegment} more details. The elements of this structure
+have the following meaning:
 \smallskip{}
 
 The {\tt seg\_Next}\mkey{seg\_Next} element is a BPTR to the next segment in the list of
-resident segments; it is {\tt ZERO} for the last resident segment. This BPTR
-shall not be modified by the user.
+resident segments; it is {\tt ZERO} for the last resident segment. Thus,
+resident segments form a singly linked list. This BPTR shall not be modified by the user.
 \smallskip{}
 
-The {\tt seg\_UC}\mkey{seg\_UC} element is a use counter. It is incremented every time the
-segment is used, e.g.\ when the shell\key{Shell} locates a command in the resident
+The {\tt seg\_UC}\mkey{seg\_UC} element is a use counter, or a type
+identifier. If the value is positive, the resident segment represents a
+disk-based command that had been added to the list either implicitly by the
+shell due to its {\tt h} bit, or had been made resident explicitly.
+\smallskip{}
+
+In such a case, {\tt seg\_UC} is incremented every time the
+segment is used, e.g.\ when the shell\key{Shell} locates the command in the resident
 segments, and decremented once the segment\key{Segment (resident)} is not used anymore, e.g.\ if
 the resident command terminates execution. It is confusingly initially~1
 (not 0) if the segment is unused. Resident commands with a {\tt seg\_UC}
-counter larger than~1 cannot be unloaded as they are currently in use
-\footnote{The {\tt Resident} command prints {\tt seg\_UC} - 1 instead of
+counter larger than~1 cannot be unloaded as they are currently in
+use\footnote{The {\tt Resident} command prints {\tt seg\_UC} - 1 instead of
 {\tt seg\_UC}.}.
 \smallskip{}
 
-Despite these regular entries used for disk-based commands made resident,
-the following special values for {\tt seg\_UC} exist. They are also defined
-in {\tt dos/dosextens.h}:
+Despite these regular entries used for disk-based commands that have been
+made resident, the following special values for {\tt seg\_UC} exist. They
+are also defined in {\tt dos/dosextens.h}:
 \smallskip{}
 
 The value {\tt CMD\_INTERNAL}\mkey{CMD\_INTERNAL} indicates a command that is avaiable for
@@ -24623,17 +24631,17 @@ execution, but whose code is part of the ROM. The AmigaDOS Shell adds these
 commands to the resident list during its initialization.
 \smallskip{}
 
-Segments indicated by {\tt CMD\_SYSTEM}\mkey{CMD\_SYSTEM} are not commands that could be
+Segments indicated by the use counter set to {\tt CMD\_SYSTEM}\mkey{CMD\_SYSTEM} are not commands that could be
 executed, but rather segments of system components. The RAM-Handler\key{RAM-Handler}, the
-CON-Handler\key{CON-Handler} and the FFS\key{Fast File System (FFS)} aka FileHandler are indicated as system
-segments. These segments\key{Segment (resident)} cannot be executed and are not found by the Shell
-when scanning the resident list for commands.
+CON-Handler\key{CON-Handler} and the FFS\key{Fast File System (FFS)} aka ``{\tt FileHandler}''
+are indicated as system segments. These segments\key{Segment (resident)}
+cannot be executed and are not found by the Shell when scanning the resident list for commands.
 \smallskip{}
 
 Segments with a {\tt seg\_UC}\key{seg\_UC} smaller or equal than {\tt CMD\_DISABLED}\mkey{CMD\_DISABLED} are
-neither found by the Shell; they are rather marked as temporarily
-disabled. This type is created if a built-in command or a system segment is
-``removed'' by the {\tt Resident} command.
+neither found by the Shell; they are rather temporarily
+disabled. This type is created if the {\tt Resident} command is used to
+remove a built-in command or a system segment.
 \medskip{}
 
 The {\tt seg\_Seg}\mkey{seg\_Seg} element is a BPTR to the actual segment list\key{Segment}
@@ -24690,7 +24698,7 @@ by the caller.
 This function does not alter {\tt IoErr()} on success, but it sets it to
 {\tt ERROR\_OBJECT\_NOT\_FOUND}\key{ERROR\_OBECT\_NOT\_FOUND} in case no matching segment could be found.
 
-\subsection{Adding a Resident Segment}
+\subsection{Adding a Resident Segment} \label{sec:addsegment}
 
 The {\tt AddSegment}\mkey{AddSegment()} adds a segment to the list of
 resident segments\key{Segment (resident)} and makes it available to other processes.
