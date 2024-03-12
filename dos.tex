@@ -24154,7 +24154,7 @@ argument or whether arguments are filled by position. The
 complete list of options is found below. For example, {\tt QUICK=Q/S}
 indicates a boolean switch matching the keyword {\tt QUICK} or {\tt Q} on
 the command line, and the option the {\tt /S} indicates that it is a
-switch. The keywords are separated by commata (``{\tt ,}'') from each other.
+switch. The keywords are separated by commas (``{\tt ,}'') from each other.
 \smallskip{}
 
 {\tt ReadArgs()}\key{ReadArgs()} parses by matching keywords on the command line to
@@ -24389,7 +24389,7 @@ The {\tt FreeArgs()}\mkey{FreeArgs()} function releases all resources
 allocated by {\tt ReadArgs()}\key{ReadArgs()}.
 
 \begin{verbatim}
-FreeArgs(rdargs)
+FreeArgs(rdargs) /* since V36 */
            D1
 
 void FreeArgs(struct RDArgs *)
@@ -24420,69 +24420,78 @@ contents is no longer usable after calling {\tt FreeArgs()}\key{FreeArgs()}.
 \subsection{Reading a Single Argument from the Command Line} \label{sec:readitem}
 
 The {\tt ReadItem()}\mkey{ReadItem()} reads a single item from the command
-line or from a provided {\tt CSource} structure.
+line or from a provided {\tt CSource}\key{CSource} structure.
 
 \begin{verbatim}
-value = ReadItem(buffer, maxchars, input)
+value = ReadItem(buffer, maxchars, input) /* since V36 */
 D0                D1        D2      D3
 
 LONG ReadItem(STRPTR, LONG, struct CSource *)
 \end{verbatim}
 
 This function reads a single argument from the command line, i.e.\ the buffer
-of the input file handle\key{FileHandle} of the calling process, or the supplied {\tt
-  CSource} structure. This structure is defined in {\tt dos/rdargs.h} and
+of the input file handle\key{FileHandle} of the calling process, or the
+supplied {\tt CSource}\key{CSource} structure. This structure is defined in {\tt dos/rdargs.h} and
 specified in section~\ref{sec:readargs}.
 \smallskip{}
 
-An argument is delimted by spaces, tabulators, or equals-signs (``{\tt
-  =}''), unless they are enclosed in double quotes. A newline, semicolon
-(``{\tt ;}'') or EOF always terminates an
-argument. Section~\ref{sec:shellsyntax} provides more details on the shell
-syntax. The {\tt ReadItem()}\key{ReadItem()} function handles some escaping
-rules, namely the first class of escape sequences listed in
-section~\ref{sec:shellquotes}. This includes the sequences {\tt *"}, {\tt
-  *E}, {\tt *N} and {\tt **}. Once an argument delimiter is found, {\tt
-  ReadItem()}\key{ReadItem()} terminates, but places the terminator back
-into its source such that the caller is able to identify it.
+An argument is delimted by spaces, tabulators, semicola (``{\tt ;}'') or
+equals-signs (``{\tt =}''), unless they are enclosed in double quotes. A
+newline or EOF always terminates an argument, within or outside of quotes.
+Section~\ref{sec:shellsyntax} provides more details on the Shell syntax.
+\smallskip{}
+
+If an argument is quoted, the first class of escape sequences listed in
+section~\ref{sec:shellquotes} are applied, and the quotes are removed from
+the argument before it is copied into the buffer. This includes the
+sequences {\tt *"}, {\tt *E}, {\tt *N} and {\tt **}. Such escape sequences
+are not relevant \emph{outside} of quotes, and the asterisk there stands for
+itself.
+\smallskip{}
+
+Once an argument delimiter is found, {\tt ReadItem()}\key{ReadItem()}
+terminates; while a line feed, semicolon or EOF is moved back into the
+source, spaces, tabulators or equal-signs are removed from the input buffer
+before this function returns\footnote{Unlike what is stated in~\cite{Bantam}
+only a subset of the delimiters is unread.}.
 \smallskip{}
 
 The {\tt buffer} argument provides a user-supplied buffer into which the
-parsed off argument is copied. This buffer has a capacity of {\tt
-  maxchars}; if this buffer overflows, this function aborts parsing and
+parsed off argument is copied. This buffer has a capacity of
+{\tt maxchars}; if this buffer overflows, this function aborts parsing and
 returns {\tt ITEM\_ERROR}. It does not attempt to allocate an extension
 buffer, unlike {\tt ReadArgs()}\key{ReadArgs()}.
 \smallskip{}
 
 The {\tt input} argument provides an alternative source for the command line
 to be parsed; this source consists of a buffer pointer, a character count and an
-offset in the form of a {\tt CSource} structure explained in
+offset in the form of a {\tt CSource}\key{CSource} structure defined in
 section~\ref{sec:readargs}.
 \medskip{}
 
 This function returns the following result codes defined in {\tt dos/dos.h}:
 \smallskip{}
 
-{\tt ITEM\_EQUAL}\mkey{ITEM\_EQUAL}: an equals-sign (``{\tt =}'') was found as terminator.
+{\tt ITEM\_EQUAL}\mkey{ITEM\_EQUAL} an equals-sign (``{\tt =}'') was found as delimiter.
 \smallskip{}
 
-{\tt ITEM\_ERROR}\mkey{ITEM\_ERROR}: the supplied user buffer is too small or the source run
-out of data before matching a closing quote was found for an opening double
+{\tt ITEM\_ERROR}\mkey{ITEM\_ERROR} the supplied user buffer is too small or the source run
+out of data before matching a closing double quote was found for an opening double
 quote.
 \smallskip{}
 
-{\tt ITEM\_NOTHING}\mkey{ITEM\_NOTHING}: no argument could be retrieved because the source run
+{\tt ITEM\_NOTHING}\mkey{ITEM\_NOTHING} no argument could be retrieved because the source run
 into the end of the command line, i.e.\ either a newline, semiolon or EOF.
 \smallskip{}
 
-{\tt ITEM\_UNQUOTED}\mkey{ITEM\_UNQUOTED}: an unquoted item was found and retrieved from the
+{\tt ITEM\_UNQUOTED}\mkey{ITEM\_UNQUOTED} an unquoted item was found and retrieved from the
 command line.
 \smallskip{}
 
-{\tt ITEM\_QUOTED}\mkey{ITEM\_QUOTED}: a quoted item was found and retrieved.
-\smallskip{}
+{\tt ITEM\_QUOTED}\mkey{ITEM\_QUOTED} a quoted item was found and retrieved.
+\medskip{}
 
-This function does not set {\tt IoErr()}\key{IoErr()}.
+{\tt ReadItem()} does not set {\tt IoErr()}\key{IoErr()}.
 
 \subsection{Find an Argument in a Template}
 
