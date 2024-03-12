@@ -24285,7 +24285,10 @@ in characters. The {\tt CS\_CurChr}\mkey{CS\_CurChr} element is the index of the
 character in the string to be considered for parsing. This element is
 typically set to~0 upfront, but if {\tt ReadArgs()}\key{ReadArgs()} is used for parsing a
 longer string buffer in multiple calls, this element may be carried over
-from a previous parse.
+from a previous parse. If {\tt CS\_Buffer} is {\tt NULL}, {\tt ReadArgs()}
+will retrieve the command line from the file handle buffer of {\tt pr\_CIS}
+of the calling process, as if the {\tt rdargs} argument of {\tt ReadArgs()}
+was set to {\tt NULL}.
 \smallskip{}
 
 The {\tt RDA\_DAList}\mkey{RDA\_DAList} element of the
@@ -24308,15 +24311,15 @@ allocation should be avoided altogether and the size of the supplied command
 line is known to be limited.
 \smallskip{}
 
-The {\tt RDA\_ExtHelp}\mkey{RDA\_ExtHelp} string is an optional extended help string that is
-printed over the output stream of the calling process if the command line to
-be parsed consists of a single question mark. If not present, the
-{\tt template} parameter of {\tt ReadArgs()}\key{ReadArgs()} is
-printed. Following displaying the help string, {\tt ReadArgs()}\key{ReadArgs()}
-then attempts to retrieve another command line from the shell\key{Shell}
-through the input stream. This feature allows users to request help on the
-called command, and enter the command line again after reading the template
-or the extended help.
+The {\tt RDA\_ExtHelp}\mkey{RDA\_ExtHelp} string is an optional extended
+help string. If the command line consists of a single question mark, then
+first {\tt ReadArgs()} prints its {\tt template} argument to the standard
+output of the caller, and requests arguments again by reading from the
+standard input. If yet another question mark is provided as input and
+{\tt RDA\_ExtHelp} is not {\tt NULL}, then this extended help is printed and
+a third attempt is made to read command line arguments. This feature allows
+users to request help on the called command, and enter the command line
+again after reading the template and the extended help.
 \medskip{}
 
 The {\tt RDA\_Flags}\mkey{RDA\_Flags} element allows callers to further refine the
