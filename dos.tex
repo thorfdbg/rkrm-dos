@@ -24659,26 +24659,31 @@ The {\tt FindSegment()}\mkey{FindSegment()} locates a resident
 segment\key{Segment (resident)} by name.
 
 \begin{verbatim}
-segment = FindSegment(name, start, system)
+segment = FindSegment(name, start, system) /* since V36 */
 D0                    D1     D2     D3
 
 struct Segment *FindSegment(STRPTR, struct Segment *, LONG)
 \end{verbatim}
 
 This function locates the segment named {\tt name} in the list of resident
-segments, scanning either the entire list if {\tt start} is {\tt NULL}, or
-at all segments behind the segment pointed to by {\tt start}. This allows
-continuing a scan for another segment of the same name. It returns the
-resident segment found, or {\tt NULL} in case no matching segment is found.
+segments, using a case-insensitive string comparison. This function scans either
+the entire list if {\tt start} is {\tt NULL}, or at all segments following
+the segment pointed to by {\tt start}. This allows continuing a scan for
+another segment of the same name. It returns the
+resident segment found, or {\tt NULL} in case no matching segment is
+found. Note that the returned pointer is a
+{\tt Segment}\key{Segment (resident)} structure as defined in
+section~\ref{sec:resident}, and not a BPTR to a segment of a binary
+executable as returned by {\tt LoadSeg()}\key{LoadSeg()}.
 \smallskip{}
 
 The {\tt system} flag indicates whether the function scans for regular
 segments or system/internal segments. If {\tt system} is~{\tt DOSFALSE},
-only regular entres with a positive {\tt seg\_UC}\key{seg\_UC} counter are located. If
-{\tt system} is {\tt DOSTRUE}, only system or built-in segments whose {\tt
-  seg\_UC} value is negative are found. In the latter case, the above
+only regular entries with a positive {\tt seg\_UC}\key{seg\_UC} counter are located. If
+{\tt system} is {\tt DOSTRUE}, only system or built-in segments whose
+{\tt seg\_UC} value is negative are found. In the latter case, the above
 function does not attempt to filter out disabled segments; if required, this
-must be done by the caller.
+shall be done by the caller.
 \smallskip{}
 
 This function neither increases the use counter of a found resident
@@ -24704,47 +24709,47 @@ The {\tt AddSegment}\mkey{AddSegment()} adds a segment to the list of
 resident segments\key{Segment (resident)} and makes it available to other processes.
 
 \begin{verbatim}
-success = AddSegment(name, seglist, type)
+success = AddSegment(name, seglist, type) /* since V36 */
 D0                   D1     D2      D3
 
 BOOL AddSegment(STRPTR, BPTR, LONG)
 \end{verbatim}
 
-This function adds the segment {\tt seglist}, e.g.\ as returned by {\tt
-  LoadSeg()}\key{LoadSeg()}, under the given {\tt name} to the list of
+This function adds the segment {\tt seglist}, e.g.\ as returned by
+{\tt LoadSeg()}\key{LoadSeg()}, under the given {\tt name} to the list of
 resident segments. The {\tt seg\_UC}\key{seg\_UC} type and use counter is initialized to
 the value {\tt type}.
 \smallskip{}
 
-The {\tt name} is copied and may be released after the function returns, but
+The {\tt name} is copied and its original buffer may be released or reused after the function returns, but
 the segment\key{Segment} becomes part of the system database of resident
 segments\key{Segment (resident)}.
 \smallskip{}
 
 The value of {\tt type} shall be selected as follows: For regular pure
 executables that are made resident and by that available to other
-processors, {\tt type} shall be set to~1\footnote{The official autodocs and
+processes, {\tt type} shall be set to~1\footnote{The official autodocs and
 \cite{Bantam} are wrong in this regard, they suggest~0, but this value is
 incorrect and not even valid.}.
 \smallskip{}
 
-For system segments that are not commands, {\tt type} shall be set to {\tt
-  CMD\_SYSTEM}\key{CMD\_SYSTEM}; this value is defined in {\tt dos/dosextends.h}. Note that
+For system segments that are not commands, {\tt type} shall be set to
+{\tt CMD\_SYSTEM}\key{CMD\_SYSTEM}; this value is defined in {\tt dos/dosextends.h}. Note that
 such segments cannot be safely unloaded anymore and remain resident for the
 lifetime of the system.
 \smallskip{}
 
 While other values such as {\tt CMD\_INTERNAL}\key{CMD\_INTERNAL} and {\tt CMD\_DISABLED}\key{CMD\_DISABLED} are
-possible, they do not serve a practical use. The first one indicates
+possible, they do not serve a practical purpose. The first one indicates
 commands that are provided by the AmigaDOS Shell, and this value shall only
-be used by the ROM shell\key{Shell}. The second value indicates system segments or
-built-in commands that are currently disabled. It is only used by the {\tt
-  Resident} command on an attempt to remove system or internal segments\key{Segment}.
-\smallskip{}
+be used by the ROM Shell\key{Shell}. The second value indicates system segments or
+built-in commands that are currently disabled. It is only used by the
+{\tt Resident} command on an attempt to remove system or internal segments\key{Segment}.
+\medskip{}
 
-On success, this function returns a non-zero value and does not alter {\tt
-  IoErr()}. On error, it returns {\tt DOSFALSE} and sets {\tt
-  IoErr()}\key{IoErr()} to {\tt ERROR\_NO\_FREE\_STORE}\key{ERROR\_NO\_FREE\_STORE}.
+On success, this function returns a non-zero value and does not alter {\tt IoErr()}.
+On error, it returns {\tt DOSFALSE} and sets {\tt IoErr()}\key{IoErr()} to
+{\tt ERROR\_NO\_FREE\_STORE}\key{ERROR\_NO\_FREE\_STORE}.
 
 \subsection{Removing a Resident Segment} \label{sec:remresident}
 
@@ -24754,8 +24759,8 @@ unavailable to other processes. It also releases all resources associated to
 this segment\key{Segment}.
 
 \begin{verbatim}
-success = RemSegment(segment)
-D0                        D1
+success = RemSegment(segment) /* since V36 */
+D0                     D1
 
 BOOL RemSegment(struct Segment *)
 \end{verbatim}
@@ -24769,20 +24774,19 @@ resources are released, including the segment list associated to the
 resident segment which is purged through {\tt UnLoadSeg()}\key{UnLoadSeg()}.
 \smallskip{}
 
-The resident segment to be removed is typically accquired by {\tt
-  FindSegment()}\key{FindSegment()}. However, any other process can attempt
+The resident segment to be removed is typically accquired by
+{\tt FindSegment()}\key{FindSegment()}. However, any other process can attempt
 to unload the same resident segment at the same time, causing a race
-condition. Therefore, a caller should stop multitasking with {\tt
-  Forbid()}, then locate the segment with {\tt
-  FindSegment()}\key{FindSegment()}, and if this function succeeds, unload
-the found segment with {\tt RemSegment()}\key{FindSegment()}.  Then,
-finally, {\tt Permit()} should be called to re-enable multitasking.
+condition. Therefore, a caller should stop multitasking with
+{\tt Forbid()}, then locate the segment with {\tt FindSegment()}\key{FindSegment()},
+and if this function succeeds, unload the found segment with {\tt RemSegment()}\key{FindSegment()}.
+Then, finally, {\tt Permit()} should be called to re-enable multitasking.
 \smallskip{}
 
-If segment passed in cannot be removed because it is in use or a system
-segment, this function returns {\tt DOSFALSE} and sets {\tt IoErr()} to {\tt
-  ERROR\_OBJECT\_IN\_USE}\key{ERROR\_OBJECT\_IN\_USE}. On success, it returns {\tt DOSTRUE}\footnote{Due
-to a defect in the current version of the \emph{dos.library} it
+If the segment passed in cannot be removed because it is in use or is a system
+segment, this function returns {\tt DOSFALSE} and sets {\tt IoErr()} to
+{\tt ERROR\_OBJECT\_IN\_USE}\key{ERROR\_OBJECT\_IN\_USE}. On success, it
+returns {\tt DOSTRUE}\footnote{Due to a defect in the current version of the \emph{dos.library} it
 unfortunately \emph{also} sets {\tt IoErr()} to the same error code.}.
 
 \section{Writing Custom Shells} \label{sec:usershells}
