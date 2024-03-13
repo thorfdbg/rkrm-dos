@@ -24791,73 +24791,81 @@ unfortunately \emph{also} sets {\tt IoErr()} to the same error code.}.
 
 \section{Writing Custom Shells} \label{sec:usershells}
 
-AmigaDOS allows adding custom shells\key{Shell} to the system that may optionally
-also replace the AmigaDOS default shell, the ``boot shell''\mkey{Boot Shell}. A shell
-is a resident system segment\key{Segment (resident)}, see section~\ref{sec:resident}, similar
-to the CON-Handler\key{CON-Handler} or the RAM-Handler\key{RAM-Handler} on the same list. When
-launching a shell\key{Shell} with the {\tt System()}\key{System()} function, a
-custom shell\key{Shell} may be requested by providing the name of its resident
-segment to the {\tt SYS\_CustomShell} tag. A custom shell may even
-replace the AmigaDOS Shell it by making it resident under the name
-``{\tt shell}''.\mkey{Shell (resident)} On the AmigaDOS Shell, the following command will
-perform the necessary steps:
+AmigaDOS allows adding custom shells\key{Shell} to the system that may
+optionally also replace the AmigaDOS Shell. A shell is a resident
+system segment\key{Segment (resident)}, see section~\ref{sec:resident},
+similar to the CON-Handler\key{CON-Handler} or the
+RAM-Handler\key{RAM-Handler} on the same list. When launching a
+shell\key{Shell} with the {\tt System()}\key{System()} function, a custom
+shell\key{Shell} may be requested by providing the name of its resident
+segment to the {\tt SYS\_CustomShell} tag. A custom shell may even replace
+the AmigaDOS Shell it by making it resident under the name ``{\tt
+  shell}''.\mkey{Shell (resident)} On the AmigaDOS Shell, the following
+command will perform this step:
 
 \begin{verbatim}
 resident shell MyShell replace system
 \end{verbatim}
 
 where {\tt MyShell} is the file name of your shell\key{Shell}. However, a shell
-is not a regular program otherwise and shall be implemented according
-to the following guidelines:
+is not a regular program and requires to go through a custom startup mechanism.
 \smallskip{}
 
-First of all, AmigaDOS supports a BCPL shell\key{Shell} under the name ``{\tt
-  CLI}''\mkey{CLI} which will be initialized as BCPL programs using the BCPL
-runtime binding protocol explained in
-section~\ref{sec:bcplbinding}. AmigaDOS also supports C and assembler
-based shells\key{Shell} under the names ``{\tt shell}'' and ``{\tt
-  BootShell}''. A user shell replacing the ``{\tt shell}'' entry in
-the resident segment\key{Segment (resident)} list will thus follow C or assembler binding.
+First of all, AmigaDOS supports a BCPL shell\key{Shell} under the name
+``{\tt CLI}''\mkey{CLI} which will be initialized as BCPL programs using the BCPL
+runtime binding protocol explained in section~\ref{sec:bcplbinding}.
+AmigaDOS also supports C and assembler
+based shells\key{Shell} under the names ``{\tt shell}'' and
+``{\tt BootShell}''. A user shell replacing the ``{\tt shell}'' entry in
+the resident segment\key{Segment (resident)} list will
+thus follow C or assembler binding.
 \smallskip{}
 
-Regardless of whether the Shell is run as BCPL or C program, it
-receives a startup-package in the form of a {\tt DosPacket}\key{DosPacket} structure
+Regardless of whether the Shell is run as BCPL or C program, it receives a
+startup-package in the form of a {\tt DosPacket}\key{DosPacket} structure
 similar to handlers and file systems. The startup code from
-section~\ref{sec:bcplbinding} provides a minimal interface for the
-BCPL runtime binding, and is also safe to use for C shells.  For the
-following example code, it is assumed that this startup code is the
-first segment of the shell\key{Shell} code, and that its {\tt main()} function is
-called through this minimal interface. AmigaDOS, in its current
-incarnation, initializes the shell startup packet as follows:
+section~\ref{sec:bcplbinding} provides a minimal interface for BCPL runtime
+binding and is also safe to use for shells implemented in C or assembler.
+The example code in this section assumes that this startup code is used as
+initial segment of the shell\key{Shell} code; it will call the {\tt main()}
+function of the provided example.
+\medskip{}
+
+Even though there is no need to interpret the elements of the startup packet
+as of AmigaDOS~47 anymore, the following information is provided for the
+sake of completeness:
 \smallskip{}
 
 If {\tt dp\_Type} is non-zero, and {\tt dp\_Res1} and {\tt dp\_Res2}
 are both~0, this is a regular shell\key{Shell} startup, and this is the only
-startup type that still exists. If, deriving from the above, {\tt
-  dp\_Type} is zero, then this indicated the creation of the ``Initial
-CLI'', and if {\tt dp\_Res1} is non-zero, this used to indicate the
-creation of a shell\key{Shell} through {\tt NewShell}. These two startup types no
-longer exist and are no longer in use. All other startup packet types are
-not used by AmigaDOS.
+startup that still exists in AmigaDOS~47, thus no particular test for
+{\tt dp\_Type} needs to be made for this version. Under AmigaDOS versions 36 to
+45, the following legacy startup types existed: if {\tt dp\_Type} was~0,
+then this used to indicate the creation of the ``Initial
+CLI'' booting the system, and if {\tt dp\_Res1} and {\tt dp\_Type} were non-zero,
+this used to indicate the creation of a shell\key{Shell} through the
+{\tt NewShell} command. Under AmigaDOS 34 and before, {\tt dp\_Type}
+was a pointer to a BCPL function that performed the initialization
+of the shell.
 \smallskip{}
 
-In addition, the current AmigaDOS Shell launches instances of itself
+In addition, the AmigaDOS Shell launches instances of itself
 as new processes, for example to implement pipes or the run-back
 operator (``{\tt \&}''), see sections~\ref{sec:binaryops}
 and~\ref{sec:unaryops}, and to indicate this private startup
 mechanism, the AmigaDOS Shell uses an even different combination of
-values in these three elements. As this is a shell-internal mechanism
+values in {\tt dp\_Type}, {\tt dp\_Res1} and {\tt dp\_Res2}. As this is a shell-internal mechanism
 that is not imposed by AmigaDOS, it will not to be documented
 here. Custom shells\key{Shell} may use whatever mechanism they seem fit if they
 need to start instances of itself, provided it does not conflict with
-the above identification of AmigaDOS startup packet.
+the above identification of the AmigaDOS startup packet.
 \smallskip{}
 
 Next, the shell\key{Shell} shall allocate all system resources it
-requires, and if this step fails, the startup code shall set the {\tt
-  dp\_Res1} element of the startup packet to~0, place an error code in
-{\tt dp\_Res2}, and then reply the packet by sending it back to its
-origin.
+requires, and if this step fails, the startup code shall set the
+{\tt dp\_Res1} element of the startup packet to~0, place an error code in
+{\tt dp\_Res2}, then reply the packet by sending it back to its
+origin and exit.
 \smallskip{}
 
 If this first initialization succeeds, the segment array of the
@@ -24868,10 +24876,10 @@ shell\key{Shell} will require this entry themselves, and thus the shell shall
 move its own segment\key{Segment} from entry~3 to entry~4.
 \smallskip{}
 
-Initialization continues with the \emph{dos.library} function {\tt
-  CliInitRun()}\key{CliInitRun()} which extracts parameters from the
-startup packet and from that initializes the {\tt
-  CommandLineInterface} structure representing the shell\key{Shell}. This
+Initialization continues with the \emph{dos.library} function
+{\tt CliInitRun()}\key{CliInitRun()} which extracts parameters from the
+startup packet and from that initializes the
+{\tt CommandLineInterface}\key{CommandLineInterface} structure representing the shell\key{Shell}. This
 structure keeps the publicly accessible status of the shell\key{Shell}, see
 section~\ref{sec:getcli}.
 \smallskip{}
@@ -24882,16 +24890,15 @@ successful. If bit~31 is clear, and {\tt IoErr()}\key{IoErr()} is equal to the
 pointer to the shell\key{Shell} process, i.e.\ to {\tt FindTask(NULL)},
 initialization failed, and the packet was already
 replied\footnote{This communication protocol is surely needlessly
-  bizarre, and this case a legacy of Kickstart 2.0 and not part of the
-  Tripos shell startup.} by {\tt CliInitRun()}\key{CliInitRun()}. In
+bizarre, and this case a legacy of Kickstart 2.0 and not part of the
+Tripos shell startup.} by {\tt CliInitRun()}\key{CliInitRun()}. In
 this case, the shell\key{Shell} shall release all its resources and exit
 immediately.
 \smallskip{}
 
 If no failure was reported from {\tt CliInitRun()}\key{CliInitRun()},
-its return value configures the shell\key{Shell}, and the further handling on the
-startup packet, namely when exactly to send it back to the
-caller. More on this insection~\ref{sec:cliinitrun}. At this point,
+its return value configures the shell\key{Shell}, and defines when to reply
+the startup packet. More on this in section~\ref{sec:cliinitrun}. At this point,
 the shell\key{Shell} is initialized as far as AmigaDOS is concerned and can start
 its work.
 \smallskip{}
@@ -24955,9 +24962,9 @@ void __asm main(register __a0 struct DosPacket *pkt)
 }
 \end{verbatim}
 
-When the shell\key{Shell} replies the startup packet and when it terminates
-depends on the flags returned by {\tt CliInitRun()}\key{CliInitRun()}.
-This is described in the following section.
+At which point the shell\key{Shell} shall reply the startup packet and when
+it shall terminate depends on the flags returned by
+{\tt CliInitRun()}\key{CliInitRun()} specified in section~\ref{sec:cliinitrun}.
 
 \subsection{Initializing a new Shell} \label{sec:cliinitrun}
 
@@ -25088,8 +25095,9 @@ shell\key{Shell}. {\tt CliInit()}\key{CliInit()} had to be called by the {\tt
 {\tt S:Startup-Sequence}, it also initialized the \emph{dos.library}
 and mounted all ROM-resident handlers. These tasks are now taken over
 by a kickstart module of its own, {\tt System-Startup}, which in its
-final step, creates the {\tt Initial CLI} through the {\tt
-  System()}\key{System()} function. 
+final step, creates the {\tt Initial CLI} through the
+{\tt System()}\key{System()} function. Section~\ref{sec:sysstartup}
+provides more details on this modules.
 \smallskip{}
 
 The second function to initialize a shell\key{Shell} was {\tt
