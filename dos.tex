@@ -25299,45 +25299,45 @@ retrieving error strings and generating error requesters.
 
 \section{Object Constructors and Destructors}
 
-AmigaDOS objects should not be allocated manually through {\tt
-  AllocMem()} or other generic memory allocation functions as they do
+AmigaDOS objects should not be allocated manually through
+{\tt AllocMem()} or other generic memory allocation functions as they do
 not initialize the objects correctly nor are they aware of
-undocumented internal extensions to such objects. Thus, the {\tt
-  sizeof} operator of the C language does not necessarily reflect the
+undocumented internal extensions to such objects. Thus, the
+{\tt sizeof} operator of the C language does not necessarily reflect the
 number of bytes to be allocated as AmigaDOS placed undocumented
 elements at the end of the officially documented structures.
 
 \subsection{Allocating a DOS Object} \label{sec:allocdosobject}
 
 The {\tt AllocDosObject()}\mkey{AllocDosObject()} function constructs
-instances of various types used by the \emph{dos.library} and its
-components. The functions listed in this section all take a {\tt type}
-ID that describes the type of the object to be created, and additional
-arguments that are used to initialize this object. They all correspond
-to the same entry in the \emph{dos.library} and only differ in the
-calling convention.
+instances of various objects used by the \emph{dos.library} and
+initializes its elements. The functions listed in this section all take a
+{\tt type} ID that describes the type of the object to be created, and
+additional arguments that are used to initialize this object. They all
+correspond to the same entry in the \emph{dos.library} and only differ in
+the calling convention.
 \smallskip{}
 
-The {\tt AllocDosObject()}\key{AllocDosObject()} and {\tt
-  AllocDosObjectTags()}\mkey{AllocDosObjectTags()} functions are
-identically and provide parameters in the form of a tag list. The
+The {\tt AllocDosObject()}\key{AllocDosObject()} and
+{\tt AllocDosObjectTagList()}\mkey{AllocDosObjectTagList()} functions are
+identical and take additional parameters in the form of a tag list. The
 second function only exists to following naming conventions and to
 allow tools to automatically generate prototypes for the third.
 \smallskip{}
 
 The {\tt AllocDosObjectTags()}\mkey{AllocDosObjectTags()} function
 receives the tag list in the form of a variably sized argument
-list. The compiler takes these arguments, and passes it as a tag list
-into the entry point of the \emph{dos.library}.
+list. The compiler places the tag list on the stack, and passes the stack
+pointer as a tag list into the entry point of the \emph{dos.library}.
 
 \begin{verbatim}
-ptr = AllocDosObject(type, tags)
+ptr = AllocDosObject(type, tags) /* since V36 */
 D0                    D1    D2
 
 void *AllocDosObject(ULONG, struct TagItem *)
 
-ptr = AllocDosObjectTagList(type, tags)
-D0                              D1    D2
+ptr = AllocDosObjectTagList(type, tags) /* since V36 */
+D0                           D1    D2
 
 void *AllocDosObjectTagList(ULONG, struct TagItem *)
 
@@ -25346,8 +25346,8 @@ ptr = AllocDosObjectTags(type, Tag1, ...)
 void *AllocDosObjectTags(ULONG, ULONG, ...)
 \end{verbatim}
 
-The above functions all create objects used by the \emph{dos.library}
-and initializes them according to additional arguments. The {\tt type}
+The above functions all create objects of the \emph{dos.library}
+and initialize them according to the tag list. The {\tt type}
 argument provides the type of the object to be constructed; types are
 defined in {\tt dos/dos.h}:
 
@@ -25362,18 +25362,21 @@ DOS\_RDARGS\key{DOS\_RDARGS} & construct a {\tt RDArgs} structure, as defined in
 \end{rkrmtable}
 
 The {\tt DOS\_FILEHANDLE}\mkey{DOS\_FILEHANDLE} type creates a {\tt FileHandle}\key{FileHandle}
-structure. This structure describes an open file and shall only be
-created through this function as it contains some hidden
-elements. This type takes one parameter, namely {\tt ADO\_FH\_Mode}\mkey{ADO\_FH\_Mode}
+structure as introduced in section~\ref{sec:filehandle}.
+This structure describes an opened file and shall only be created
+through this function as it contains some hidden elements.
+Creating this structure takes one parameter, namely {\tt ADO\_FH\_Mode}\mkey{ADO\_FH\_Mode}
 defined in {\tt dos/dostags.h}, which is the mode in which the file is
 to be opened. This tag takes an argument from
-table~\ref{table:openmodes} which corresponds to the second argument
+table~\ref{table:openmodes} of section~\ref{sec:open} which corresponds to the second argument
 of the {\tt Open()}\key{Open()} function specified in
-section~\ref{sec:open}. It defaults to {\tt ACTION\_FINDINPUT}\key{ACTION\_FINDINPUT}, i.e.\ a
-file that is opened nonexclusively for reading.
+the same section. It defaults to {\tt ACTION\_FINDINPUT}\key{ACTION\_FINDINPUT}, i.e.\ a
+file that is opened non-exclusively for reading. File handles are typically
+created by the \emph{dos.library} only.
 \smallskip{}
 
-The {\tt DOS\_EXALLCONTROL}\key{DOS\_EXALLCONTROL} type creates an {\tt ExAllControl}\key{ExAllControl}
+The {\tt DOS\_EXALLCONTROL}\key{DOS\_EXALLCONTROL} type
+creates an {\tt ExAllControl}\key{ExAllControl}
 structure used to iterate over directory contents, see
 section~\ref{sec:exall}; no additional tags are required.
 \smallskip{}
@@ -25381,49 +25384,52 @@ section~\ref{sec:exall}; no additional tags are required.
 The {\tt DOS\_FIB}\mkey{DOS\_FIB} type creates a {\tt FileInfoBlock}\key{FileInfoBlock} structure as
 defined in section~\ref{sec:fib}. This structure may also be manually
 constructed as it does not contain any hidden elements. However, the
-structure shall be aligned to long word boundaries. The macro {\tt
-  D\_S()}\key{D\_S() macro} in section~\ref{sec:bptrs} should be used if the memory for
-this structure is to be taken from the stack. This macro ensures the
-required alignment. No further tags are necessary.
+structure shall be aligned to long word boundaries.
+The macro {\tt D\_S()}\key{D\_S() macro} in section~\ref{sec:bptrs} should
+be used if the memory for this structure is to be taken from the stack.
+This macro ensures the required alignment. No further tags are necessary for
+constructing the {\tt FileInfoBlock} through {\tt AllocDosObject()}.
 \smallskip{}
 
-The {\tt DOS\_STDPKT}\mkey{DOS\_STDPKT} creates a {\tt StandardPacket}\key{StandardPacket} structure used
+The {\tt DOS\_STDPKT}\mkey{DOS\_STDPKT} type creates a {\tt StandardPacket}\key{StandardPacket} structure used
 for communication between clients and handlers or file systems. It is
 an aggregate of a {\tt Message} and a {\tt DosPacket}\key{DosPacket} structure that
-are chained correctly to each other. There is no need to use exactly
-this structure for handler communication provided the {\tt DosPacket}\key{DosPacket}
-is aligned to a long-word boundary and linked to a {\tt Message}, see
-section~\ref{sec:sendpkt}. This function does actually not return a
-pointer to the {\tt StandardPacket}\key{StandardPacket} itself, but rather to its {\tt
-  DosPacket} element. This constructor does not take any additional tags.
+are chained correctly to each other. The {\tt DosPacket} structure is discussed in section~\ref{sec:dospacket}.
+There is no need to use a {\tt StandardPacket} for handler communication
+provided the {\tt DosPacket}\key{DosPacket} is aligned to a long-word
+boundary and linked to a {\tt Message}, see section~\ref{sec:sendpkt}. This
+function does actually not return a pointer to the
+{\tt StandardPacket}\key{StandardPacket} itself, but rather to its
+{\tt DosPacket} element. This constructor does not take any additional tags.
 \smallskip{}
 
-The {\tt DOS\_CLI}\mkey{DOS\_CLI} structure creates a {\tt CommandLineInterface}\key{CommandLineInterface}
+The {\tt DOS\_CLI}\mkey{DOS\_CLI} type creates a {\tt CommandLineInterface}\key{CommandLineInterface}
 structure as defined in section~\ref{sec:clistruct}. No additional
 tags are recgonized. While it was possible to construct these
-structures manually in the past, this is no longer the case with the
-current version of AmigaDOS as this structure has been extended. A
-shell\key{Shell} which is equipped with a manually constructed {\tt
-  CommandLineInterface} structure will not offer the full
+structures manually previous versions of AmigaDOS, this is no longer the case from AmigaDOS~47
+onwards as this structure has been extended. A
+shell\key{Shell} which is equipped with a manually constructed
+{\tt CommandLineInterface} structure will not offer the full
 functionality of a regular AmigaDOS Shell\key{Shell}.
 \smallskip{}
 
-The {\tt DOS\_RDARGS}\mkey{DOS\_RDARGS} structure creates a {\tt RDArgs} structure used
-by the {\tt ReadArgs()}\key{ReadArgs()} function for command line
-argument parsing, see section~\ref{sec:readargs}. This constructor is
-also called internally by the \emph{dos.library}, but if a custom
-{\tt RDArgs} structure is required to parse, for example, from an
-alternative source and not the standard input, {\tt
-  AllocDosObject()}\key{AllocDosObject()} shall be used to create
-one. No tags are defined for this object.
+The {\tt DOS\_RDARGS}\mkey{DOS\_RDARGS} type creates
+a {\tt RDArgs} structure used by the {\tt ReadArgs()}\key{ReadArgs()}
+function for command line argument parsing, see section~\ref{sec:readargs}.
+This constructor is also called internally by the \emph{dos.library}, but if a custom
+{\tt RDArgs} structure is required for parsing, for example, from an
+alternative source and not the standard input,
+{\tt AllocDosObject()}\key{AllocDosObject()} shall be
+used to create one. No tags are defined for this object.
 \medskip{}
 
-This function returns on succes the pointer to the constructed
-object. Note that for {\tt DOS\_STDPKT}\key{DOS\_STDPKT} this is a pointer to a {\tt
-  DosPacket}\key{DosPacket} structure and not to the {\tt StandardPacket}\key{StandardPacket}
-structure. It does not touch {\tt IoErr()}\key{IoErr()} on success. On
-error, this function returns {\tt NULL} and sets {\tt
-  IoErr()}\key{IoErr()} to {\tt ERROR\_NO\_FREE\_STORE}\key{ERROR\_NO\_FREE\_STORE}.
+{\tt AllocDosObject()}\key{AllocDosObject()} returns on succes
+the pointer to the constructed object. Note that for the type
+{\tt DOS\_STDPKT}\key{DOS\_STDPKT} this is a pointer to a
+{\tt DosPacket}\key{DosPacket} structure and not to the {\tt StandardPacket}\key{StandardPacket}
+structure. This function does not alter {\tt IoErr()}\key{IoErr()} on success. On
+error, this function returns {\tt NULL} and sets
+{\tt IoErr()}\key{IoErr()} to {\tt ERROR\_NO\_FREE\_STORE}\key{ERROR\_NO\_FREE\_STORE}.
 
 \subsection{Releasing a DOS Object} \label{sec:freedosobject}
 
@@ -25431,7 +25437,7 @@ The {\tt FreeDosObject()}\mkey{FreeDosObject()} function destroys an
 AmigaDOS object and releases the resources associated to it.
 
 \begin{verbatim}
-FreeDosObject(type, ptr)
+FreeDosObject(type, ptr) /* since V36 */
                D1   D2
 
 void FreeDosObject(ULONG, void *)
@@ -25455,7 +25461,7 @@ set {\tt IoErr()}\key{IoErr()}.
 While AmigaDOS identifies errors by a unique ID returned by {\tt
   IoErr()}\key{IoErr()}, only printing a number as error report is not
 very helpful. The \emph{dos.library} provides multiple functions to
-generate human readable error messages, either to be printed on the
+generate human readable error messages, either for printing them on the
 console, or by creating a requester with a message on a screen.
   
 \subsection{Display an Error Requester} \label{sec:errorreport}
