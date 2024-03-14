@@ -22910,7 +22910,7 @@ except that {\tt NP\_Name} is set to ``{\tt Initial CLI}''.
 \medskip{}
 
 The {\tt Execute()}\key{Execute()} function described in
-section~\ref{sec:execute} is equivalent to
+section~\ref{sec:execute} is approximately equivalent to
 \begin{verbatim}
 System(NULL,SYS_CmdStream,cmd,
        SYS_Input,in,SYS_Output,out,SYS_UserShell,FALSE,
@@ -22919,8 +22919,9 @@ System(NULL,SYS_CmdStream,cmd,
 where {\tt cmd} is a string stream (see section~\ref{sec:stringstreams})
 containing the commands to be executed, constructed from the first argument
 of {\tt Execute()}, and {\tt in} and {\tt out} are its second and third
-argument. The difference of {\tt System()} and {\tt Execute()} is only the
-returned result, but they internally run into the same code.
+argument. The difference of {\tt System()} and {\tt Execute()} is the
+returned result, and that the above function returns immediately while
+{\tt Execute()}\key{Execute()} blocks.
 \smallskip{}
 
 Under AmigaDOS~45 and before, this function closed the stream provided by
@@ -24903,14 +24904,38 @@ the shell\key{Shell} is initialized as far as AmigaDOS is concerned and can star
 its work.
 \smallskip{}
 
-The following code implements minimal shell\key{Shell} startup handling:
+The following code implements a minimal shell\key{Shell} startup code:
 
 \begin{verbatim}
+#include <exec/types.h>
+#include <exec/alerts.h>
+#include <dos/dos.h>
+#include <dos/dosextens.h>
+#include <proto/exec.h>
+#include <proto/dos.h>
+#include <string.h>
+
+/* An obsolete shell init function call was made */
+#define AN_CLIObsolete  0x0700000F 
+
+/* Shell startup bits */
+#define FN_VALID        31
+#define FN_ASYNC        3
+#define FN_SYSTEM       2
+#define FN_USERINPUT    1
+#define FN_RUNOUTPUT    0
+#define FROM_SYSTEM     ((1L << FN_VALID) | (1L << FN_SYSTEM))
+#define IS_ASYNC        ((1L << FN_VALID) | (1L << FN_ASYNC))
+
+struct DosPacket *ShellMain(struct DosPacket *pkt,LONG fn,
+			    struct ExecBase *SysBase,
+			    struct DosLibrary *DOSBase);
+
 void __asm main(register __a0 struct DosPacket *pkt)
 {
-  struct Library *DOSBase;
-  struct Library *SysBase = *(struct ExecBase **)(4L);
-  struct Process *proc = (struct Process *)(FindTask(NULL));
+  struct DosLibrary *DOSBase;
+  struct ExecBase   *SysBase = *(struct ExecBase **)(4L);
+  struct Process    *proc    =  (struct Process *)(FindTask(NULL));
   
   /* C startup needs to wait for the */
   /* startup packet manually         */
@@ -24924,13 +24949,13 @@ void __asm main(register __a0 struct DosPacket *pkt)
   /* check the packet for validity */
   if (pkt->dp_Type == 0 || pkt->dp_Res2 || pkt->dp_Res1) {
       /* Some other form of startup, not from the Os */
-      /* In worst case, run into Alert()             */
-      ...
+      Alert(AN_CLIObsolete|AT_DeadEnd);
   } else {
    LONG fn;
-   BPTR segs;
+   BPTR *segs;
+   struct CommandLineInterface *cli;
    /* Perform shell initialization, here an example */
-   DOSBase = OpenLibrary("dos.library",47);
+   DOSBase = (struct DosLibrary *)OpenLibrary("dos.library",47);
    if (DOSBase == NULL) {
      /* Initialization failed, return a meaningful  */
      /* error by replying the packet                */
@@ -24941,11 +24966,11 @@ void __asm main(register __a0 struct DosPacket *pkt)
      return;
    }
    /* fixup the segment array */
-   segs = BADDR(process->pr_SegList);
+   segs = BADDR(proc->pr_SegList);
    /* move shell's seg list to the next slot */
-   if (segarray[4] == NULL) {
-     segarray[4] = segarray[3];
-     segarray[3] = NULL;
+   if (segs[4] == NULL) {
+     segs[4] = segs[3];
+     segs[3] = NULL;
    }
    /* Perform system initialization through */
    /* the dos.library                       */
@@ -24953,18 +24978,42 @@ void __asm main(register __a0 struct DosPacket *pkt)
    /* Was this an error?                    */
    if (fn > 0 && IoErr() == (LONG)proc) {
      /* An error, release resources and die */
-     CloseLibrary(DOSBase);
+     CloseLibrary((struct Library *)DOSBase);
      /* The Packet is already replied       */
      return;
    }
+   if ((fn & IS_ASYNC) == IS_ASYNC) {
+     /* check for async system call */
+     /* so reply now */
+     ReplyPkt(pkt,pkt->dp_Res1,pkt->dp_Res2);
+     pkt = NULL;
+   }
    /* Main function continues               */
-   ...
+   pkt = ShellMain(pkt,fn,SysBase,DOSBase);
+
+   cli = Cli();
+   /* Shutdown for run and System(NULL,...) */
+   if (!(fn & (1L << FN_VALID)))
+     fn = (1L << FN_RUNOUTPUT) | (1l << FN_ASYNC);
+
+   /* Shutdown code                         */
+   Flush(Output());
+   if (!(fn & (1L << FN_USERINPUT)))
+     Close(cli->cli_StandardInput);
+   if (fn & (1L << FN_RUNOUTPUT))
+     Close(cli->cli_StandardOutput);
+
+   /* if not yet replied, do finally now    */
+   if (pkt)
+     ReplyPkt(pkt,cli->cli_ReturnCode,cli->cli_Result2);
+  }
 }
 \end{verbatim}
 
 At which point the shell\key{Shell} shall reply the startup packet and when
 it shall terminate depends on the flags returned by
-{\tt CliInitRun()}\key{CliInitRun()} specified in section~\ref{sec:cliinitrun}.
+{\tt CliInitRun()}\key{CliInitRun()} specified in
+section~\ref{sec:cliinitrun}.
 
 \subsection{Initializing a new Shell} \label{sec:cliinitrun}
 
@@ -24973,7 +25022,7 @@ process and its {\tt CommandLineInterface} structure from a shell\key{Shell}
 startup package.
 
 \begin{verbatim}
-flags = CliInitRun( packet )
+flags = CliInitRun( packet ) /* since V36 */
 D0                    A0
 
 LONG CliInitRun( struct DosPacket * )
@@ -24981,24 +25030,25 @@ LONG CliInitRun( struct DosPacket * )
 
 This function is part of the shell\key{Shell} initialization. The {\tt packet} is the
 {\tt DosPacket}\key{DosPacket} the shell received as startup information; the function
-initializes from it all elements of the {\tt
-  CommandLineInterface}\key{CommandLineInterface} structure stored in the
+initializes from it all elements of the
+{\tt CommandLineInterface}\key{CommandLineInterface} structure stored in the
 {\tt pr\_CLI}\key{pr\_CLI} BPTR of the calling process.
 \smallskip{}
 
-The arguments of the packet are intentionally not documented here, and
-AmigaDOS may change or extend the packet in the future.
+The arguments of the shell startup packet are intentionally not documented
+here, and AmigaDOS may change or extend how the packet is populated in the
+future.
 \medskip{}
 
-This function returns a collection of flags packet in a 32-bit {\tt
-  LONG} value. Unfortunately, these flags are not defined in any of
-the official AmigaDOS headers; instead, names for these bits are
+{\tt CliInitRun()} returns a collection of flags packet in a 32-bit
+{\tt LONG} value. Unfortunately, these flags are not defined in any of
+the official AmigaDOS headers; instead, the following names for these bits are
 suggested here:
 
 \begin{rkrmtabular}{{\tt\bf CliInitRun()} flags} \label{table:cliinitrunflags}
 \begin{longtable}{|l|l|l|} \hline
 {\bf Acronym}       & {\bf Bit Number} & {\bf Notes} \\ \hline \hline
-{\tt FN\_VALID}\key{FN\_VALID}     & 31     & indiates that remaining bits are valid \\ \hline
+{\tt FN\_VALID}\key{FN\_VALID}     & 31     & indicates that remaining bits are valid \\ \hline
 {\tt FN\_ASYNC}\key{FN\_ASYNC}     & 3      & asynchronous execution intended \\ \hline
 {\tt FN\_SYSTEM}\key{FN\_SYSTEM}    & 2      & shell terminates on EOF of {\tt cli\_CurrentInput} \\ \hline
 {\tt FN\_USERINPUT}\key{FN\_USERINPUT} & 1      & if~0, close {\tt cli\_StandardInput} on exit \\ \hline
@@ -25021,12 +25071,13 @@ shall only be replied after the first command executed by the shell\key{Shell},
 leaving the {\tt dp\_Res1} and {\tt dp\_Res2} unaltered from the
 values left by {\tt CliInitRun()}\key{CliInitRun()}. When the shell\key{Shell}
 terminates, the shell shall close the {\tt cli\_StandardOutput}\key{cli\_StandardInput} and
-the {\tt cli\_StandardInput} file handles\key{FileHandle} of the {\tt
-  CommandLineInterface}\key{CommandLineInterface} structure. This type of startup is typically
+the {\tt cli\_StandardInput} file handles\key{FileHandle} of the
+{\tt CommandLineInterface}\key{CommandLineInterface} structure. This type of startup is
 used when the shell is instructed to execute commands in the
-background, e.g.\ by the {\tt Run} command, and if {\tt
-  System()}\key{System()} is called with {\tt NULL} as its first
-argument, see section~\ref{sec:system}.
+background, e.g.\ by the {\tt Run} command, and if
+{\tt Execute()}{Execute()} or {\tt System()}\key{System()} are
+called with {\tt NULL} as its first argument and
+{\tt SYS\_Asynch}\key{SYS\_Async} is not set, see section~\ref{sec:system}.
 \smallskip{}
 
 The reason for delaying the startup packet after execution of the
@@ -25038,26 +25089,27 @@ command that executes in the background.
 
 If the bits {\tt FN\_VALID}\key{FN\_VALID} and {\tt FN\_ASYNC}\mkey{FN\_ASYNC} are set, then
 asynchronous command execution is requested. The shell\key{Shell} shall then
-reply the startup packet immediately, leaving {\tt dp\_Res1} and {\tt
-  dp\_Res2} unaltered from the values left by {\tt
-  CliInitRun()}\key{CliInitRun()}. If {\tt FN\_VALID}\key{FN\_VALID} is set and {\tt
-  FN\_ASYNC}\key{FN\_ASYNC} is not set, then the startup packet shall only be replied
+reply the startup packet immediately, leaving {\tt dp\_Res1} and {\tt dp\_Res2}
+unaltered from the values left by {\tt CliInitRun()}\key{CliInitRun()}.
+If {\tt FN\_VALID}\key{FN\_VALID} is set and {\tt FN\_ASYNC}\key{FN\_ASYNC}
+is not set, then the startup packet shall only be replied
 when the last command of the shell\key{Shell} returned. Then, {\tt dp\_Res1}
 shall be set to the return code of this command as found in {\tt
   cli\_ReturnCode}, and {\tt dp\_Res2} shall be set to the error code
 the command left in {\tt cli\_Result2}. The {\tt FN\_ASYNC} bit
-reflects the value of {\tt SYS\_Asynch} of the {\tt
-  System()}\key{System()} call.
+reflects the value of {\tt SYS\_Asynch} of the {\tt System()}\key{System()} call.
 \medskip{}
 
-If bits {\tt FN\_VALID}\key{FN\_VALID} and {\tt FN\_SYSTEM}\mkey{FN\_SYSTEM} are set then the shell\key{Shell}
-shall terminate if the {\tt cli\_CurrentInput} runs into an EOF and
-there is no higher level script\key{Shell Script} to continue executing from. This
-corresponds to the case where the first argument of {\tt
-  System()}\key{System()} is non-{\tt NULL}. In such a case, the
-commands from this string are executed, and once done, the shell stops
-and returns. Shells created this way are never interactive, i.e.\ {\tt
-  cli\_Interactive} shall always be {\tt DOSFALSE}.
+If bits {\tt FN\_VALID}\key{FN\_VALID} and {\tt FN\_SYSTEM}\mkey{FN\_SYSTEM}
+are set then the shell\key{Shell} shall terminate if the
+{\tt cli\_CurrentInput} runs into an EOF and there is no higher
+level script\key{Shell Script} to continue executing from. This
+corresponds to the case where the first argument of
+{\tt System()}\key{System()} is non-{\tt NULL}. In such a case, the
+commands from this string are executed from a string stream placed in
+{\tt cli\_CurrentInput}\key{cli\_CurrentInput}. Once done, the shell stops
+and returns. Shells created this way are never interactive, i.e.\
+{\tt cli\_Interactive} shall always be {\tt DOSFALSE}.
 \smallskip{}
 
 If the {\tt FN\_VALID}\key{FN\_VALID} flag is set and {\tt FN\_SYSTEM}\key{FN\_SYSTEM} is reset, then
@@ -25065,8 +25117,8 @@ the shell\key{Shell} continues to read commands from {\tt cli\_StandardInput}\ke
 {\tt cli\_CurrentInput}\key{cli\_CurrentInput} depletes and there is no higher level script\key{Shell Script}
 to continue executing from. Only if the two input streams are equal
 and and EOF condition is detected, the shell terminates. This
-corresponds to the case where the the shell\key{Shell} was initiated through {\tt
-  Execute()}, or {\tt System()} with a {\tt NULL} command string.
+corresponds to the case where the the shell\key{Shell} was initiated through
+{\tt Execute()} with a non-{\tt NULL} command string.
 \medskip{}
 
 If bits {\tt FN\_VALID}\key{FN\_VALID} and {\tt FN\_USERINPUT}\mkey{FN\_USERINPUT} are set, then the
@@ -25075,23 +25127,149 @@ terminating. If {\tt FN\_VALID}\key{FN\_VALID} is set and {\tt FN\_USERINPUT}\ke
 reset, then {\tt cli\_StandardInput}\key{cli\_StandardInput} shall be closed on exit.
 \smallskip{}
 
-If the bits {\tt FN\_VALID}\key{FN\_VALID} and {\tt FN\_RUNOUTPUT}\mkey{FN\_RUNOUTPUT} are set, then {\tt
-  cli\_StandardOutput}\key{cli\_StandardOutput} shall be closed when the shell\key{Shell} process
-terminates. Otherwise, if {\tt FN\_VALID}\key{FN\_VALID} is set and {\tt
-  FN\_RUNOUTPUT}\key{FN\_RUNOUTPUT} is reset, then the {\tt cli\_StandardOutput} shall remain
-open. Note that the {\tt FN\_RUNOUTPUT}\key{FN\_RUNOUTPUT} logic is the inverse of the
+If the bits {\tt FN\_VALID}\key{FN\_VALID} and
+{\tt FN\_RUNOUTPUT}\mkey{FN\_RUNOUTPUT} are set, then
+{\tt cli\_StandardOutput}\key{cli\_StandardOutput} shall be closed when the shell\key{Shell} process
+terminates. Otherwise, if {\tt FN\_VALID}\key{FN\_VALID} is set and
+{\tt FN\_RUNOUTPUT}\key{FN\_RUNOUTPUT} is reset, then the
+{\tt cli\_StandardOutput} shall remain open. Note that the
+{\tt FN\_RUNOUTPUT}\key{FN\_RUNOUTPUT} logic is the inverse of the
 {\tt FN\_USERINPUT}\key{FN\_USERINPUT} logic.
 \smallskip{}
 
 A successful startup with {\tt FN\_VALID}\key{FN\_USERINPUT} reset is thus approximately
-equivalent to the bit combination of {\tt FN\_RUNOUTPUT}\key{FN\_RUNOUTPUT} and {\tt
-  FN\_ASYNC}\key{FN\_ASYNC}, except that the elements of the {\tt
-  CommandLineInterface} structure are initialized differently.
+equivalent to the bit combination of {\tt FN\_RUNOUTPUT}\key{FN\_RUNOUTPUT}
+and {\tt FN\_ASYNC}\key{FN\_ASYNC}, except that the elements of the
+{\tt CommandLineInterface} structure are initialized differently and the
+startup packet is replied at a different stage.
 \medskip{}
 
+The following source code implements a main program of a very primitive
+shell which lacks many features such as variable expansion, redirection,
+resident commands, a configurable prompt, it does not even scan the
+path. This main program fits to the shell startup code in
+section~\ref{sec:usershells}.
+\begin{verbatim}
+/* A rather primitive shell main program */
+struct DosPacket *ShellMain(struct DosPacket *pkt,LONG fn,
+			    struct ExecBase   *SysBase,
+			    struct DosLibrary *DOSBase)
+{
+  struct CommandLineInterface *cli = Cli();
+  UBYTE  cmd[256];
+  UBYTE  args[256];
+  LONG   result;
+  LONG   ch;
+
+  do {
+    do {
+      /* Compute the interactive flag */
+      cli->cli_Interactive    = (!cli->cli_Background  &&
+                                  cli->cli_CurrentInput ==
+                                  cli->cli_StandardInput &&
+                                 (fn & FROM_SYSTEM) != FROM_SYSTEM)?
+                                DOSTRUE : FALSE;
+
+      SelectInput(cli->cli_CurrentInput);
+      SelectOutput(cli->cli_StandardOutput);
+      
+      if (cli->cli_Interactive) {
+        if (!cli->cli_Background) {
+          Printf("SimpleShell > ");
+          Flush(Output());
+        }
+      } else {
+        /* Check for script termination */
+        if (CheckSignal(SIGBREAKF_CTRL_D)) {
+          PrintFault(ERROR_BREAK,"SHELL");
+          break;
+        }
+      }
+
+      /* Read the command */
+      SetIoErr(0);
+      cmd[0]          = 0;
+      cli->cli_Module = 0;
+
+      ch     = FGetC(Input());
+      UnGetC(Input(),ch);
+      result = ReadItem(cmd,sizeof(cmd),NULL);
+      if (result == ITEM_UNQUOTED || result == ITEM_QUOTED) {
+        cli->cli_Module = LoadSeg(cmd);
+        if (FGets(Input(),args,sizeof(args))) {
+          if (cli->cli_Module) {
+            SetProgramName(cmd);
+            cli->cli_ReturnCode =
+              RunCommand(cli->cli_Module,
+                         cli->cli_DefaultStack << 2,
+                         args,(LONG)strlen(args));
+            cli->cli_Result2 = IoErr();
+            if (cli->cli_ReturnCode >= cli->cli_FailLevel &&
+                !cli->cli_Interactive) {
+              Printf("%s failed : %ld\n",cmd,cli->cli_ReturnCode);
+              break;
+            }
+            if (cli->cli_Module)
+              UnLoadSeg(cli->cli_Module);
+          } else {
+            cli->cli_Result2    = IoErr();
+            cli->cli_ReturnCode = 10;
+            PrintFault(cli->cli_Result2,cmd);
+            if (cli->cli_ReturnCode >= cli->cli_FailLevel &&
+                !cli->cli_Interactive)
+              break;
+          }
+        }
+      }
+      /* Reply to pkt if not done so */
+      if (pkt && !(fn & (1L << FN_VALID))) {
+        ReplyPkt(pkt,pkt->dp_Res1,pkt->dp_Res2);
+        pkt = NULL;
+      }
+
+      /* abort on system */
+      if (((fn & FROM_SYSTEM) == FROM_SYSTEM) &&
+          (cli->cli_CurrentInput == cli->cli_StandardInput))
+        break;
+
+    } while(ch != -1);
+
+    /* cleanup command file left by execute */
+    {
+      UBYTE *commandfile = BADDR(cli->cli_CommandFile);
+      if (commandfile && *commandfile) {
+        SetProtection(commandfile+1,0);
+        DeleteFile(commandfile+1);
+        commandfile[0] = 0;
+      }
+    }
+    
+    if (cli->cli_CurrentInput == cli->cli_StandardInput) {
+      /* endcli only if its an interactive CLI */
+      if (!cli->cli_Background)
+        Printf("SimpleShell terminating...");
+      break;
+    } else {
+      /* Script is done, revert input */
+      Close(cli->cli_CurrentInput);
+      cli->cli_CurrentInput = cli->cli_StandardInput;
+      /* If coming from System(), close down */
+      if ((fn & FROM_SYSTEM) == FROM_SYSTEM) {
+        break;
+      } else {
+        cli->cli_FailLevel    = 10;
+      }
+    }
+  } while(1);
+
+  return pkt;
+}
+\end{verbatim}
+
 Historically, two additional functions existed to initialize a
-shell\key{Shell}. {\tt CliInit()}\key{CliInit()} had to be called by the {\tt
-  Initial CLI} and not only initialized the shell to read from the
+shell\key{Shell} in AmigaDOS~36 to AmigaDOS~45.
+{\tt CliInit()}\key{CliInit()} had to be called by the
+{\tt Initial CLI} and not only initialized the shell to read from the
 {\tt S:Startup-Sequence}, it also initialized the \emph{dos.library}
 and mounted all ROM-resident handlers. These tasks are now taken over
 by a kickstart module of its own, {\tt System-Startup}, which in its
@@ -25100,12 +25278,17 @@ final step, creates the {\tt Initial CLI} through the
 provides more details on this modules.
 \smallskip{}
 
-The second function to initialize a shell\key{Shell} was {\tt
-  CliInitNewShell()}\key{CliInitNewShell()} which was exclusively used
-by a shell\key{Shell} created by the {\tt NewShell} command. In the latest
-version of AmigaDOS, {\tt NewShell} also calls through {\tt
-  System()}\key{System()} and thus only depends on {\tt
-  CliInitRun()}\key{CliInitRun()}.
+The second function to initialize a shell\key{Shell} was
+{\tt CliInitNewShell()}\key{CliInitNewShell()} which was
+exclusively used by a shell\key{Shell} created by the {\tt NewShell}
+command. In the latest version of AmigaDOS, {\tt NewShell}
+also calls through {\tt System()}\key{System()} and
+thus only depends on {\tt CliInitRun()}\key{CliInitRun()}.
+\smallskip{}
+
+The shell startup mechanism under AmigaDOS~34 and below was even different.
+There, {\tt dp\_Type} was a pointer to a BCPL function the shell had to call
+to get initialized by AmigaDOS.
 
 \chapter{Miscellaneous Functions}
 
