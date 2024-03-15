@@ -4542,9 +4542,8 @@ The {\tt lock} shall be a lock\key{Lock} on the directory to be examined. It sha
 be {\tt ZERO}.
 \smallskip{}
 
-To start a directory scan, first allocate a {\tt
-  ExAllControl}\mkey{ExAllControl} structure through {\tt
-  AllocDosObject()}\key{AllocDosObject()},
+To start a directory scan, first allocate a {\tt ExAllControl}\mkey{ExAllControl} structure
+through {\tt AllocDosObject()}\key{AllocDosObject()},
 see~\ref{sec:allocdosobject} and the example below. This structure looks as follows:
 
 \mkey{ExAllControl}
@@ -24396,27 +24395,36 @@ FreeArgs(rdargs) /* since V36 */
 void FreeArgs(struct RDArgs *)
 \end{verbatim}
 
-This function releases all resources accquired by the AmigaDOS argument
-parser given an {\tt RDArgs} structure. This includes temporary buffers, and
---- unless a custom {\tt RDArgs} structure was passed into
-{\tt ReadArgs()}\key{ReadArgs()} --- also {\tt rdargs} structure itself. If
-a custom allocated {\tt RDArgs} structure was provided to
-{\tt ReadArgs()}\key{ReadArgs()}, then this structure shall be disposed
-manually by {\tt FreeDosObject()}\key{FreeDosObject()}
-(see~\ref{sec:freedosobject}), it is not released by {\tt FreeArgs()}\key{FreeArgs()}.
+This function releases all resources accquired by the
+{\tt ReadArgs()}\key{ReadArgs()} argument parser.
+The {\tt rdargs} argument is the result of
+{\tt ReadArgs()}\key{ReadArgs()}, which is identical to
+the {\tt rdargs} structure provided as its third argument if it was not {\tt NULL}.
+{\tt FreeArgs()} releases all temporary buffers associated to the
+{\tt rdargs} structure, and in case it was allocated by {\tt ReadArgs()}, also
+the structure itself. If a custom allocated {\tt RDArgs}
+structure was passed into {\tt ReadArgs()}\key{ReadArgs()}, then
+it shall be disposed manually by {\tt FreeDosObject()}\key{FreeDosObject()}
+(see~\ref{sec:freedosobject}).
 \smallskip{}
 
-The {\tt rdargs} argument is a pointer to a {\tt RDArgs} structure whose
-resources, including potentially itself, shall be released. It is safe to
-pass in {\tt NULL}, in which case this function does nothing.
+As {\tt FreeArgs()} potentially releases all elements of the {\tt array}
+argument of {\tt ReadArgs()}\key{ReadArgs()} as part of its resources, the
+contents of this array are no longer usable afterwards. If {\tt array}
+is supposed to be reused for another {\tt ReadArgs()}, all its elements
+shall be set to zero again.
 \smallskip{}
 
-This function shall be called once all arguments of a {\tt ReadArgs()}\key{ReadArgs()}
-call (see~\ref{sec:readargs}), have been processed. The {\tt rdargs} argument is
-either the result of {\tt ReadArgs()}\key{ReadArgs()}, or the {\tt rdargs}
-structure provided to it. {\tt FreeArgs()} potentially releases all elements of
-the {\tt array} argument of {\tt ReadArgs()}\key{ReadArgs()}, and thus its
-contents is no longer usable after calling {\tt FreeArgs()}\key{FreeArgs()}.
+From AmigaDOS~39 onwards, this function clears the
+{\tt RDA\_Buffer}\key{RDA\_Buffer} element of {\tt rdargs} upfront, which can
+point to one of the resources that are about to be released.
+While this makes a {\tt rdargs} structure
+allocated through {\tt AllocDosObject()}\key{AllocDosObject()} safe to reuse
+for another {\tt ReadArgs()}\key{ReadArgs()} call, it also makes a custom
+buffer installed there unavailable. Thus, if such a custom
+buffer is supposed to be reused, {\tt RDA\_Buffer} must be reinitialized\footnote{\cite{guru} recommends to
+zero {\tt RDA\_Buffer} manually. This is no longer necessary, though
+requires re-installing a custom buffer.}.
 
 \subsection{Reading a Single Argument from the Command Line} \label{sec:readitem}
 
@@ -24915,9 +24923,6 @@ The following code implements a minimal shell\key{Shell} startup code:
 #include <proto/dos.h>
 #include <string.h>
 
-/* An obsolete shell init function call was made */
-#define AN_CLIObsolete  0x0700000F 
-
 /* Shell startup bits */
 #define FN_VALID        31
 #define FN_ASYNC        3
@@ -24926,10 +24931,6 @@ The following code implements a minimal shell\key{Shell} startup code:
 #define FN_RUNOUTPUT    0
 #define FROM_SYSTEM     ((1L << FN_VALID) | (1L << FN_SYSTEM))
 #define IS_ASYNC        ((1L << FN_VALID) | (1L << FN_ASYNC))
-
-struct DosPacket *ShellMain(struct DosPacket *pkt,LONG fn,
-			    struct ExecBase *SysBase,
-			    struct DosLibrary *DOSBase);
 
 void __asm main(register __a0 struct DosPacket *pkt)
 {
@@ -25009,11 +25010,6 @@ void __asm main(register __a0 struct DosPacket *pkt)
   }
 }
 \end{verbatim}
-
-At which point the shell\key{Shell} shall reply the startup packet and when
-it shall terminate depends on the flags returned by
-{\tt CliInitRun()}\key{CliInitRun()} specified in
-section~\ref{sec:cliinitrun}.
 
 \subsection{Initializing a new Shell} \label{sec:cliinitrun}
 
@@ -25365,14 +25361,16 @@ The {\tt DOS\_FILEHANDLE}\mkey{DOS\_FILEHANDLE} type creates a {\tt FileHandle}\
 structure as introduced in section~\ref{sec:filehandle}.
 This structure describes an opened file and shall only be created
 through this function as it contains some hidden elements.
-Creating this structure takes one parameter, namely {\tt ADO\_FH\_Mode}\mkey{ADO\_FH\_Mode}
+Creating this structure is documented to take one parameter, namely {\tt ADO\_FH\_Mode}\mkey{ADO\_FH\_Mode}
 defined in {\tt dos/dostags.h}, which is the mode in which the file is
 to be opened. This tag takes an argument from
 table~\ref{table:openmodes} of section~\ref{sec:open} which corresponds to the second argument
 of the {\tt Open()}\key{Open()} function specified in
 the same section. It defaults to {\tt ACTION\_FINDINPUT}\key{ACTION\_FINDINPUT}, i.e.\ a
 file that is opened non-exclusively for reading. File handles are typically
-created by the \emph{dos.library} only.
+created by the \emph{dos.library} only. However, even though this tag may
+sound useful, nothing in the initialization of the handle currently
+depends on its value.
 \smallskip{}
 
 The {\tt DOS\_EXALLCONTROL}\key{DOS\_EXALLCONTROL} type
@@ -25397,21 +25395,47 @@ an aggregate of a {\tt Message} and a {\tt DosPacket}\key{DosPacket} structure t
 are chained correctly to each other. The {\tt DosPacket} structure is discussed in section~\ref{sec:dospacket}.
 There is no need to use a {\tt StandardPacket} for handler communication
 provided the {\tt DosPacket}\key{DosPacket} is aligned to a long-word
-boundary and linked to a {\tt Message}, see section~\ref{sec:sendpkt}. This
-function does actually not return a pointer to the
+boundary and linked to a {\tt Message}, see section~\ref{sec:sendpkt}.
+{\tt AllocDosObject()}\key{AllocDosObject()} does actually not return a pointer to the
 {\tt StandardPacket}\key{StandardPacket} itself, but rather to its
 {\tt DosPacket} element. This constructor does not take any additional tags.
 \smallskip{}
 
-The {\tt DOS\_CLI}\mkey{DOS\_CLI} type creates a {\tt CommandLineInterface}\key{CommandLineInterface}
-structure as defined in section~\ref{sec:clistruct}. No additional
-tags are recgonized. While it was possible to construct these
-structures manually previous versions of AmigaDOS, this is no longer the case from AmigaDOS~47
-onwards as this structure has been extended. A
-shell\key{Shell} which is equipped with a manually constructed
+The {\tt DOS\_CLI}\mkey{DOS\_CLI} type creates a
+{\tt CommandLineInterface}\key{CommandLineInterface}
+structure as defined in section~\ref{sec:getcli}. While it was
+possible to construct this structures manually previous versions
+of AmigaDOS, this is no longer the case from AmigaDOS~47
+onwards as it has been extended with private elements. A shell\key{Shell}
+which is equipped with a manually constructed
 {\tt CommandLineInterface} structure will not offer the full
 functionality of a regular AmigaDOS Shell\key{Shell}.
 \smallskip{}
+
+While the size of various buffers of the created structure can be set by the
+following tags, they actually not particularly useful. Nothing in the CLI
+structure indicates the actual buffer sizes and the AmigaDOS Shell therefore
+uses hardcoded limits instead:
+
+\smallskip{}
+{\tt ADO\_PromptLen} is the size of the {\tt cli\_Prompt}\key{cli\_Prompt} buffer
+containing the formatting string of the prompt, in bytes.
+\smallskip{}
+
+{\tt ADO\_CommNameLen} defines the size of the
+{\tt cli\_CommandName}\key{cli\_CommandName} buffer in bytes,
+containing the name of the currently loaded command.
+\smallskip{}
+
+{\tt ADO\_CommFileLen} selects the size of the
+{\tt cli\_CommandFile}\key{cli\_CommandFile} buffer in bytes; this buffer
+holds the name of a temporary script file generated by {\tt Execute}.
+\smallskip{}
+
+{\tt ADO\_DirLen} defines the size of the
+{\tt cli\_SetName}\key{cli\_SetName} buffer in bytes which contains the
+path of the current directory.
+\medskip{}
 
 The {\tt DOS\_RDARGS}\mkey{DOS\_RDARGS} type creates
 a {\tt RDArgs} structure used by the {\tt ReadArgs()}\key{ReadArgs()}
@@ -25452,6 +25476,12 @@ object to be destroyed. In case type is {\tt DOS\_STDPKT}\key{DOS\_STDPKT}, the 
 {\tt StandardPacket}\key{StandardPacket} aggregate.
 \smallskip{}
 
+Before AmigaDOS~39, releasing a
+{\tt CommandLineInterface}\key{CommandLineInterface} structure did not
+free all buffers associated this structure and thus caused a memory
+leak. This was fixed in AmigaDOS~39.
+\smallskip{}
+
 Passing {\tt NULL} as {\tt ptr} performs nothing, the function exits
 in this case without performing any action.  This function does not
 set {\tt IoErr()}\key{IoErr()}.
@@ -25472,7 +25502,7 @@ file handle\key{FileHandle} or a lock\key{Lock} and waits a the response of the 
 either abort or retry an activity.
 
 \begin{verbatim}
-status = ErrorReport(code, type, arg1, device)
+status = ErrorReport(code, type, arg1, device) /* since V36 */
 D0                    D1    D2    D3     D4
 
 BOOL ErrorReport(LONG, LONG, ULONG, struct MsgPort *)
@@ -25484,13 +25514,13 @@ calling process. If {\tt pr\_WindowPtr} is~$-1$, then no requester is
 shown and the function returns immediately with a non-zero return
 code, indicating that cancelation of the activity is desired. This
 function is typically called by AmigaDOS handlers attempting to
-generate an error requester, or the \emph{dos.library}
+generate an error requester, or by functions of the \emph{dos.library}
 itself. However, user code may also use this function to generate an
 AmigaDOS standard requester.
 \smallskip{}
 
-The {\tt code} argument is an error identifier returned by {\tt
-  IoErr()}\key{IoErr()}. Only a subset of the error identifies listed
+The {\tt code} argument is an error identifier returned by
+{\tt IoErr()}\key{IoErr()}. Only a subset of the error codes listed
 in section~\ref{sec:ioerr} are supported by this function; they are
 defined in the include files {\tt dos/dos.h} and {\tt
   dos/dosextends.h}. Table~\ref{table:reporterrors} lists them:
@@ -25528,12 +25558,13 @@ name is extracted.
 \smallskip{}
 
 The {\tt device} argument is a (regular) pointer to a {\tt MsgPort}
-structure that is only used if {\tt type} is {\tt REPORT\_LOCK}\key{REPORT\_LOCK} and
-{\tt arg1} is {\tt ZERO}. This port is assumed to be a {\tt MsgPort}
-of a file handler\key{FileHandle} that is contacted to learn about the name of the
-currently inserted volume. This could be the {\tt pr\_FileSystemTask}\key{pr\_FileSystemTask}
-of the calling process which contains the {\tt MsgPort} of the file
-handler responsible for the {\tt ZERO} lock\key{Lock}\key{ZERO lock}.
+structure that is only used if {\tt type} is {\tt REPORT\_LOCK}\key{REPORT\_LOCK}
+and {\tt arg1} is {\tt ZERO} or the error indicates that the faulting volume
+is not accessible. This port is assumed to be a {\tt MsgPort} of a file
+handler\key{FileHandle} that is contacted to learn about the name of the
+currently inserted volume. This is typically used when reporting errors
+through a {\tt DevProc}\key{DevProc} structure whose lock and port are
+passed into the error report, see section~\ref{sec:getdeviceproc}.
 \medskip{}
 
 This function returns a boolean indicator whether the currently
@@ -25548,7 +25579,7 @@ The {\tt Fault()} function fills a buffer with an error message from
 an error code and an initial string.
 
 \begin{verbatim}
-len = Fault(code, header, buffer, len)
+len = Fault(code, header, buffer, len) /* since V36 */
 D0           D1     D2      D3    D4
 
 LONG Fault(LONG, STRPTR, STRPTR, LONG)
@@ -25560,12 +25591,12 @@ by a string generated from the error {\tt code} given as first
 argument.
 \smallskip{}
 
-If {\tt header} is non-{\tt NULL}, it is first copied into the {\tt
-  buffer} followed by a colon and a space (``{\tt :~}). The colon and
+If {\tt header} is non-{\tt NULL}, it is first copied into the
+{\tt buffer} followed by a colon and a space (``{\tt :~}''). The colon and
 space are not copied if {\tt header} is {\tt NULL}. This is followed
 by a (localized) error message created from {\tt code}. If {\tt code}
-is~0, the buffer is left untouched and nothing is inserted into the
-{\tt buffer}. If no localized error message is available, the numeric
+is~0, the buffer is left untouched and nothing is inserted into it.
+If no localized error message is available, the numeric
 value of the error is inserted instead.
 \smallskip{}
 
@@ -25573,10 +25604,10 @@ The {\tt len} of {\tt buffer} shall not be~0. It includes the
 {\tt NUL} byte terminating the string created in {\tt buffer}.
 \smallskip{}
 
-Unlike documented, the return value of this function is \emph{not} the
-number of characters inserted into the buffer and is thus not usable.
-As a workaround, to find the length of the inserted string, use {\tt
-  strlen()} on the buffer if {\tt code} is non-zero:
+Due to a defect present even in AmigaDOS~47, the return value of this function is
+\emph{not} the number of characters inserted into the buffer and is thus not
+usable. As a workaround, to find the length of the inserted string, use
+{\tt strlen()} on the buffer if {\tt code} is non-zero:
 
 \begin{verbatim}
 if (code) {
@@ -25587,8 +25618,8 @@ if (code) {
 }
 \end{verbatim}
 
-Note that {\tt buffer} remains unchanged for a~0 argument of {\tt
-  code}, and thus {\tt strlen()} does not return a reliable result in
+Note that {\tt buffer} remains unchanged for a~0 argument of
+{\tt code}, and thus {\tt strlen()} does not return a reliable result in
 this case.
 
 \subsection{Printing an Error Message}
@@ -25598,16 +25629,18 @@ message consisting of a header and a description of an error code over
 the error output channel of the calling process.
 
 \begin{verbatim}
-success = PrintFault(code, header)
+success = PrintFault(code, header) /* since V36 */
 D0                    D1     D2   
 
 BOOL PrintFault(LONG, STRPTR)
 \end{verbatim}
 
-This function implements elementary error reporting by printing an
-error message over the error output {\tt pr\_CES}\key{pr\_CES} of the calling
-process. If that stream does not exist, the error is reported over the
-standard output stream {\tt pr\_COS}\key{pr\_COS} of the caller.
+This function implements elementary error reporting by printing an error
+message over the error output {\tt pr\_CES}\key{pr\_CES} of the calling
+process, see chapter~\ref{sec:process}. If that stream does not exist, the
+error is reported over the standard output stream {\tt pr\_COS}\key{pr\_COS}
+of the caller. Under AmigaDOS~45 and before, this function always printed
+over the standard output.
 \smallskip{}
 
 If {\tt header} is non-{\tt NULL}, this string is printed first,
@@ -25631,7 +25664,7 @@ The {\tt PutErrStr()}\mkey{PutErrStr()} function writes a string to
 the error output stream of the calling process.
 
 \begin{verbatim}
-error = PutErrStr(str)
+error = PutErrStr(str) /* since V47 */
 D0                D1
 
 LONG PutErrStr(STRPTR)
