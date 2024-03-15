@@ -2341,7 +2341,7 @@ error. The latter constant is defined in the include file {\tt
 This function does not touch {\tt IoErr()}\key{IoErr()} if the character only goes
 into the internal buffer. 
 
-\subsection{Write a String Buffered to a File}
+\subsection{Write a String Buffered to a File} \label{sec:fputs}
 
 The {\tt FPuts()}\mkey{FPuts()} function writes a {\tt NUL}-terminated
 string to a file, using the file handle\key{FileHandle} internal buffer.
@@ -25513,17 +25513,17 @@ screen, or on the same screen as the window given by the {\tt pr\_WindowPtr}\key
 calling process. If {\tt pr\_WindowPtr} is~$-1$, then no requester is
 shown and the function returns immediately with a non-zero return
 code, indicating that cancelation of the activity is desired. This
-function is typically called by AmigaDOS handlers attempting to
-generate an error requester, or by functions of the \emph{dos.library}
-itself. However, user code may also use this function to generate an
-AmigaDOS standard requester.
+function is implicitly called by most functions of the \emph{dos.library} in
+case of error, and thus rarely needs to be called by the user
+explicitly.
 \smallskip{}
 
 The {\tt code} argument is an error identifier returned by
 {\tt IoErr()}\key{IoErr()}. Only a subset of the error codes listed
-in section~\ref{sec:ioerr} are supported by this function; they are
-defined in the include files {\tt dos/dos.h} and {\tt
-  dos/dosextends.h}. Table~\ref{table:reporterrors} lists them:
+in section~\ref{sec:ioerr} and defined in {\tt dos/dos.h} are supported by
+this function; all others result in a non-zero return code, indicating
+cancelation of the activity. Table~\ref{table:reporterrors} list
+the error codes for which this function is able to create a requester:
 
 \begin{rkrmtable}{Errors supported by {\tt \bf ErrorReport()}} \label{table:reporterrors}
 {\bf Error} & {\bf Description}\\ \hline \hline
@@ -25537,7 +25537,7 @@ defined in the include files {\tt dos/dos.h} and {\tt
 {\tt ABORT\_BUSY}\key{ABORT\_BUSY} & Requests to insert a particular medium into a drive \\ \hline
 \end{rkrmtable}
 
-The {\tt type} argument provides the type of the AmigaDOS object
+The {\tt type} argument defines the type of the AmigaDOS object
 passed in as {\tt arg1}; it provides an additional source of
 information used to generate the error requester. This information is
 used for example to include a device or volume name in the
@@ -25546,15 +25546,18 @@ supported by this function:
 
 \begin{rkrmtable}{Error sources supported by {\tt \bf ErrorReport()}} \label{table:errorsource}
 {\bf Type} & {\bf Description} \\ \hline \hline
-{\tt REPORT\_STREAM}\mkey{REPORT\_STREAM} & {\tt arg1} is a BPTR to a {\tt FileHandle} structure \\ \hline
-{\tt REPORT\_LOCK}\mkey{REPORT\_LOCK} & {\tt arg1} is a BPTR to a {\tt FileLock} structure \\ \hline
-{\tt REPORT\_VOLUME}\mkey{REPORT\_VOLUME} & {\tt arg1} is a BPTR\footnote{Unlike what the official documentation says, this is a BPTR, not a regular pointer.} to a {\tt DosList} structure \\ \hline
+{\tt REPORT\_STREAM}\mkey{REPORT\_STREAM} & {\tt arg1} is a BPTR to a {\tt
+  FileHandle} structure (section~\ref{sec:filehandle}) \\ \hline
+{\tt REPORT\_LOCK}\mkey{REPORT\_LOCK} & {\tt arg1} is a BPTR to a {\tt FileLock} structure (section~\ref{sec:filelock})\\ \hline
+{\tt REPORT\_VOLUME}\mkey{REPORT\_VOLUME} & {\tt arg1} is a BPTR\footnote{Unlike what the official documentation and \cite{Bantam,guru} say, this is a BPTR, not a regular pointer.} to a {\tt DosList} structure (chapter~\ref{sec:devicelist})\\ \hline
 {\tt REPORT\_INSERT}\mkey{REPORT\_INSERT} & {\tt arg1} is a \emph{regular} pointer to a path separated at ``{\tt :}'' \\ \hline
 \end{rkrmtable}
 
 The {\tt REPORT\_INSERT}\key{REPORT\_INSERT} type shall be a pointer to an absolute path
 name containing a colon (``{\tt :}'') from which a volume or device
-name is extracted.
+name is extracted. This type is used by the \emph{dos.library} when
+attempting to locate an entry on the device list\key{Device List} from an
+absolute path failed.
 \smallskip{}
 
 The {\tt device} argument is a (regular) pointer to a {\tt MsgPort}
@@ -25562,16 +25565,21 @@ structure that is only used if {\tt type} is {\tt REPORT\_LOCK}\key{REPORT\_LOCK
 and {\tt arg1} is {\tt ZERO} or the error indicates that the faulting volume
 is not accessible. This port is assumed to be a {\tt MsgPort} of a file
 handler\key{FileHandle} that is contacted to learn about the name of the
-currently inserted volume. This is typically used when reporting errors
+currently inserted volume. This is for example used when reporting errors
 through a {\tt DevProc}\key{DevProc} structure whose lock and port are
 passed into the error report, see section~\ref{sec:getdeviceproc}.
 \medskip{}
 
-This function returns a boolean indicator whether the currently
-ongoing operation should be aborted or retried. If the result code is
-{\tt DOSFALSE}, the operation should be retried. On return, this
-function also sets {\tt IoErr()} to the error identifier in
-{\tt code}.
+This function returns a boolean indicator whether the currently ongoing
+operation shall be aborted or retried. If the result code is
+{\tt DOSFALSE}, the operation shall be retried. This result code is also
+implicitly generated if the user inserts a medium into a drive while the
+requester is shown. If the requester is suppressed because the
+{\tt pr\_WindowPtr} of the calling process is set to~$-1$, or the system run
+out of memory, or an error not listed in table~\ref{table:errorsource} is
+reported, then this function always returns {\tt DOSTRUE}, requesting to
+abort the operation.  On return, this function also sets {\tt IoErr()} to
+the error identifier in {\tt code}.
 
 \subsection{Generating an Error Message} \label{sec:fault}
 
@@ -25585,10 +25593,10 @@ D0           D1     D2      D3    D4
 LONG Fault(LONG, STRPTR, STRPTR, LONG)
 \end{verbatim}
 
-This function fills the {\tt buffer} that is {\tt len} bytes long with
-an optional {\tt header}, followed by a colon (``{\tt :}'') followed
-by a string generated from the error {\tt code} given as first
-argument.
+This function fills the {\tt buffer} that is {\tt len} bytes long with an
+optional {\tt header}, followed by a string generated from the error {\tt
+  code} given as first argument. The generated string does not include a
+line feed.
 \smallskip{}
 
 If {\tt header} is non-{\tt NULL}, it is first copied into the
@@ -25604,10 +25612,11 @@ The {\tt len} of {\tt buffer} shall not be~0. It includes the
 {\tt NUL} byte terminating the string created in {\tt buffer}.
 \smallskip{}
 
-Due to a defect present even in AmigaDOS~47, the return value of this function is
-\emph{not} the number of characters inserted into the buffer and is thus not
-usable. As a workaround, to find the length of the inserted string, use
-{\tt strlen()} on the buffer if {\tt code} is non-zero:
+Due to a defect present even in AmigaDOS~47, the return value of this
+function is unlike documented \emph{not} the number of characters inserted
+into the buffer and is thus not usable. As a workaround, to find the length
+of the inserted string, use {\tt strlen()} on the buffer if {\tt code} is
+non-zero:
 
 \begin{verbatim}
 if (code) {
@@ -25643,20 +25652,20 @@ of the caller. Under AmigaDOS~45 and before, this function always printed
 over the standard output.
 \smallskip{}
 
-If {\tt header} is non-{\tt NULL}, this string is printed first,
-followed by a colon and a space (``{\tt :~}''). If a textual
-description of the error code {\tt code} is available, it is printed
-behind it. Otherwise, just a generic error message with the error
-value is printed.
+If {\tt header} is non-{\tt NULL}, this string is printed first, followed by
+a colon and a space (``{\tt :~}''). Otherwise, nothing is printed upfront.
+If a textual description of the error code {\tt code} is available, it is
+printed behind it, followed by a line feed. Otherwise, just a generic error
+message with the provided error number is printed.
 \smallskip{}
 
 If {\tt code} is~0, nothing is printed at all. Otherwise, this
 function sets {\tt IoErr()}\key{IoErr()} to {\tt code}.
 \smallskip{}
 
-This function returns a boolean success code. It currently is,
-however, always non-zero indicating success, and thus not particularly
-helpful.
+This function returns a boolean success code. If the error is zero, or a
+description of the error is available, this function returns a non-zero
+success code. Otherwise, this function returns~0.
 
 \subsection{Printing a String to the Error Stream}
 
@@ -25679,7 +25688,9 @@ output {\tt pr\_COS}\key{pr\_COS} of the caller.
 This function returns $0$ on success, or {\tt ENDSTREAMCH}\key{ENDSTREAMCH} on an
 error. The latter constant is defined in {\tt dos/stdio.h} and equals
 to~$-1$. The error code {\tt IoErr()}\key{IoErr()} is only adjusted
-if the buffer of the used file handle\key{FileHandle} is flushed.
+if the buffer of the used file handle\key{FileHandle} is flushed. Except for
+the target stream, this function is similar to the {\tt FPuts()} function introduced in
+section~\ref{sec:fputs}.
 
 \chapter{The DOS Library} \label{sec:dosbase}
 
