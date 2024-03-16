@@ -540,7 +540,7 @@ maximum value an 8-bit byte can take.
 Unfortunately, even as of the latest version of \emph{AmigaDOS}, the
 \emph{dos.library} is ill-prepared to take longer strings, and will
 likely fail or mis-interpret the string passed in. If longer strings
-are required, e.g.\ as part of a \emph{\key{path}path}, it is
+are required, e.g.\ as part of a \emph{path}, it is
 (unfortunately) in the responsibility of the caller to take this path
 apart into components and iterate through the components manually,
 see also section~\ref{sec:paths}.
@@ -2088,8 +2088,8 @@ additional call to {\tt Input()} or {\tt Output()}. If called in a tight
 loop, the target file handle\key{FileHandle} should be obtained first and the functions
 should be called manually rather than through the following macros:
 
-\mkey{ReadChar}\mkey{WriteChar}\mkey{UnReadChar}\mkey{ReadChars}
-\mkey{ReadLn}\mkey{WriteStr}\mkey{VWritef}
+\mkey{ReadChar()}\mkey{WriteChar()}\mkey{UnReadChar()}\mkey{UnReadChar()}
+\mkey{ReadLn()}\mkey{WriteStr()}\mkey{VWritef()}
 \begin{verbatim}
 #define ReadChar()           FGetC(Input())
 #define WriteChar(c)         FPutC(Output(),(c))
@@ -3271,7 +3271,7 @@ does not expose this lock to the caller.
 
 As long as at least a single lock\key{Lock} is held of an object on a particular
 volume, the file system will keep the volume within the
-device list\key{Device list} of the \emph{dos.library}, see chapter~\ref{sec:devicelist}.
+device list\key{Device List} of the \emph{dos.library}, see chapter~\ref{sec:devicelist}.
 This has, for example, the consequence that the Workbench will
 continue to show an icon representing the volume in its window.
 \smallskip{}
@@ -5336,7 +5336,7 @@ interaction of the file system and the \emph{dos.library}. Due to defects in
 the Fast File System\key{Fast File System (FFS)}, soft links did not work
 correctly prior to AmigaDOS version 45, and soft links containing two
 components of which the first (directory) component is a soft link do not
-work correctly in the RAM-Handler\key{RAM-Hander} even in its latest
+work correctly in the RAM-Handler\key{RAM-Handler} even in its latest
 version. Unfortunately, soft links accessed through a multi
 assign\key{Multi-Assign} also fail to work correctly due a defect even in
 the latest \emph{dos.library}.
@@ -6028,7 +6028,7 @@ struct DosList {
 \end{verbatim}
 
 Confusingly, the same data is also accessible throught the {\tt
-DeviceList}\mkey{DeviceList} structure, which is nothing than a {\tt
+DeviceList}\mkey{DeviceList (structure)} structure, which is nothing than a {\tt
 DosList} in disguise, but only represents volumes, with elements at the
 same byte offsets under different names. Thus, for example {\tt dl\_VolumeDate}
 in the {\tt DeviceList} structure accesses the same elements as {\tt
@@ -11233,8 +11233,8 @@ Because packets typically require less than 5 arguments, additional
 function prototypes are supplied that take less arguments. They all access the
 same vector within the \emph{dos.library}, the only difference is that the
 function prototypes do not enforce initialization of the data registers
-carrying the unneeded arguments. These functions are named {\tt DoPkt0()}\mkey{DoPkt0()} to
-{\tt DoPkt5()}\mkey{DoPkt5()} and carry 2 to 7 arguments: The target {\tt port}, the requested
+carrying the unneeded arguments. These functions are named {\tt DoPkt0()} to
+{\tt DoPkt5()} and carry 2 to 7 arguments: The target {\tt port}, the requested
 {\tt action} and~0 to~5 additional arguments.
 
 \section{Asynchronous Packet Interface}
@@ -11348,7 +11348,7 @@ Section~\ref{sec:ioerr} lists the error codes defined by the
 conditions.
 \smallskip{}
 
-{\tt dp\_Arg1}\mkey{dp\_Arg1} to {\tt dp\_Arg7} provide additional
+{\tt dp\_Arg1} to {\tt dp\_Arg7} provide additional
 arguments to the handler. They shall be filled by the issuer of a
 packet, and provide additional arguments to the handler for performing
 the activity encoded by {\tt dp\_Type}. Most packet types do not
@@ -11387,8 +11387,8 @@ section~\ref{sec:allocdosobject}.
 {\tt dp\_Type} shall be filled with the requested action, i.e.\ an
 identifier specifying the type of activity requested from the handler,
 see chapter~\ref{sec:packettypes}. Depending on this type, a subset of
-the packet arguments {\tt dp\_Arg1}\key{dp\_Arg1} through {\tt
-  dp\_Arg7}\key{dp\_Arg7} carry additional arguments for the requested action and
+the packet arguments {\tt dp\_Arg1} through {\tt dp\_Arg7}
+carry additional arguments for the requested action and
 shall be initialized accordingly.
 \medskip{}
 
@@ -11557,7 +11557,7 @@ Hunk format to memory, where it is represented as a singly linked list of
 \emph{segments}. This process is described in section~\ref{sec:loader}. Each
 node in this list looks as follows:
 
-\mkey{Segment List}
+\mkey{SegmentList}
 \begin{verbatim} 
 struct SegmentList {
     BPTR  NextSegment; /* BPTR to next segment or ZERO */
@@ -12271,7 +12271,7 @@ conventions of this function for locating the file.
 \smallskip{}
 
 When done, the segment\key{Segment} list shall be released from memory via {\tt
-  UnLoadSeg()}\key{UnloadSeg()}, see section~\ref{sec:unloadseg}.
+  UnLoadSeg()}\key{UnLoadSeg()}, see section~\ref{sec:unloadseg}.
 \smallskip{}
 
 Unfortunately, this function has a series of defects: For AmigaDOS 34 and
@@ -12349,7 +12349,7 @@ sections~\ref{sec:versioncookie} and~\ref{sec:stackcookie}.
 \smallskip{}
 
 The segment\key{Segment} list returned by this function shall be removed from
-memory via {\tt UnLoadSeg()}\key{UnloadSeg()}, a specialized unloader
+memory via {\tt UnLoadSeg()}\key{UnLoadSeg()}, a specialized unloader
 function is not required for this call.
 \smallskip{}
 
@@ -14727,7 +14727,7 @@ startup succeeded, this is up to the handler, see below.
 \smallskip{}
 
 While waiting for the startup packet to return, {\tt GetDeviceProc()}
-keeps the device list\key{DeviceList} locked. This is an exclusive
+keeps the device list\key{DeviceList (structure)} locked. This is an exclusive
 lock if {\tt dol\_GlobVec}\key{dol\_GlobVec} is larger or equal than~$-1$.
 This implies an attempt to gain access to the device list within
 the handler startup by {\tt LockDosList()}\key{LockDosList()} can
@@ -22713,7 +22713,7 @@ becomes the input stream of the new shell\key{Shell}. If this tag is not provide
 input stream of the calling process ({\tt pr\_CIS}) will be used. If
 {\tt command} is {\tt NULL}, this stream will also be closed when the shell
 terminates, thus the caller needs to open a separate file handle as if
-{\tt SYS\_Async}\key{SYS\_Async} is set.
+{\tt SYS\_Asynch}\key{SYS\_Asynch} is set.
 \smallskip{}
 
 {\tt SYS\_InName}\mkey{SYS\_InName} This tag takes a string as argument. This string will be
@@ -22728,7 +22728,7 @@ used as output stream of the new shell\key{Shell}. This handle \emph{shall be
 different} from the handle provided by {\tt SYS\_Input}. If this tag is not
 present, the output stream of the calling process ({\tt pr\_COS})\key{pr\_COS} will be
 used for shell output. If in addition the {\tt command} is {\tt NULL} and
-{\tt SYS\_Async} is not set, then {\tt SYS\_Output} is cloned by the
+{\tt SYS\_Asynch}\key{SYS\_Asynch} is not set, then {\tt SYS\_Output} is cloned by the
 mechanism of section~\ref{sec:clonehandle} if it is an interactive stream,
 or the console of the caller is used as an output stream. That is, even
 though {\tt System()} is in this case implicitly asynchronous, {\tt SYS\_Output} will \emph{not}
@@ -22901,7 +22901,7 @@ where the {\tt window} argument and the {\tt from} argument are coming from
 the command line arguments of the {\tt NewShell} command. That is,
 {\tt System()} receives a console as new input file handle\key{FileHandle}, and a command
 stream which is by default ``{\tt S:Shell-Startup}''. Setting
-{\tt SYS\_Asynch} to {\tt TRUE} ensures that the shell\key{Shell} continues to read
+{\tt SYS\_Asynch}\key{SYS\_Asynch} to {\tt TRUE} ensures that the shell\key{Shell} continues to read
 commands from its input file handle as soon as the command file depletes.
 AmigaDOS~45 and below used a custom mechanism for {\tt NewShell} that was
 undocumented and is now deprecated. The Boot Shell is created likewise
@@ -25073,7 +25073,7 @@ used when the shell is instructed to execute commands in the
 background, e.g.\ by the {\tt Run} command, and if
 {\tt Execute()}{Execute()} or {\tt System()}\key{System()} are
 called with {\tt NULL} as its first argument and
-{\tt SYS\_Asynch}\key{SYS\_Async} is not set, see section~\ref{sec:system}.
+{\tt SYS\_Asynch}\key{SYS\_Asynch} is not set, see section~\ref{sec:system}.
 \smallskip{}
 
 The reason for delaying the startup packet after execution of the
@@ -25093,7 +25093,7 @@ when the last command of the shell\key{Shell} returned. Then, {\tt dp\_Res1}
 shall be set to the return code of this command as found in {\tt
   cli\_ReturnCode}, and {\tt dp\_Res2} shall be set to the error code
 the command left in {\tt cli\_Result2}. The {\tt FN\_ASYNC} bit
-reflects the value of {\tt SYS\_Asynch} of the {\tt System()}\key{System()} call.
+reflects the value of {\tt SYS\_Asynch}\key{SYS\_Asynch} of the {\tt System()}\key{System()} call.
 \medskip{}
 
 If bits {\tt FN\_VALID}\key{FN\_VALID} and {\tt FN\_SYSTEM}\mkey{FN\_SYSTEM}
