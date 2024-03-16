@@ -23250,7 +23250,7 @@ only valid as long as task switching is disabled.
 This function does not alter {\tt IoErr()}\key{IoErr()}, even if no process
 is found.
 
-\subsection{Retrieve the Size of the Process Table}
+\subsection{Retrieve the Size of the Process Table} \label{sec:maxcli}
 
 The {\tt MaxCli()}\mkey{MaxCli()} function returns the size of the process
 table.
@@ -25701,18 +25701,19 @@ for their elements.
 
 \section{The Library Structure}
 
-The \emph{dos.library} base structure is documented in {\tt
-  dos/dosextens.h} and looks as follows:
+The \emph{dos.library} base structure is documented in
+{\tt dos/dosextens.h} and looks as follows:
 
 \mkey{DosLibrary}
 \begin{verbatim}
 struct DosLibrary {
-    struct Library dl_lib;
-    struct RootNode *dl_Root;
-    APTR    dl_GV;
-    LONG    dl_A2;
-    LONG    dl_A5;
-    LONG    dl_A6;
+    struct Library      dl_lib;
+    struct RootNode    *dl_Root;
+    APTR                dl_GV;
+    LONG                dl_A2;
+    LONG                dl_A5;
+    LONG                dl_A6;
+/* the following elements exist from V36 onwards */
     struct ErrorString *dl_Errors;
     struct timerequest *dl_TimeReq;
     struct Library     *dl_UtilityBase;
@@ -25727,14 +25728,18 @@ The {\tt dl\_lib}\mkey{dl\_lib} element forms a regular exec library as it is de
 \smallskip{}
 
 The {\tt dl\_Root}\mkey{dl\_Root} pointer points to the {\tt RootNode}\key{RootNode} structure
-documented in section~\ref{sec:rootnode}. Most useful information can be reached from there.
+documented in section~\ref{sec:rootnode}. Most useful information can be
+reached from there. The {\tt RootNode} is created along with the
+\emph{dos.library} and this pointer remains constant from that point on.
 \smallskip{}
 
-The {\tt dl\_GV}\mkey{dl\_GV} is the pointer to the (fake) BCPL \emph{global
-  vector}\key{Global Vector} which contains a table of (BCPL compiled) functions the
-\emph{dos.library} provides to (legacy) BCPL components. Today,
+The {\tt dl\_GV}\mkey{dl\_GV} is the pointer to the (fake) BCPL
+global vector\key{Global Vector} which contains a table of BCPL
+functions the \emph{dos.library} provides to (legacy) BCPL components. Today,
 nothing should depend on this vector anymore as all AmigaDOS
-components have been rewritten in C or assembler.
+components have been rewritten in C or assembler, and no particular
+advantage can be taken from the functions in this vector as its functions
+are also accessible as regular functions in the \emph{dos.library}.
 \smallskip{}
 
 The {\tt dl\_A2}\mkey{dl\_A2}, {\tt dl\_A5}\mkey{dl\_A5} and {\tt gl\_A6}\mkey{dl\_A6} elements are the
@@ -25746,22 +25751,56 @@ BCPL function caller, and {\tt dl\_A6} is a pointer to the BCPL
 \smallskip{}
 
 The {\tt dl\_Errors}\mkey{dl\_Errors} pointer provides (localized) strings for all
-messages the \emph{dos.library} generates, including other localized
-messages. This element is private and shall not be accessed. Instead,
-localized error messages can be retrieved by the {\tt
-  Fault()}\key{Fault()} function of section~\ref{sec:fault} which
-accesses this string.
+messages the \emph{dos.library} generates, including error messages and other localized
+strings. This element is private and shall not be accessed. Instead,
+localized error messages can be retrieved
+by the {\tt Fault()}\key{Fault()} function of section~\ref{sec:fault}.
 \smallskip{}
 
-The {\tt dl\_TimeReq}\mkey{dl\_TimeReq} element is a private pointer to a {\tt
-  timerequest} structure the \emph{dos.library} uses for functions
-such as {\tt Delay()}\key{Delay()} in section~\ref{sec:delay}. It
-shall not be used by clients.
+The {\tt ErrorString} structure is actually documented as follows in {\tt dos/dosextens.h}:
+\mkey{ErrorString}
+\begin{verbatim}
+struct ErrorString {
+    LONG  *estr_Nums;
+    UBYTE *estr_Strings;
+};
+\end{verbatim}
+{\tt dl\_Errors} points to an array of the above structures. The
+{\tt estr\_Nums} element points to two long words identifying the range
+of error codes (or rather message codes as not only error messages are in
+this structure) covered by one {\tt ErrorString} structure. The first long
+word is the lower (first) error code in the range, the second the upper
+(inclusive) end of the range. The last element in the array is identified by
+a lower end of 0.
+\smallskip{}
+
+The {\tt estr\_Strings} points to an array of bytes
+that contains the sizes and the localized versions of the error
+messages as one long array of {\tt UBYTE}s.
+Each error message is represented by a single byte that gives its
+length, followed by the {\tt NUL}-terminated message itself. If {\tt Fault()}
+requires a particular message, its skips each message by adding the length
+and skipping the length indicator until either the message is found, or the end of
+the current {\tt ErrorString} element is found. However, for all practical
+purposes, {\tt dl\_Errors} shall be left alone and instead
+{\tt Fault()}\key{Fault()} shall be used to retrieve a particular message.
+\medskip{}
+
+The {\tt dl\_TimeReq}\mkey{dl\_TimeReq} element is a private pointer to a
+{\tt timerequest} structure the \emph{dos.library} uses for functions
+such as {\tt Delay()}\key{Delay()} in section~\ref{sec:delay} or retrieving
+the system time for {\tt DateStamp()}\key{DateStamp()},
+see~\ref{sec:datestamp}. If a particular process requires it, the
+\emph{dos.library} first makes a copy of this {\tt timerequest} structure,
+fills in {\tt pr\_MsgPort}\key{pr\_MsgPort} of the caller as reply port of the request,
+and then calls the {\tt timer.device} to implement the required
+function. Similar to all other elements of the \emph{dos.library}, this
+element shall not be accessed directly, but only through the library.
 \smallskip{}
 
 The {\tt dl\_UtilityBase}\mkey{dl\_UtilityBase} element provides a pointer to the
 \emph{utility.library} the \emph{dos.library} uses for parsing tag
-lists.
+lists and performing elementary arithmetics.
 \smallskip{}
 
 The {\tt dl\_IntuitionBase}\mkey{dl\_IntuitionBase} is the pointer to the
@@ -25777,69 +25816,86 @@ information of the library. It is also defined in {\tt
 \mkey{RootNode}
 \begin{verbatim}
 struct RootNode {
-    BPTR    rn_TaskArray;
-    BPTR    rn_ConsoleSegment;
-    struct  DateStamp rn_Time;
-    LONG    rn_RestartSeg;
-    BPTR    rn_Info;
-    BPTR    rn_FileHandlerSegment;
-    struct MinList rn_CliList;
-    struct MsgPort *rn_BootProc;
-    BPTR    rn_ShellSegment;
-    LONG    rn_Flags;
+    BPTR             rn_TaskArray;
+    BPTR             rn_ConsoleSegment;
+    struct DateStamp rn_Time;
+    LONG             rn_RestartSeg;
+    BPTR             rn_Info;
+    BPTR             rn_FileHandlerSegment;
+/* The following elements have been added in V36 */
+    struct MinList   rn_CliList;
+    struct MsgPort  *rn_BootProc;
+    BPTR             rn_ShellSegment;
+    LONG             rn_Flags;
 };
 \end{verbatim}
 
-The {\tt rn\_TaskArray}\key{rn\_TaskArray} element is a BPTR the (legacy) Tripos process
-table, and is part of the complete table reachable through {\tt
-  rn\_CliList}. Instead of going through these elements, the {\tt
-  FindCliProc()}\key{FindCliProc()} function specified in
+The {\tt rn\_TaskArray}\key{rn\_TaskArray} element is a BPTR to the
+(legacy) Tripos process table, and is part of the complete table
+reachable through {\tt rn\_CliList}. Instead of going through this
+element, the {\tt FindCliProc()}\key{FindCliProc()} function specified in
 section~\ref{sec:findcliproc} shall be used. This first array consists
-of a long-word that indicates the size of the first part of the table,
-all remaining entries are pointers to {\tt Process}\key{Process} structures (see
-section~\ref{sec:process}) or {\tt NULL}. This array is indexed by the
-CLI number, though only processes that are associated to a shell\key{Shell} are
+of a long word that indicates the size of the first part of the table,
+all remaining entries are pointers to the {\tt pr\_MsgPort} of
+{\tt Process}\key{Process} structures (see chapter~\ref{sec:process}) or
+{\tt NULL} if the corresponding entry is not used. This array is indexed by the
+CLI number, and thus only processes that are associated to a shell\key{Shell} are
 listed here.
 \smallskip{}
 
-The {\tt rn\_ConsoleSegment}\mkey{rn\_ConsoleSegment} is the pointer to the BCPL entry point of
-the shell\key{Shell}. Even though this pointer is initialized, it is no longer
-used. Instead, the shell is located on the resident segments with {\tt
-  FindSegment()}\key{FindSegment()} of
-section~\ref{sec:findsegment}. The corresponding resident segment\key{Segment (resident)} has
-the name ``CLI''.\key{CLI}
+The {\tt rn\_ConsoleSegment}\mkey{rn\_ConsoleSegment} is the segment of the
+BCPL entry point of the shell\key{Shell}. Despite its name, it is in no
+correspondance to the CON-Handler\key{CON-Handler} or the
+{\tt console.device}. Even though
+this pointer is initialized, it is no longer used. Instead, the shell is
+located as part of the resident segments with
+{\tt FindSegment()}\key{FindSegment()} which is described in
+section~\ref{sec:findsegment}. The corresponding resident
+segment\key{Segment (resident)} whose BPTR is stored here has
+the name ``{\tt CLI}''.\key{CLI}
 \smallskip{}
 
-The {\tt rn\_Time}\mkey{rn\_Time} contains the current time of the system, it is
-updated every time {\tt DateStamp()}\key{DateStamp()} (see
-section~\ref{sec:datestamp} is called, and this is also the
-recommended way of obtaining the time instead of copying it from here.
+The {\tt rn\_Time}\mkey{rn\_Time} contains the current time of the system,
+it is updated every time {\tt DateStamp()}\key{DateStamp()} (see
+section~\ref{sec:datestamp}) is called; applications shall not copy the time
+and date from here, but rather call through the above function to retrieve
+it.
 \smallskip{}
 
-The {\tt rn\_RestartSeg}\mkey{rn\_RestartSeg} is obsolete and no longer in used. This used
-to be a BCPL program that performed validation of inserted disks and
-restarted the file system. Today, this function is integrated into the
-file system itself.
+The {\tt rn\_RestartSeg}\mkey{rn\_RestartSeg} is obsolete and no longer
+used. AmigaDOS~34 and before stored here a BPTR to a segment
+that performed validation of inserted disks. If this validator
+found an invalid bitmap, see section~\ref{sec:rootblock}, it loaded the
+``{\tt L:Disk-Validator}'' from disk for additional help which then
+recomputed the bitmap by a full disk scan. With the introduction of the
+FFS\key{Fast File System (FFS)} in AmigaDOS~34, disk validation became part
+of the file system, even though this element remained in use for the
+BCPL-based OFS until AmigaDOS~36.
 \smallskip{}
 
-The {\tt rn\_Info}\mkey{rn\_Info} element is a BPTR to the {\tt DosInfo}\key{DosInfo} structure
-described in section~\ref{sec:dosinfo}. It contains further
-global information.
+The {\tt rn\_Info}\mkey{rn\_Info} element is a BPTR to the
+{\tt DosInfo}\key{DosInfo} structure described in
+section~\ref{sec:dosinfo}. Like the {\tt RootNode}, it remains constant
+throughout the lifetime of the system and contains additional global
+information.
 \smallskip{}
 
 The {\tt rn\_FileHandlerSegment}\mkey{rn\_FileHandlerSegment} element is the BPTR to the segment of
-the ROM default AmigaDOS file system. This element is no longer in use
-today. This element is filled from the resident segment\key{Segment (resident)}
-``FileHandler'', and is also updated if a newer version of the FFS\key{Fast File System (FFS)} is
-found in the RDB of the booting disk. Today, file systems are found
-through the ``FileSystem.resource'' and not through this BPTR.
+the ROM default AmigaDOS file system. Only the {\tt expansion.library}
+function {\tt AddDosNode()} function still accesses this element, but it should be
+considered obsolete and private. It is populated from the resident segment\key{Segment (resident)}
+``{\tt FileHandler}'', and is even updated if a newer version of the FFS\key{Fast File System (FFS)} is
+found in the RDB of the booting disk. From AmigaDOS~34 onwards, file systems
+should be found through the {\tt FileSystem.resource} and not through this BPTR which only
+provides the FFS.
 \smallskip{}
 
 The {\tt rn\_CliList}\mkey{rn\_CliList} contains the full process table containing all
-shell\key{Shell} processes accessible through {\tt
-  FindCliProc()}\key{FindCliProc()}. This element is a {\tt MinList}
-structure as defined in {\tt exec/lists.h}. Each node on this list
-keeps a consecutive number of shells\key{Shell} and looks as follows:
+shell\key{Shell} processes; its entries are accessible through
+{\tt FindCliProc()}\key{FindCliProc()}. The total number of CLIs found in
+here is returned by {\tt MaxCli()}\key{MaxCli()}, see section~\ref{sec:maxcli}.
+This element is a {\tt MinList} structure as defined in {\tt exec/lists.h}. Each node on this list
+keeps a consecutive range of shell\key{Shell} processes and looks as follows:
 
 \mkey{CliProcList}
 \begin{verbatim}
@@ -25852,8 +25908,8 @@ struct CliProcList {
 
 This structure \emph{shall not} be allocated by the user; instead, it
 is potentially created by the \emph{dos.library} if the current
-process table is too small when creating a new shell\key{Shell} through {\tt
-  System()}\key{System()} or {\tt Execute()}\key{Execute()}.
+process table is too small when creating a new shell\key{Shell} through
+{\tt System()}\key{System()} or {\tt Execute()}\key{Execute()}.
 \smallskip{}
 
 The {\tt cpl\_Node}\mkey{cpl\_Node} is a {\tt MinNode} structure that queues
@@ -25861,44 +25917,50 @@ all {\tt CliProcList} nodes in the {\tt rn\_CliList}\key{rn\_CliList}.
 \smallskip{}
 
 The {\tt cpl\_First}\mkey{cpl\_First} element is the CLI number of the first shell\key{Shell} in
-this node, and thus the process number kept in {\tt cpl\_Array[1]}.
+this node, and thus the process number of the shell kept in {\tt cpl\_Array[1]}.
 \smallskip{}
 
-The {\tt cpl\_Array}\mkey{cpl\_Array} element contains pointers to the
-{\tt Process}\key{Process} structures of the shell\key{Shell}, except that the {\tt cpl\_Array[0]} entry is
-the number of shell\key{Shell} processes adminstrated in this node. The actual
-process pointers start from the second entry onwards.
+The {\tt cpl\_Array}\mkey{cpl\_Array} element contains the number of entries
+in the table and pointers to the {\tt pr\_MsgPort}s of the
+{\tt Process}\key{Process} structures running shells\key{Shell}.
+The first element {\tt cpl\_Array[0]} entry contains the number of
+shell\key{Shell} processes adminstrated in this node and is
+typically~20. All remaining entries are pointers to {\tt MsgPort}
+structures, namely the {\tt pr\_MsgPort} of processes as
+defined in chapter~\ref{sec:process}.
 \smallskip{}
 
-The {\tt cpl\_Array}\key{cpl\_Array} of the first {\tt CliProcList}\key{CliProcList} structure is also
-accessible through {rn\_TaskArray}, and the nodes kept here are part
-of an extension that overcomes the limitation of at most~20 shells\key{Shell} in
-AmigaDOS 1.3 and before.
+The {\tt cpl\_Array}\key{cpl\_Array} of the first
+{\tt CliProcList}\key{CliProcList} structure is also
+accessible through {\tt rn\_TaskArray}, and the nodes kept in {\tt rn\_CliList}
+are part of an extension that overcomes the limitation of at most~20 shells\key{Shell} in
+AmigaDOS~34 and before.
 \medskip{}
 
 The {\tt rn\_BootProc}\mkey{rn\_BootProc} element is a pointer to the {\tt MsgPort} of
 the file system that booted the system. This is not necessary the file
-system whose segment\key{Segment (resident)} is recorded in {\tt rn\_FileHandlerSegment}\key{rn\_FileHandlerSegment}. It
-is different if the booting file system is not the ROM-based FFS\key{Fast File System (FFS)}
-neither an updated version of it from the RDB. This pointer is used to
+system whose segment\key{Segment (resident)} is recorded in
+{\tt rn\_FileHandlerSegment}\key{rn\_FileHandlerSegment}.
+It is different if the booting file system is not the ROM-based FFS\key{Fast File System (FFS)}
+and neither an updated version of it from the RDB. This pointer is used to
 initialize the {\tt pr\_FileSystemTask}\key{pr\_FileSystemTask} of all processes AmigaDOS
 creates, and thus the file system responsible for the {\tt ZERO} lock\key{ZERO lock}.
 \smallskip{}
 
-The {\tt rn\_ShellSegment}\mkey{rn\_ShellSegment} is a pointer to the C entry point of the
+The {\tt rn\_ShellSegment}\mkey{rn\_ShellSegment} is a pointer to the C segment of the
 shell\key{Shell}. This pointer is also not used anymore, but still intialized. It
-corresponds to the resident segments ``shell''\key{Shell (resident)} and ``BootShell'',\key{BootShell}
-where the former may be replaced by a custom user-provided shell and
-the latter is always the shell that booted the system. Today, the
-shell segment is located via {\tt FindSegment()}\key{FindSegment()}
-instead.
+corresponds to the resident segments ``{\tt shell}''\key{Shell (resident)}
+and ``{\tt BootShell}''\key{BootShell}, where the former may be replaced
+by a custom user-provided shell and the latter is always the shell that
+booted the system. In AmigaDOS~47, the shell segment is
+located via {\tt FindSegment()}\key{FindSegment()} instead.
 \smallskip{}
 
 The {\tt rn\_Flags}\mkey{rn\_Flags} element contains flags that configure
 AmigaDOS. There is currently only one publicly accessible flag defined
 here, namely {\tt RNF\_WILDSTAR}\mkey{RNF\_WILDSTAR}. If this flag is set, the pattern
-matcher discussed in section~\ref{sec:patternmatch} supports ``{\tt
-  *}''\key{* (file name)} as a synonym for ``{\tt \#?}'', i.e.\ the pattern that matches a
+matcher discussed in chapter~\ref{sec:patternmatch} supports the asterisk
+``{\tt *}''\key{* (file name)} as a synonym for ``{\tt \#?}'', i.e.\ the pattern that matches a
 sequence of arbitrary characters. While this seemingly brings AmigaDOS
 closer to other contemporary operating systems, it is a rather bad
 choice as the asterisk is also the file name of the current console
@@ -25907,10 +25969,10 @@ recommended \emph{not} to set this flag.
 
 \section{The DosInfo Structure} \label{sec:dosinfo}
 
-The {\tt DosInfo}\mkey{DosInfo} structure is pointed to by the {\tt
-  rn\_Info} element of the RootNode. It contains the device
-  list\key{Device List} structure discussed in section~\ref{sec:devicelist} and the
-resident segments\key{Segment (resident)} from section~\ref{sec:resident}.
+The {\tt DosInfo}\mkey{DosInfo} structure is pointed to by the
+{\tt rn\_Info} element of the RootNode. It contains the device
+list\key{Device List} structure discussed in chapter~\ref{sec:devicelist} and the
+resident segments\key{Segment (resident)} of section~\ref{sec:resident}.
 
 \mkey{DosInfo}
 \begin{verbatim}
@@ -25919,19 +25981,22 @@ struct DosInfo {
     BPTR    di_DevInfo;
     BPTR    di_Devices;        
     BPTR    di_Handlers; 
-    APTR    di_NetHand;        
+    APTR    di_NetHand;      
+/* the following elements are new in AmigaDOS 36 */  
     struct  SignalSemaphore di_DevLock;
     struct  SignalSemaphore di_EntryLock; 
     struct  SignalSemaphore di_DeleteLock;
 };
 \end{verbatim}
 
-Unlike what the official includes suggest, {\tt di\_McName} is
-\emph{not} the list of resident segments\key{Segment (resident)}. It is instead unused.
+The include file {\tt dos/dosextens} also defines the name {\tt di\_ResList}
+for the {\tt di\_McName} element. Unlike what this name suggests,
+{\tt di\_McName} is \emph{not} the list of resident
+segments\key{Segment (resident)}. It is rather unused.
 \smallskip{}
 
 The {\tt di\_DevInfo}\mkey{di\_DevInfo} element is a BPTR to the first entry of the
-device list\key{Device List} introduced in section~\ref{sec:devicelist}. This is
+device list\key{Device List} introduced in chapter~\ref{sec:devicelist}. This is
 a BPTR to a {\tt DosList}\key{DosList} structure which form a singly linked list
 whose head is here. However, client programs should not access this
 BPTR directly, but rather go through the functions provided in
@@ -25939,7 +26004,7 @@ section~\ref{sec:devlistaccess}.
 \smallskip{}
 
 The {\tt di\_Devices}\mkey{di\_Devices} and {\tt di\_Handlers}\mkey{di\_Handles} elements are Tripos
-legacies and not in use.
+legacies and not in use in any version of AmigaDOS.
 \smallskip{}
 
 The {\tt di\_NetHand}\mkey{di\_NetHand} element contains the resident segments, despite
@@ -25954,8 +26019,8 @@ functions in section~\ref{sec:resident}.
 
 The {\tt di\_DevLock}\mkey{di\_DevLock}, {\tt di\_EntryLock}\mkey{di\_EntryLock} and
 {\tt di\_DeleteLock}\mkey{di\_DeleteLock} semaphores are private to the
-\emph{dos.library}. They are used by the {\tt LockDosList()}\key{LockDosList()} function of
-section~\ref{sec:lockdoslist}.
+\emph{dos.library}. They are used by the
+{\tt LockDosList()}\key{LockDosList()} and related functions of section~\ref{sec:lockdoslist}.
 
 \section{The System-Startup Module} \label{sec:sysstartup}
 
