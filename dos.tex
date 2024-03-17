@@ -416,7 +416,7 @@ multiplied by 4, or left-shifted by 2 bits.
 \punchline{Not on the Stack!}{Since BPCL structures must have an address
   that is divisible by 4, using automatic storage duration for AmigaDOS
   objects is inappropriate. Compilers will typically keep such objects on
-  the hardware stack of the 68K processor~\cite{mcfam}, but usually do not
+  the hardware stack of the 68K processor~\cite{mcfam,yuchen}, but usually do not
   ensure that their addresses are aligned to long word boundaries. In case a
   particular AmigaDOS object cannot be constructed by
   \emph{\key{AllocDosObject()}AllocDosObject()} (see
@@ -504,12 +504,13 @@ first element of the host memory array, the later the pointer to the
 first address.
 
 \section{C Strings and BSTRs}
-While the C language defines \emph{\mkey{String}strings} as
+While the C language defines \emph{\mkey{String (C)}strings} as
 0-terminated arrays of {\tt char}, and AmigaOs in particular to
 0-terminated arrays of {\tt UBYTE}s, that is, unsigned characters, the
-BPCL language uses a different convention. Instead, a BCPL string is a {\tt
-  UBYTE} array whose first element contains the size of the string to
-follow. They are not necessarily 0-terminated either. If BCPL strings
+BPCL language uses a different convention. Instead, a BCPL
+string\mkey{String (BCPL)} is a {\tt UBYTE} array whose first element
+contains the size of the string to follow. They are not necessarily
+0-terminated either. If BCPL strings
 are passed into BCPL functions, or are part of BCPL data structures,
 then typically in the form of a BPTR\key{BPTR} to the 32-bit
 element containing the size of the string its 8 most significant
@@ -569,7 +570,7 @@ the tasks are assigned to the CPU in a round-robin fashion. A
 \emph{Process}\key{Process} is an extension of an AmigaOs
 \emph{Task}\mkey{Task} that includes additional state information relevant
 to AmigaDOS, such as a \emph{current directory} operates in, a default file
-system, a \emph{console}\key{console} it is connected to, a default input,
+system, a \emph{console}\key{Console} it is connected to, a default input,
 output and error stream. Most importantly, processes include a {\tt
   MsgPort}, see~\cite{rkrmlib}, through which it communicates with other
 AmigaDOS components such as handlers or file systems. Processes are
@@ -1206,7 +1207,7 @@ behind its name.
 
 The {\tt *}\mkey{* (file name)}, if used as complete path name without a
 trailing colon and without a file name, is the current console of the
-process\key{Process}, if such a console\key{console} exists. Any data output
+process\key{Process}, if such a console\key{Console} exists. Any data output
 to the file named {\tt *} will be printed on the console. Reading from {\tt
   *} will wait for the user to input data on the console, and will return
 such data. If no console exists, for example for processes run from the
@@ -1261,7 +1262,7 @@ within volumes, or even across volumes.
 \medskip{}
 
 Assigns can be of three types: \emph{Regular assigns}, \emph{non-binding
-assigns}\mkey{Non-Binding Assign} and \emph{late binding assigns}\mkey{Late Binding
+assigns}\mkey{Non-binding Assign} and \emph{late binding assigns}\mkey{Late Binding
   Assign}. \emph{Regular assigns} bind to a particular directory or multiple
 directories on a particular volume. If the assign is accessed, and the
 original volume the bound directory is not available, the system will ask to
@@ -1675,7 +1676,7 @@ later returns success immediately. Under earlier versions, closing
 As introduced in \ref{sec:interactive}, AmigaDOS distinguishes between
 non-interactive files managed by file systems and interactive files that
 interact with the outside world. File systems create non-interactive files;
-all other handlers\key{Handlers} create interactive or non-interactive
+all other handlers\key{Handler} create interactive or non-interactive
 files, depending on the nature of the handler.
 
 \subsection{Obtaining the Type from a File} \label{sec:isinteractive}
@@ -1718,7 +1719,7 @@ see section~\ref{sec:setfilesize}.
 
 \subsection{Obtaining the Handler Type from a Path} \label{sec:isfilesystem}
 
-A handler\key{handler} that manages physical data carriers and allows to
+A handler\key{Handler} that manages physical data carriers and allows to
 access named files on such data carriers is a file system. Such handlers
 will generally create non-interactive files. The {\tt
   IsFileSystem()}\key{IsFileSystem()} function determines the nature of a
@@ -6084,7 +6085,7 @@ used. The following types are defined in {\tt dos/dosextens.h}:
 {\tt DLT\_VOLUME}\mkey{DLT\_VOLUME} & A volume, see~\ref{sec:volumelist}\\ \hline
 {\tt DLT\_LATE}\mkey{DLT\_LATE} & A late binding assign\key{Late Binding Assign}, see~\ref{sec:assignlist}\\ \hline
 {\tt DLT\_NONBINDING}\mkey{DLT\_NONBINDING} & A non-binding
-assign\key{Non-Binding Assign}, see~\ref{sec:assignlist}\\ \hline
+assign\key{Non-binding Assign}, see~\ref{sec:assignlist}\\ \hline
 {\tt DLT\_PRIVATE}\mkey{DLT\_PRIVATE} & Used internally for resolving late binding assigns\\ \hline
 \end{rkrmtable}
 
@@ -6114,7 +6115,7 @@ late binding assigns\key{Late Binding Assign} this member is initially {\tt
   NULL}, but will be filled in as soon as the assign in bound to a
 particular directory, and then becomes the pointer to the port of the
 handler managing the volume the assign is located on. Finally, for
-non-binding assigns\key{Non-Binding Assign} this member always stays {\tt
+non-binding assigns\key{Non-binding Assign} this member always stays {\tt
   NULL}.
 \medskip{}
 
@@ -6122,7 +6123,7 @@ non-binding assigns\key{Non-Binding Assign} this member always stays {\tt
 only if it is bound to a particular directory. It is then the lock\key{Lock}
 to the directory forming the assign, or for multi-assigns\key{Multi-Assign},
 the first directory within the assign. This element remains {\tt ZERO}
-for non-binding assigns\key{Non-Binding Assign} and is initially {\tt ZERO}
+for non-binding assigns\key{Non-binding Assign} and is initially {\tt ZERO}
 for late binding assigns\key{Late Binding Assign}. For all other types, this member stays
 {\tt ZERO}.
 \smallskip{}
@@ -6296,7 +6297,7 @@ types, i.e.\ all types of assigns\key{Assign}.
 \smallskip{}
 
 {\tt dol\_AssignName}\mkey{dol\_AssignName} is pointer (and not a BPTR) to a
-{\tt NUL}-terminated target path of non-binding\key{Non-Binding Assign}
+{\tt NUL}-terminated target path of non-binding\key{Non-binding Assign}
 and late binding assigns\key{Late Binding Assign}. It remains {\tt NULL}
 otherwise. The \emph{dos.library} uses this string to locate the target
 directory of the assign. For late binding assigns, this member is used only
@@ -6845,7 +6846,7 @@ or the first partition of a MBR-formatted disk, depending on the {\tt
 \smallskip{}
 
 The next group of file system types indicates various versions of the CD-Rom
---- actually ISO Rock Ridge\mkey{Rock Ridge} --- file system. The first type
+--- actually ISO Rock Ridge\mkey{Rock Ridge File System} --- file system. The first type
 is the original file system that came with Version 40 of AmigaDOS, the
 second the extended version that includes support for Joliet\mkey{Joliet
   Extension} extensions and audio track support. Otherwise, the types are
@@ -7166,7 +7167,7 @@ effects: First, if the corresponding handler is not yet loaded, i.e. {\tt
 dol\_SegList}\key{dol\_SegList} in the {\tt DosList}\key{DosList} is {\tt
 ZERO}, it will be loaded from the path in {\tt dol\_Handler}\key{dol\_Handler}
 in the context of the calling process. The
-{\tt Mount}\key{Mount} command uses this side effect to implement the
+{\tt Mount}\key{Mount (Command)} command uses this side effect to implement the
 {\tt ACTIVATE}\key{ACTIVATE} keyword in mountlists\key{Mountlist}.
 \smallskip{}
 
@@ -7300,7 +7301,7 @@ particular value may be assumed. It may or may not alter its value.
 
 The {\tt DeviceProc()}\mkey{DeviceProc()} function is a legacy variant
 of {\tt GetDeviceProc()}\key{GetDeviceProc()} that should not be used
-anymore. It is not able to handle non-binding assigns\key{Non-Binding Assign}
+anymore. It is not able to handle non-binding assigns\key{Non-binding Assign}
 and will not work through all directories of a multi-assign\key{Multi-Assign}.
 
 \begin{verbatim}
@@ -7325,7 +7326,7 @@ a directory.
 \punchline{Obsolete and not fully functional}{The {\tt DeviceProc()} function
   does not operate properly on multi-assigns\key{Multi-Assign} where it only provides
   the port and lock\key{Lock} to the first directory participating in the
-  assign. It also returns {\tt NULL} for non-binding assigns\key{Non-Binding Assign} as there
+  assign. It also returns {\tt NULL} for non-binding assigns\key{Non-binding Assign} as there
   is no way to release a temporary lock obtained on the target of the
   assign. Similar to {\tt GetDeviceProc()}, it does not properly handle
   {\tt NIL:} and ``{\tt *}''\key{* (file name)}.}
@@ -8161,7 +8162,7 @@ If an assign {\tt name} already exist and {\tt lock} is not {\tt ZERO}, then
 the assign, regardless of its type, is converted into a regular assign
 pointing to the target directory given by {\tt lock}. Any resources
 associated to multi-assigns\key{Multi-Assign} or late-\key{Late Binding
-  Assign} or non-binding\key{Non-Binding Assign} assigns are released.
+  Assign} or non-binding\key{Non-binding Assign} assigns are released.
 \smallskip{}
 
 If the assign {\tt name} already exists and {\tt lock} is {\tt ZERO}, then
@@ -8196,7 +8197,7 @@ same name already exists, the error code is
 \subsection{Create or Update a Non-Binding Assign}
 
 The {\tt AssignPath()}\mkey{AssignPath()} function creates or updates a
-non-binding assign\key{Non-Binding Assign} and adds it to the device
+non-binding assign\key{Non-binding Assign} and adds it to the device
 list\key{Device List} if it is not yet present. This type of
 assign\key{Assign} binds to a path independent of the volume the path is
 located on; that is, the assign resolves to whatever volume, handler or even
@@ -8211,8 +8212,8 @@ BOOL AssignLate(STRPTR,STRPTR)
 This function scans the device list\key{Device List} for an assign given by 
 {\tt name}. The {\tt name} shall not contain a trailing colon (``{\tt :}'').
 If such an assign does not yet exit, it creates a non-binding
-assign\key{Non-Binding Assign} to {\tt path}. While not a formal requirement of the function or
-non-binding assigns\key{Non-Binding Assign}, the {\tt path} should better be an
+assign\key{Non-binding Assign} to {\tt path}. While not a formal requirement of the function or
+non-binding assigns\key{Non-binding Assign}, the {\tt path} should better be an
 absolute path as otherwise resolution of the created assign can
 be very confusing --- it is then resolved relative to the current
 directory of the calling process.
@@ -8220,7 +8221,7 @@ directory of the calling process.
 
 If an assign {\tt name} already exists, it is canceled, all of its
 resources, including one or multiple locks are released, and it is converted
-into a non-binding assign\key{Non-Binding Assign} to {\tt path}.
+into a non-binding assign\key{Non-binding Assign} to {\tt path}.
 \smallskip{}
 
 Unfortunately, even in the most present release of AmigaDOS, this function
@@ -8264,7 +8265,7 @@ BOOL AssignLate(STRPTR,STRPTR)
 This function scans the device list\key{Device List} for an assign given by
 {\tt name}. The {\tt name} shall not contain a trailing colon (``{\tt :}'').
 If such an assign does not yet exit, it creates a late-binding
-assign\key{Late-Binding Assign} to {\tt path}. While not required by this
+assign\key{Late-binding Assign} to {\tt path}. While not required by this
 function, the {\tt path} should better be an absolute path as otherwise
 resolution of the created assign can be very confusing --- it is then
 relative to the current directory of the first process using the assign.
@@ -13997,7 +13998,7 @@ section~\ref{sec:objfile}. The name is only a convention.
 \smallskip{}
 
 In assembler, the hunk name can be set by the {\tt section}
-directive\key{Section Assembler Directive}, compilers sometimes offer
+directive\key{Section (Assembler Directive)}, compilers sometimes offer
 command line options to set the hunk name, or select it according to
 their configuration.
 
@@ -14679,7 +14680,7 @@ directories in a multi-assign are only represented by locks in the
 from the corresponding {\tt fl\_Type} element, see chapter~\ref{sec:devicelist} for a detailed discussion of this structure.
 \smallskip{}
 
-Late\key{Late Binding Assign} and non-binding assigns\key{Non-Binding Assign}
+Late\key{Late Binding Assign} and non-binding assigns\key{Non-binding Assign}
 do not resolve to a port immediately. Instead, the {\tt DosList}
 provides in {\tt dol\_AssignName} a path to the target directory which
 is resolved recursively into a lock relative to which the provided
@@ -15061,7 +15062,7 @@ further details on this packet and file system shutdown.
 
 \section{The CON-Handler} \label{sec:console}
 
-The CON-Handler\mkey{CON-Handler} implements the console of
+The CON-Handler\mkey{CON-Handler}\mkey{Console} implements the console of
 AmigaDOS. It not only serves the graphical console, but also a console
 on the serial or any other device. The AUX-Handler\key{AUX-Handler} is
 only a minimal wrapper that locates the
@@ -15378,7 +15379,7 @@ Kickstart ROM, though the mountlist\key{Mountlist} for {\tt AUX:} is available i
 {\tt DEVS:DosDrivers} directory and can be altered there; users can
 create custom mountlists for additional devices based on the CON-Handler by
 specifying {\tt L:AUX-Handler} either as {\tt HANDLER}\key{HANDLER} or {\tt EHANDLER}\key{EHANDLER} in
-the mountlist\key{MountList}. All the AUX-Handler does is to collect startup parameters
+the mountlist\key{Mountlist}. All the AUX-Handler does is to collect startup parameters
 and forward them directly to the CON-Handler, making it customizable.
 \smallskip{}
 
@@ -22282,6 +22283,110 @@ variables in double quotes. This ensures that the Shell escapes the control
 characters properly and makes them accessible to commands and their argument
 parser.
 
+\subsection{Pre-defined Shell Variables, Configuring the Shell}
+
+Some variables\key{Shell Variable} are built into the Shell and either allow to configure
+features of the Shell, or are filled by the Shell with status
+information on the recently executed command. They are listed in the
+following \emph{without} a leading {\tt \$} sign required to expand them to their
+contents:
+\smallskip{}
+
+{\tt process} is filled with the CLI task number. Each Shell is assigned a
+unique small integer to which {\tt process} is expanded. This is the same
+number found in {\tt pr\_TaskNum} of the process structure of the Shell (see
+chapter~\ref{sec:process}) and the process number shown by the {\tt Status}
+command. It can be used, for example, to generate unique file names for
+temporary files.
+\smallskip{}
+
+{\tt RC} is the return code of the previously run command. It can be used
+to check whether the last command failed or not. The Shell compares this
+result with the value set by the {\tt FailAt} command and if it is greater
+or equal than the threshold, a Shell script is aborted. This result code is
+also found in the {\tt cli\_ReturnCode} element of the CLI structure, see
+section~\ref{sec:getcli}. 
+\smallskip{}
+
+{\tt Result2} is the error code the last executed command returned in case
+of failure. It is a code from the list given in section~\ref{sec:ioerr}. The
+{\tt Why} command prints a textual description of this error code. This
+variable corresponds to the {\tt cli\_Result2} element of the CLI structure,
+more details are given in section~\ref{sec:getcli}.
+\medskip{}
+
+The following Shell variables are not set by the Shell, but only read by
+it. They configure the Shell and some of its features. Some of these
+variables take boolean values. In such a case, the strings ``{\tt on}'',
+``{\tt 1}'', ``{\tt yes}'' or ``{\tt TRUE}'' indicate an enabled feature,
+all other values disable the corresponding feature. The comparison is not
+case-sensitive.
+\smallskip{}
+
+{\tt VIEWER} is the path of a program that is used to show non-executable
+files. If this viewer is set to the path of the {\tt MultiView} program, then just
+typing the name of a known datatype shows its contents. If this variable is
+left undefined, attempting to execute a non-executable file as command
+results in an error. Section~\ref{sec:cmdexecution} provides more details.
+\smallskip{}
+
+{\tt echo} is a boolean variable that, if set, echos the currently
+executed command on the console. This is possibly helpful for debugging
+Shell scripts, though {\tt interactive} is probably an even more useful
+tool, see below.
+\smallskip{}
+
+{\tt debug} is a boolean variable that enables writing all executed
+commands over the serial port, at 9600 baud, 8 bits, no parity, 1 stop bit.
+Multiple debugging tools are available to redirect this debug output into a
+file. If logging is enabled in the boot menu, the {\tt syslog} ROM module
+will capture these outputs and redirect them to {\tt RAM:syslog}.
+Section~\ref{sec:sysstartup} provides more background on this feature.
+\smallskip{}
+
+{\tt oldredirect} changes the syntax of the redirection operators
+introduced in section~\ref{sec:redirection}. If this boolean variable is
+enabled, then redirection operators are only recognized if they follow the
+command immediately. If they are somewhere else on the command line, they
+become part of the regular arguments of a command. Thus, for example,
+``{\tt List >Out C:}'' will continue to redirect the output of the {\tt
+  List} command, though ``{\tt List C: >Out}'' will not. Instead, it will
+attempt to list the ``{\tt C:}'' assign along with a file or
+directory named ``{\tt >Out}'' where the ``{\tt >}'' sign is part of the
+file name. This emulates the AmigaDOS~33
+BCPL CLI syntax. Note that enclosing a redirection operator in double
+quotes also disables its function regardless of this variable, and makes
+it a literal symbol that becomes part of a command line argument.
+\smallskip{}
+
+{\tt interactive} enables interactive tracing of Shell scripts. This
+variable can also be set by the boot menu to enable debugging of the
+Startup-Sequence, see also section~\ref{sec:sysstartup}. If this variable is
+set, the Shell prints each command prior execution, and waits for a keyboard
+command. The return key, or ``{\tt y}'' then executes the command, the
+delete key or ``{\tt n}'' skips over the command, and the escape key or
+``{\tt q}'' disables tracing and deletes this variable.
+\smallskip{}
+
+{\tt simpleshell} disables TAB expansion through the console medium mode,
+see section~\ref{sec:conmodes}. Instead, the Shell will only set the console
+to cooked mode and read entire lines. The history and file name expansion by
+the TAB key are then not available anymore, and the Shell falls back to
+AmigaDOS~45 and prior console handling. As of AmigaDOS~47, the history is no
+longer part of the console, but was migrated into the Shell.
+\smallskip{}
+
+{\tt histsize} sets the size of the history in lines. This variable is
+only used if the shell does actually keep a history, and thus requires the
+{\tt simpleshell} variable to be either undefined or off.
+\smallskip{}
+
+{\tt histskipdups} is a boolean variable that, if set, instructs the Shell
+not to keep duplicate commands in its history. If a command is executed a
+second time, this repeated command does not become an indentical second
+entry on the history. This variable only recognized if the Shell is actually
+keeping a history, which it does not if {\tt simpleshell} is enabled.
+
 \subsection{Backtick Expansion} \label{sec:backtick}
 
 After variable expansion, the Shell checks the command line for backticks,
@@ -22405,11 +22510,11 @@ in AmigaDOS~45.
 \smallskip{}
 
 If the {\tt e} protection bit is \emph{not} set, but the
-shell\key{Shell Variable} variable {\tt \$VIEWER} is set, then the Shell attempts to check
+shell\key{Shell Variable} variable {\tt VIEWER} is set, then the Shell attempts to check
 whether the system {\tt datatypes.library} is able to identify the contents
 of the file. If a suitable datatype exists, the Shell prepends the contents
 of this variable to the component and then restarts command location. By
-setting {\tt \$VIEWER} to the system program {\tt MultiView}, the Shell can
+setting {\tt VIEWER} to the system program {\tt MultiView}, the Shell can
 therefore display any system-known datatype by typing its name.
 \smallskip{}
 
@@ -26215,15 +26320,6 @@ leaves it to the Shell to continue the boot process.
 \bibitem{Bantam} Commodore-Amiga Inc:
 {\sl AmigaDOS Manual, $3^{\mbox{\tiny rd}}$ Edition}
 Random House Information Group (1991)  
-\bibitem{mc030} Motorola MC68030UM/AD Rev. 2:
-{\sl MC68030 Enhanced 32-Bit Microprocessor User's Manual, 3rd ed.}
-Prentice Hall, Englewood Cliffs, N.J. 07632 (1990)
-\bibitem{mc040} Motorola MC68040UM/AD Rev. 1:
-{\sl MC68040 Microprocessor User's Manual, revised ed.}
-Motorola (1992,1993)
-\bibitem{mc060} Motorola MC68060UM/AD Rev. 1:
-{\sl MC68060 Microprocessor User's Manual.}
-Motorola (1994)
 \bibitem{mcfam} Motorola MC68000PM/AD Rev. 1:
 {\sl Programmer's Reference Manual.}
 Motorola (1992)
@@ -26236,9 +26332,6 @@ Addison-Wesley Publishing Company (1992)
 \bibitem{rkrmdev} Dan Baker (Ed.):
 {\sl Amiga ROM Kernal Reference Manual: Devices. 3rd. ed.}
 Addison-Wesley Publishing Company (1992)
-\bibitem{rkrmiia} Dan Baker (Ed.):
-{\sl Amiga ROM Kernal Reference Manual: Includes and Autodocs. 3rd. ed.}
-Addison-Wesley Publishing Company (1991)
 \bibitem{guru} Ralph Babel:
 {\sl The Amiga Guru Book.}
 Ralph Babel, Taunusstein (1993)
