@@ -363,16 +363,30 @@ version:
 {\bf AmigaDOS version} & {\bf dos.library version}\\ \hline \hline
 1.2 & 33 \\ \hline
 1.3 & 34 \\ \hline
-2.0 & 37 \\ \hline
+1.4 & 35 \\ \hline
+2.0 & 36 \\ \hline
+2.04 & 37 \\ \hline
+2.1 & 38 \\ \hline
 3.0 & 39 \\ \hline
 3.1 & 40 \\ \hline
-3.9 & 43 \\ \hline
-3.1.4 & 45 \\ \hline
+3.1 {\small (unpublished, with support for Japanese locale)} & 41 \\ \hline
+3.1 {\small (unpublished alpha release)} & 42 \\ \hline
+3.2 {\small (unpublished release for the Walker)} & 43 \\ \hline
+3.5 & 44 \\ \hline
+3.9 & 45 \\ \hline
+3.1.4 & 46 \\ \hline
 3.2 & 47 \\ \hline
 \end{rkrmtable}
 
-Most important changes were made in version 37 in which the library was
-largely extended.
+Most important changes were made in version 36 in which the library was
+largely extended, though the release contained many defects that were
+addressed with version 37. Version 35 was an extension of version 34 with
+integrated support for the A2024 Hedley monitor that was entirely
+RAM-loaded. Versions 41 to 43 were never published, with the exception of
+some beta versions of the FFS which shipped as version 43. Version 44 was used for
+AmigaOs 3.5, and 45 for AmigaOs 3.9 and most modules of 3.1.4. Some modules
+with extended features such as the FFS\key{Fast File System (FFS)} with long
+file name support received the version number 46.
 
 \section{Booleans}
 
@@ -382,7 +396,7 @@ values defined in the file {\tt dos/dos.h}:
 
 \begin{rkrmtable}{DOS Truth Values} \label{table:dosbool}
 {\bf Define} & {\bf Value}\\ \hline \hline
-DOSFALSE & 0  \\ \hline
+DOSFALSE & \phantom{-}0  \\ \hline
 DOSTRUE  & -1 \\ \hline
 \end{rkrmtable}
 
@@ -437,6 +451,16 @@ integers. In order to communicate this fact more clearly, the {\tt
 typedef long  BPTR;                 /* Long word pointer */
 \end{verbatim}
 
+The include file {\tt exec/types.h} contains the definition of an untyped C
+pointer as follows:
+\mkey{APTR}
+\begin{verbatim}
+typedef void *APTR;                 /* 32-bit untyped pointer */
+\end{verbatim}
+This is, unlike a BPTR a real pointer, though the data type it points to
+remains undefined.
+\smallskip{}
+
 Conversion from BCPL pointers to conventional C pointers and back are
 formed by the following macros, also defined in {\tt dos/dos.h}:
 
@@ -477,7 +501,7 @@ It is used as follows:
 D_S (struct FileInfoBlock, fib); 
 \end{verbatim}
 
-At this point, fib is pointer to a properly aligned {\tt struct
+At this point, fib is a pointer to a properly aligned {\tt struct
 FileInfoBlock}, e.g.\ this is equivalent to
 \begin{verbatim}
 struct FileInfoBlock _tmp;
@@ -568,8 +592,8 @@ AmigaDOS is a multi-tasking system operating on top of the \emph{exec}
 kernel~\cite{rkrmlib}. As such, it can operate multiple tasks at once, where
 the tasks are assigned to the CPU in a round-robin fashion. A
 \emph{Process}\key{Process} is an extension of an AmigaOs
-\emph{Task}\mkey{Task} that includes additional state information relevant
-to AmigaDOS, such as a \emph{current directory} operates in, a default file
+\emph{Task}\mkey{Task}; it includes additional state information relevant
+to AmigaDOS, such as a \emph{current directory}, a default file
 system, a \emph{console}\key{Console} it is connected to, a default input,
 output and error stream. Most importantly, processes include a {\tt
   MsgPort}, see~\cite{rkrmlib}, through which it communicates with other
@@ -762,7 +786,7 @@ appropriately, thus passing a~0 argument should be avoided.
 \section{Conversion Into and From Strings} \label{sec:dateconv}
 
 Functions in this section convert date and time in the (binary) AmigaDOS
-representation to human-readable strings, and in the reveverse direction.
+representation to human-readable strings, and in the reverse direction.
 Both the input and output of these functions are kept in the {\tt
   DateTime} structure that is defined in {\tt dos/datetime.h}
 and reads as follows:
@@ -1173,12 +1197,16 @@ as they are created by the AmigaDOS ROM components:
 {\tt RAM}              & RAM-based file system\\ \hline
 \end{rkrmtable}
 
-If more than one floppy drives are connected to the system, they are
-named {\tt DF1} through {\tt DF3}. If a hard disk is present, then the device
-name(s) of the harddisk partitions depend on the contents of Rigid
-Disk Block, see~\cite{rkrmdev}. These names can be selected upon
-installation of the harddisks, e.g.\ through the HDToolBox. The
-general convention is to name partitions is {\tt DH0} and following.
+If more than one floppy drives are connected to the system, they are named
+{\tt DF1} through {\tt DF3}. If a hard disk is present, then the device
+name(s) of the harddisk partitions depend on the contents of Rigid Disk
+Block, see~\cite{rkrmdev}. These names can be selected upon installation of
+the harddisks, e.g.\ through the HDToolBox. The general convention is to
+assign hard disk partitions the device names {\tt DH0} and following. As for floppy
+disks, partitions \emph{also} have a volume name, see
+section~\ref{sec:volumelist}, which should be different from its device
+name. The workbench shows the latter, and \emph{not} the device name, on its
+screen.
 \smallskip{}
 
 The devices {\tt SER}, {\tt PAR}, {\tt PRT} and {\tt PIPE} are created by
@@ -1237,7 +1265,13 @@ does not provide job control features, some third party consoles do.
   {\tt *} without any colon if you mean the console.}
 
 Additional devices can be announced to the system by the
-\emph{Mount}\key{Mount (command)} command, see chapter~\ref{sec:handlers}.
+\emph{Mount}\key{Mount (command)} command, see
+chapter~\ref{sec:handlers}. Device names for custom mount handlers and file
+systems can be chosen freely as long as they do not conflict with system
+mounted devices, the special names listed in
+table~\ref{table:specialdevices} or
+the system-defined assigns in section~\ref{sec:volumelist}.
+
 
 \subsubsection{Volumes} \label{sec:volumelist}
 A \emph{volume name}\mkey{Volume name} identifies a particular data
@@ -1334,8 +1368,9 @@ executed binary was loaded from. Note that {\tt PROGDIR} does not
 exist in case an executable was not loaded from disk, probably
 because it was either taken from ROM or was made resident. More on
 resident executables is found in section~\ref{sec:resident}\footnote{Unfortunately,
-attempting to access a file relative to {\tt PROGDIR} from within resident
-executables will create a requester to insert a volume of this name. This is
+attempting to access a file relative to {\tt PROGDIR} if it does not exist,
+e.g.\ from within resident
+executables, will create a requester to insert a volume of this name. This is
 likely a defect as this requester is not particularly instructive.}.
 \smallskip{}
 
@@ -1394,7 +1429,7 @@ interpret this path and locate a file within the data carrier it manages, or
 to configure an interface to the outside world according to this path. For
 example, while the Fast File System (FFS)\key{Fast File System (FFS)} ---
 the Amiga ROM file system --- interprets this path as a location within the
-file system directory hiearchy, the Conole-Handler reads it as a
+file system directory hiearchy, the CON-Handler\key{CON-Handler} reads it as a
 specification of the dimensions and configuration of the window it is
 supposed to open.
 \smallskip{}
@@ -1586,7 +1621,7 @@ The access mode shall be one of the following, defined in {\tt dos/dos.h}:
 
 The access mode {\tt MODE\_OLDFILE}\mkey{MODE\_OLDFILE} attempts to find an existing
 file. If the file does not exist, the function fails. If the file
-exists, it can be read from or written from, though simultaneous
+exists, it can be read from or written to, though simultaneous
 access from multiple processes is possible and does not create an
 error condition. If multiple processes write to the same file
 simultaneously, the result is undefined and no particular order of the
@@ -1624,8 +1659,8 @@ any attempt to access the file from a second process fails with an
 error condition.
 
 \punchline{No Wildcards}{The Open() function, similar to most
-  \emph{dos.library} functions, does not attempt to resolve wild cards. That
-  is, any character potentially reassembling a wild card, such as
+  \emph{dos.library} functions, does not attempt to resolve wildcards. That
+  is, any character potentially reassembling a wildcard, such as
   ``?'' or ``\#'' will taken as a literal and will be used as part of
   the file name. While these characters are valid, they should be
   avoided as they make it hard to access such files the shell\key{Shell}.}
@@ -1660,11 +1695,13 @@ program terminates. Attempting to close the same file twice will most likely
 result in a crash.
 \smallskip{}
 
-If closing a file fails, unfortunately not much can be done and no general
-advice is possible how to handle this situation. At the time {\tt Close()}
-returns with an error, an error requester has already been shown to the user
---- unless it has been explicitly disabled --- and thus retrying {\tt
-  Close()} does not provide an advantage.
+If closing a file fails, e.g.\ because internal buffers of the file system
+cannot be written back when the volume became unaccessible, unfortunately
+not much can be done and no general advice is possible how to handle this
+situation. At the time {\tt Close()} returns with an error, an error
+requester has already been shown to the user --- unless it has been
+explicitly disabled --- and thus retrying {\tt Close()} does not provide an
+advantage.
 \smallskip{}
 
 Attempting to close the {\tt ZERO} file handle\key{FileHandle} under AmigaDOS version 36 or
@@ -2106,6 +2143,15 @@ only available to BCPL programs through the Global Vector\key{Global Vector}
 prior to version 36. In version 36, the \emph{dos.library} was rewritten in
 assembler and C, and as part of this rewrite, they became available to the
 library interface.
+\medskip{}
+
+AmigaDOS also provides record-oriented read and write functions similar to
+the Posix {\tt fread()} and {\tt fwrite()} functions; they are introduced in
+the next two sections. They read or write one or multiple records, each of
+the same size. There is no advantage of setting the record size to a
+particular value, in effect they read or write the number of bytes given by
+the product of record size and record count, though return only the total
+number of complete records that could be received or written.
 
 \subsection{Buffered Read From a File} \label{sec:fread}
 
@@ -2127,7 +2173,7 @@ last record may be incomplete. Such an incomplete record is \emph{not}
 included in the {\tt count}.
 \smallskip{}
 
-From AmigaOs 3.2 onwards, {\tt FRead()} first attempts to satisfy the
+From AmigaOs~47 onwards, {\tt FRead()} first attempts to satisfy the
 request from the file handle\key{FileHandle} internal buffer, but if the number of
 remaining bytes is larger than the buffer size, the handler will be
 invoked directly for ``bursting'' the data into the target buffer,
@@ -2162,7 +2208,7 @@ written may be incomplete. Such an incomplete record is \emph{not} included
 in {\tt count}.
 \smallskip{}
 
-From AmigaOs 3.2 onwards, {\tt FWrite()} first checks whether the file
+From AmigaDOS~47 onwards, {\tt FWrite()} first checks whether the file
 handle\key{FileHandle} internal buffer is partially filled. If so, the file handle
 internal buffer is filled from {\tt buf}. If any bytes remain to be
 written, and the number of bytes is larger than the internal buffer
@@ -2218,8 +2264,8 @@ LONG SetVBuf(BPTR, STRPTR, LONG, LONG)
 
 This function sets the internal buffer of the file handle\key{FileHandle} {\tt fh} to {\tt
   size} bytes. Sizes smaller than 204 bytes will be rounded up to
-204\footnote{While the official autodocs and~\cite{guru} reports a default
-buffer size of 208 characters, this information is not correct.} bytes. If
+204 bytes\footnote{While the official autodocs and~\cite{guru} reports a default
+buffer size of 208 characters, this information is not correct.}. If
 {\tt buff} is non-{\tt NULL}, it is a pointer to a user-provided buffer that
 will be used for buffering. A user-provided buffer shall be aligned to a
 32-bit boundary. A user provided buffer will not be released when the file
@@ -3061,7 +3107,7 @@ System\key{Fast File System (FFS)} support it.
 
 \subsection{Locking a Region of a File} \label{sec:lockrecord}
 
-The {\tt LockRecord}\mkey{LockRecord} function locks a single region
+The {\tt LockRecord()}\mkey{LockRecord()} function locks a single region
 of a file, potentially waiting for a timeout for the region to become
 available.
 
@@ -3331,7 +3377,7 @@ an error code on failure.
 \smallskip{}
 
 \punchline{No Wildcards Here!}{Note that this function does not attempt to
-  resolve wild cards, similar to {\tt Open()}. All characters in the
+  resolve wildcards, similar to {\tt Open()}. All characters in the
   path are literals.}
 
 \subsection{Duplicating a Lock} \label{sec:duplock}
@@ -4574,7 +4620,7 @@ necessary if the {\tt ExAllControl} structure is re-used for another scan.
 \smallskip{}
 
 {\tt eac\_MatchString}\mkey{eac\_MatchString} filters the directory entry
-names, and fills only those into {\tt buffer} that match the wild card pointed to by this
+names, and fills only those into {\tt buffer} that match the wildcard pointed to by this
 member. This entry shall be either {\tt NULL}, or a pre-parsed pattern as
 generated by {\tt ParsePatternNoCase()}\key{ParsePatternNoCase()}, see
 section~\ref{sec:parsepatternnocase} for more details on this function.
@@ -5360,7 +5406,7 @@ functions listed in Table~\ref{table:softenabled}:
 {\tt MakeLink()} & Create a link to an object\\ \hline
 {\tt SetOwner()} & Set User and Group ID\\ \hline \hline
 {\tt MatchFirst()} & Resolve a lock\key{Lock} to a path\footnote{This function 
-works only partially with soft links - it fails if the pattern is not a wild card
+works only partially with soft links - it fails if the pattern is not a wildcard
 and the soft link cannot be resolved.}\\ \hline
 {\tt LoadSeg()} & Load an executable \\ \hline
 {\tt NewLoadSeg()} & Load an executable with parameters \\ \hline
@@ -8681,7 +8727,7 @@ that is never going to be inserted.
 
 \chapter{Pattern Matching} \label{sec:patternmatch}
 Unlike other operating systems, it is neither the file system nor the
-shell\key{Shell} that expands wild cards, or patterns as they are also
+shell\key{Shell} that expands wildcards, or patterns as they are also
 called. Instead, separate functions exist that, given a wildcard, scan a
 directory or an entire directory tree and deliver all files, links and
 directories that match a given pattern. The pattern matcher can also be
