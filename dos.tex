@@ -1452,7 +1452,9 @@ AmigaDOS legacy that requires that paths are represented as BSTRs to the
 handlers. How large the name of a directory or a file, i.e.\ a component of a
 path, can be is a matter of the file system itself. The Fast File
 System\key{Fast File System (FFS)} includes variants that limit component
-(file or directory) names to 30, 56 or 106 characters.
+(file or directory) names to 30, 56 or 106 characters. The latter is the
+upper limit that is imposed by the {\tt FileInfoBlock}\key{FileInfoBlock}
+structure, see section~\ref{sec:fib}.
 \smallskip{}
 
 File systems typically do not report an error if the maximum component name
@@ -1595,20 +1597,13 @@ The {\tt name} argument is the \emph{path} the file to be opened,
 which is interpreted according to the rules given in
 section~\ref{sec:paths}. The argument {\tt accessMode} identifies how
 the file is opened. The function returns a {\tt BPTR} to a
-file handle\key{FileHandle} on success, or {\tt ZERO} on failure. A secondary return
-code can be retrieved from {\tt IoErr()} described in
-section~\ref{sec:ioerr}. It is~$0$ on success, or an error code from
-{\tt dos/dos.h} in case opening the file failed.
-\smallskip{}
-
-The access mode shall be one of the following, defined in {\tt dos/dos.h}:
-
-\begin{rkrmtable}{Access Modes for Opening Files} \label{table:openmodes}
-{\bf Access Name} & {\bf Description}\\ \hline \hline
-{\tt MODE\_OLDFILE}\key{MODE\_OLDFILE}   & Shared access to existing files\\ \hline
-{\tt MODE\_READWRITE}\key{MODE\_READWRITE} & Shared access to new or existing files\\ \hline
-{\tt MODE\_NEWFILE}\key{MODE\_NEWFILE}   & Exclusive access to new files\\ \hline
-\end{rkrmtable}
+file handle\key{FileHandle} on success, or {\tt ZERO} on failure. A secondary result
+code can be retrieved from {\tt IoErr()}; this function is introduced in
+section~\ref{sec:ioerr}. This result code should be~$0$ on success, though unfortunately
+not all handlers initialize it correctly on
+success. In case opening the file failed, {\tt IoErr()}\key{IoErr()}
+delivers one of the error codes from {\tt dos/dos.h},
+section~\ref{sec:ioerr} lists the system defined codes.
 
 \punchline{Length Limited}{As this function needs to convert the path
   argument from a C string to a BSTR, path names longer than 255
@@ -1620,6 +1615,16 @@ The access mode shall be one of the following, defined in {\tt dos/dos.h}:
   for interactive files or for handlers that follow conventions for the
   path name that are different from the conventions described in
   section~\ref{sec:locate}.}
+
+The access mode shall be one of modes in table~\ref{table:openmodes}, they
+are also defined in {\tt dos/dos.h}:
+
+\begin{rkrmtable}{Access Modes for Opening Files} \label{table:openmodes}
+{\bf Access Name} & {\bf Description}\\ \hline \hline
+{\tt MODE\_OLDFILE}\key{MODE\_OLDFILE}   & Shared access to existing files\\ \hline
+{\tt MODE\_READWRITE}\key{MODE\_READWRITE} & Shared access to new or existing files\\ \hline
+{\tt MODE\_NEWFILE}\key{MODE\_NEWFILE}   & Exclusive access to new files\\ \hline
+\end{rkrmtable}
 
 The access mode {\tt MODE\_OLDFILE}\mkey{MODE\_OLDFILE} attempts to find an existing
 file. If the file does not exist, the function fails. If the file
@@ -1665,7 +1670,7 @@ error condition.
   is, any character potentially reassembling a wildcard, such as
   ``?'' or ``\#'' will taken as a literal and will be used as part of
   the file name. While these characters are valid, they should be
-  avoided as they make it hard to access such files the shell\key{Shell}.}
+  avoided as they make it hard to access such files from the shell\key{Shell}.}
 
 \subsection{Closing Files} \label{sec:close}
 
@@ -1708,7 +1713,7 @@ advantage.
 
 Attempting to close the {\tt ZERO} file handle\key{FileHandle} under AmigaDOS version 36 or
 later returns success immediately. Under earlier versions, closing
-{\tt ZERO} causes a crash.
+{\tt ZERO} caused a crash.
 
 \section{Testing for Interactive Files}
 
