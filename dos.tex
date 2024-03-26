@@ -1982,7 +1982,11 @@ of an error.
 
 A secondary return code can be retrieved from {\tt IoErr()}\key{IoErr()} described
 in section~\ref{sec:ioerr}. It is~$0$ on success, or an error code from
-{\tt dos/dos.h} in case adjusting the file pointer failed.
+{\tt dos/dos.h} in case adjusting the file pointer failed. Unfortunately,
+it is not too uncommon that handlers that \emph{do not} implement
+{\tt Seek()} erraneously return~0 instead of~-1 to report this problem
+and then set {\tt IoErr()} to
+{\tt ERROR\_ACTION\_NOT\_KNOWN}\key{ERROR\_ACTION\_NOT\_KNOWN}.
 
 \punchline{Not 64bit safe}{Unfortunately, it is not quite clear how
   {\tt Seek()} operates on files that are larger than 2GB, and it is
@@ -2065,7 +2069,7 @@ through {\tt IoErr()}\key{IoErr()}. Unfortunately, handlers that do not
 implement this function can erraneously also return~0, and thus callers
 should also check {\tt IoErr()}\key{IoErr()} if~0 is the primary result
 code. Handlers that do not implement this function will set {\tt IoErr()} to
-{\tt ERROR\_NOT\_IMPLEMENTED}\key{ERROR\_NOT\_IMPLEMENTED}.
+{\tt ERROR\_ACTION\_NOT\_KNOWN}\key{ERROR\_ACTION\_NOT\_KNOWN}.
 
 \punchline{Not 64bit safe}{Similar to {\tt Seek()},
   {\tt SetFileSize()} cannot be assumed to work properly if the (old or
@@ -2598,7 +2602,7 @@ initialize it according to the nature of the handler.
 
 {\tt fh\_Type}\mkey{fh\_Type} points to the {\tt MsgPort} of the handler or
 file system that implements all input and output
-operations. Section~\ref{sec:handlers} provides additional information on
+operations. Chapter~\ref{sec:handlers} provides additional information on
 how handlers and file systems work. If this pointer is {\tt NULL}, no
 handler is associated to the file handle\key{FileHandle}. AmigaDOS will deposit this value
 here when opening a file to the {\tt NIL} (pseudo-)device. Attempting to
@@ -2643,7 +2647,7 @@ file system uses to identify the file. The interpretation of this value is
 up to the file system or handler, and the \emph{dos.library} does not
 attempt to interpret it. The handler deposits the file identification here
 when opening a file, and the \emph{dos.library} forwards it to the handler
-on {\tt Read()} and {\tt Write()} requests. See chapters~\ref{sec:handlers}
+on {\tt Read()}, {\tt Write()} and many other requests. See chapters~\ref{sec:handlers}
 and~\ref{sec:packettypes} for details.
 \smallskip{}
 
@@ -2925,7 +2929,7 @@ arguments according to a format string similar to {\tt
   VFPrintf()}\key{VFPrintf()}, but uses the formatting syntax of the
 BCPL language. The main purpose of this function is to offer formatted
 output for legacy BCPL programs where this function appears as an
-entry of the BCPL \emph{Global Vector}\key{Global Vector}. New code
+entry of the BCPL Global Vector\key{Global Vector}. New code
 should not use this function but rather depend on {\tt VFPrintf()}
 which also gets enhanced by the \emph{locale.library}.
 \smallskip{}
@@ -2992,8 +2996,8 @@ This function is \emph{not} patched by the \emph{locale.library} and
 therefore is not localized nor enhanced.
 \smallskip{}
 
-While the same function can also be found in the BPCL \emph{Global
-  Vector}\key{Global Vector}, it there takes BSTRs instead of regular
+While the same function can also be found in the BPCL
+Global Vector\key{Global Vector}, it there takes BSTRs instead of regular
 C strings for the format string and the arguments of the {\tt \%S} and
 {\tt \%T} formats.
 
