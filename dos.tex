@@ -24115,6 +24115,28 @@ Releases prior to AmigaDOS~47 did not clear the {\tt e} protection bit of
 the file(s) created in {\tt ENV:} or {\tt ENVARC:}. If a variable name
 contained two slashes such as {\tt //}, releases prior to AmigaDOS~47 would
 have crashed.
+\smallskip{}
+
+Furthermore, {\tt SetVar()} depends on the file system responsible to the
+directory the {\tt ENV:} assign points to to support both
+{\tt MODE\_READWRITE}\key{MODE\_READWRITE} as mode of the {\tt Open()}\key{Open()},
+function specified in section~\ref{sec:open}, as well as the
+{\tt SetFileSize()}\key{SetFileSize()} function, see section~\ref{sec:setfilesize}.
+While both the FFS~\key{Fast File System (FFS)} and the
+RAM-Handler\key{RAM-Handler} implement these functions and {\tt ENV:}
+usually points to a directory in the latter, some third-party file systems
+may not. In such a case, {\tt SetVar()} can fail silently when setting a
+global variable.
+\smallskip{}
+
+Additionally, {\tt SetVar()} has up to and including AmigaDOS~47 a potential
+race condition if two processes attempt to modify or read the same global variable
+concurrently. While the file system implementing {\tt ENV:} should provide
+sufficient protection for writing data concurrently into a file, {\tt
+  SetVar()} uses a two-step process in which the data is written first, and
+then the variable is truncated to its target size which may happen
+concurrently with a second process either writing to, or reading from the
+same variable.
 
 \subsection{Finding a Shell Variable} \label{sec:findvar}
 
