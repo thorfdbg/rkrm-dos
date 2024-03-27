@@ -3388,7 +3388,7 @@ lock on the same object.
 
 The return code {\tt lock} identifies the lock\key{Lock}. It is non-{\tt ZERO}
 (see~\ref{sec:bptrs}) on success, or {\tt ZERO} on failure. In either
-case, {\tt IoErr()}\key{IoErr()} is set to $0$ indicating success, or
+case, {\tt IoErr()}\key{IoErr()} is set, to an undefined value on success or
 an error code on failure.
 \smallskip{}
 
@@ -3418,8 +3418,8 @@ work).
 
 In case of error, {\tt DupLock()}\key{DupLock()} returns {\tt ZERO}, and
 then {\tt IoErr()}\key{IoErr()} returns an error code identifying the
-error. On success, {\tt IoErr()} is reset. It is not possible to copy an
-exclusive lock.
+error. On success, {\tt IoErr()} is set to an undefined value.
+It is not possible to copy an exclusive lock.
 \smallskip{}
 
 It is currently not possible to duplicate the {\tt ZERO}
@@ -3451,8 +3451,8 @@ to the topmost directory of a file system, i.e.\ the root
 directory\key{Root Directory}, or the {\tt ZERO}\key{ZERO lock} lock itself.
 \smallskip{}
 
-To distinguish the two cases, the caller should check the {\tt
-  IoErr()}\key{IoErr()} function; if this function returns $0$, then no
+To distinguish the two cases, the caller should check the
+{\tt IoErr()}\key{IoErr()} function; if this function returns $0$, then no
 error occurred and the passed in object is the topmost directory and does
 not have a parent directory. If {\tt IoErr()}\key{IoErr()} returns a
 non-zero error code, then the file system failed to lock the parent
@@ -3484,8 +3484,8 @@ deleted is not correct.}. If successful, the function returns an exclusive lock 
 returns {\tt ZERO}.
 \smallskip{}
 
-In either case, {\tt IoErr()}\key{IoErr()} is set to an error code, or to
-$0$ in case the function succeeds.
+In either case, {\tt IoErr()}\key{IoErr()} is set to an error code,
+or to an undefined value in case the function succeeds.
 \smallskip{}
 
 Note that not all file systems support directories, i.e.\ flat file
@@ -3508,9 +3508,8 @@ void UnLock(BPTR)
 
 This function releases the lock passed in as {\tt lock}
 argument. Passing {\tt ZERO} as a lock is fine and performs no
-action. This function does not return an error code. It does, however, set
-{\tt IoErr()}\key{IoErr()} if {\tt lock} is not {\tt ZERO}, and thus
-potential problems of a file system releasing a lock may be identified.
+action. This function does not return an error code, and neither
+alters {\tt IoErr()}\key{IoErr()}.
 
 \subsection{Changing the Type of a Lock} \label{sec:changemode}
 
@@ -3545,7 +3544,7 @@ to make either the file or the lock accessible for shared access, and
 {\tt EXCLUSIVE\_LOCK}\key{SHARED\_LOCK} for exclusive access.
 
 On success, the function returns a non-zero result code, and
-{\tt IoErr()} is set to $0$. Otherwise, the function returns $0$ and sets
+{\tt IoErr()} is set an undefined value. Otherwise, the function returns $0$ and sets
 {\tt IoErr()}\key{IoErr()} to an appropriate error code.
 \smallskip{}
 
@@ -3579,8 +3578,8 @@ all of them defined in {\tt dos/dos.h}, can be one of the following:
 
 This function does not set {\tt IoErr()}\key{IoErr()} consistently,
 and callers cannot depend on its value. Furthermore, the function does
-not compare a {\tt ZERO} lock\key{ZERO lock} with lock on the boot volume, e.g {\tt
-  SYS:} as identical. It is recommended not to pass in the {\tt ZERO}
+not compare a {\tt ZERO} lock\key{ZERO lock} with lock on the boot volume,
+i.e.\ {\tt SYS:}, as identical. It is recommended not to pass in the {\tt ZERO}
 lock for either {\tt lock1} or {\tt lock2}.
 \medskip{}
 
@@ -3640,8 +3639,8 @@ D0                 D1     D2
 BOOL SameDevice( BPTR, BPTR )
 \end{verbatim}
 
-The {\tt SameDevice()} function takes two locks {\tt lock1} and {\tt
-  lock2} and checks whether they were created by file systems that operate
+The {\tt SameDevice()} function takes two locks {\tt lock1} and
+{\tt lock2} and checks whether they were created by file systems that operate
 on the same physical device, even if the two locks refer to different
 file systems or different partitions. Only the exec device and the
 corresponding unit is compared, that is, this function is not able to
@@ -3716,7 +3715,7 @@ This function returns a copy of the lock the file handle\key{FileHandle} {\tt fh
 on and returns it in {\tt lock}, that is, returned lock is a lock on the
 file described by the handle {\tt fh}. This file handle remains valid and
 usable after this call. In case of failure, {\tt ZERO} is returned. In
-either case, {\tt IoErr()} is set to~$0$ in case of success, or an error
+either case, {\tt IoErr()} is set an undefined value in case of success, or an error
 code on failure.
 
 \subsection{Obtaining the Directory a File is Located in} \label{sec:parentoffh}
@@ -3724,9 +3723,9 @@ code on failure.
 The {\tt ParentOfFH()}\mkey{ParentOfFH()} function obtains a
 shared lock\key{Lock} on the parent directory of the file associated to
 the file handle\key{FileHandle} passed in. That is, this function it is roughly
-equivalent to first obtaining a lock on the file through {\tt
-  DupLockFromFile()} \key{DupLockFromFile()}, and then calling {\tt
-  ParentDir()}\key{ParentDir()} on it, except that this function also
+equivalent to first obtaining a lock on the file through
+{\tt DupLockFromFile()} \key{DupLockFromFile()}, and then calling
+{\tt ParentDir()}\key{ParentDir()} on it, except that this function also
 applies to files opened in the {\tt MODE\_NEWFILE}\key{MODE\_NEWFILE}
 mode.
 
@@ -3740,8 +3739,9 @@ BPTR ParentOfFH(BPTR)
 This function returns a shared lock\key{Lock} on the directory containing
 the file opened through the {\tt fh} file handle\key{FileHandle}. The file handle remains
 valid and usable after this call. This function returns {\tt ZERO} in case
-of failure. {\tt IoErr()}\key{IoErr()} is set to~$0$ in case of success or
-to an error code from {\tt dos/dos.h} in case of failure.
+of failure. {\tt IoErr()}\key{IoErr()} is set to an error code from
+{\tt dos/dos.h} in case of failure, or to an undefined value in
+case of success.
 
 \subsection{Opening a File from a Lock} \label{sec:openfromlock}
 
@@ -3767,7 +3767,7 @@ In case of success, the lock\key{Lock} becomes an implicit part of the file
 handle\key{FileHandle} and shall not be unlocked by the caller anymore.  In case of failure,
 the function returns {\tt ZERO} and the lock remains available to the
 caller. This function always sets {\tt IoErr()}, to an error code in case of
-failure, or to~$0$ in case of success.
+failure, or to an undefined value in case of success.
 \smallskip{}
 
 This function allows to open files in exclusive mode without deleting its
@@ -4025,14 +4025,14 @@ the medium identified by {\tt lock}.
 \medskip{}
 
 The {\tt Info()} function returns a non-zero result code on success and sets then
-{\tt IoErr()}\key{IoErr()} to~0. On failure, it returns~0 and sets
-{\tt IoErr()} to an error code.
+{\tt IoErr()}\key{IoErr()} to an undefined value.
+On failure, it returns~0 and sets {\tt IoErr()} to an error code.
 
 \subsection{The struct FileLock} \label{sec:filelock}
 
 Locks have been so far been opaque identifiers; in fact, they
-are BPTRs to a {\tt FileLock} structure that is defined in {\tt
-  dos/dosextens.h}.
+are BPTRs to a {\tt FileLock} structure that is defined in
+{\tt dos/dosextens.h}.
 
 \begin{verbatim}
 #include <dos/dosextens.h>
@@ -4084,8 +4084,8 @@ sections~\ref{sec:rootblock}, \ref{sec:userdirblock} and
 
 The {\tt fl\_Access}\mkey{fl\_Access} member keeps the access type of the lock and
 reflects the {\tt accessMode} parameter of the {\tt Lock()}\key{Lock()}
-function. It is either {\tt SHARED\_LOCK}\key{SHARED\_LOCK} or {\tt
-  EXCLUSIVE\_LOCK}\key{EXCLUSIVE\_LOCK}.
+function. It is either {\tt SHARED\_LOCK}\key{SHARED\_LOCK} or
+{\tt EXCLUSIVE\_LOCK}\key{EXCLUSIVE\_LOCK}.
 \smallskip{}
 
 The {\tt fl\_Task}\mkey{fl\_Task} member points to the message port of the file
