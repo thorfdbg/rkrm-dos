@@ -4149,8 +4149,8 @@ feature, at least not unless a directory cache is used. The latter has,
 however, other drawbacks and should be avoided for different reasons, see
 section~\ref{sec:ffs}.  Actually, {\tt ExAll()} is (even more) complex to
 implement, and it is probably not surprising that its implementation in
-multiple file systems have issues. The {\tt dos.library} provides an {\tt
-  ExAll()} fall-back implementation for those file systems that do not
+multiple file systems have issues. The {\tt dos.library} provides an
+{\tt ExAll()} fall-back implementation for those file systems that do not
 implement it, but even this (ROM-based) implementation had issues in the
 past. Therefore, {\tt ExAll()} has probably less to offer than it seems.
 \smallskip{}
@@ -4213,8 +4213,8 @@ system object; hard links then only appear as regular directory entries. This
 applies for example to all variants of the Linux {\tt ext} file
 systems. Thus, one cannot depend on hard links being easily identifyable. The
 external links\key{External Link} implemented by the
-RAM-Handler\key{RAM-Handler} can neither be identified by the {\tt
-  fib\_DirEntryType} and they also appear as regular files or directories.
+RAM-Handler\key{RAM-Handler} can neither be identified by the
+{\tt fib\_DirEntryType} and they also appear as regular files or directories.
 \smallskip{}
 
 All other types larger than zero indicate directories, and all other types
@@ -4242,8 +4242,8 @@ protection bits are currently defined in {\tt dos/dos.h}:
 {\tt FIBB\_SCRIPT} & If $1$, the file is a script\key{Shell Script}. \\ \hline
 {\tt FIBB\_HOLD} & If $1$, the file is made resident on first execution. \\ \hline
 \end{rkrmtable}
-The flags {\tt FIBB\_DELETE}\key{FIBB\_DELETE} to {\tt
-  FIBB\_READ}\mkey{FIBB\_READ} are shown inverted in the output of most
+The flags {\tt FIBB\_DELETE}\key{FIBB\_DELETE} to
+{\tt FIBB\_READ}\mkey{FIBB\_READ} are shown inverted in the output of most
 tools, i.e.\ they are shown active if the corresponding flag is~$0$, i.e.\ if a
 particular protection function is \emph{not} active.
 \smallskip{}
@@ -4273,8 +4273,8 @@ meaningless for directories.
 \smallskip{}
 
 If the {\tt FIBB\_READ}\mkey{FIBB\_READ} bit is set, then opening the file
-for reading fails with {\tt
-  ERROR\_READ\_PROTECTED}\key{ERROR\_READ\_PROTECTED}. This flag
+for reading fails with
+{\tt ERROR\_READ\_PROTECTED}\key{ERROR\_READ\_PROTECTED}. This flag
 is also unsupported by the AmigaDOS ROM file system versions 34 and below,
 i.e.\ the OFS, and it is meaningless for directories.
 \smallskip{}
@@ -4324,8 +4324,8 @@ the first line of a shell script, see section~\ref{sec:cmdexecution} for the det
 
 The {\tt FIBB\_HOLD}\mkey{FIBB\_HOLD} flag indicates whether a command 
 is made resident upon loading it the first time. If the flag is set, and the
-shell\key{Shell} loads the file as executable binary, and the {\tt
-  FIBB\_PURE} bit is also set, the file is kept in RAM and stays there for
+shell\key{Shell} loads the file as executable binary, and the
+{\tt FIBB\_PURE} bit is also set, the file is kept in RAM and stays there for
 future execution. This bit was introduced in version 36 of AmigaDOS, but
 stripped again from the sources in release 40 due to ROM space
 limitations. It was reintroduced in AmigaDOS version 45.
@@ -4382,9 +4382,9 @@ the last modification was made for a directory, such as creating or deleting
 a file or directory within. For the Fast File System\key{Fast File System
   (FFS)} modification of file or directory metadata, such as file comments
 or protection bits are not reflected here. Which operations exactly trigger
-a change of a directory is file system dependent. The {\tt
-  DateStamp}\key{DateStamp} structure is specified in
-section~\ref{sec:datestamp}.
+a change of a directory is file system dependent. The
+{\tt DateStamp}\key{DateStamp} structure is specified
+in section~\ref{sec:datestamp}.
 \smallskip{}
 
 As for protection bits, the AmigaDOS core file systems (FFS and RAM)
@@ -4406,14 +4406,13 @@ target. However, this is an implementation detail of the file system and not
 necessarily true for other file systems.
 \smallskip{}
 
-The {\tt fib\_OwnerUID}\mkey{fib\_OwnerUID} and {\tt
-  fib\_OwnerGID}\mkey{fib\_OwnerGID} are filled in by some multi-user aware
+The {\tt fib\_OwnerUID}\mkey{fib\_OwnerUID} and
+{\tt fib\_OwnerGID}\mkey{fib\_OwnerGID} are filled in by some multi-user aware
 file systems. They are opaque values representing the owner and group ID
-owning the file or directory. The AmigaDOS ROM file systems do not support
-these fields, and no provision is made to moderate access to a particular
+owning the file or directory. While the FFS\key{Fast File System (FFS)}
+stores such information, no provision is made to moderate access to a particular
 file according to an owner or its group. The two concepts are alien to
-AmigaDOS itself. These fields were introduced in AmigaDOS version 43, though
-remain unsupported by the ROM file systems.
+AmigaDOS itself. These fields were introduced in AmigaDOS version 43.
 \smallskip{}
 
 The {\tt fib\_Reserved}\mkey{fib\_Reserved} field is currently unused and shall not be
@@ -4444,8 +4443,8 @@ process, i.e.\ typically {\tt SYS:}.
 \smallskip{}
 
 The function returns non-zero in case of success, and~$0$ for failure. In
-either case, {\tt IoErr()} is filled, by~$0$ on success, on an error code on
-failure.
+either case, {\tt IoErr()} is set, to an undefined value on success, or to
+an error code on failure.
 
 \punchline{Keep it Aligned!}{As with most BCPL structures, the
   {\tt FileInfoBlock}\key{FileInfoBlock} shall be aligned to a long-word boundary. For that
@@ -4481,8 +4480,8 @@ file handle upfront and fail if it is {\tt NULL}.
 \smallskip{}
 
 This function returns non-zero in case of success, or $0$ on error. In
-either case, {\tt IoErr()}\key{IoErr()} is set, namely to $0$ on
-success and to an error code otherwise.
+either case, {\tt IoErr()}\key{IoErr()} is set, namely to an undefined value
+on success or to an error code otherwise.
 \smallskip{}
 
 As for {\tt Examine()}\key{Examine()}, the
@@ -4498,8 +4497,8 @@ contained in this directory. For scanning through a directory, first
 information on the directory itself.
 \smallskip{}
 
-To learn about the objects in the directory, iteratively call {\tt
-  ExNext()} on the same {\tt lock} and on the same {\tt FileInfoBlock}\key{FileInfoBlock}
+To learn about the objects in the directory, iteratively call {\tt ExNext()}
+on the same {\tt lock} and on the same {\tt FileInfoBlock}\key{FileInfoBlock}
 until the function returns {\tt DOSFALSE}. Each iteration provides
 then information on the subsequent element in the directory of the
 {\tt lock}.
@@ -4512,16 +4511,16 @@ BOOL ExNext(BPTR, struct FileInfoBlock *)
 \end{verbatim}
 
 This call returns information on the subsequent entry of a directory
-identified by {\tt lock} and deposits this information in the {\tt
-  FileInfoBlock}\key{FileInfoBlock} described in~\ref{sec:fib}. The
+identified by {\tt lock} and deposits this information in the
+{\tt FileInfoBlock}\key{FileInfoBlock} described in~\ref{sec:fib}. The
 {\tt lock} shall be a lock\key{Lock} on a directory, in particular, and
 shall have been prepared for a directory scan by
 {\tt Examine()}\key{Examine()} first. The {\tt ZERO} lock\key{ZERO lock} to identify
 the root directory of a volume is typically \emph{not sufficient} here.
 \smallskip{}
 
-Unlike {\tt Examine()}\key{Examine()} and {\tt
-  ExamineFH()}\key{ExamineFH()}, this function is, depending on the file
+Unlike {\tt Examine()}\key{Examine()} and {\tt ExamineFH()}\key{ExamineFH()},
+this function is, depending on the file
 system, able to identify soft-\key{Soft Link} and hard links\key{Hard Link}
 and does not attempt to resolve them. Whether file systems are actually able
 to distinguish between a link and its target is another matter, see also
@@ -4529,9 +4528,10 @@ section~\ref{sec:fib} for more information.
 \smallskip{}
 
 On success, {\tt ExNext()} returns non-zero. If there is no further
-element in the scanned directory, or on an error, it returns {\tt
-  DOSFALSE}. In either event, {\tt IoErr()}\key{IoErr()} is set,
-namely to $0$ in case of success, or to an error code otherwise.
+element in the scanned directory, or on an error, it returns
+{\tt DOSFALSE}. In either event, {\tt IoErr()}\key{IoErr()} is set,
+namely to an undefined value in case of success, or to an
+error code otherwise.
 \smallskip{}
 
 At the end of the directory, {\tt ExNext()}\key{ExNext()} returns {\tt
@@ -4727,7 +4727,8 @@ file system element and therefore corresponds to {\tt
 
 {\tt ed\_ed\_OwnerUID} and {\tt ed\_OwnerGID} contain potential user
 and group IDs if the file system is able to provide such
-information. All the AmigaDOS native file systems do not.
+information. The FFS~\key{Fast File System (FFS)} stores such information
+on disk, but does not check it or makes any other use of it.
 \medskip{}
 
 Which members of the {\tt ExAllData} structure are filled in is
@@ -4746,8 +4747,8 @@ table~\ref{table:exalltypes}. The values are defined in {\tt dos/exall.h}:
 \end{rkrmtable}
 
 The return code {\tt continue} of {\tt ExAll()}\key{ExAll()} is non-zero in
-case the directory contents was too large to fit into the supplied {\tt
-  buffer} completely. Then {\tt IoErr()} will be set to~0. In such a case,
+case the directory contents was too large to fit into the supplied
+{\tt buffer} completely. In such a case,
 either {\tt ExAll()} shall be called again to read additional entries, or
 {\tt ExAllEnd()}\key{ExAllEnd()} shall be called to terminate the call and
 release all internal state information.
@@ -4775,10 +4776,10 @@ directory has been reached, or an error had been detected,
 {\tt ExAllEnd()}\key{ExAllEnd()} shall not be called.
 \medskip{}
 
-Not all file systems --- actually, none delivered with AmigaOs ---
-support {\tt ED\_OWNER}. If {\tt continue} is {\tt DOSFALSE} and
-{\tt IoErr()} is {\tt ERROR\_BAD\_NUMBER}, try to reduce {\tt type} and
-call {\tt ExAll()} again.
+Not all file systems support {\tt ED\_OWNER}; while the
+FFS\key{Fast File System (FFS)} supports it, it does not interpret its
+value. If {\tt continue} is {\tt DOSFALSE} and {\tt IoErr()} is
+{\tt ERROR\_BAD\_NUMBER}, try to reduce {\tt type} and call {\tt ExAll()} again.
 \smallskip{}
 
 Some file systems do not implement {\tt ExAll()} themselves; in such a
@@ -4840,8 +4841,8 @@ historically issues. In AmigaDOS version 36 where this function was
 introduced, {\tt eac\_MatchString} was used incorrectly by the
 RAM-Handler\key{RAM-Handler} which also failed to initialize {\tt ed\_Next}
 properly. Similar issues existed in the fall-back implementation within the
-version 36 of the \emph{dos.library}. The FFS\key{Fast File System (FFS)} did not fill in {\tt
-  ed\_Comment} correctly prior to version 39, and the FFS flavours supporting
+version 36 of the \emph{dos.library}. The FFS\key{Fast File System (FFS)}
+did not fill in {\tt ed\_Comment} correctly prior to version 39, and the FFS flavours supporting
 directory caches broke {\tt ExAll()} up to release 40 where the defect of
 older FFS versions is addressed by
 {\tt SetPatch}. AmigaDOS versions up to version 37 cannot handle
@@ -4884,8 +4885,8 @@ void ExAllEnd(BPTR,STRPTR,LONG,LONG,struct ExAllControl *)
 \end{verbatim}
 
 This function aborts an {\tt ExAll()} driven directory scan before it
-terminates due to an error or due to the end of the directory. That is, {\tt
-  ExAllEnd()} shall be called whenever scan is to be aborted even though
+terminates due to an error or due to the end of the directory. That is,
+{\tt ExAllEnd()} shall be called whenever scan is to be aborted even though
 {\tt ExAll()} returned a non-zero result code.
 \smallskip{}
 
