@@ -3077,8 +3077,10 @@ name that corresponds to an {\tt AUX:} console in the \emph{raw mode}.
 
 The {\tt SetMode()}\key{SetMode()} function returns a boolean success code,
 which is non-zero if the function could change the console mode, or~0 if it
-failed. In case of success, {\tt IoErr()}\key{IoErr()} is set to~0, in case
-of failure, it returns an error code from {\tt dos/dos.h}.
+failed. In case of success, {\tt IoErr()}\key{IoErr()} is set to~1 if the
+console is attached to an intuition window, or to~0 if the window is
+currently closed or the console is attached to some other device. In case of
+failure, {\tt IoErr()} returns an error code from {\tt dos/dos.h}.
 \smallskip{}
 
 As an application, the following function attempts to read a keystroke from
@@ -3166,8 +3168,9 @@ This function returns~$0$ in case of failure and then returns a
 non-zero error code with {\tt IoErr()}\key{IoErr()}. In case the record lock cannot
 be obtained because the region overlaps with another locked region,
 the error will be {\tt ERROR\_LOCK\_COLLISION}\key{ERROR\_LOCK\_COLLISION}. If the region can be
-locked, the call returns a non-zero result code and sets {\tt IoErr()}\key{IoErr()}
-to~0.
+locked, the call returns a non-zero result code. Even though
+{\tt IoErr()}\key{IoErr()} is altered in case of success, its value
+cannot be relied upon.
 
 \subsection{Locking Multiple Regions of a File} \label{sec:lockrecords}
 
@@ -3223,8 +3226,9 @@ blocks is the sum of all timeouts.
 
 On failure, i.e.\ if one of the records cannot be locked, the function
 returns~0 and sets {\tt IoErr()}\key{IoErr()} to an error code. On success,
-the function returns a non-zero result and sets {\tt IoErr()}\key{IoErr()}
-to~0.
+the function returns a non-zero result. Even though
+{\tt IoErr()}\key{IoErr()} is altered in case of success, its value
+cannot be relied upon.
 \smallskip{}
 
 Unlike what the function prototype suggests, this function is \emph{not
@@ -3260,8 +3264,9 @@ This function returns~0 on failure and sets an error code that can be
 obtained by {\tt IoErr()}\key{IoErr()}. A possible error code is {\tt
   ERROR\_RECORD\_NOT\_LOCKED}\key{ERROR\_RECORD\_NOT\_LOCKED} if an attempt is made to unlock a record
 that has not been not locked before, or to partially unlock a record. On
-success, the function returns a non-zero result code and sets {\tt
-  IoErr()} to~0.
+success, the function returns a non-zero result code. Even though
+{\tt IoErr()}\key{IoErr()} is altered in case of success, its value
+cannot be relied upon.
 
 \subsection{Unlocking Multiple Records of a File}
 
@@ -3285,10 +3290,9 @@ structure is defined in section~\ref{sec:lockrecords}.
 The function calls {\tt UnLockRecord()}\key{UnLockRecord()} in a loop, and is therefore
 \emph{not atomic}. In case unlocking any of these records fails, the
 function returns~0 but attempts to unlock also any remaining records
-in the array. On success, it returns a non-zero result code and sets
-{\tt IoErr()}\key{IoErr()} to~0. Unfortunately, the function does not set {\tt
-  IoErr()} consistently in case of failure as the error code is not
-saved on a failed unlock.
+in the array. On success, it returns a non-zero result code.
+Unfortunately, the function does not set {\tt IoErr()} consistently
+in case of failure as the error code is not saved on a failed unlock.
   
 \chapter{Locks} \label{sec:locks}
 
@@ -20956,8 +20960,10 @@ switch to the unbuffered raw mode.
 \smallskip{}
 
 Before replying this packet, the handler shall set {\tt dp\_Res1} to
-{\tt DOSTRUE} and {\tt dp\_Res2} to~0 in case the mode switch could be
-performed. Otherwise, if the mode switch is not possible, the handler shall
+{\tt DOSTRUE} if the mode switch could be performed, and {\tt dp\_Res2} to~1 if
+the console is attached to an open intuition window, or to~0 if the window
+is currently closed or the console operates on top of some other device.
+Otherwise, if the mode switch is not possible, the handler shall
 set {\tt dp\_Res1} to {\tt DOSFALSE} and {\tt dp\_Res2} to an error code.
 
 \subsection{Retrieving IORequest and Window Pointer from the Console} \label{sec:diskinfoconsole}
