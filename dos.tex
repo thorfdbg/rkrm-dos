@@ -6090,7 +6090,7 @@ struct DosList {
       } dol_volume;
 
       struct {
-        UBYTE   *dol_AssignName;     
+        UBYTE             *dol_AssignName;     
         struct AssignList *dol_List;
       } dol_assign;
 
@@ -6100,23 +6100,23 @@ struct DosList {
 };
 \end{verbatim}
 
-Confusingly, the same data is also accessible throught the {\tt
-DeviceList}\mkey{DeviceList (structure)} structure, which is nothing than a {\tt
+Confusingly, the same data is also accessible throught the
+{\tt DeviceList}\mkey{DeviceList (structure)} structure, which is nothing than a {\tt
 DosList} in disguise, but only represents volumes, with elements at the
 same byte offsets under different names. Thus, for example {\tt dl\_VolumeDate}
-in the {\tt DeviceList} structure accesses the same elements as {\tt
-  dol\_volume.dol\_VolumeDate} and the two may be used interchangeably for volumes.
+in the {\tt DeviceList} structure accesses the same elements as
+{\tt dol\_volume.dol\_VolumeDate} and the two may be used interchangeably for volumes.
 \smallskip{}
 
-The {\tt DevInfo}\mkey{DevInfo} structure is another incarnation of a {\tt
-  DosList}, again just with different names at the same byte offsets, to be used
-only for handlers; e.g.\ {\tt dvi\_Handler} and {\tt
-  dol\_handler.dol\_Handler} access the same elements. Both, the {\tt
-  DevInfo} and the {\tt DeviceList} are defined in {\tt
-  dos/dosextens.h}.
+The {\tt DevInfo}\mkey{DevInfo} structure is another incarnation of a
+{\tt DosList} that is only able to represent handlers; e.g\ {\tt dvi\_Handler}
+and {\tt dol\_handler.dol\_Handler} access the same elements.
+The {\tt DevInfo} and the {\tt DeviceList} structures are defined
+in {\tt dos/dosextens.h}.
+\smallskip{}
 
-Finally, {\tt dos/filehandler.h} contains a third structure, named {\tt
-  DeviceNode}\mkey{DeviceNode}, which is just another representation of a
+Finally, {\tt dos/filehandler.h} contains a third structure, named
+{\tt DeviceNode}\mkey{DeviceNode}, which is just another representation of a
 {\tt DosList}, also only to be used for file systems, and thus equivalent to
 a {\tt DevInfo}. For example, {\tt dn\_Handler} and {\tt dvi\_Handler} are
 equivalent elements, just available under different names.
@@ -6138,9 +6138,9 @@ The elements of a {\tt DosList} now have the following interpretation:
 
 {\tt dol\_Next}\mkey{dol\_Next} is a BPTR to the next entry in the singly
 linked list of {\tt DosList}\key{DosList} structures forming the device
-list\key{Device List}, or {\tt ZERO} for the last entry on the list. The order of the entries
-has no particular meaning. The head of this list is in the {\tt
-  DosInfo}\key{DosInfo} structure specified in
+list\key{Device List}, or {\tt ZERO} for the last entry on the list.
+The order of the entries has no particular meaning. The head of this list
+is in the {\tt DosInfo}\key{DosInfo} structure specified in
 section~\ref{sec:dosinfo}. However, this list should not be walked manually,
 but instead {\tt FindDosEntry()}\key{FindDosEntry()} should be used for
 iterating through this list.
@@ -6187,8 +6187,8 @@ late binding assigns\key{Late Binding Assign} this member is initially {\tt
   NULL}, but will be filled in as soon as the assign in bound to a
 particular directory, and then becomes the pointer to the port of the
 handler managing the volume the assign is located on. Finally, for
-non-binding assigns\key{Non-binding Assign} this member always stays {\tt
-  NULL}.
+non-binding assigns\key{Non-binding Assign} this member always stays
+{\tt NULL}.
 \medskip{}
 
 {\tt dol\_Lock}\mkey{dol\_Lock} is only used for assigns\key{Assign}, and
@@ -6204,9 +6204,9 @@ for late binding assigns\key{Late Binding Assign}. For all other types, this mem
 the handler, volume or assign is accessed. That is, this string corresponds
 to the path component upfront the colon. In particular, it \emph{does not
 include} the colon. As a courtesy to C and assembler functions, AmigaDOS
-ensures that this string is also {\tt NUL} terminated, i.e.\ {\tt
-  dol\_Name+1} is a regular C string whose length is available in {\tt
-  dol\_Name[0]}.
+ensures that this string is also {\tt NUL} terminated, i.e.\
+{\tt dol\_Name+1} is a regular C string whose length is available in
+{\tt dol\_Name[0]}.
 \medskip{}
 
 The members within {\tt dol\_handler}\mkey{dol\_handler} are used by
@@ -6215,26 +6215,26 @@ handlers and file systems, that is if {\tt dol\_Type}\key{dol\_Type} equals
 \smallskip{}
 
 {\tt dol\_Handler}\mkey{dol\_Handler} is a BPTR to a BSTR containing the
-file name from which the handler or file system is loaded if {\tt
-  dol\_SegList} is {\tt ZERO}. As the file name is interpreted by the first
+file name from which the handler or file system is loaded if
+{\tt dol\_SegList} is {\tt ZERO}. As the file name is interpreted by the first
 process attempting to access an unloaded handler, and this path is thus
 relative to the current directory of this process, it should be an absolute
 path. Typically, handlers reside in the {\tt L} assign. Clearly, the path
 should not be on a file system described by its own {\tt DosList}
-structure. This element corresponds to the {\tt HANDLER}\key{HANDLER}, {\tt
-  FILESYSTEM}\key{FILESYSTEM} and {\tt EHANDLER}\key{EHANDLER} fields of the
+structure. This element corresponds to the {\tt HANDLER}\key{HANDLER},
+{\tt FILESYSTEM}\key{FILESYSTEM} and {\tt EHANDLER}\key{EHANDLER} fields of the
 mountlist\key{Mountlist}, see section~\ref{sec:mountdoslist}.
 \smallskip{}
 
 {\tt dol\_StackSize}\mkey{dol\_StackSize} specifies the size of the stack
 for creating the handler or file system process. The unit of the stack size
-depends on the {\tt dol\_GlobVec} entry. If {\tt
-  dol\_GlobVec}\key{dol\_GlobVec} indicates a C or assembler handler, {\tt
-  dol\_StackSize} is in bytes. Otherwise, that is, for BCPL handlers, it is
+depends on the {\tt dol\_GlobVec} entry. If {\tt dol\_GlobVec}\key{dol\_GlobVec}
+indicates a C or assembler handler, {\tt dol\_StackSize} is in bytes.
+Otherwise, that is, for BCPL handlers, it is
 in long words\footnote{The information in~\cite{guru} is not accurate, the
 stack size is dependent on the GLOBVEC.}. Table~\ref{table:gvvalues}
-indicates the type of the handler. This element corresponds to the {\tt
-  STACKSIZE}\key{STACKSIZE} entry of the mountlist\key{Mountlist}.
+indicates the type of the handler. This element corresponds to the
+{\tt STACKSIZE}\key{STACKSIZE} entry of the mountlist\key{Mountlist}.
 \smallskip{}
 
 {\tt dol\_Priority}\mkey{dol\_Priority} is priority of the handler
@@ -6373,8 +6373,8 @@ types, i.e.\ all types of assigns\key{Assign}.
 and late binding assigns\key{Late Binding Assign}. It remains {\tt NULL}
 otherwise. The \emph{dos.library} uses this string to locate the target
 directory of the assign. For late binding assigns, this member is used only
-on the first attempt to access the assign\key{Assign} at which {\tt
-  dol\_Lock}\key{dol\_Lock} is populated, and this element is released with
+on the first attempt to access the assign\key{Assign} at which
+{\tt dol\_Lock}\key{dol\_Lock} is populated, and this element is released with
 {\tt FreeVec()} and then set to {\tt NULL}.
 \smallskip{}
 
@@ -6406,19 +6406,19 @@ participating in the multi-directory assign.
 \smallskip{}
 
 The {\tt AssignList}\key{AssignList} structures shall not be allocated or
-released directly; rather, they shall be created through {\tt
-  AssignAdd()}\key{AssignAdd()} and removed through {\tt
-  RemAssignList()}\key{RemAssignList()}, see sections~\ref{sec:assignadd}
+released directly; rather, they shall be created through
+{\tt AssignAdd()}\key{AssignAdd()} and removed through
+{\tt RemAssignList()}\key{RemAssignList()}, see sections~\ref{sec:assignadd}
 and~\ref{sec:remassignlist}.
 
 \section{The Device List and the Mountlist} \label{sec:mountlist}
 
 One way to create entries of the type {\tt DLT\_DEVICE}\key{DLT\_DEVICE} on
-the device list\key{Device List} is through a {\tt mountlist}\mkey{Mountlist} and the {\tt
-  Mount}\mkey{Mount (command)} command. Many keywords in the mountlist map directly to
+the device list\key{Device List} is through a {\tt mountlist}\mkey{Mountlist} and the
+{\tt Mount}\mkey{Mount (command)} command. Many keywords in the mountlist map directly to
 entries in the {\tt DosList}\key{DosList} structure, others to entries in
-the {\tt FileSysStartupMsg}\key{FileSysStartupMsg} and the {\tt
-  DosEnvec}\key{DosEnvec} structure pointed to from there there. The latter two
+the {\tt FileSysStartupMsg}\key{FileSysStartupMsg} and the
+{\tt DosEnvec}\key{DosEnvec} structure pointed to from there there. The latter two
 structures will be introduced in the following.
 
 \subsection{Keywords defining the DosList structure} \label{sec:mountdoslist}
@@ -6435,28 +6435,28 @@ however, other elements of the {\tt DosList}\key{DosList} structure, most notabl
 the {\tt dol\_Startup}\key{dol\_Startup} entry.
 \smallskip{}
 
-The {\tt STACKSIZE}\mkey{STACKSIZE} keyword sets {\tt
-  dol\_StackSize}\key{dol\_StackSize} element. This is in bytes for C and
+The {\tt STACKSIZE}\mkey{STACKSIZE} keyword sets
+{\tt dol\_StackSize}\key{dol\_StackSize} element. This is in bytes for C and
 assembler handlers, and in long-words for BCPL handlers. The type of the
 handler is determined by {\tt GLOBVEC}\key{GLOBVEC}.
 \smallskip{}
 
-The {\tt PRIORITY}\mkey{PRIORITY} keyword sets {\tt
-  dol\_Priority}\key{dol\_Priority} and with that the priority of the
+The {\tt PRIORITY}\mkey{PRIORITY} keyword sets
+{\tt dol\_Priority}\key{dol\_Priority} and with that the priority of the
 process running the handler. Useful values are between~0 and~19.
 \smallskip{}
 
-The {\tt GLOBVEC}\mkey{GLOBVEC} keyword sets {\tt
-  dol\_GlobVec}\key{dol\_GlobVec} element, and by that also the type
+The {\tt GLOBVEC}\mkey{GLOBVEC} keyword sets
+{\tt dol\_GlobVec}\key{dol\_GlobVec} element, and by that also the type
 of the handler. Table~\ref{table:gvvalues} in~\ref{sec:devicelist}
 lists the possible values and their interpretation. Positive values, even
 though a meaning is assigned to them, are not useful as an absolute RAM
 location for the BCPL global vector\key{Global Vector} would then be needed.
 \smallskip{}
 
-If the {\tt HANDLER}\key{HANDLER} keyword is present, the {\tt
-  STARTUP}\mkey{STARTUP} entry in the mountlist\key{Mountlist} sets {\tt
-  dol\_Startup}\key{dol\_Startup}. It can be either an integer value, or if
+If the {\tt HANDLER}\key{HANDLER} keyword is present, the
+{\tt STARTUP}\mkey{STARTUP} entry in the mountlist\key{Mountlist} sets
+{\tt dol\_Startup}\key{dol\_Startup}. It can be either an integer value, or if
 the argument is enclosed in double quotes, a string. In the latter case,
 {\tt dol\_Startup} is set to a BPTR to a BSTR which is, to ease handler
 implementation, also {\tt NUL} terminated. The quotes become part of the
@@ -6467,8 +6467,9 @@ in the mountlist\key{Mountlist} are what the handler expects.
 
 \subsection{Keywords controlling the FileSysStartupMsg} \label{sec:filesysstartup}
 
-If the {\tt EHANDLER}\key{EHANDLER} or {\tt FILESYSTEM}\key{FILESYSTEM} keyword is present, the {\tt
-  dol\_Startup}\key{dol\_Startup} element is instead a BPTR to a {\tt FileSysStartupMsg}
+If the {\tt EHANDLER}\key{EHANDLER} or {\tt FILESYSTEM}\key{FILESYSTEM}
+keyword is present, the {\tt dol\_Startup}\key{dol\_Startup} element is
+instead a BPTR to a {\tt FileSysStartupMsg}
 structure, defined in the include file {\tt dos/filehandler.h}:
 \mkey{FileSysStartupMsg}
 \begin{verbatim}
@@ -6508,8 +6509,8 @@ SCSI ID of the device they address.
 
 The {\tt FLAGS}\mkey{FLAGS} keyword sets {\tt fssm\_Flags}\mkey{fssm\_Flags}
 element, and thus the flags for opening an exec device. Its purpose and
-meaning is specific to the device identified by {\tt
-  fssm\_Device}\key{fssm\_Device}. It is typically~0.
+meaning is specific to the device identified by {\tt fssm\_Device}\key{fssm\_Device}.
+It is typically~0.
 \smallskip{}
 
 The {\tt fssm\_Environ}\key{fssm\_Environ} element is a BPTR to another
@@ -6638,8 +6639,8 @@ positive number is required here. By convention, the value is~2, which is
 the number of boot blocks on a floppy.
 \smallskip{}
 
-The {\tt PREALLOC}\mkey{PREALLOC} keyword installs the {\tt
-  de\_PreAlloc}\mkey{de\_PreAlloc} element, which is supposed to be the
+The {\tt PREALLOC}\mkey{PREALLOC} keyword installs the
+{\tt de\_PreAlloc}\mkey{de\_PreAlloc} element, which is supposed to be the
 number of logical blocks set aside at the end of the partition. However,
 current FFS\key{Fast File System (FFS)} versions completely ignore it and no
 traces of its use are found in the current source. Historically, the BPCL
@@ -6680,15 +6681,16 @@ storage medium, i.e.\ {\tt de\_LowCyl} $\times$ {\tt de\_Surfaces} $\times$
 can carry payload data of the file system.
 \smallskip{}
 
-The {\tt HIGHCYL}\mkey{HIGHCYL} keyword sets the {\tt de\_HighCyl}\mkey{de\_HighCyl} element; it defines the
-(inclusive) upper end of the partition in units of cylinders. That is, ({\tt
-  de\_HighCyl} + 1) $\times$ {\tt de\_Surfaces} $\times$ {\tt
-  de\_BlocksPerTrack} $- 1$ is the last sector of the partition or medium the
+The {\tt HIGHCYL}\mkey{HIGHCYL} keyword sets the {\tt de\_HighCyl}\mkey{de\_HighCyl} element;
+it defines the
+(inclusive) upper end of the partition in units of cylinders. That is,
+({\tt de\_HighCyl} + 1) $\times$ {\tt de\_Surfaces} $\times$
+{\tt de\_BlocksPerTrack} $- 1$ is the last sector of the partition or medium the
 file system can allocate for payload data.
 \smallskip{}
 
-The {\tt BUFFERS}\mkey{BUFFERS} keyword sets the {\tt
-  de\_NumBuffers}\mkey{de\_NumBuffers} element; it defines the (initial)
+The {\tt BUFFERS}\mkey{BUFFERS} keyword sets the
+{\tt de\_NumBuffers}\mkey{de\_NumBuffers} element; it defines the (initial)
 number of file system buffers allocated for caching metadata and storing
 data not directly accessible through the exec device driver. The number of
 buffers may be changed later with {\tt AddBuffers()}\key{AddBuffers()}, see
@@ -6703,16 +6705,16 @@ stored per block. That is, the block size even enters inversely quadratic
 into the FFS overhead.
 \smallskip{}
 
-The {\tt BUFMEMTYPE}\mkey{BUFMEMTYPE} defines the {\tt
-  de\_BufMemType}\mkey{de\_BufMemType} element. It defines the memory type,
+The {\tt BUFMEMTYPE}\mkey{BUFMEMTYPE} defines the
+{\tt de\_BufMemType}\mkey{de\_BufMemType} element. It defines the memory type,
 i.e.\ the second argument of {\tt AllocMem()}, for allocating memory keeping
 the file system buffers. It cannot, of course, control the memory type into
 which users require the file system to read data to. While exec device
 drivers should be able read and write data to any memory type, several
 legacy drivers are not able reach every memory type; this is often due to
 limitations of the hardware such that Zorro-II hardware cannot reach 32-bit
-memory on CPU expansions. Depending on limitations of the {\tt
-  fssm\_Device}\key{fssm\_Device}, it is unfortunately up to the user to
+memory on CPU expansions. Depending on limitations of the
+{\tt fssm\_Device}\key{fssm\_Device}, it is unfortunately up to the user to
 provide a suitable {\tt BUFMEMTYPE}\key{BUFMEMTYPE}. While it seems
 plausible to provide here a memory type of the memory that sits ``closer''
 to the physical interface in order to improve transfer speed, this is not
@@ -6721,22 +6723,23 @@ worst case over the slow Zorro-II bus. Thus, only insignificant performance
 improvements can be expected from playing with this value. Historically, the
 \emph{trackdisk.device} could only access buffers in chip memory and
 required a value of~3 (= {\tt MEMF\_CHIP|MEMF\_PUBLIC}) here, though this
-defect was fixed in AmigaOs~36. This is also the default installed by {\tt
-  Mount}\key{Mount (command)}, unless a better value is provided by the user. Fully operational
-device drivers will accept a value of~1 (= {\tt MEMF\_PUBLIC}) here.
+defect was fixed in AmigaOs~36. This is also the default installed by
+{\tt Mount}\key{Mount (command)}, unless a better value is provided by the
+user. Fully operational device drivers will accept a
+value of~1 (= {\tt MEMF\_PUBLIC}) here.
 
 \punchline{Make Mask and Buffer Match}{It makes little sense to provide a
   very restrictive {\tt BUFMEMTYPE} without also adjusting the {\tt MASK}
   and vice versa. The {\tt MASK} (see next paragraph) defines under which
-  conditions a file system performs single-block I/O, and the {\tt
-    BUFMEMTYPE} the memory type from which such buffers are taken. If the
+  conditions a file system performs single-block I/O, and the
+  {\tt BUFMEMTYPE} the memory type from which such buffers are taken. If the
   latter does not fit the former, the file system would attempt to perform
   single block I/O into memory it cannot reach, or restrict I/O into
   single-block I/O for memory it would be able to reach. Thus, the two
   should match. A mask of {\tt 0x001fffff} fits to a {\tt MEMF\_CHIP}
-  buffer, i.e. a value of~3 for the {\tt BUFMEMTYPE}, and a mask of {\tt
-    0x00ffffff} to Zorro-II memory, namely a value of~513 of the {\tt
-    BUFMEMTYPE}. FFS 47 onwards aligns buffers it allocates to
+  buffer, i.e. a value of~3 for the {\tt BUFMEMTYPE}, and a mask of
+  {\tt 0x00ffffff} to Zorro-II memory, namely a value of~513 of the
+  {\tt BUFMEMTYPE}. FFS 47 onwards aligns buffers it allocates to
   multiples of~16 bytes, suitable for a mask whose last digit
   is~0. Requiring even more least siginficant bits to~0 thus makes no
   sense. FFS versions 45 and below could only ensure that the last two
@@ -6748,8 +6751,8 @@ workaround for defect device drivers that cannot read from or write to all
 memory types. If the address of the host memory buffer has bits set in
 positions where the mask contains 0 bits, the file system assumes that
 the device cannot reach memory of such an address. Instead, it performs
-input or output indirectly through its buffers, allocated from {\tt
-  BUFFMEMTYPE} memory, and copy the data manually (i.e.\ by the CPU) the
+input or output indirectly through its buffers, allocated from
+{\tt BUFFMEMTYPE} memory, and copy the data manually (i.e.\ by the CPU) the
 buffer content to or from the target memory address. Historically,
 the~\emph{trackdisk.device} required here a mask value restricting access to
 chip memory, though this requirement has been removed in AmigaOs~36. The
@@ -6764,17 +6767,18 @@ and override such defaults.
   functional device driver. If a mask is set, {\tt BUFFMEMTYPE} shall be set
   as well as it determines which (alternative) memory will be allocated for
   buffers in case the intended target memory is not suitable. A rather
-  typical value for the mask is {\tt
-    0x00ffffff}, indicating that the device cannot reach 32-bit memory. A
-  suitable memory type would then be {\tt MEMF\_24BITDMA}{\tt|}{\tt MEMF\_PUBLIC},
-  i.e.\ 513 as decimal value. This requests 24-bit memory for the buffers.}
+  typical value for the mask is {\tt 0x00ffffff}, indicating that the device
+  cannot reach 32-bit memory. A suitable memory type would then be
+  {\tt MEMF\_24BITDMA}{\tt|}{\tt MEMF\_PUBLIC}, i.e.\ 513 as decimal value.
+  This requests 24-bit memory for the buffers.}
 
-The {\tt MAXTRANSFER}\mkey{MAXTRANSFER} keyword sets the {\tt
-  de\_MaxTransfer}\mkey{de\_MaxTransfer} element of the {\tt DosList}. This value sets the maximum number
-of bytes the file system shall read or write in a single transfer. Similar
-to {\tt MASK}\key{MASK}, it is a workaround required to work around defect
-device driver implementations that corrupt data if too many bytes are read
-or written in one go. The {\tt Mount}\key{Mount (command)} command installs here {\tt 0x7fffffff}
+The {\tt MAXTRANSFER}\mkey{MAXTRANSFER} keyword sets the
+{\tt de\_MaxTransfer}\mkey{de\_MaxTransfer} element of the {\tt DosList}.
+This value sets the maximum number of bytes the file system shall read or
+write in a single transfer. Similar to {\tt MASK}\key{MASK}, it is a
+workaround required to support defect device driver implementations that
+corrupt data if too many bytes are read or written in one go.
+The {\tt Mount}\key{Mount (command)} command installs here {\tt 0x7fffffff}
 as default value, the \emph{scsi.device} of AmigaDOS 45 and below required
 here due to multiple defects a value of {\tt 0x0001fe00}.
 
@@ -6785,8 +6789,8 @@ here due to multiple defects a value of {\tt 0x0001fe00}.
   is the \emph{amount of sectors to read or write} and not the number of
   bytes transferred per second that imposes a problem.}
 
-The {\tt BOOTPRI}\mkey{BOOTPRI} keyword sets the {\tt
-  de\_BootPri}\mkey{de\_BootPri} element which defines the order in which
+The {\tt BOOTPRI}\mkey{BOOTPRI} keyword sets the {\tt de\_BootPri}\mkey{de\_BootPri}
+element which defines the order in which
 the system attempts to boot from a partition or medium. Obvously, it makes
 little sense to set this keyword in a mountlist\key{Mountlist} that is
 interpreted after the system had already booted. However, autobooting
@@ -6799,12 +6803,13 @@ here is~0.
 
 The {\tt DOSTYPE}\mkey{DOSTYPE} keyword sets the {\tt de\_DosType}\mkey{de\_DosType} element, identifying
 the type and flavour of the file system to use for the medium or
-partition. If the {\tt FILESYSTEM}\key{FILESYSTEM} keyword is present, but the {\tt
-  FORCELOAD}\key{FORCELOAD} is either not present or set to 0, then the {\tt Mount}\key{Mount (command)} command
-first attempts to find a suitable file system in the {\tt
-  FileSystem.resource} whose {\tt fse\_DosType}\key{fse\_DosType} matches {\tt de\_DosType}\key{de\_DosType},
-avoiding to load the same file system again. If a match is found, the {\tt
-  FileSysEntry}\key{FileSysEntry} of the resource is used to initialize the {\tt DosEnvec}\key{DosEnvec}, in
+partition. If the {\tt FILESYSTEM}\key{FILESYSTEM} keyword is present, but
+the {\tt FORCELOAD}\key{FORCELOAD} is either not present or set to 0,
+then the {\tt Mount}\key{Mount (command)} command first attempts to find a
+suitable file system in the
+{\tt FileSystem.resource} whose {\tt fse\_DosType}\key{fse\_DosType} matches {\tt de\_DosType}\key{de\_DosType},
+avoiding to load the same file system again. If a match is found, the
+{\tt FileSysEntry}\key{FileSysEntry} of the resource is used to initialize the {\tt DosEnvec}\key{DosEnvec}, in
 particular {\tt dol\_SegList}\key{dol\_SegList}. The {\tt Format} command
 uses the value deposited here to initialize a partition for a mounted file
 system, whereas the file system determines its type from the boot block,
@@ -6896,10 +6901,10 @@ AmigaDOS 43, it was never officially announced.
 
 The next group of types indicates various flavours of the MS-DOS FAT file
 system\mkey{FAT File System}. The first two types are identical and
-correspond to a file system on a single disk without a MBR\mkey{Master Boot
-  Record (MBR)} type partition table, as found on floppy disks. They are
-unsuitable for harddisk and thumbdrive partitions as both typically include
-a master boot record (MBR).
+correspond to a file system on a single disk without a
+MBR\mkey{Master Boot Record (MBR)} type partition table, as found on
+floppy disks. They are unsuitable for harddisk and thumbdrive partitions
+as both typically include a master boot record (MBR).
 \smallskip{}
 
 The second type indicates FAT on a Master Boot Record (MBR) partition as
@@ -7007,12 +7012,11 @@ requires the {\tt 'FAT\textbackslash0'} dos type.
 
 The {\tt SCSIDIRECT}\mkey{SCSIDIRECT} keyword is also a boolean indicator
 and controls the {\tt ENVF\_SCSIDIRECT}\mkey{ENVF\_SCSIDIRECT} flag which is
-also part of the otherwise deprecated {\tt
-  de\_Interleave}\key{de\_Interleave} element. Similar to the above flags,
-it is also defined in {\tt dos/filehandler.h}. This flag is cleared by
-default, indicating that the file system should use the trackdisk
-command set to access data. This keyword was also introduced in AmigaDOS
-version 45.
+also part of the otherwise deprecated {\tt de\_Interleave}\key{de\_Interleave}
+element. Similar to the above flags, it is also defined in {\tt dos/filehandler.h}.
+This flag is cleared by default, indicating that the file system
+should use the trackdisk command set to access data. This keyword
+was also introduced in AmigaDOS version~45.
 \smallskip{}
 
 If this flag is set, the file system is instructed to communicate with the
@@ -7026,8 +7030,8 @@ even support this command set, and it is therefore not enabled by default.
 The {\tt ENABLENSD}\mkey{ENABLENSD} keyword is again a boolean
 indicator for the {\tt ENVF\_DISABLENSD}\mkey{ENVF\_DISABLENSD} flag
 cut out off from the {\tt de\_Interleave}\key{de\_Interleave} field;
-it is, however, set in inverse logic, i.e.\ the {\tt
-  ENVF\_DISABLENSD}\key{ENVF\_DISABLENSD} is set if the mount
+it is, however, set in inverse logic, i.e.\ the
+{\tt ENVF\_DISABLENSD}\key{ENVF\_DISABLENSD} is set if the mount
 parameter is 0, and reverse. This flag is also defined in {\tt dos/filehandler.h}.
 \smallskip{}
 
@@ -7069,8 +7073,6 @@ the path indicated by the {\tt FILESYSTEM}\key{FILESYSTEM}
 keyword. This option is also useful for testing, namely to enforce that a
 particular version of the file system is loaded from disk. This keyword does
 neither impact the {\tt DosEnvec} structure.
-
-
 
 \section{Finding Handler or File System Ports}
 
@@ -7289,13 +7291,18 @@ code is not fully correct, and callers need to be aware of this defect.
 If the path starts with {\tt CONSOLE:}, then this function reports the port
 of the current console, see~\ref{sec:getconsoletask}, and a {\tt ZERO} lock,
 but sets {\tt IoErr()} (incorrectly) to an error code even if process is
-equipped with a console. The same happens for paths relative to {\tt
-  PROGDIR:}, the home directory of the calling process. Thus, {\tt IoErr()}
-shall not be interpreted in case of success.
+equipped with a console. The same happens for paths relative to
+{\tt PROGDIR:}, the home directory of the calling process. Thus, {\tt IoErr()}
+shall not be interpreted in case of success. In case the calling process
+does not have a home directory, probably because it is executing a resident
+command, see section~\ref{sec:resident}, then {\tt GetDeviceProc()}
+erraneously shows a requester asking the user to insert a volume of the name
+{\tt PROGDIR} instead of indicating failure. This defect persists in even
+the latest version of AmigaDOS.
 \smallskip{}
 
 Also, {\tt GetDeviceProc()} does not handle the path ``{\tt *}''\key{* (file name)} at all,
-even though it indicates the current console and the
+even though this path corresponds to the current console and the
 CON-Handler\key{CON-Handler} is responsible for it. This case also needs to
 be detected by the caller, and in such a case, the port of the console
 should be obtained through {\tt GetConsoleTask()}\key{GetConsoleTask()}
