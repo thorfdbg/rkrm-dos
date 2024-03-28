@@ -7808,9 +7808,14 @@ UBYTE *text;
          if (env->de_TableSize >= 11) {
            UBYTE *device = (UBYTE *)(BADDR(fssm->fssm_Device)) + 1;
            ULONG  unit   = fssm->fssm_Unit;
-           /* Ok, this is probably good enough... use the
-           ** elements of the environment up to the
-           ** one indicated by env->de_TableSize
+           /* 
+           ** By convention, fssm_Device is a NUL-terminated
+           ** BSTR, thus no need to convert it to a CSTR.
+           **
+           ** Thus, likely a file system startup message.
+           ** This is good enough, now use the elements 
+           ** of the environment up to the one indicated 
+           ** by env->de_TableSize.
            */
            ...
          }
@@ -7855,7 +7860,7 @@ with high probability, the environment vector found in this way does
 not need to be complete and contain all the elements listed in
 section~\ref{sec:envec}, instead, only the first {\tt de\_TableSize}\key{de\_TableSize}
 elements are present, and everything beyond this point shall not be
-interpreted or modified. AmigaDOS 32 and above allocate at least 11 entries
+interpreted or modified. AmigaDOS~32 and above allocate at least 11 entries
 here, for every additional entry a test of
 {\tt de\_TableSize}\key{de\_TableSize} shall be performed.
 \smallskip{}
@@ -7866,14 +7871,13 @@ extract environment information from all handlers or file systems that came
 into his hand.
 \smallskip{}
 
-Nevertheless, getting hands on the {\tt
-  FileSysStartupMsg}\key{FileSysStartupMsg} from an unknown handler is not
-completely waterproof at this moment, and to this end the author
+Nevertheless, getting hands on the {\tt FileSysStartupMsg}\key{FileSysStartupMsg}
+from an unknown handler is not completely waterproof at this moment, and to this end the author
 of~\cite{guru} proposed to introduce a {\tt DosPacket}\key{DosPacket} (see
 table~\ref{table:thirdpartypackets} in section~\ref{sec:thirdpartypackets})
 by which a handler could be requested to reveal its startup
 message. Unfortunately, to date this packet has not found wide adoption, and
-the above heuristics may be used as an interim solution.
+the above heuristic can be used as an interim solution.
 \smallskip{}
 
 Authors of handlers and file systems have less to worry about. When
@@ -7881,17 +7885,17 @@ they document their requirements properly, e.g.\ by including an
 example mountlist\key{Mountlist} with their product, ``only'' user errors can
 generate startup messages the handler cannot interpret properly. Thus,
 in general, handlers should be written in an ``optimistic'' way
-(unlike the above heuristic) assuming that {\tt
-  dol\_Startup}\key{dol\_Startup} is what they do expect. All AmigaDOS
-handlers are written in such a way, e.g.\ the FFS\key{Fast File System (FFS)} expects without
+(unlike the above heuristic) assuming that {\tt dol\_Startup}\key{dol\_Startup}
+is what they do expect. All AmigaDOS handlers are designed this way,
+e.g.\ the FFS\key{Fast File System (FFS)} expects without
 verification that the value in {\tt dol\_Startup} is, indeed, a
 {\tt FileSysStartupMsg}\key{FileSysStartupMsg}, even though it can be
 fooled by an incorrect mountlist\key{Mountlist} and by that crash the system.
 
 \section{Adding or Removing Entries to the Device List}
 
-The \emph{dos.library} provides two service functions to add or remove {\tt
-  DosList}\key{DosList} structures from the device list\key{Device List}. They secure the
+The \emph{dos.library} provides two service functions to add or remove
+{\tt DosList}\key{DosList} structures from the device list\key{Device List}. They secure the
 \emph{dos.library} internal state from inconsistencies as other processes
 may attempt to access the device list simultaneously, and they also ensure
 proper linkage of the structures. They cannot prevent, however, that an
@@ -7914,11 +7918,11 @@ section~\ref{sec:handlerstartup} for details on the handler and file system
 startup mechanism.
 
 \punchline{Locking the device list in file systems}{Handlers shall not
-  attempt to lock the device list\key{Device List} through {\tt
-    LockDosList()}\key{LockDosList()} as this function may block and cause a
+  attempt to lock the device list\key{Device List} through
+  {\tt LockDosList()}\key{LockDosList()} as this function may block and cause a
   deadlock if the \emph{dos.library} or an application program is accessing
-  the list simultaneously to reach out for the same handler. Instead, {\tt
-    AttemptLockDosList()}\key{AttemptLockDosList()} shall be used, and if
+  the list simultaneously to reach out for the same handler. Instead,
+  {\tt AttemptLockDosList()}\key{AttemptLockDosList()} shall be used, and if
   getting access to the list fails, the operation requiring the lock,
   e.g.\ adding a volume to the device list. shall be delayed until after
   the list becomes accessible.}
@@ -7968,7 +7972,8 @@ if (AttemptLockDosList(LDF_VOLUMES|LDF_WRITE)) {
   UnLockDosList(LDF_VOLUMES|LDF_WRITE);
 }
 \end{verbatim}
-when adding a {\tt DosList}\key{DosList} entry of type {\tt DLT\_VOLUME}\key{DLT\_VOLUME}. If
+when adding a {\tt DosList}\key{DosList} entry of type
+{\tt DLT\_VOLUME}\key{DLT\_VOLUME}. If
 attempting to get write access failed, the handler should check for
 incoming requests, handle them, and attempt adding the entry later.
 \smallskip{}
@@ -8041,11 +8046,11 @@ if (AttemptLockDosList(LDF_VOLUMES|LDF_DELETE|LDF_ENTRY|LDF_WRITE)) {
 \end{verbatim}
 when removing a {\tt DosList}\key{DosList} entry. If attempting to get write access
 failed, the handler should check for incoming requests, handle them,
-and attempt adding the entry later.
+and attempt removing the entry later.
 \smallskip{}
 
 This function returns a success indicator; it returns non-zero if the
-function succeeds, and $0$ in case it fails. The only reason for
+function succeeds, and~$0$ in case it fails. The only reason for
 failure is that {\tt dlist} is not a member of the
 device list\key{Device List}. This function does not touch {\tt IoErr()}\key{IoErr()}.
 
@@ -8057,13 +8062,13 @@ low-level function that allocates a {\tt DosList} but only performs
 minimal initialization of the structure. For assigns\key{Assign}, the functions in
 section~\ref{sec:assigns} shall be used as they include complete
 initialization of the {\tt DosList}\key{DosList}, and for handlers and
-file systems, the \emph{expansion.library} function {\tt
-  MakeDosNode()}\key{MakeDosNode()} is a proper alternative.
+file systems, the \emph{expansion.library} function
+{\tt MakeDosNode()}\key{MakeDosNode()} is a proper alternative.
 \medskip{}
 
 Releasing {\tt DosList}s along with all its resources is unfortunately much
-harder. For assigns\key{Assign}, regardless of their type, {\tt
-  AssignLock()}\key{AssignLock()} from section~\ref{sec:assignlock} with a
+harder. For assigns\key{Assign}, regardless of their type,
+{\tt AssignLock()}\key{AssignLock()} from section~\ref{sec:assignlock} with a
 {\tt ZERO} lock is a better solution.
 \smallskip{}
 
@@ -8071,8 +8076,8 @@ harder. For assigns\key{Assign}, regardless of their type, {\tt
 file systems; it depends on them which resources need to be
 released along with the {\tt DosList}\key{DosList} structure. While it is
 recommended that file systems should go through
-{\tt MakeDosEntry()}\key{MakeDosEntry()} and {\tt FreeDosEntry()}\key{FreeDosEntry()}, it
-is not a requirement.
+{\tt MakeDosEntry()}\key{MakeDosEntry()} and {\tt FreeDosEntry()}\key{FreeDosEntry()},
+it is not a requirement.
 \smallskip{}
 
 Releasing a {\tt DosList}\key{DosList} representing a handler or file system
@@ -8134,9 +8139,9 @@ section~\ref{sec:remdosentry}.
 While {\tt FreeDosEntry()} releases the memory holding the name of the entry
 and the {\tt DosList} structure itself, it does not release any other
 resources. They shall be released by the caller of this function
-upfront. Furthermore, this function shall not be called if the {\tt
-  DosList}\key{DosList} structure was allocated by any other means than {\tt
-  MakeDosEntry()}\key{MakeDosEntry()}.
+upfront. Furthermore, this function shall not be called if the
+{\tt DosList}\key{DosList} structure was allocated by any other means than
+{\tt MakeDosEntry()}\key{MakeDosEntry()}.
 
 \begin{verbatim}
 FreeDosEntry(dlist) /* since V36 */
@@ -8162,9 +8167,10 @@ dangerous side effect.
 \smallskip{}
 
 If {\tt dol\_Type}\key{dol\_Type} is {\tt DLT\_DIRECTORY}\key{DLT\_DIRECTORY},
-{\tt DLT\_NONBINDING}\key{DLT\_NONBINDING} or {\tt DLT\_LATE}\key{DLT\_LATE}, this function should not be
-used. Instead, the functions from section~\ref{sec:assigns} are more
-appropriate; in specific, {\tt AssignLock()} with the name of the assign to
+{\tt DLT\_NONBINDING}\key{DLT\_NONBINDING} or {\tt DLT\_LATE}\key{DLT\_LATE},
+this function should not be used. Instead, the functions from
+section~\ref{sec:assigns} are more appropriate; in specific,
+{\tt AssignLock()} with the name of the assign to
 remove and the {\tt lock} argument set to {\tt ZERO} will remove the
 assign from the device list\key{Device List} and release all resources
 associated to it, including the name and all locks.
@@ -8183,7 +8189,7 @@ entries as (at least) two incompatible functions exist that create such
 {\tt DosList} structures. For assigns\key{Assign}, the functions from
 section~\ref{sec:assigns} are more appropriate, and for volumes, only the
 file system managing the volume may call it. That leaves no practical use
-for this function by application programs. This function is, however,
+for this function by application programs. It is, however,
 called internally from other functions of the \emph{dos.library}.}
 
 {\tt FreeDosEntry()}\key{FreeDosEntry()} cannot fail, and it does not touch {\tt IoErr()}\key{IoErr()}.
@@ -8451,8 +8457,8 @@ AmigaDOS, a race condition if these locks are still in use by an application
 program, e.g.\ because it received them through {\tt GetDeviceProc()}\key{GetDeviceProc()}.
 \smallskip{}
 
-On success, the function returns a non-zero result code in {\tt
-  success}. On error, the function returns~$0$. Unfortunately, it
+On success, the function returns a non-zero result code in
+{\tt success}. On error, the function returns~$0$. Unfortunately, it
 does not set {\tt IoErr()}\key{IoErr()} consistently in all cases, and thus, the
 cause of an error cannot be determined upon return. Possible causes
 of error are that {\tt name} does not exist, or that it is not a
@@ -8497,8 +8503,8 @@ content on the disk; thus adding more buffers can help to improve the
 performance of random-access into the file with {\tt Seek()}\key{Seek()}.
 \smallskip{}
 
-A third purpose of the buffers is to store input and output data of the {\tt
-  Read()}\key{Read()} or {\tt Write()}\key{Write()} functions if the source
+A third purpose of the buffers is to store input and output data of the
+{\tt Read()}\key{Read()} or {\tt Write()}\key{Write()} functions if the source
 or target memory block is not aligned to block boundaries or if the source
 or target buffer is considered unsuitable for direct transfer to the
 underlying hardware exec device.
@@ -8554,10 +8560,10 @@ device list\key{Device List}. Thus, in case of doubt, a path based on a
 file system or handler name (e.g. ``{\tt df0:}'') should be preferred.
 \smallskip{}
 
-The volume name of the medium or partition is then changed to {\tt
-  name}. Unlike the first argument, {\tt name} is \emph{not} a path and
-therefore shall \emph{not} contain a colon (``{\tt :}'') nor a slash (``{\tt
-  /}'') (or the component separator, in general).  Note that not all file systems
+The volume name of the medium or partition is then changed to
+{\tt name}. Unlike the first argument, {\tt name} is \emph{not} a path and
+therefore shall \emph{not} contain a colon (``{\tt :}'') nor a slash
+(``{\tt /}'') (or the component separator, in general). Note that not all file systems
 support volume names; this function fails if a file system does not.
 \smallskip{}
 
@@ -8568,8 +8574,8 @@ the \emph{dos.library}.
 \smallskip{}
 
 This function returns a non-zero result code for success or~0 for an
-error. In the first case, it sets {\tt IoErr()}\key{IoErr()} to~0, in
-the latter case to an error code.
+error. In case of failure, it sets {\tt IoErr()}\key{IoErr()} to an error
+code, otherwise to an undefined value.
 
 \subsection{Initializing a File System} \label{sec:format}
 
@@ -8603,8 +8609,8 @@ file system or handler name (e.g. ``{\tt df0:}'') should be preferred.
 \smallskip{}
 
 To block processes from accessing information on the file system while
-it is initializing, it should be inhibited upfront, e.g by {\tt
-  Inhibit(filesystem,DOSTRUE)} or by lower level packet communication to
+it is initializing, it should be inhibited upfront, e.g by
+{\tt Inhibit(filesystem,DOSTRUE)} or by lower level packet communication to
 the handler, see section~\ref{sec:packetinhibit}. Initializing is
 the only operation file systems are able to perform while being
 inhibited.
@@ -8616,12 +8622,12 @@ attempt to low-level format it at the physical layer as required when
 a floppy disk is prepared for initial use. This step needs to be
 performed manually by first blocking access of the file system to the
 floppy through {\tt Inhibit()}\key{Inhibit()}, then initializing the physical
-layer through the exec device driver, e.g.\ by the command {\tt
-  TD\_FORMAT}, and then finally by calling this function.
+layer through the exec device driver, e.g.\ by a
+{\tt TD\_FORMAT} IORequest, and then finally by calling this function.
 \medskip{}
 
-The volume name of the medium or partition is initialized to {\tt
-  volumename}, which \emph{shall not} contain a colon (``{\tt :}'') nor a
+The volume name of the medium or partition is initialized to
+{\tt volumename}, which \emph{shall not} contain a colon (``{\tt :}'') nor a
 slash (``{\tt /}'') (or the component separator, in general). Note that not
 all file systems support volume names. In such cases, this argument is
 ignored.
@@ -8640,14 +8646,15 @@ supported by a file system. The {\tt Format} command of the Workbench offers
 the types listed in the first half of table~\ref{table:ffsflavours} if the
 mount entry of the file system indicates that it is the FFS\key{Fast File
   System (FFS)}, and otherwise does not offer any choices and just copies
-the {\tt dostype} from the {\tt de\_DosType}\key{de\_DosType} of the {\tt
-  DosEnvec}\key{DosEnvec} structure, see also section~\ref{sec:mountlist}.
+the {\tt dostype} from the {\tt de\_DosType}\key{de\_DosType} of the
+{\tt DosEnvec}\key{DosEnvec} structure, see also section~\ref{sec:mountlist}.
 \smallskip{}
 
-After initializing the file system, use {\tt
-  Inhibit(filesystem,DOSFALSE)}\key{Inhibit()} or the corresponding packet {\tt
-  ACTION\_INHIBIT}\key{ACTION\_INHIBIT} to grant the file system access to the partition or
-medium again.
+After initializing the file system, use
+{\tt Inhibit(filesystem,DOSFALSE)}\key{Inhibit()} or the corresponding
+packet {\tt ACTION\_INHIBIT}\key{ACTION\_INHIBIT} to grant the file
+system access to the partition or medium again. See sections~\ref{sec:inhibit}
+and~\ref{table:actioninhibit}.
 \smallskip{}
 
 After making the volume accessible again, it is possible that write access
@@ -8657,21 +8664,21 @@ example, creates the bitmap only after the volume becomes available.
 \medskip{}
 
 The {\tt Format()}\key{Format()} function and its underlying packet did not
-exist in AmigaDOS versions below 36. In such versions, the layout of the FFS
+exist in AmigaDOS versions below~36. In such versions, the layout of the FFS
 and OFS was hard-coded into the {\tt Format} command which wrote the root
 block\key{Root Block} manually, depending on file-system internals.
 \smallskip{}
 
 This function returns a boolean success indicator that is non-zero on
-success or~0 on error. In either case, {\tt IoErr()}\key{IoErr()} is set to~0 on
-success or an error code on failure.
+success or~0 on error. In either case, {\tt IoErr()}\key{IoErr()} is to an
+error code on failure, and to an undefined value on success.
 
 \subsection{Inhibiting a File System} \label{sec:inhibit}
 
 The {\tt Inhibit()}\mkey{Inhibit()} function disables or enables access of
 the file system to the underlying exec device driver. Typical application
 for this function are disk editors or file system salvage tools
-that require exclusive access to the file system structure, but initializing
+that require exclusive access to the file system structure; initializing
 a file system also requires this function, see section~\ref{sec:format}.
 
 \begin{verbatim}
@@ -8683,8 +8690,8 @@ BOOL Inhibit(STRPTR,LONG)
 
 This call controls whether the file system identified by the path name given
 as {\tt filesystem} is allowed to access the medium or partition it operates
-on. The {\tt filesystem} argument is interpreted as a path through {\tt
-  GetDeviceProc()}\key{GetDeviceProc()}. That is, the function resolves
+on. The {\tt filesystem} argument is interpreted as a path through
+{\tt GetDeviceProc()}\key{GetDeviceProc()}. That is, the function resolves
 relative and absolute paths, device and volume names, and even
 assigns\key{Assign}. As {\tt filesystem} is interpreted as a path, a device
 or volume name passed in shall include a colon (``{\tt :}'') as it would be
@@ -8723,8 +8730,8 @@ the \emph{dos.library}.
 \smallskip{}
 
 This function returns a non-zero result code for success and then sets
-{\tt IoErr()}\key{IoErr()} to~0. On error, it returns~0 and provides an
-error code in {\tt IoErr()}.
+{\tt IoErr()}\key{IoErr()} to an undefined value. On error, it
+returns~0 and provides an error code in {\tt IoErr()}.
 
 \subsection{Receive Information when a Volume is Requested}
 
