@@ -3938,23 +3938,23 @@ All others & The first long word of the first block of the medium \\ \hline
 \end{longtable}
 \end{rkrmtabular}
 
-As mentioned above {\tt ID\_DOS\_DISK}\mkey{ID\_DOS\_DISK} is the {\tt
-  id\_DiskType} file systems should return in case they recognize the
+As mentioned above {\tt ID\_DOS\_DISK}\mkey{ID\_DOS\_DISK} is the
+{\tt id\_DiskType} file systems should return in case they recognize the
 structure and attempt to interpret them. Despite this fact, the Fast File
 System returns erroneously the {\tt DOSTYPE} of its mountlist\key{Mountlist} entry as
 reported in table~\ref{table:ffsflavours} of section~\ref{sec:envec}.
 \smallskip{}
 
 \punchline{Not the DosType}{While mountlists include a {\tt DOSTYPE}
-  field that identifies the file system uniquely, the {\tt
-    id\_DiskType} member \emph{does not} represent this {\tt
-    DOSTYPE}. That it coincides with the {\tt DOSTYPE} for 
-  variants of the FFS\key{Fast File System (FFS)} is a historical error that shall not be mirrored
-  by new file system designs. It is therefore advisable to
-  check the first 3 bytes of the {\tt id\_DiskType} for the characters
-  {\tt DOS}, and if so, assume that the disk is valid and can be
-  interpreted by the file system. Unfortunately, some
-  third-party designs do not follow this convention.}
+  field that identifies the file system uniquely, the
+  {\tt id\_DiskType} member \emph{does not} represent this
+  {\tt DOSTYPE}. That it coincides with the {\tt DOSTYPE} for 
+  variants of the FFS\key{Fast File System (FFS)} is a historical error
+  that shall not be mirrored by new file system designs. It is therefore
+  advisable to check the first 3 bytes of the {\tt id\_DiskType} for
+  the characters {\tt DOS}, and if so, assume that the disk is
+  valid and can be interpreted by the file system. Unfortunately,
+  some third-party designs do not follow this convention.}
 
 {\tt ID\_NOT\_REALLY\_DOS}\mkey{ID\_NOT\_REALLY\_DOS} and {\tt ID\_UNREADABLE\_DISK}\mkey{ID\_UNREADABLE\_DISK} both
 indicate disks the file system cannot make use of. The first because
@@ -3971,9 +3971,9 @@ types, see section~\ref{sec:packetdiskinfo}.
 
 {\tt ID\_NO\_DISK\_PRESENT} indicates that the drive currently does not
 contain any disk. Similar to the above, {\tt Info()} cannot return this disk
-type as the file system interface fails early with {\tt
-  ERROR\_NO\_DISK}\key{ERROR\_NO\_DISK}, but the packet type {\tt
-  ACTION\_DISK\_INFO}\key{ACTION\_DISK\_INFO} of the packet level interface
+type as the file system interface fails early with
+{\tt ERROR\_NO\_DISK}\key{ERROR\_NO\_DISK}, but the packet type
+{\tt ACTION\_DISK\_INFO}\key{ACTION\_DISK\_INFO} of the packet level interface
 filling the same {\tt InfoData} structure can. See again
 section~\ref{sec:packetdiskinfo}.
 \smallskip{}
@@ -3981,16 +3981,19 @@ section~\ref{sec:packetdiskinfo}.
 {\tt 'BUSY'} is a four-character constant that is not documented in
 {\tt dos/dos.h}, but returned whenever a file system has been
 inibited, i.e.\ its access to the physical layer has been
-stopped. Thus, any attempt to access this file system is currently
-suspended, probably because some program attempts to operate on the
-medium on a lower level. Disk editors or disk salvage programs will
+stopped. Thus, any\footnote{except low-level initialization and serializing
+the disk, see sections~\ref{sec:actionformat}
+and~\ref{sec:actionserializedisk}} attempt to access this file system is currently
+suspended, probably because some program attempts to modify the
+medium on the device level. Disk editors or disk salvage programs will
 typically make use of this practise to avoid file systems from
 touching the medium while they work on it. The {\tt Inhibit()}\key{Inhibit()} function of
 section~\ref{sec:inhibit} blocks file system access to the physical layer
 and thus causes this disk type.
 \smallskip{}
 
-{\tt 'CON\textbackslash0'} and {\tt 'RAW\textbackslash0'} are indicators left by the CON-Handler\key{CON-Handler}
+{\tt 'CON\textbackslash0'} and {\tt 'RAW\textbackslash0'} are indicators
+left by the CON-Handler\key{CON-Handler}
 (or console-type handlers) which use the {\tt InfoData} structure for
 other purposes, see section~\ref{sec:console}. As they do not (in
 general) hand out locks\key{Lock}, the {\tt Info()} function will usually not
@@ -4340,7 +4343,7 @@ allow to set protection bits of the link and rather updates the bits of the
 link target, whereas the RAM-Handler keeps separate protection bits for the
 link target. Separate protection bits for links have only a questionable
 value as they cannot be easily checked without iterating through a directory
---- remember that links are resolved automatically if an object is locked
+--- this is because links are resolved automatically if an object is locked
 for inspection.
 \smallskip{}
 
@@ -4769,7 +4772,7 @@ If this error code is
 scanning the directory completed.
 The error code {\tt ERROR\_BAD\_NUMBER}\key{ERROR\_BAD\_NUMBER} is generated
 in case the {\tt type} argument passed in is not supported by the file
-system. Addiional errors can be generated if the file system is corrupt or
+system. Additional errors can be generated if the file system is corrupt or
 the medium is not accessible.
 If {\tt ExAll()}\key{ExAll()} terminates either because the end of the
 directory has been reached, or an error had been detected,
@@ -4837,7 +4840,7 @@ LONG ExamineDirectory(BPTR lock)
 \end{verbatim}
 
 Unfortunately, the {\tt ExAll()}\key{ExAll()} implementation had
-historically issues. In AmigaDOS version 36 where this function was
+historically defects. In AmigaDOS version 36 where this function was
 introduced, {\tt eac\_MatchString} was used incorrectly by the
 RAM-Handler\key{RAM-Handler} which also failed to initialize {\tt ed\_Next}
 properly. Similar issues existed in the fall-back implementation within the
@@ -4904,6 +4907,10 @@ system; however, if the file system performing a scan does not support
 abortion directly, the \emph{dos.library} provides a fall-back
 implementation. Unfortunately, even the most recent implementation of this
 fall-back function is corrupt and not reliable in all situations.
+\smallskip{}
+
+This function will modify {\tt IoErr()}\key{IoErr()} and set it to an
+undefined value.
 
 \section{Modifying Directory Entries}
 
@@ -4932,7 +4939,7 @@ BOOL DeleteFile(STRPTR)
 This function deletes the object given by the last component of the
 path passed in as {\tt name}. It returns non-zero in case of success,
 or~$0$ in case of error. In either case, {\tt IoErr()}\key{IoErr()} is
-set, namely~$0$ on success or an error code in case of failure.
+set, namely to an error code on failure and an undefined value on success.
 
 \subsection{Rename or Relocate an Object} \label{sec:rename}
 
@@ -4964,12 +4971,17 @@ relocate, i.e.\ you cannot move a directory into itself.
 
 This function returns a boolean success indicator. It is non-zero on
 success, or~$0$ on error. In either case, {\tt IoErr()}\key{IoErr()}
-is set, to~$0$ on success, or to an error code otherwise.
+is set, to an error code on failure or to an undefined value otherwise.
 \smallskip{}
 
 Versions 34 and below of the OFS allowed to rename directories into itself,
 and thus make them vanish completely without, actually, deleting them. This
 was fixed in at least version 36.
+\smallskip{}
+
+All versions of AmigaDOS up to version~47 cannot handle soft
+links\key{Soft Link} in the old or new path and instead fail with
+{\tt ERROR\_IS\_SOFT\_LINK}\key{ERROR\_IS\_SOFT\_LINK} if one is detected.
 
 \subsection{Set the File Comment} \label{sec:setcomment}
 
@@ -4999,8 +5011,8 @@ target.
 \smallskip{}
 
 This function returns non-zero on success and~$0$ on error. In either
-case, the function sets {\tt IoErr()}\key{IoErr()} to~$0$ on success
-or to an error code otherwise.
+case, the function sets {\tt IoErr()}\key{IoErr()} to an undefined value
+on success or to an error code otherwise.
 
 \subsection{Setting Protection Bits} \label{sec:setprotection}
 
@@ -5039,8 +5051,8 @@ the RAM-Handler supports a separate set of protection bits.
 \smallskip{}
 
 This function returns a non-zero result code on success, or zero on
-error. In either case, {\tt IoErr()}\key{IoErr()} is altered, either to~$0$
-on success or to an error code otherwise.
+error. In either case, {\tt IoErr()}\key{IoErr()} is altered, either to
+an undefined value on success or to an error code otherwise.
 
 \subsection{Set the Modification Date} \label{sec:setfiledate}
 
@@ -5075,8 +5087,8 @@ gain access to the link itself.
 \smallskip{}
 
 This function returns~$0$ on error or non-zero on success. In either
-case, {\tt IoErr()} is set, either to~$0$ on success or to an error
-code otherwise.
+case, {\tt IoErr()} is set, either to an undefined value on success
+or to an error code otherwise.
 \smallskip{}
 
 Note that not all file systems may be able to set the date precisely
@@ -5112,15 +5124,15 @@ BOOL SetOwner (STRPTR, LONG)
 \end{verbatim}
 
 This function sets the user and group ID of the file system
-object identified by the path in {\tt name} to the value {\tt
-  owner\_info}. How exactly the {\tt owner\_info} is encoded is
+object identified by the path in {\tt name} to the value
+{\tt owner\_info}. How exactly the {\tt owner\_info} is encoded is
 file system specific. Typically, the owner is encoded in the
 topmost 16 bits, and the group in the least significant 16 bits.
 \smallskip{}
 
 This function returns a boolean success indicator which is non-zero on
 success and $0$ on error. This function always sets {\tt IoErr()},
-either to $0$ on success or to an error code otherwise.
+either to an undefined value on success or to an error code otherwise.
 
 \section{Working with Paths} \label{sec:workpaths}
 
@@ -5130,9 +5142,9 @@ many other functions in the library is that the paths are not interpreted by the
 file system, but rather by the \emph{dos.library} itself. This has several
 consequences: First, there is no 255 character limit (see
 section~\ref{sec:pathlimit}) as the path is never communicated to a file
-system. Second, as the paths are constructed or interpreted by the library
-and not the file system, the syntax of the path is also that imposed by the
-library.
+system and thus never converted to a BSTR. Second, as the paths are
+constructed or interpreted by the library and not the file system, the
+syntax of the path is also that imposed by the library.
 \smallskip{}
 
 That is, for these functions to work, the separator between component
@@ -5250,7 +5262,7 @@ path is constructed purely based on the AmigaDOS path syntax. Version 36 of
 AmigaDOS did not handle leading slashes and absolute paths in {\tt filename}
 correctly, this was fixed in release 37.
 
-\subsection{Find the last Component of a Path}
+\subsection{Find the Last Component of a Path}
 
 The {\tt FilePart()}\mkey{FilePart()} function finds the last
 component of a path; the function name is a bit misleading since the
@@ -5455,7 +5467,7 @@ Note that {\tt Rename()}\key{Rename()} is currently not on the list of functions
 supporting soft links as part of the path to the object to be renamed, or as
 part of the target path. Thus, if the source or destination argument of {\tt
   Rename()} contain a soft link, the function will
-fail. Section~\ref{sec:readlink} contains code for a (partial) workaround.
+fail. Section~\ref{sec:readlink} provides source code for a (partial) workaround.
 \smallskip{}
 
 If the target of a soft link\key{Soft Link} is deleted, soft links pointing
@@ -5475,7 +5487,7 @@ contains a soft link, it will respond with failure and the error
 \smallskip{}
 
 The \emph{dos.library} requests the handler to resolve the softlink via
-the \emph{ReadLink()}\key{ReadLink()} function which sends a packet of type
+the {\tt ReadLink()}\key{ReadLink()} function which sends a packet of type
 {\tt ACTION\_READ\_LINK}\key{ACTION\_READ\_LINK} back to the handler, see
 section~\ref{sec:actionreadlink}. The handler then creates from the original
 path and the link target stored in the soft link\key{Soft Link} an updated
@@ -5579,7 +5591,7 @@ need to exist. Soft links did not work reliable prior to version 45 of AmigaDOS.
 
 This function returns non-zero in {\tt success} if creation of the
 lock\key{Lock} succeeded, or~$0$ in case of failure. In either case,
-{\tt IoErr()} is set to an error code on failure, or $0$ on success.
+{\tt IoErr()} is set to an error code on failure, or to an undefined value on success.
 
 \subsection{Resolving Soft Links} \label{sec:readlink}
 
@@ -5680,14 +5692,11 @@ LONG RenameWithLinks(UBYTE *srcpath,UBYTE *dstpath)
           break;
         } else {
           error = IoErr(); /* get the error */
-          /* If the error was ERROR_OBJECT_WRONG_TYPE 
-          ** or ERROR_OBJECT_NOT_FOUND, then
-          ** the source is no link, or the source was
-          ** a multi-assign and the source
-          ** was not contained in the assign, so 
-          ** re-iterate potentially.
-          ** Unfortunately, RAM does not return the
-          ** right type of error.
+          /* If the error was ERROR_OBJECT_WRONG_TYPE or 
+          ** ERROR_OBJECT_NOT_FOUND, then the source is no link, 
+          ** or the source was a multi-assign and the source was 
+          ** not contained in the assign, so re-iterate potentially.
+          ** Unfortunately, RAM does not return the correct error.
           */
           if (error != ERROR_OBJECT_WRONG_TYPE &&
               error != ERROR_OBJECT_NOT_FOUND)
@@ -5951,8 +5960,8 @@ ensured that the port remains available until the notification request is cancel
 \medskip{}
 
 {\tt StartNotify()} returns a boolean success indicator. It returns a
-non-zero result code on success and then sets {\tt
-  IoErr()}\key{IoErr()} to~0. On error, the function returns~0 and
+non-zero result code on success and then sets
+{\tt IoErr()}\key{IoErr()} to an undefined value. On error, the function returns~0 and
 sets {\tt IoErr()} to a non-zero error code.
 
 \subsection{Canceling a Notification Request} \label{sec:endnotify}
@@ -20761,7 +20770,7 @@ indicator. On success, it shall be set to {\tt DOSTRUE} and {\tt dp\_Res2} shall
 be set to~0. On failure, {\tt dp\_Res1} shall be set to {\tt DOSFALSE} and
 {\tt dp\_Res2} to an error code.
 
-\subsection{Make a Copied Disk Unique}
+\subsection{Make a Copied Disk Unique} \label{sec:actionserializedisk}
 
 The {\tt ACTION\_SERIALIZE\_DISK}\mkey{ACTION\_SERIALIZE\_DISK} packet
 serializes a disk, that is, ensures that the disk is unique and
