@@ -11309,11 +11309,14 @@ section~\ref{sec:dospacket} for the raw packet interface.
 
 This function returns the primary result code of the handler, and
 installs the secondary result code in {\tt IoErr()}\key{IoErr()}, see
-also section~\ref{sec:dospacket}.
+also section~\ref{sec:dospacket}. In particular, {\tt IoErr()} is
+always set, even if the handler did not deliver a meaningful secondary
+result code.
 \smallskip{}
 
-If the caller is a process and the {\tt pr\_PktWait}\key{pr\_PktWait} pointer in the {\tt
-  Process}\key{Process} structure is set, {\tt DoPkt()}\key{DoPkt()} calls through it to wait for the
+If the caller is a process and the {\tt pr\_PktWait}\key{pr\_PktWait}
+pointer in the {\tt Process}\key{Process} structure is set,
+{\tt DoPkt()}\key{DoPkt()} calls through it to wait for the
 packet (or rather the message carrying it) to return, see
 chapter~\ref{sec:process}.
 Otherwise, {\tt DoPkt()} waits on {\tt pr\_MsgPort}\key{pr\_MsgPort}
@@ -11348,10 +11351,10 @@ carrying the unneeded arguments. These functions are named {\tt DoPkt0()} to
 
 The functions in this section implement the asynchronous packet
 interface of the \emph{dos.library} and reassemble to a large degree
-the device interface of the \emph{exec.library} (see
-also~\cite{rkrmdev}), though the functions and structures are somewhat
-different\footnote{Historically, it seems plausible that the exec
-  design is a copy of the Tripos design and not vice versa.}.
+the device interface of the \emph{exec.library} (see also~\cite{rkrmdev}),
+though the functions and structures are somewhat
+different\footnote{Historically, it seems plausible that the
+exec design is a copy of the Tripos design and not vice versa.}.
 \smallskip{}
 
 To trigger an asynchronous input or output operation, the caller first
@@ -11366,7 +11369,7 @@ initiating another operation from a second handler.
 
 The {\tt WaitPkt()}\key{WaitPkt()} function in
 section~\ref{sec:waitpkt} waits for the packet to return and
-make it accessible to the initiator again.  Unfortunately, the
+make it accessible to the initiator again. Unfortunately, the
 \emph{dos.library} does not provide a function to abort an issued
 packet, even though the {\tt AbortPkt()}\key{AbortPkt()} function of
 section~\ref{sec:abortpkt} suggests otherwise. It is currently
@@ -11499,10 +11502,11 @@ carry additional arguments for the requested action and
 shall be initialized accordingly.
 \medskip{}
 
-{\tt DosPackets} can be constructed in multiple ways: {\tt
-  AllocDosObject(DOS\_STDPKT,NULL)}\key{AllocDosObject()} allocates a packet along
-with a message and initializes the linkage between the structures.
-This function creates a {\tt StandardPacket}\mkey{StandardPacket} which contains both a
+{\tt DosPackets} can be constructed in multiple ways:
+{\tt AllocDosObject(DOS\_STDPKT,NULL)}\key{AllocDosObject()} allocates a packet along
+with a message and initializes the linkage between the structures,
+see~\ref{sec:allocdosobject} for additional information.
+It creates a {\tt StandardPacket}\mkey{StandardPacket} which contains both a
 {\tt Message} and a {\tt DosPacket}\key{DosPacket}. This structure is defined in
 {\tt dos/dosextens.h} and looks as follows:
 \begin{verbatim}
@@ -11561,8 +11565,8 @@ rest of the \emph{dos.library} does not call through the {\tt WaitPkt()} functio
 vector. This is probably a defect.}.
 \smallskip{}
 
-If the {\tt pr\_PktWait}\key{pr\_PktWait} pointer in the {\tt Process}\key{Process} structure is set, {\tt
-  WaitPkt()} calls through this function to wait for the arrival of a
+If the {\tt pr\_PktWait}\key{pr\_PktWait} pointer in the {\tt Process}\key{Process}
+structure is set, {\tt WaitPkt()} calls through this function to wait for the arrival of a
 message, see chapter~\ref{sec:process} for details. Otherwise, the {\tt WaitPkt()} function
 calls {\tt WaitPort()} to wait for a
 arrival of a message on {\tt pr\_MsgPort}\key{pr\_MsgPort} of the calling process, and then
@@ -11580,8 +11584,8 @@ before.
 
 As {\tt WaitPkt()}\key{WaitPkt()} always waits on the process message
 port of the caller, this only works if the packet was send with the
-{\tt replyport} argument of {\tt SendPkt()}\key{SendPkt()} set to {\tt
-  pr\_MsgPort} of the calling process.
+{\tt replyport} argument of {\tt SendPkt()}\key{SendPkt()} set to
+{\tt pr\_MsgPort} of the calling process.
 
 \subsection{Aborting a Packet} \label{sec:abortpkt}
 
@@ -11596,8 +11600,8 @@ AbortPkt(port, pkt) /* since V36 */
 void AbortPkt(struct MsgPort *, struct DosPacket *)
 \end{verbatim}
 
-What this function should do is to scan {\tt port}, presumably the {\tt
-  MsgPort} of the handler to which {\tt pkt} was send, and dequeue it there
+What this function should do is to scan {\tt port}, presumably the
+{\tt MsgPort} of the handler to which {\tt pkt} was send, and dequeue it there
 if the handler is not yet working on it. Then, it would be placed back into
 the port of its initiator. However, as of V47, \emph{this function does nothing}.
 
@@ -11605,7 +11609,7 @@ the port of its initiator. However, as of V47, \emph{this function does nothing}
 
 The {\tt ReplyPkt()}\mkey{ReplyPkt()} function returns a packet to its
 initiator, filling the primary and secondary result codes. This function is
-intended to be used by handlers.
+intended to be used by handlers and file systems.
 
 \begin{verbatim}
 ReplyPkt(packet, result1, result2) /* since V36 */
@@ -11615,10 +11619,10 @@ void ReplyPkt(struct DosPacket *, LONG, LONG)
 \end{verbatim}
 
 This function fills {\tt dp\_Res1}\key{dp\_Res1} and {\tt dp\_Res2}\key{dp\_Res2} of the {\tt packet}
-with {\tt result1} and {\tt result2}, and sends the packet back to the port pointed to by the {\tt
-  dp\_Port} element of the packet, i.e.\ the initiating port. Note that {\tt mn\_ReplyPort} of the
-message pointed to by {\tt dp\_Link} is ignored, i.e.\ packets do \emph{not}
-follow the exec protocol for replying messages.
+with {\tt result1} and {\tt result2}, and sends the packet back to the port
+pointed to by the {\tt dp\_Port} element of the packet, i.e.\ the initiating port.
+Note that {\tt mn\_ReplyPort} of the message pointed to by {\tt dp\_Link} is
+ignored, i.e.\ packets do \emph{not} follow the exec protocol for replying messages.
 \smallskip{}
 
 The {\tt result1} argument is the primary result code and identical to the
@@ -11993,9 +11997,10 @@ l $\times$ 32 & \tt Code & $l$ long words of payload \\ \hline
 Note that the size of the payload loaded from the file may be less
 than the size of the allocated segment as defined in {\tt
   HUNK\_HEADER}\key{HUNK\_HEADER}. In such a case, all bytes of the segment not included
-in the {\tt HUNK\_CODE}\key{HUNK\_CODE} are zero-initialized. AmigaDOS versions earlier than
-v37 skipped this initialization. Due to a bug in the loader in later
-versions, the initialization is also skipped if the hunk length~$l$ is~$0$.
+in the {\tt HUNK\_CODE}\key{HUNK\_CODE} are zero-initialized. AmigaDOS
+versions earlier than~37 skipped this initialization. Due to a bug in the
+loader in later versions, the initialization is also skipped if
+the hunk length~$l$ is~$0$.
 
 \subsection{HUNK\_DATA} \label{sec:hunk_data}
 
@@ -12017,7 +12022,7 @@ l $\times$ 32 & \tt Data & $l$ long words of payload \\ \hline
 Similar to {\tt HUNK\_CODE}\key{HUNK\_CODE}, the size of the payload defined by this
 hunk may be less than the size of the segment\key{Segment} allocated by {\tt
   HUNK\_HEADER}\key{HUNK\_HEADER}. Excess bytes are zero-initialized in all AmigaDOS
-releases from v37 onwards. Due to a bug in the loader in later
+releases from~37 onwards. Due to a bug in the loader in later
 versions, the initialization is also skipped if the hunk length~$l$ is~$0$.
 
 \subsection{HUNK\_BSS} \label{sec:hunk_bss}
@@ -12737,7 +12742,7 @@ follows:
 {\tt $\quad$ HUNK\_CODE} or {\tt HUNK\_DATA} & First segment of the overlay node \\ \hline
 \tt $\quad$ \vdots & Other hunks of this overlay node \\ \hline
 \tt $\quad$ HUNK\_END    & Terminates the last segment \\ \hline
-\tt $\quad$ HUNK\_BREAK  & Terminates the first overlay node, see~\ref{sec:hunk_break} \\ \hline
+\tt $\quad$ HUNK\_BREAK  & Terminates the overlay node, see~\ref{sec:hunk_break} \\ \hline
 \tt \} while(!EOF) & This pattern repeats until end of file \\ \hline
 \end{longtable}
 \end{rkrmtabular}
