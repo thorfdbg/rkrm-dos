@@ -14802,14 +14802,14 @@ that the former decay into regular assigns once a suitable lock has been found.
 
 Finally, if {\tt dol\_Type} is {\tt DLT\_DEVICE} indicating an entry of a handler or file system,
 {\tt dol\_Task} is a pointer to a {\tt MsgPort} through which the handler can be
-contacted if it is non-{\tt NULL}.
+contacted, provided it is non-{\tt NULL}.
 
 \subsection{Starting a a Handler} \label{sec:handlerstartup}
 
 If the {\tt dol\_Task}\key{dol\_Task} element of a handler entry is {\tt NULL}, this is
 an indicator that {\tt GetDeviceProc()}\key{GetDeviceProc()} needs to
 start a new handler process for the provided path. It first checks
-next whether {\tt dol\_SegList}\key{dol\_SegList} is {\tt ZERO}.  If
+whether {\tt dol\_SegList}\key{dol\_SegList} is {\tt ZERO}. If
 it is, the handler code is not yet resident in memory and will be
 loaded from the file name indicated in {\tt dol\_Handler}\key{dol\_Handler} through
 {\tt LoadSeg()}\key{LoadSeg()}, see section~\ref{sec:loadseg}, and
@@ -14866,8 +14866,8 @@ handler startup, its elements are populated as follows:
 \tt dp\_Arg1 & BPTR to BSTR of path \\ \hline
 \tt dp\_Arg2 & Copy of {\tt dol\_Startup} \\ \hline
 \tt dp\_Arg3 & BPTR to {\tt DosList} \\ \hline \hline
-\tt dp\_Res1 & \tt DOSTRUE \\ \hline
-\tt dp\_Res2 & 0\\ \hline
+\tt dp\_Res1 & \tt Success indicator \\ \hline
+\tt dp\_Res2 & 0 or error code\\ \hline
 \end{rkrmtable}
 
 {\tt dp\_Type} is set to {\tt ACTION\_STARTUP}\mkey{ACTION\_STARTUP},
@@ -14895,14 +14895,14 @@ element of the {\tt DosList}\key{DosList} structure, see
 chapter~\ref{sec:devicelist}. It is used to configure the properties
 of the handler. The type that is placed here is depends on the
 mountlist\key{Mountlist}. While its use is handler specific, it is
-typically, but not necessarily, a BPTR to a {\tt
-  FileSysStartupMsg}\key{FileSysStartupMsg} structure for file
+typically, but not necessarily, a BPTR to a
+{\tt FileSysStartupMsg}\key{FileSysStartupMsg} structure for file
 systems. Other possibilities for {\tt dol\_Startup} are a BPTR to a
 BSTR or an integer. What exactly the handler will receive depends on
 the mountlist and is discussed in more detail in
 section~\ref{sec:mountdoslist} and
-section~\ref{sec:filesysstartup}. There is no logic in the {\tt Mount}
-command nor in the handlers that check whether the type deposited in
+section~\ref{sec:filesysstartup}. There is no algorithm in the {\tt Mount}
+command nor in the handlers that checks whether the type deposited in
 {\tt dol\_Startup} matches the expectations of the handler.
 \smallskip{}
 
@@ -14932,9 +14932,9 @@ to open a file in its lifetime, though. Any attempt to open a file
 named ``{\tt *}'' or a using a file name relative to the (pseudo-)
 device {\tt CONSOLE:} will create a request through the port stored in
 {\tt pr\_ConsoleTask} of the initiating process \emph{without}
-creating a new instance of a handler. {\tt CONSOLE:} and ``{\tt *}'' are not exclusive to the
-CON-Handler. They (maybe surprisingly) apply to any handler whose port
-is stored in {\tt pr\_ConsoleTask}.
+creating a new instance of a handler. {\tt CONSOLE:} and ``{\tt *}'' are
+not exclusive to the CON-Handler. They (maybe surprisingly) apply to
+any handler whose port is stored in {\tt pr\_ConsoleTask}.
 \smallskip{}
 
 Many (non file-system) handlers leave {\tt dol\_Task} unitialized,
@@ -14958,7 +14958,7 @@ receive through its port(s).
 
 \subsection{Handler Main Processing Loop} \label{sec:handlermain}
 
-Once started up, handlers or file systems should wait for incoming
+Once started up, handlers or file systems shall wait for incoming
 packets. The main loop of a handler then checks its own process port,
 or all ports it provided through the mechanisms below for incoming
 packets. Chapter~\ref{sec:packettypes} provides information on all
@@ -15102,8 +15102,9 @@ LONG __asm __saveds main(register __a0 struct DosPacket *pkt)
 \end{verbatim}
 
 A handler or file system receiving a packet it does not implement
-shall set the {\tt dp\_Res2} element of the packet to {\tt
-  ERROR\_ACTION\_NOT\_KNOWN}\key{ERROR\_ACTION\_NOT\_KNOWN}. The primary result code {\tt dp\_Res1}
+shall set the {\tt dp\_Res2} element of the packet to
+{\tt ERROR\_ACTION\_NOT\_KNOWN}\key{ERROR\_ACTION\_NOT\_KNOWN}.
+The primary result code {\tt dp\_Res1}
 shall be set for non-implemented packets according to the packet type
 as shown in the following table:
 
@@ -15150,8 +15151,8 @@ these files had been closed\footnote{This is a simplification, ignoring
 File systems such as the FFS, however, typically \emph{do} initialize
 {\tt dol\_Task}\key{dol\_Task} and thus can be reached even if all
 files, locks\key{Lock} or notification requests on the volumes they
-manage have been released. Thus, in addition to such resource
-tracking, file systems should check for incoming packets of the type
+manage have been released. Thus, in addition to tracking these resources,
+file systems should check for incoming packets of the type
 {\tt ACTION\_DIE}\key{ACTION\_DIE}. If the file system is aware that
 any of its resources are still in use, e.g.\ some files or locks are
 still open, {\tt ACTION\_DIE} shall fail. Otherwise, the file system
