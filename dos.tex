@@ -9243,6 +9243,10 @@ The following code provides a simple example for a directory scan. It uses
 the {\tt D\_S} macro from section~\ref{sec:bptrs} to place the
 {\tt AnchorPath} structure on the stack and align it properly.
 \begin{verbatim}
+/*
+** Scan a directory tree recursively for entries matching
+** the supplied pattern, and print the objects found.
+*/
 LONG ScanDirectories(const UBYTE *pat)
 {
   LONG error;
@@ -9539,7 +9543,7 @@ struct Process {
     APTR    pr_PktWait;        
     APTR    pr_WindowPtr;
 
-    /* following definitions are new in V36 */
+    /* the following definitions are new in V36 */
     BPTR    pr_HomeDir;
     LONG    pr_Flags;
     void    (*pr_ExitCode)();
@@ -9913,7 +9917,7 @@ through the {\tt NP\_Arguments}\key{NP\_Arguments} tag of {\tt CreateNewProc()}\
 
 The {\tt PRF\_CLOSEERROR}\mkey{PRF\_CLOSEERROR} flag closes the {\tt pr\_CES} standard error
 stream upon termination of the process. This flag was introduced in AmigaDOS
-version 47. It corresponds to the {\tt NP\_CloseError}\key{NP\_CloseError}
+version~47. It corresponds to the {\tt NP\_CloseError}\key{NP\_CloseError}
 tag of {\tt CreateNewProc()}\key{CreateNewProc()}.
 \medskip{}
 
@@ -9929,9 +9933,9 @@ LONG ExitFunc(LONG,LONG)
 \end{verbatim}
 
 The value of {\tt rc} is the process return code, i.e.\ the value left in
-register {\tt D0} when the code drops off the final {\tt RTS}. {\tt
-  exitdata} is taken from {\tt pr\_ExitData}\key{pr\_ExitData}. The {\tt
-  returncode} allows the exit function to modify the process return value;
+register {\tt D0} when the code drops off the final {\tt RTS}.
+{\tt exitdata} is taken from {\tt pr\_ExitData}\key{pr\_ExitData}. The
+{\tt returncode} allows the exit function to modify the process return value;
 however, currently this value has no use as the \emph{dos.library}
 shutdown code directly runs into {\tt RemTask()} of the \emph{exec.library}
 which discards all register values of the terminating task. The process exit
@@ -10005,38 +10009,38 @@ in AmigaDOS version 36, it only came in use from AmigaDOS version 47 onwards.
 
 \section{Creating and Terminating Processes}
 
-AmigaDOS provides several functions to create processes: {\tt
-  CreateNewProc()}\key{CreateNewProc()} is the extended and most flexible
+AmigaDOS provides several functions to create processes:
+{\tt CreateNewProc()}\key{CreateNewProc()} is the extended and most flexible
 function for launching a process, taking parameters in the form of a
 tag list. The legacy function {\tt CreateProc()}\key{CreateProc()} supports
 less options, but available under all AmigaDOS versions. Shells as created by the
 {\tt System()}\key{System()} function implicitly also create a process, but
-are not discussed here, but in section~\ref{sec:shell}. For that reason, {\tt
-  System()} shares a couple of options with {\tt CreateNewProc()}\key{CreateNewProc()}.
+are not discussed here, but in section~\ref{sec:shell}. For that reason,
+{\tt System()} shares a couple of tags with {\tt CreateNewProc()}\key{CreateNewProc()}.
 \smallskip{}
 
 There is not a single function to delete a process. Processes\key{Process}
 die whenever their execution drops off at the end of the {\tt main()}
 function, or whenever execution reaches the final {\tt RTS} instruction of
 their program code. The {\tt Exit()}\key{Exit()} function also
-terminates a process, but from within the process to abort and not from its
-outside. Worse, it is typically not suitable for this job either as it does not release resources
-acquired by the program itself, but only those allocated by the {\tt
-  CreateProc()} or {\tt CreateNewProc()} functions. In no event should processes be
+terminates a process, but it only terminates the calling process and not any
+other. Worse, it is typically not suitable for this job either as it does not release resources
+acquired by the running program itself, but only those allocated by the
+{\tt CreateProc()} or {\tt CreateNewProc()} functions. Processes shall not be
 terminated by the \emph{exec.library} function {\tt RemTask()} as this
 function will miss to release even the resources allocated by the
 \emph{dos.library} when creating processes, leave alone resources allocated
 by the running program.
 \smallskip{}
 
-{\tt CreateProc()}\key{CreateProc()} and {\tt
-  CreateNewProc()}\key{CreateNewProc()} are in general not sufficient to
-launch programs designed to be run from the Workbench, nor to start command
-line programs as if they were called from the shell\key{Shell}. While the Workbench
-also goes through {\tt CreateNewProc()}, the delivery of the {\tt WBStartup}
+{\tt CreateProc()}\key{CreateProc()} and {\tt CreateNewProc()}\key{CreateNewProc()}
+are in general not sufficient to launch programs designed to be run from the
+Workbench, nor to start command line programs as if they were called from
+the shell\key{Shell}. While the Workbench also goes through
+{\tt CreateNewProc()}, the delivery of the {\tt WBStartup}
 message documented in {\tt workbench/startup.h} is necessary in
 addition. Such a message can be created manually and delivered to the
-process once started. The {\tt WBLoad} program added to AmigaOs version 45
+process once started. The {\tt WBLoad} program added to AmigaOs version~45
 emulates the Workbench startup mechanism by such a technique.
 \smallskip{}
 
@@ -10047,12 +10051,13 @@ overlays the calling process with a command represented by a segment\key{Segment
 e.g.\ obtained from {\tt LoadSeg()}\key{LoadSeg()}, but requires the
 presence of a shell environment on the caller side. The latter creates a
 shell\key{Shell}, loads a command from within this new shell and executes it there.
-More details on these functions are found in the corresponding sections.
+More details on these functions are found in sections~\ref{sec:runcommand}
+and~\ref{sec:system}.
 
 \subsection{Creating a New Process from a TagList} \label{sec:createnewproc}
 
-The {\tt CreateNewProc()}\mkey{CreateNewProc()} function takes a {\tt
-  TagItem} array as defined in {\tt utility/tagitem.h} and launches a new
+The {\tt CreateNewProc()}\mkey{CreateNewProc()} function takes a
+{\tt TagItem} array as defined in {\tt utility/tagitem.h} and launches a new
 process taking parameters from this list. 
 
 \begin{verbatim}
@@ -10271,9 +10276,9 @@ the process to be created. This is a {\tt NUL} terminated string containing
 all arguments to be received by the created process, \emph{excluding} the
 command name itself which is set by the above tag. If provided, the
 arguments are copied into {\tt pr\_Arguments}\key{pr\_Arguments} of the new
-process, and the string and its lengths will be loaded into registers {\tt
-  A0} and {\tt D0} before execution of the process begins.  If {\tt
-  NP\_Arguments} are non-{\tt NULL}, the tag value of {\tt NP\_Input}, if it is
+process, and the string and its lengths will be loaded into registers
+{\tt A0} and {\tt D0} before execution of the process begins.  If
+{\tt NP\_Arguments} are non-{\tt NULL}, the tag value of {\tt NP\_Input}, if it is
 included, shall not be {\tt ZERO}. This is because the arguments are
 additionally copied into the buffer of the input file handle to make them
 available to {\tt ReadArgs()}\key{ReadArgs()}, or any other function that
@@ -10285,8 +10290,8 @@ process failed.
 \smallskip{}
 
 {\tt NP\_ExitCode}\mkey{NP\_ExitCode} determines a pointer to function that is called
-when the created process terminates. It is installed into {\tt
-  pr\_ExitCode}. See chapter~\ref{sec:process} for the description and
+when the created process terminates. It is installed into
+{\tt pr\_ExitCode}. See chapter~\ref{sec:process} for the description and
 the signature of this function.
 \smallskip{}
 
@@ -10296,9 +10301,9 @@ register {\tt D1} when the process terminates. Details are again at the
 beginning of chapter~\ref{sec:process}.
 \smallskip{}
 
-While {\tt dos/dostags.h} also defines the tags {\tt
-  NP\_NotifyOnDeath}\key{NP\_NotifyOnDeath} and {\tt
-  NP\_Synchronous}\key{NP\_Synchronous}, these tags are currently
+While {\tt dos/dostags.h} also defines the tags
+{\tt NP\_NotifyOnDeath}\key{NP\_NotifyOnDeath} and
+{\tt NP\_Synchronous}\key{NP\_Synchronous}, these tags are currently
 ignored and do not perform any function.
 \medskip{}
 
@@ -10309,8 +10314,8 @@ priority, may already be running. On failure, the function returns
 {\tt NULL}. Unfortunately, it does not set {\tt IoErr()}\key{IoErr()} consistently
 on failure.
 
-\punchline{What's Released on Error?}{Unfortunately, {\tt
-    CreateNewProc()}\key{CreateNewProc()} is not very consistent on which
+\punchline{What's Released on Error?}{Unfortunately,
+  {\tt CreateNewProc()}\key{CreateNewProc()} is not very consistent on which
   resources it releases in case it cannot create a process. The locks
   representing the current directory and the home directory are released in
   such a case, all other resources remain available to the caller.}
@@ -10379,9 +10384,9 @@ scheduler.
 \smallskip{}
 
 However, this function does not release any resources except those
-implicitly allocated when creating the process through {\tt
-  CreateNewProc()}\key{CreateNewProc()}, {\tt
-  CreateProc()}\key{CreateProc()} or starting the program from the shell\key{Shell}
+implicitly allocated when creating the process through
+{\tt CreateNewProc()}\key{CreateNewProc()}, {\tt CreateProc()}\key{CreateProc()}
+or starting the program from the shell\key{Shell}
 through {\tt RunCommand()}\key{RunCommand()}. As it misses to release
 resources allocated by the program itself or the compiler startup code, this
 function \emph{should not be used} and rather a compiler or language
@@ -10398,8 +10403,8 @@ void Exit(LONG)
 \end{verbatim}
 
 This call either terminates the calling process, in which case the argument
-is ignored, or returns to the shell\key{Shell}, then delivering {\tt
-  returnCode} as result code. It locates the BCPL stack frame at
+is ignored, or returns to the shell\key{Shell}, then delivering
+{\tt returnCode} as result code. It locates the BCPL stack frame at
 {\tt pr\_ReturnAddr}\key{pr\_ReturnAddr}, removes it,
 initializes the previous stack linked there and then returns to
 whatever function created the previous stack frame. See the beginning of
@@ -10441,8 +10446,8 @@ BPTR Input(void)
 \end{verbatim}
 
 This function returns a BPTR to the input file handle\key{FileHandle} of the
-calling process, or {\tt ZERO} if none is defined. It returns {\tt
-  pr\_CIS}\key{pr\_CIS} of the calling process, which is approximately the
+calling process, or {\tt ZERO} if none is defined. It returns
+{\tt pr\_CIS}\key{pr\_CIS} of the calling process, which is approximately the
 {\tt stdin} of ANSI-C. Depending on process creation, this file
 handle\key{FileHandle} will be closed by the process shutdown code or the
 calling shell\key{Shell} and thus should not be closed explicitly by the
@@ -10490,8 +10495,8 @@ BPTR Output(void)
 \end{verbatim}
 
 This function returns a BPTR to the output file handle\key{FileHandle} of the
-calling process, or {\tt ZERO} if none is defined. It returns {\tt
-  pr\_COS}\key{pr\_COS} of the calling process, which is approximately
+calling process, or {\tt ZERO} if none is defined. It returns
+{\tt pr\_COS}\key{pr\_COS} of the calling process, which is approximately
 the {\tt stdout} of ANSI-C. Depending on process creation, this file
 handle\key{FileHandle} will be closed by the process shutdown code or the calling shell\key{Shell}
 and thus should not be closed explicitly by the caller. The standard output
@@ -10529,8 +10534,8 @@ terminating a running program.
 
 The {\tt ErrorOutput()}\mkey{ErrorOutput()} function returns the file
 handle\key{FileHandle} through which diagnostic or error outputs should be printed. It
-returns either {\tt pr\_CES}\key{pr\_CES} if this handle is non-{\tt
-  ZERO}, or {\tt pr\_COS}\key{pr\_COS} otherwise. If neither an error output
+returns either {\tt pr\_CES}\key{pr\_CES} if this handle is
+non-{\tt ZERO}, or {\tt pr\_COS}\key{pr\_COS} otherwise. If neither an error output
 nor a regular output is available, this function returns {\tt ZERO}.
 
 \begin{verbatim}
@@ -10550,8 +10555,8 @@ thus should not be closed explicitly. The standard error stream may be changed t
 {\tt SelectError()}\key{SelectError()}.
 
 For command line programs started from the shell\key{Shell}, this file handle is
-connected to the console. It is by the workings of {\tt
-  ErrorOutput()}\key{ErrorOutput()} redirected along with the output file
+connected to the console. It is by the workings of
+{\tt ErrorOutput()}\key{ErrorOutput()} redirected along with the output file
 handle as typically a standard error stream is not supplied --- note that
 this is different from how shells under Unix type operating systems work.
 The standard error stream of command line executables can be explicitly
@@ -10613,9 +10618,9 @@ D0                    D1
 
 BPTR CurrentDir(BPTR)
 \end{verbatim}
-This function sets the current directory to {\tt lock} and returns in {\tt
-  oldLock} the previously installed current directory. It updates the {\tt
-  pr\_CurrentDir}\key{pr\_CurrentDir} element of the {\tt Process}
+This function sets the current directory to {\tt lock} and returns in
+{\tt oldLock} the previously installed current directory. It updates the
+{\tt pr\_CurrentDir}\key{pr\_CurrentDir} element of the {\tt Process}
 structure. The passed in {\tt lock} then becomes part of the process and
 shall not be released by {\tt UnLock()}\key{UnLock()} until another
 lock\key{Lock} is installed as current directory. For programs started from
@@ -10650,28 +10655,43 @@ This function returns the secondary result code from the last call to the
 \emph{dos.library}. Unfortunately, not all functions set {\tt IoErr()}, and
 some only set it in particular cases and leave it untouched otherwise. All
 unbuffered operations in section~\ref{sec:unbuffered} provide an error code
-in case of failure, or deliver~$0$ as secondary result in case of
-success. The buffered functions in section~\ref{sec:bufferedio} generally
-only set a secondary result code in case an I/O operation is required, but
+in case of failure, though still modify {\tt IoErr()} in case of success to
+an undefined value. Reading and writing bytes, and the {\tt Seek()}\key{Seek()}
+function can be expected to set {\tt IoErr()} to~0 in success.
+\smallskip{}
+
+The buffered functions in section~\ref{sec:bufferedio} generally
+only set a secondary result code in case an (unbuffered) I/O operation is required, but
 do not touch {\tt IoErr()} if the call can be satisfied from the buffer of
-the file handle. Whether a function of the \emph{dos.library} touches {\tt
-  IoErr()} is stated in the description of the corresponding function.
+the file handle. Whether a function of the \emph{dos.library} touches
+{\tt IoErr()} is stated in the description of the corresponding function.
 \smallskip{}
 
 Some rare functions of the \emph{dos.library} also provide a secondary result
 code differing from an error code in case of success. Such unconventional
 use of {\tt IoErr()} is explicitly mentioned in the description of the
-corresponding function. A particular example is {\tt
-  DeviceProc()}\key{DeviceProc()}, which returns the (first) lock\key{Lock}
+corresponding function. A particular example is
+{\tt DeviceProc()}\key{DeviceProc()}, which returns the (first) lock\key{Lock}
 of a regular assign\key{Assign} through {\tt IoErr()}.
 \medskip{}
 
 Most error codes are defined in {\tt dos/dos.h}, with some additional error
 codes only used by the pattern matcher (see chapter~\ref{sec:patternmatch})
-in {\tt dos/dosasl.h}. Generally, handlers and file systems
-can select error codes as they seem fit, the list below provides a general
-indication how the codes are used by the \emph{dos.library} itself, or what
-its suggested usage is:
+in {\tt dos/dosasl.h}. While those include files define the error codes
+within AmigaDOS, some file systems forward errors generated by an underlying
+device driver directly to the caller, and thus, for example, the errors from
+{\tt devices/trackdisk.h} can also appear as {\tt IoErr()} return
+codes. This design is probably not ideal as a caller has in general no idea
+which underlying device is used by a handler or file system, and thus lacks
+the proper interpretation of such codes. Instead, and handlers and file systems
+should rather attempt to restrict the delivered error codes to those defined
+in the above two files and potentially translate errors from a lower level
+to those defined within AmigaDOS.
+\smallskip{}
+
+Generally, handlers and file systems can select error codes as they seem
+fit, the list below provides a general indication how the codes are used by
+the \emph{dos.library} itself, or what its suggested usage is:
 \smallskip{}
 
 {\tt ERROR\_NO\_FREE\_STORE}\mkey{ERROR\_NO\_FREE\_STORE}: This error
