@@ -18113,8 +18113,8 @@ lock. Upon success, the lock is absorbed into the {\tt FileHandle}.
 This packet type implements the {\tt OpenFromLock()}\key{OpenFromLock()}
 function of the \emph{dos.library}, see section~\ref{sec:openfromlock}. It
 opens a file from a lock\key{Lock}. For hierarchical file systems, this is equivalent
-to an {\tt ACTION\_FINDINPUT}\key{ACTION\_FINDINPUT} packet with {\tt
-  dp\_Arg3} set to an empty string. This packet is new in AmigaDOS~36.
+to an {\tt ACTION\_FINDINPUT}\key{ACTION\_FINDINPUT} packet with
+{\tt dp\_Arg3} set to an empty string. This packet is new in AmigaDOS~36.
 \smallskip{}
 
 To uniquely identify the file and resources associated to it, the
@@ -18678,8 +18678,8 @@ exclusively locked directory cannot be deleted, but objects within it
 can be created, deleted or changed.
 \medskip{}
 
-If a lock can be granted, the file system shall create a {\tt
-  FileLock} structure representing the locked object. Such structures
+If a lock can be granted, the file system shall create a
+{\tt FileLock} structure representing the locked object. Such structures
 are allocated, maintained and released by file systems and not the
 \emph{dos.library}. The {\tt FileLock} shall be initialized as
 follows (see also~\ref{sec:filelock}):
@@ -18975,8 +18975,8 @@ change the access mode of a file handle\key{FileHandle}.
 
 {\tt dp\_Arg2} is the BPTR to the object whose mode is to be changed. If
 {\tt dp\_Arg1} is {\tt CHANGE\_LOCK}, this is a BPTR to a {\tt FileLock}
-structure, if {\tt dp\_Arg1} is {\tt CHANGE\_FH}, it is a BPTR to a {\tt
-  FileHandle}\key{FileHandle} structure. Note that this is unusual as files are typically
+structure, if {\tt dp\_Arg1} is {\tt CHANGE\_FH}, it is a BPTR to a
+{\tt FileHandle}\key{FileHandle} structure. Note that this is unusual as files are typically
 identified by their {\tt fh\_Arg1} element and not by the handle itself. This
 packet is an exception.
 \smallskip{}
@@ -19092,8 +19092,8 @@ comment. The conversion to a {\tt NUL}-terminated C string is performed by
 the \emph{dos.library} external to the file system.
 \smallskip{}
 
-The elements {\tt fib\_DirEntryType}\key{fib\_DirEntryType} and {\tt
-  fib\_EntryType}\key{fib\_EntryType} shall be filled with a value
+The elements {\tt fib\_DirEntryType}\key{fib\_DirEntryType} and
+{\tt fib\_EntryType}\key{fib\_EntryType} shall be filled with a value
 from table~\ref{table:direntrytypes} in section~\ref{sec:fib},
 identifying the type of the object. As programs are not consistent on
 the element they read, both should be filled with the same value. The
@@ -19102,8 +19102,8 @@ testing against a positive value whereas others check for a
 non-negative value, i.e.\ accept~0 as a directory.
 \smallskip{}
 
-The fields {\tt fib\_OwnerUID}\key{fib\_OwnerUID} and {\tt
-  fib\_OwnerGID}\key{fib\_OwnerGID} shall be set to~0, unless the file
+The fields {\tt fib\_OwnerUID}\key{fib\_OwnerUID} and
+{\tt fib\_OwnerGID}\key{fib\_OwnerGID} shall be set to~0, unless the file
 system has an idea on user and group IDs --- unfortunately AmigaDOS cannot
 make use of these values anyhow, and it is not documented how these fields
 shall be interpreted; they are probably an opaque value. {\tt fib\_Reserved} shall
@@ -19139,8 +19139,8 @@ to~0. In case of an error, {\tt dp\_Res1} shall be set to {\tt
 
 The {\tt ACTION\_EXAMINE\_NEXT}\mkey{ACTION\_EXAMINE\_NEXT} continues a scan
 over the directory contents and delivers information on the subsequent
-entry in a directory. Such a scan is started by an {\tt
-  ACTION\_EXAMINE\_OBJECT}\key{ACTION\_EXAMINE} on the directory to be
+entry in a directory. Such a scan is started by an
+{\tt ACTION\_EXAMINE\_OBJECT}\key{ACTION\_EXAMINE} on the directory to be
 scanned; the first {\tt ACTION\_EXAMINE\_NEXT} then provides information on
 the first entry in this directory and each subsequent packet to the
 corresponding next entry.
@@ -19182,14 +19182,14 @@ Unfortunately, this packet is one of the hardest to implement as
 directory contents may change between two {\tt ACTION\_EXAMINE\_OBJECT} packets.
 In particular, file
 systems shall handle the situation gracefully in which the object from
-the previous iteration identified by {\tt
-  fib\_DiskKey}\key{fib\_DiskKey} has been deleted, moved or replaced
+the previous iteration identified by {\tt fib\_DiskKey}\key{fib\_DiskKey}
+has been deleted, moved or replaced
 by another object, or in which {\tt dp\_Arg1} is a different
-lock\key{Lock} than the lock that was used to start the scan by {\tt
-  ACTION\_EXAMINE\_OJBECT}\key{ACTION\_EXAMINE\_OJBECT}. The file
+lock\key{Lock} than the lock that was used to start the scan by
+{\tt ACTION\_EXAMINE\_OJBECT}\key{ACTION\_EXAMINE\_OJBECT}. The file
 system may only assume that the lock in {\tt dp\_Arg1} is a lock on
-the same directory on which the scan has been started. Similarly, {\tt
-  dp\_Arg2} may have changed from the last iteration, and the file
+the same directory on which the scan has been started. Similarly,
+{\tt dp\_Arg2} may have changed from the last iteration, and the file
 system shall only depend on {\tt fib\_DiskKey}\key{fib\_DiskKey} and
 {\tt fib\_DirEntryType}\key{fib\_DirEntryType} being identical
 compared to the last iteration, all other entries can be potentially
@@ -19204,15 +19204,15 @@ scanned directory is released.
 \smallskip{}
 
 A possible implementation strategy is to store full state information in the
-lock\key{Lock} given by {\tt dp\_Arg1}, though keep sufficient information in {\tt
-  fib\_DiskKey}\key{fib\_DiskKey} to rebuild the full information in case the lock is released and
+lock\key{Lock} given by {\tt dp\_Arg1}, though keep sufficient information
+in {\tt fib\_DiskKey}\key{fib\_DiskKey} to rebuild the full information in case the lock is released and
 replaced during the scan. In the simplest possible case, {\tt fib\_DiskKey}\key{fib\_DiskKey}
 could be a counter that enumerates the elements in the directory, whereas
 the lock contains the full state information to access the element
 directly. In case the lock is replaced, {\tt ACTION\_EXAMINE\_NEXT}
 \key{ACTION\_EXAMINE\_NEXT} would find the state information in the lock
-missing, and would then scan forward to the element enumerated by {\tt
-  fib\_DiskKey}\key{fib\_DiskKey}. While this is less efficient than using the (now missing)
+missing, and would then scan forward to the element enumerated by
+{\tt fib\_DiskKey}\key{fib\_DiskKey}. While this is less efficient than using the (now missing)
 state information in the lock, it will at least provide information on a valid
 object in the directory. Also, if an object is removed or moved out of the
 scanned directory, the file system would update the state information kept
@@ -19230,8 +19230,8 @@ This packet shall provide a boolean success code in {\tt dp\_Res1}. In case
 the next object in a directory could be successfully examined and
 information on it could be stored in {\tt FileInfoBlock}\key{FileInfoBlock},
 {\tt dp\_Res1} shall be set to {\tt DOSTRUE} and {\tt dp\_Res2} to~0. In
-case of an error, {\tt dp\_Res1} shall be set to {\tt DOSFALSE} and {\tt
-  dp\_Res2} to an error code. In case the end of the directory has been
+case of an error, {\tt dp\_Res1} shall be set to {\tt DOSFALSE} and
+{\tt dp\_Res2} to an error code. In case the end of the directory has been
 reached and no further entries remain to be examined, this error code shall
 be {\tt ERROR\_NO\_MORE\_ENTRIES}\key{ERROR\_NO\_MORE\_ENTRIES}.
 
@@ -19255,8 +19255,8 @@ through a pattern or through a hook.
 
 This packet implements the {\tt ExAll()}\key{ExAll()} function of the
 \emph{dos.library}, see section~\ref{sec:exall}, and thus takes parameters similar to the above
-function. Note that unlike many other packets, {\tt dp\_Arg2} and {\tt
-  dp\_Arg5} are regular pointers and not BPTRs\footnote{The information on
+function. Note that unlike many other packets, {\tt dp\_Arg2} and
+{\tt dp\_Arg5} are regular pointers and not BPTRs\footnote{The information on
 {\tt dp\_Arg5} in~\cite{Bantam} is incorrect, it is really a pointer and not
 a BPTR}.
 \smallskip{}
@@ -19484,15 +19484,15 @@ that do not support locks. It was introduced in AmigaDOS~36.
 
 {\tt dp\_Arg1} is a copy of the {\tt fh\_Arg1} element of the
 {\tt FileHandle} that is to be examined and thus serves to identify the
-object\footnote{Note that the information in~\cite{Bantam} on {\tt
-  dp\_Arg1} is incorrect.}.
+object\footnote{Note that the information in~\cite{Bantam} on
+{\tt dp\_Arg1} is incorrect.}.
 \smallskip{}
 
 {\tt dp\_Arg2} is a BPTR to a {\tt FileInfoBlock}\key{FileInfoBlock}
 structure as documented in section~\ref{sec:fib}, and which shall be
 filled by the handler with the information on the object
-identified by {\tt dp\_Arg1}. As for the packet type {\tt
-  ACTION\_EXAMINE\_OBJECT}\key{ACTION\_EXAMINE\_OBJECT} specified in
+identified by {\tt dp\_Arg1}. As for the packet type
+{\tt ACTION\_EXAMINE\_OBJECT}\key{ACTION\_EXAMINE\_OBJECT} specified in
 section~\ref{sec:actionexamineobject}, the handler shall fill {\tt fib\_FileName}\key{fib\_FileName}
 and {\tt fib\_Comment}\key{fib\_Comment} with BSTRs. They are converted to {\tt NUL}-terminated
 C strings by the \emph{dos.library}.
@@ -19535,8 +19535,8 @@ do not require an additional packet for resolving them.
 
 \subsection{Creating Links}
 
-The {\tt ACTION\_MAKE\_LINK}\mkey{ACTION\_MAKE\_LINK} packet creates soft\key{Soft Link} or hard links\key{Hard Link}
-in a file system.
+The {\tt ACTION\_MAKE\_LINK}\mkey{ACTION\_MAKE\_LINK} packet creates
+soft\key{Soft Link} or hard links\key{Hard Link} in a file system.
 
 \begin{rkrmtable}{\tt ACTION\_MAKE\_LINK} \label{table:actionmakelink}
 {\bf DosPacket Element}   & {\bf Value}\\ \hline \hline
@@ -19784,8 +19784,8 @@ code. Unfortunately, even the latest version of the FFS\key{Fast File System (FF
 return a negative value but~$0$ in case of an error; this is a defect.}. In
 case of error, {\tt dp\_Res2} shall also be set to an error code. In
 particular, if the target buffer size in {\tt dp\_Arg4} is too small to hold
-the resolved path, {\tt dp\_Res2} shall be set to {\tt
-  ERROR\_LINE\_TOO\_LONG}\key{ERROR\_LINE\_TOO\_LONG} and {\tt dp\_Res1} to~$-2$.
+the resolved path, {\tt dp\_Res2} shall be set to
+{\tt ERROR\_LINE\_TOO\_LONG}\key{ERROR\_LINE\_TOO\_LONG} and {\tt dp\_Res1} to~$-2$.
 \smallskip{}
 
 If the source path in {\tt dp\_Arg2} does actually not contain a soft
@@ -20381,7 +20381,7 @@ introduced in AmigaDOS~36.
 \smallskip{}
 
 {\tt dp\_Arg1} is a C pointer\footnote{In~\cite{Bantam} this argument is
-  documented to be a BPTR, though this information incorrect.} to a
+documented to be a BPTR, though this information incorrect.} to a
 {\tt NotifyRequest}\key{NotifyRequest} structure that defines the object
 to be monitored, and the task, signal or message port to be triggered
 on such changes. This structure is specified in section~\ref{sec:startnotify}.
@@ -20597,8 +20597,8 @@ struct DosList *dl;
   UnLockDosList(LDF_VOLUMES|LDF_READ);
 \end{verbatim}
 
-The file system shall set {\tt dp\_Res1} to a BPTR to the {\tt
-  DosList} entry representing a volume, i.e.\ an entry on the device
+The file system shall set {\tt dp\_Res1} to a BPTR to the
+{\tt DosList} entry representing a volume, i.e.\ an entry on the device
 list\key{Device List} whose {\tt dol\_Type} is {\tt DLT\_VOLUME}\key{DLT\_VOLUME} and whose
 {\tt dol\_Task} points to a {\tt MsgPort} of this handler. In case no
 volume is inserted, {\tt dp\_Res1} shall be set to {\tt ZERO}. This packet
@@ -20688,8 +20688,8 @@ any) and provides this information in an {\tt InfoData} structure.
 \end{rkrmtable}
 
 This packet is currently not exposed by the \emph{dos.library} and must be
-issued through the packet interface directly. It is almost identical to {\tt
-  ACTION\_INFO}\key{ACTION\_INFO}, except that it does not take a lock\key{Lock} as
+issued through the packet interface directly. It is almost identical to
+{\tt ACTION\_INFO}\key{ACTION\_INFO} except that it does not take a lock\key{Lock} as
 argument.
 \smallskip{}
 
@@ -21059,8 +21059,8 @@ this element remains {\tt NULL}.
 The {\tt id\_InUse}\key{id\_InUse} element is filled with a pointer to the {\tt IORequest}
 structure (see {\tt exec/io.h}) which is used to communicate with the exec device
 the handler operates on. For a graphical console, this is a {\tt IORequest}
-to the {\tt console.device}; for the {\tt AUX:} console, it is an {\tt
-  IORequest} to the corresponding device the console runs on, e.g.\ of
+to the {\tt console.device}; for the {\tt AUX:} console, it is an
+{\tt IORequest} to the corresponding device the console runs on, e.g.\ of
 the {\tt serial.device}. Other devices are also possible.
 \medskip{}
 
@@ -21071,10 +21071,10 @@ mode cannot be closed anymore, and neither can be iconified. This is because
 both operations would invalidate the window pointer provided by this packet.
 \smallskip{}
 
-Applications should inform the console by sending an {\tt
-  ACTION\_UNDISK\_INFO} packet at the time the window pointer or the {\tt
-  IORequest} is no longer required. Console windows then regain the {\tt
-  AUTO} and iconification capabilities. {\tt ACTION\_UNDISK\_INFO} is specified in
+Applications should inform the console by sending an
+{\tt ACTION\_UNDISK\_INFO} packet at the time the window pointer or the
+{\tt IORequest} is no longer required. Console windows then regain the
+{\tt AUTO} and iconification capabilities. {\tt ACTION\_UNDISK\_INFO} is specified in
 section~\ref{sec:packetundiskinfo}.
 \smallskip{}
 
@@ -21620,8 +21620,8 @@ decreases the number of file system buffers.
 {\bf DosPacket Element}   & {\bf Value}\\ \hline \hline
 \tt dp\_Type  & \tt ACTION\_MORE\_CACHE (18) \\ \hline
 \tt dp\_Arg1  & Buffer increment \\ \hline \hline
-\tt dp\_Res1  & Boolean result code\\ \hline
-\tt dp\_Res2  & Buffer count or error code\\ \hline
+\tt dp\_Res1  & Total number of buffers or 0\\ \hline
+\tt dp\_Res2  & Error code\\ \hline
 \end{rkrmtable}
 
 This packet implements the {\tt AddBuffers()}\key{AddBuffers()}
@@ -21657,13 +21657,13 @@ of~0 for the buffer increment. This was fixed in AmigaDOS~36.
 If this packet succeeds, the file system shall set {\tt dp\_Res1} to
 the number of buffers currently allocated, and {\tt dp\_Res2}
 to~0\footnote{The \emph{dos.library} autodocs and~\cite{guru,Bantam}
-  document that the file system shall return the buffer count in {\tt
-    dp\_Res2} instead. However, the current version of the FFS returns
-  it in {\tt dp\_Res1}, and the {\tt AddBuffers} command
-  depends on this --- possibly erraneous --- implementation. However,
-  as programs seem to depend on this behaviour, it is recommended to
-  accept this deviation from official sources as specification
-  change.}.  Thus, the current buffer count can obtained by sending
+document that the file system shall return the buffer count in
+{\tt dp\_Res2} instead. However, the current version of the FFS returns
+it in {\tt dp\_Res1}, and the {\tt AddBuffers} command
+depends on this --- possibly erraneous --- implementation. However,
+as programs seem to depend on this behaviour, it is recommended to
+accept this deviation from official sources as specification
+change.}. Thus, the current buffer count can obtained by sending
 this packet with {\tt dp\_Arg1} set to~0. On an error, {\tt dp\_Res1}
 shall be set to {\tt DOSFALSE} and {\tt dp\_Res2} to an error code.
 
@@ -21684,8 +21684,8 @@ underlying device directly.
 
 This packet implements the {\tt Inhibit()}\key{Inhibit()} function of the
 \emph{dos.library}, see~\ref{sec:inhibit}. An inhibited file system is blocked from accessing its
-underlying medium for read and write access, with the exception of the {\tt
-  ACTION\_FORMAT}\key{ACTION\_FORMAT} and {\tt ACTION\_SERIALIZE\_DISK}\key{ACTION\_SERIALIZE\_DISK}
+underlying medium for read and write access, with the exception of the
+{\tt ACTION\_FORMAT}\key{ACTION\_FORMAT} and {\tt ACTION\_SERIALIZE\_DISK}\key{ACTION\_SERIALIZE\_DISK}
 packets which remain operational, and even require the file system to be inhibited.
 \smallskip{}
 
@@ -21812,8 +21812,8 @@ The packet {\tt ACTION\_DIE}\mkey{ACTION\_DIE} requests a file system unmount it
 \end{rkrmtable}
 
 This packet is not exposed through the \emph{dos.library}; rather, the
-packet needs to be send through the packet interface, i.e.\ through {\tt
-  DoPkt()}\key{DoPkt()}. This packet requests the file system to release all resources,
+packet needs to be send through the packet interface, i.e.\ through
+{\tt DoPkt()}\key{DoPkt()}. This packet requests the file system to release all resources,
 set the {\tt dol\_Task}\key{dol\_Task} elements of the {\tt DosList}\key{DosList} structures in the
 device list\key{Device List} to {\tt NULL}, and then terminate the process.
 \smallskip{}
@@ -21848,8 +21848,8 @@ new file system from the {\tt dol\_SegList} segment\key{Segment} as soon as a cl
 requests to access it through its device name.
 \smallskip{}
 
-Unfortunately, even these precautions are not fully sufficient for
-safely unmounting a device because a client program can request a
+Unfortunately, even these precautions are not fully sufficient tor
+safely unmount a device because a client program can request a
 handler message port via {\tt GetDeviceProc()}\key{GetDeviceProc()} or
 {\tt DeviceProc()}\key{DeviceProc()} any time for direct communication
 and buffer the returned port beyond reach. Thus, a handler has no
@@ -21926,8 +21926,8 @@ replied {\tt IORequest}s and incoming packets as both appear as
 \smallskip{}
 
 The {\tt io\_Message.mn\_Node.ln\_Name} points to the {\tt DosPacket}
-structure, and its {\tt dp\_Link} elements points back to the {\tt
-  IORequest}. Handlers dispatch these {\tt IORequest} to exec devices
+structure, and its {\tt dp\_Link} elements points back to the
+{\tt IORequest}. Handlers dispatch these {\tt IORequest} to exec devices
 asynchronously with {\tt SendIO()}, and continue to process requests while
 the exec device is busy with the requested input or output command. Due to
 its linkage to a {\tt DosPacket}\key{DosPacket}, a completed {\tt IORequest} is received by
@@ -21971,7 +21971,6 @@ replied.
 
 The {\tt ACTION\_TIMER}\mkey{ACTION\_TIMER} packet is part of a returning {\tt TR\_ADDREQUEST},
 a {\tt timer.device} request to wait for a certain time period. 
-
 
 \begin{rkrmtable}{\tt ACTION\_TIMER} \label{table:actiontimer}
 {\bf DosPacket Element}   & {\bf Value}\\ \hline \hline
@@ -23088,7 +23087,7 @@ functionalities, and all Shell commands and system functions that create a
 shell go through this function. This includes the {\tt NewShell} and
 {\tt Run} shell\key{Shell} commands and the {\tt Shell} icon on the Workbench. The initial
 CLI interpreting {\tt S:Startup-Sequence} is also created through the
-{\tt System()}\key{System()} function.
+{\tt System()}\key{System()} function from AmigaDOS~47 onwards.
 \smallskip{}
 
 The {\tt Run} command creates a new shell\key{Shell} process by the following:
@@ -23139,7 +23138,8 @@ containing the commands to be executed, constructed from the first argument
 of {\tt Execute()}, and {\tt in} and {\tt out} are its second and third
 argument. The difference of {\tt System()} and {\tt Execute()} is the
 returned result, and that the above function returns immediately while
-{\tt Execute()}\key{Execute()} blocks.
+{\tt Execute()}\key{Execute()} with a non-{\tt NULL} command string blocks
+until the Shell terminates.
 \smallskip{}
 
 Under AmigaDOS~45 and before, this function closed the stream provided by
@@ -23178,7 +23178,8 @@ through an algorithm similar to the one in section~\ref{sec:clonehandle} if it i
 interactive. Otherwise, the console of the caller is used as output stream,
 and if that stream does not exist, output will be disregarded by providing a
 {\tt NIL:} handle to the shell created. In particular, {\tt output} will
-\emph{not} be closed.
+\emph{not} be closed, but remains available to the caller as only a clone of
+this handle will form the output of the Shell.
 \smallskip{}
 
 If the first argument is non-{\tt NULL}, the {\tt Execute()} command is synchronous
@@ -23197,7 +23198,7 @@ nor {\tt output} will be closed when the function returns.
 \smallskip{}
 
 Unlike {\tt System()}\key{System()}, this function returns {\tt DOSTRUE} on
-success and {\tt DOSFALSE} in case creating the shell\key{Shell}
+success and {\tt DOSFALSE} in case creating the Shell\key{Shell}
 failed. This implies that the result code of the last command executed is
 not available to the caller --- instead, if the Shell could be launched,
 {\tt DOSTRUE} is returned as success indicator. It also always executes
@@ -23215,7 +23216,7 @@ was based on the {\tt Run} command, but this dependency has been removed long
 since. Since AmigaDOS~36, {\tt Run} depends on the {\tt System()}\key{System()} function.
 \smallskip{}
 
-Under AmigaDOS~45 and up to AmigaDOS~36, this function closed the
+Under AmigaDOS~36 and up to AmigaDOS~45, this function closed the
 {\tt input} stream in case it could not create a new Shell.
 
 \subsection{Run a Command Overloading the Calling Process} \label{sec:runcommand}
@@ -23495,7 +23496,7 @@ many shell processes are active, even under the feed of the caller.
 As the \emph{dos.library} does not protect the process table from
 modifications, this function \emph{shall only be called} while task
 switching is disabled with {\tt Forbid()}, and its value is only valid as
-long as the task switching remains disabled.
+long as task switching remains disabled.
 
 \section{The CLI Structure} \label{sec:clistruct}
 
@@ -24772,7 +24773,7 @@ string. Searching is case-insensitive.
 \smallskip{}
 
 This function returns a zero-based index which argument in the template
-matches the supplied keyword matches, i.e.\~0 for the first keyword, 1~ for
+matches the supplied keyword matches, i.e.\ 0 for the first keyword,~1~for
 the second and so on. It returns~$-1$ if no matching argument is found in
 the template. {\tt IoErr()}\key{IoErr()} remains unmodified.
 
@@ -25900,7 +25901,8 @@ printed behind it, followed by a line feed. Otherwise, just a generic error
 message with the provided error number is printed.
 \smallskip{}
 
-If {\tt code} is~0, nothing is printed at all. Otherwise, this
+If {\tt code} is~0, nothing is printed at all and {\tt IoErr()} remains
+unaltered. Otherwise, this
 function sets {\tt IoErr()}\key{IoErr()} to {\tt code}.
 \smallskip{}
 
@@ -26018,10 +26020,10 @@ a lower end of 0.
 The {\tt estr\_Strings} points to an array of bytes
 that contains the sizes and the localized versions of the error
 messages as one long array of {\tt UBYTE}s.
-Each error message is represented by a single byte that gives its
-length, followed by the {\tt NUL}-terminated message itself. If {\tt Fault()}
-requires a particular message, its skips each message by adding the length
-and skipping the length indicator until either the message is found, or the end of
+Each error message is represented by a single byte that gives its 
+length including the {\tt NUL}, followed by the {\tt NUL}-terminated message itself. If {\tt Fault()}
+requires a particular message, its skips each message by skipping the length
+indicator and adding the length until either the message is found, or the end of
 the current {\tt ErrorString} element is found. However, for all practical
 purposes, {\tt dl\_Errors} shall be left alone and instead
 {\tt Fault()}\key{Fault()} shall be used to retrieve a particular message.
@@ -26107,7 +26109,7 @@ The {\tt rn\_RestartSeg}\mkey{rn\_RestartSeg} is obsolete and no longer
 used. AmigaDOS~34 and before stored here a BPTR to a segment
 that performed validation of inserted disks. If this validator
 found an invalid bitmap, see section~\ref{sec:rootblock}, it loaded the
-``{\tt L:Disk-Validator}'' from disk for additional help which then
+``{\tt L:Disk-Validator}'' from disk which then
 recomputed the bitmap by a full disk scan. With the introduction of the
 FFS\key{Fast File System (FFS)} in AmigaDOS~34, disk validation became part
 of the file system, even though this element remained in use for the
@@ -26167,8 +26169,8 @@ in the table and pointers to the {\tt pr\_MsgPort}s of the
 The first element {\tt cpl\_Array[0]} entry contains the number of
 shell\key{Shell} processes adminstrated in this node and is
 typically~20. All remaining entries are pointers to {\tt MsgPort}
-structures, namely the {\tt pr\_MsgPort} of processes as
-defined in chapter~\ref{sec:process}.
+structures, namely the {\tt pr\_MsgPort} of the processes executing
+the shells; the process structure is defined in chapter~\ref{sec:process}.
 \smallskip{}
 
 The {\tt cpl\_Array}\key{cpl\_Array} of the first
@@ -26218,11 +26220,11 @@ resident segments\key{Segment (resident)} of section~\ref{sec:resident}.
 \mkey{DosInfo}
 \begin{verbatim}
 struct DosInfo {
-    BPTR    di_McName;
+    BPTR    di_McName;    /* NOT the resident segments */
     BPTR    di_DevInfo;
     BPTR    di_Devices;        
     BPTR    di_Handlers; 
-    APTR    di_NetHand;      
+    APTR    di_NetHand;   /* actually, a BPTR */   
 /* the following elements are new in AmigaDOS 36 */  
     struct  SignalSemaphore di_DevLock;
     struct  SignalSemaphore di_EntryLock; 
@@ -26387,8 +26389,8 @@ In the next step, AGA extensions are enabled if the boot menu was displayed
 in a 31kHz DblPPAL or DblNTSC mode. This step is would usually be performed
 by {\tt SetPatch}, though is already executed here as it allows users to
 show the boot console on a VGA monitor even without requiring to load
-SetPatch. Thus, tracing or debugging the Startup-Sequence is also possible
-with a VGA monitor.
+SetPatch, allowing users to trace or debug the Startup-Sequence if the
+native Amiga video cannot be displayed.
 \smallskip{}
 
 This is followed by initializing all resident ROM modules of lower priority
@@ -26414,11 +26416,11 @@ now opened. It will become the command stream of the Shell. Next, it is
 checked whether the boot code of the autobooting device or the code in the
 boot block of a floppy left an indication for an AmigaDOS~36 boot code. This
 is a private flag in the {\tt expansion.library} which instructs the startup
-code \emph{not} to open the console. If this flag is \emph{not} found, a
+code \emph{not} to open the console. If this flag is \emph{not} set, a
 legacy boot block is assumed and the console and boot screen is forced open
 by printing a carriage return ({\tt 0x0d}) character. Also, the current
-directory of the boot shell is changed to {\tt ZERO} as some legacy programs
-cannot handle a real lock. Otherwise, this lock is set to the root directory
+directory of the boot shell is changed to {\tt ZERO} if the flag is cleared
+as some legacy programs cannot handle a real lock. Otherwise, this lock is set to the root directory
 of the boot device, i.e.\ to {\tt SYS:}.
 \smallskip{}
 
