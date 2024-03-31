@@ -426,10 +426,10 @@ dividing the byte-address of an element by 4, or equivalently, by
 right-shifting the address as given by a pointer of the C language by two
 bits. This also has the consequence that (most) data structures passed into
 and out of the dos.library shall be aligned to 32-bit boundaries. Similarly,
-in order to obtain the byte-address of a BPCL structure, the index is
+in order to obtain the byte-address of a BCPL structure, the index is
 multiplied by 4, or left-shifted by 2 bits.
 
-\punchline{Not on the Stack!}{Since BPCL structures must have an address
+\punchline{Not on the Stack!}{Since BCPL structures must have an address
   that is divisible by 4, using automatic storage duration for AmigaDOS
   objects is inappropriate. Compilers will typically keep such objects on
   the hardware stack of the 68K processor~\cite{mcfam,yuchen}, but usually do not
@@ -516,7 +516,7 @@ passed into the \emph{dos.library}.
 Similar to the C language, a pointer to a non-existing element is
 expressed by the special pointer value $0$. While this is called the
 {\tt NULL} pointer in C, it is better to reserve another name for it
-in BPCL as BPTRs are rather indices. The following convention
+in BCPL as BPTRs are rather indices. The following convention
 is suggested to express an invalid BPTR:
 
 \begin{verbatim}
@@ -533,7 +533,7 @@ first address.
 While the C language defines \emph{\mkey{String (C)}strings} as
 0-terminated arrays of {\tt char}, and AmigaOs in particular to
 0-terminated arrays of {\tt UBYTE}s, that is, unsigned characters, the
-BPCL language uses a different convention. Instead, a BCPL
+BCPL language uses a different convention. Instead, a BCPL
 string\mkey{String (BCPL)} is a {\tt UBYTE} array whose first element
 contains the size of the string to follow. They are not necessarily
 0-terminated either. If BCPL strings
@@ -2996,7 +2996,7 @@ This function is \emph{not} patched by the \emph{locale.library} and
 therefore is not localized nor enhanced.
 \smallskip{}
 
-While the same function can also be found in the BPCL
+While the same function can also be found in the BCPL
 Global Vector\key{Global Vector}, it there takes BSTRs instead of regular
 C strings for the format string and the arguments of the {\tt \%S} and
 {\tt \%T} formats.
@@ -6282,7 +6282,7 @@ and are provided in section~\ref{sec:handlerstartup}.
 \smallskip{}
 
 {\tt dol\_GlobVec}\mkey{dol\_GlobVec} identifies the nature of the handler
-as AmigaDOS (still) supports BPCL and C/assembler handlers and defines how
+as AmigaDOS (still) supports BCPL and C/assembler handlers and defines how
 access to the device list\key{Device List} is secured during handler loading and startup.
 BCPL handlers use a somewhat more complex loading and linking mechanism as
 the BCPL-specific \emph{global vector}\key{Global Vector} needs to be populated. This is
@@ -6308,7 +6308,7 @@ table~\ref{table:gvvalues}:
 {\tt -2} & C/assembler handler, shared access to the device list\key{Device List} \\ \hline
 {\tt  0} & BCPL handler using system GV, exclusive access to the device list\key{Device List} \\ \hline
 {\tt -3} & BCPL handler using system GV, shared access to the device list\key{Device List} \\ \hline
-{\tt >0} & BPCL handler with custom GV, exclusive access to the device list\key{Device List} \\ \hline
+{\tt >0} & BCPL handler with custom GV, exclusive access to the device list\key{Device List} \\ \hline
 \end{rkrmtable}
 
 The values $0$, $-3$ and $>0$ all setup a BCPL handler, but differ in
@@ -6317,7 +6317,7 @@ global vector\key{Global Vector} is populated. This vector contains all global
 objects and all globally reachable functions of a BCPL program,
 including functions of the \emph{dos.library}. The values~$0$ and~$-3$
 fill this vector with the system functions first, and then use the
-BPCL binding mechanism to extend or override entries in this vector
+BCPL binding mechanism to extend or override entries in this vector
 with the values found in the loaded code. Any values $>0$ require a
 BPTR to a custom vector which is used instead for initializing
 the handler. This startup mechanism has never been used in AmigaDOS
@@ -6643,7 +6643,7 @@ The {\tt PREALLOC}\mkey{PREALLOC} keyword installs the
 {\tt de\_PreAlloc}\mkey{de\_PreAlloc} element, which is supposed to be the
 number of logical blocks set aside at the end of the partition. However,
 current FFS\key{Fast File System (FFS)} versions completely ignore it and no
-traces of its use are found in the current source. Historically, the BPCL
+traces of its use are found in the current source. Historically, the BCPL
 implementation of the OFS shipped with AmigaDOS 34 and before used this
 value instead to compute the number of blocks the file system could pre-read
 from the disk and store in its internal buffers without a penalty. Thus,
@@ -6670,7 +6670,7 @@ sectors contiguously, i.e.\ with an interleave of~0, regardless of what is
 set here. The upper 16 bits of {\tt de\_Interleave}\key{de\_Interleave} suit
 now a different purpose and are set by separate keywords in the mountlist\key{Mountlist}.
 Thus, for all practical purposes, this keyword serves no purpose,
-and even the legacy BPCL implementation ignored it.
+and even the legacy BCPL implementation ignored it.
 \smallskip{}
 
 The {\tt LOWCYL}\mkey{LOWCYL} keyword initializes the {\tt de\_LowCyl}\mkey{de\_LowCyl} element of the
@@ -9601,7 +9601,7 @@ the following for historical purposes:
 \smallskip{}
 
 The first entry in this array is a 32-bit integer indicating the number of
-elements the BPCL runtime binder scans for populating the Global Vector, the
+elements the BCPL runtime binder scans for populating the Global Vector, the
 remaining entries are BPTRs to segment lists\key{Segment} containing AmigaDOS and program
 globals. Some entries may be {\tt ZERO} indicating that the corresponding
 entry is currently not used. Segments are explained in more detail in
@@ -11731,7 +11731,7 @@ specified in more detail in section~\ref{sec:overlayfmt}.
 \smallskip{}
 
 AmigaDOS also contains a simple run-time binder that is only used by
-executables written in BCPL, or by code that operates under BPCL
+executables written in BCPL, or by code that operates under BCPL
 conventions. The purpose of this binder is to populate the BCPL Global
 Vector\key{Global Vector} of the loaded program. While this runtime binder
 implements a legacy protocol, certain parts of AmigaDOS still depend on
@@ -13786,7 +13786,7 @@ e.g.\ as returned by {\tt LoadSeg()}\key{LoadSeg()} function.
 
 \subsection{Runtime binding of BCPL programs} \label{sec:bcplbinding}
 
-BPCL programs depend on a Global Vector\mkey{Global Vector} that
+BCPL programs depend on a Global Vector\mkey{Global Vector} that
 includes function entries and data that is made available to all its
 program units. AmigaDOS includes a runtime binder functionality that
 creates the Global Vector of such BCPL code from data found in the
@@ -13916,7 +13916,7 @@ it in register {\tt a0} to the {\tt main()} function.
 
 The {\tt CStart} label is not called at all if the handler is mounted
 with {\tt GLOBVEC=0} or {\tt GLOBVEC=-3}, and thus would be not
-required for pure BPCL-type handlers or the CLI. It is included here
+required for pure BCPL-type handlers or the CLI. It is included here
 to demonstrate another technique, namely \emph{dual use} handlers that
 can be mounted both as C and as BCPL handlers. The FFS\mkey{Fast File
   System (FFS)} makes use of this technique to be able to drive both
@@ -16593,7 +16593,7 @@ L-5        & \tt Ticks   & \\ \hline
 L-4        & \tt 0       & reserved for future use \\ \hline
 L-3        & \tt 0       & reserved for future use \\ \hline
 L-2        & \tt DCache  & key of directory cache block if used \\ \hline
-L-1        & \tt SecType & shall be 1, this is the BPCL constant {\tt ST.ROOT}\mkey{ST.ROOT} \\ \hline
+L-1        & \tt SecType & shall be 1, this is the BCPL constant {\tt ST.ROOT}\mkey{ST.ROOT} \\ \hline
 \end{longtable}
 \end{rkrmtabular}
 
@@ -17312,7 +17312,7 @@ L-50       & \tt 0       & reserved for future use \\
 \multicolumn{3}{;{1.5pt/1.5pt}c;{1.5pt/1.5pt}}{} \\ \hline
 L-3        & \tt Parent  & key of the file header block \\ \hline
 L-2        & \tt NextExt & key of next file extension block \\ \hline
-L-1        & \tt SecType & shall be -3, this is the BPCL constant {\tt ST.FILE}\key{ST.FILE} \\ \hline
+L-1        & \tt SecType & shall be -3, this is the BCPL constant {\tt ST.FILE}\key{ST.FILE} \\ \hline
 \end{longtable}
 \end{rkrmtabular}
 
@@ -19290,7 +19290,7 @@ members of the 68K family; that is, the {\tt ed\_Next} element pointing to a sub
 structure shall be even. For the last filled structure, this pointer
 shall be set to {\tt NULL} to terminate the list, even though the number of structures
 filled shall also be made available in the {\tt eac\_Entries} element of the {\tt ExAllControl} structure.
-In other words, the file system shall build a {\tt NULL}-terminated singly linked list of {\tt ExAllData}
+In other words, the file system shall build a {\tt NUL}-terminated singly linked list of {\tt ExAllData}
 structures that are properly aligned.
 \medskip{}
 
