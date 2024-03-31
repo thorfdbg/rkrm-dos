@@ -86,11 +86,11 @@ clean	:
 	@ grep -c '^LaTeX Warning: Label(s) may have changed. Rerun to get cross-references right' $*.log > /dev/null 2>&1 && $(TEX) $*.tex || :
 	@ $(MAKEINDEX) -c $*
 
-%.pdf	:	%.tex %.ind
+%.pdf	:	%.tex %.ind	front-page.pdf back-page.pdf
 	@ $(PDFLATEX) $*.tex
 	@ grep -c '^LaTeX Warning: Label(s) may have changed. Rerun to get cross-references right' $*.log > /dev/null 2>&1 && $(TEX) $*.tex || :
 	@ $(MAKEINDEX) -c $*
-	@ mv dos.pdf tmp.pdf && pdfunite front-page.pdf tmp.pdf dos.pdf
+	@ mv dos.pdf tmp.pdf && pdfunite front-page.pdf tmp.pdf back-page.pdf dos.pdf
 	@ pdftops $*.pdf
 	@ $(PSTOPDF) -dPDFSETTINGS=/prepress $*.ps
 
