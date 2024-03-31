@@ -90,6 +90,7 @@ clean	:
 	@ $(PDFLATEX) $*.tex
 	@ grep -c '^LaTeX Warning: Label(s) may have changed. Rerun to get cross-references right' $*.log > /dev/null 2>&1 && $(TEX) $*.tex || :
 	@ $(MAKEINDEX) -c $*
+	@ mv dos.pdf tmp.pdf && pdfunite front-page.pdf tmp.pdf dos.pdf
 	@ pdftops $*.pdf
 	@ $(PSTOPDF) -dPDFSETTINGS=/prepress $*.ps
 
