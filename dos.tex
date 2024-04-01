@@ -244,7 +244,8 @@ A book of this size would be impossible without additional help from
 others. I want to thank in particular Frank Wille for helping me to compile
 the description of the Amiga binary format and Olaf Barthel for many
 fruitful discussions and answering many questions while compiling many
-chapters of this volume.
+chapters of this volume. Special thanks goes to Rainer M{\"u}ller for
+proof-reading the manuscript and providing many fixes and corrections.
 
 \section{Language and Type Setting Conventions}
 The words \emph{shall} and \emph{shall not} indicate normative
@@ -4597,9 +4598,12 @@ BOOL ExAll(BPTR,STRPTR,LONG,LONG,struct ExAllControl *)
 
 This function examines as many directory entries belonging to the
 directory identified by {\tt lock} as fit into the buffer {\tt buffer}
-of {\tt size} bytes. This buffer is filled by a linked list of {\tt
-  ExAllData} structures, see below for their layout. The {\tt type} argument
-determines which elements of {\tt ExAllData} is filled.
+of {\tt size} bytes. This buffer is filled by a linked list of
+{\tt ExAllData} structures, see below for their layout. The {\tt type} argument
+determines which elements of {\tt ExAllData} is filled, and {\tt size}
+limits the number of structures that will be filled --- in worst case none
+at all if the buffer size is not sufficiently large to hold a single
+structure with all data associated to it.
 \smallskip{}
 
 The {\tt lock} shall be a lock\key{Lock} on the directory to be examined. It shall not
@@ -5423,25 +5427,25 @@ functions listed in Table~\ref{table:softenabled}:
 \begin{rkrmtabular}{Softlink aware functions} \label{table:softenabled}
 \begin{longtable}{|ll|} \hline
 {\bf Function} & {\bf Purpose}\\ \hline \hline
-{\tt Open()} & Open a file\\ \hline
-{\tt Lock()} & Obtain access rights to an object\\ \hline
 {\tt CreateDir()} & Create a directory\\ \hline
-{\tt SetProtection()} & Modify protection bits\\ \hline
-{\tt SetFileDate()} & Set the modification date of a file\\ \hline
 {\tt DeleteFile()} & Delete an object on a file system\\ \hline
-{\tt SetComment()} & Modify object comment\\ \hline
 {\tt MakeLink()} & Create a link to an object\\ \hline
-{\tt SetOwner()} & Set User and Group ID\\ \hline \hline
+{\tt Lock()} & Obtain access rights to an object\\ \hline
+{\tt Open()} & Open a file\\ \hline
+{\tt SetComment()} & Modify object comment\\ \hline
+{\tt SetFileDate()} & Set the modification date of a file\\ \hline
+{\tt SetOwner()} & Set User and Group ID\\ \hline
+{\tt SetProtection()} & Modify protection bits\\ \hline \hline
+{\tt DeleteVar()} & Delete an environment variable \\ \hline
+{\tt Execute()} & Execute a shell script (legacy)\key{Shell Script} \\ \hline
+{\tt GetVar()} & Read an environment variable \\ \hline
+{\tt LoadSeg()} & Load an executable \\ \hline
 {\tt MatchFirst()} & Resolve a lock\key{Lock} to a path\footnote{This function 
 works only partially with soft links - it fails if the pattern is not a wildcard
 and the soft link cannot be resolved.}\\ \hline
-{\tt LoadSeg()} & Load an executable \\ \hline
 {\tt NewLoadSeg()} & Load an executable with parameters \\ \hline
-{\tt GetVar()} & Read an environment variable \\ \hline
 {\tt SetVar()} & Set an environment variable \\ \hline
-{\tt DeleteVar()} & Delete an environment variable \\ \hline
 {\tt System()} & Execute a shell script\key{Shell Script} \\ \hline
-{\tt Execute()} & Execute a shell script (legacy)\key{Shell Script} \\ \hline
 \end{longtable}
 \end{rkrmtabular}
 
@@ -6304,7 +6308,7 @@ table~\ref{table:gvvalues}:
 {\tt \bf dol\_Type} & {\bf Description}\\ \hline \hline
 {\tt -1} & C/assembler handler, exclusive access to the device list\key{Device List} \\ \hline
 {\tt -2} & C/assembler handler, shared access to the device list\key{Device List} \\ \hline
-{\tt  0} & BCPL handler using system GV, exclusive access to the device list\key{Device List} \\ \hline
+{\tt \phantom{-}0} & BCPL handler using system GV, exclusive access to the device list\key{Device List} \\ \hline
 {\tt -3} & BCPL handler using system GV, shared access to the device list\key{Device List} \\ \hline
 {\tt >0} & BCPL handler with custom GV, exclusive access to the device list\key{Device List} \\ \hline
 \end{rkrmtable}
@@ -6354,7 +6358,7 @@ volume. The value is placed here such that an alternative process of the same fi
 system operating on a different exec device is able to pick up or refuse the
 locks\key{Lock} stored in {\tt dol\_LockList} if a medium is re-inserted
 into a different physical device. Unfortunately, even the latest version of
-the Fast File System\key{Fast File System (FFS)} do not fill this element
+the Fast File System\key{Fast File System (FFS)} does not fill this element
 such that it remains~0, though other file systems leave their traces here to
 identify their own volumes. Note that the value placed here is \emph{not}
 the identifier found in {\tt id\_DiskType} of the {\tt InfoData} structure
@@ -6559,9 +6563,9 @@ handler or file system. It is \emph{not} a byte count, but an element
 count, excluding {\tt de\_TableSize}. In other words, the {\tt
   DosEnvec} is a typical BCPL vector whose vector size is indicated in
 its first element --- note that all elements of the structure are
-32-bits wide. For AmigaDOS 32 and below, at least all elements up to {\tt
+32-bits wide. For AmigaDOS version~32 and below, at least all elements up to {\tt
   de\_NumBuffers} shall be present, and thus {\tt de\_TableSize} is at
-least~11. AmigaDOS 33 added {\tt de\_BufMemType}, and AmigaDOS version 34
+least~11. AmigaDOS version~33 added {\tt de\_BufMemType}, and AmigaDOS version 34
 {\tt de\_MaxTransfer} and {\tt de\_Mask}. Version 36 added the remaining
 fields. 
 \smallskip{}
@@ -7595,7 +7599,8 @@ cases of failure cannot be distinguished unfortunately.
 \smallskip{}
 
 Up to AmigaDOS versions 39, this function could return either {\tt NULL} or
-{\tt (struct DosList *)1} on failure, and thus -- if compatibility to such versions is
+{\tt (struct DosList *)1} on failure\footnote{That is, the numerical value 1
+casted to a {\tt DosList} pointer.}, and thus -- if compatibility to such versions is
 intended --- both return codes would need to be checked. This was fixed in
 release 40 at least.
 \smallskip{}
@@ -7858,7 +7863,7 @@ with high probability, the environment vector found in this way does
 not need to be complete and contain all the elements listed in
 section~\ref{sec:envec}, instead, only the first {\tt de\_TableSize}\key{de\_TableSize}
 elements are present, and everything beyond this point shall not be
-interpreted or modified. AmigaDOS~32 and above allocate at least 11 entries
+interpreted or modified. AmigaDOS versions~32 and above allocate at least 11 entries
 here, for every additional entry a test of
 {\tt de\_TableSize}\key{de\_TableSize} shall be performed.
 \smallskip{}
@@ -9096,8 +9101,8 @@ its complete path.
 
 {\tt ap\_Buf}\mkey{ap\_Buf} is filled with the complete path to the matched object if {\tt
   ap\_Strlen}\key{ap\_Strlen} is non-zero. This buffer shall be allocated by the caller at
-the end of the {\tt AnchorPath}\key{AnchorPath} structure, i.e.\ for a buffer of $l$ bytes,
-in total {\tt sizeof(AnchorPath)+l-1} bytes are required to store the
+the end of the {\tt AnchorPath}\key{AnchorPath} structure, i.e.\ for a buffer of $s$ bytes,
+in total {\tt sizeof(AnchorPath)+s-1} bytes are required to store the
 structure and the buffer. The byte size of this additional buffer shall be
 placed in {\tt ap\_Strlen}. If this buffer is not present, {\tt ap\_Strlen}\key{ap\_Strlen}
 shall be set to~$0$.
@@ -10505,9 +10510,9 @@ For command line programs started from the shell\key{Shell}, this file handle is
 connected to the console, unless it has been redirected by the ``{\tt >}'',
 ``{\tt >{}>}'' or ``{\tt <>}'' operators, see section~\ref{sec:redirection}. Programs started from the
 workbench do not receive an output file handle at all, {\tt pr\_COS} remains
-{\tt ZERO} unless explicitly set\footnote{The information in~\cite{guru}
-that programs run from the workbench receive a {\tt NIL:} handle is
-incorrect.}.
+{\tt ZERO} unless explicitly set\footnote{Again, while~\cite{guru}
+claims that programs run from the workbench receive a {\tt NIL:} handle,
+this is not the case.}.
 
 \subsection{Replace the Output File Handle} \label{sec:selectoutput}
 
@@ -10637,7 +10642,7 @@ directory\key{Root Directory} of the file system accessible through the {\tt pr\
 element of the calling process. AmigaDOS installs there the file system of
 the boot volume, unless changed by a user.
 
-\subsection{Return the Error Code of the Previous Operation} \label{sec:ioerr}
+\subsection{Return the Error Code of the Previous Operation, List of Error Codes} \label{sec:ioerr}
 
 The {\tt IoErr()}\mkey{IoErr()} function returns the secondary result code
 of the most recent AmigaDOS operation. This code is, in case of failure,
@@ -10655,7 +10660,7 @@ some only set it in particular cases and leave it untouched otherwise. All
 unbuffered operations in section~\ref{sec:unbuffered} provide an error code
 in case of failure, though still modify {\tt IoErr()} in case of success to
 an undefined value. Reading and writing bytes, and the {\tt Seek()}\key{Seek()}
-function can be expected to set {\tt IoErr()} to~0 in success.
+function can be expected to set {\tt IoErr()} to~0 on success.
 \smallskip{}
 
 The buffered functions in section~\ref{sec:bufferedio} generally
@@ -10723,7 +10728,7 @@ supported range, see section~\ref{sec:exall}.
 \smallskip{}
 
 {\tt ERROR\_REQUIRED\_ARG\_MISSING}\mkey{ERROR\_REQUIRED\_ARG\_MISSING}:
-This error code is set by{\tt ReadArgs()}\key{ReadArgs()} if a non-optional
+This error code is set by {\tt ReadArgs()}\key{ReadArgs()} if a non-optional
 argument is not provided.
 \smallskip{}
 
@@ -10766,7 +10771,7 @@ library or device is not available.
 \smallskip{}
 
 {\tt ERROR\_NO\_DEFAULT\_DIR}\mkey{ERROR\_NO\_DEFAULT\_DIR}: This is
-error code is not in use by the current version(s) AmigaDOS.
+error code is not in use by the current version(s) of AmigaDOS.
 Its intended purpose is unclear.
 \smallskip{}
 
@@ -11676,18 +11681,18 @@ struct SegmentList {
 The {\tt LoadSeg()}\key{LoadSeg()} function returns a BPTR to the first node
 of this list. While the entire list is called the \emph{segment list} in the
 following, each of its nodes will be called a \emph{segment}\mkey{Segment}.
-Each segment of a binary is allocated through {\tt AllocVec()}, which is
-sometimes helpful as it allows to retrieve size of the segment from the size
-of the allocated memory block, i.e.\ from the long word immediately
-preceding the {\tt NextSegment} element of the {\tt SegmentList}.
+The long word immediately preceeding the {\tt NextSegment} element contains
+the byte size of the allocated memory block including overhead, i.e.\
+compatible to {\tt AllocVec()} and {\tt FreeVec()} --- which is sometimes helpful to
+derive the size of the segment.
 \smallskip{}
 
 The above structure is \emph{not} documented and is not identical to the
-{\tt Segment} in {\tt dos/dosextens.h}, neither to the {\tt
-  pr\_SegList}\key{pr\_SegList} stored in the {\tt Process} structure.  The
+{\tt Segment} in {\tt dos/dosextens.h}, neither to the
+{\tt pr\_SegList}\key{pr\_SegList} stored in the {\tt Process} structure.  The
 former describes a resident executable, see section~\ref{sec:resident}, but
-also contains a BPTR to a segment list in the above sense. The {\tt
-  pr\_SegList} element is an array\key{Segment Array} where each entry but the first consists of a BPTR to a
+also contains a BPTR to a segment list in the above sense. The
+{\tt pr\_SegList} element is an array\key{Segment Array} where each entry but the first consists of a BPTR to a
 {\tt SegmentList}\key{SegmentList}, see chapter~\ref{sec:process}.
 \smallskip{}
 
@@ -11812,7 +11817,7 @@ number of bits as indicated in the left-hand column from the stream, assigns
 it to the variable~$t$, and then checks whether the resulting value is
 greater or equal than~$a$ and smaller or equal than~$b$. If this is not the
 case, the file is ill-formed. Unfortunately, the AmigaDOS loader does not
-always perform these checks and can even crash the system if the formulated constrains
+always perform these checks and can crash the system if the formulated constrains
 are violated.
 \smallskip{}
 
@@ -13290,7 +13295,7 @@ ot_len:                 rs.b 0
 ;*************************************************
 ;** Other stuff                                 **
 ;*************************************************
-MajikLibWord    =       23456           
+MajikLibWord    =       23456           ;ignored by by the Os
 
        section NTRYHUNK,CODE            ;ensure this is first
 ;*************************************************
@@ -13310,7 +13315,7 @@ oh_OVTab:       dc.l 0                  ;Overlay table
 oh_Segments:    dc.l 0                  ;BPTR to Overlay hunk table
 oh_GlobVec:     dc.l 0                  ;BPTR to global vector (unused)
 
-                dc.l MajikLibWord       ;Identifier word
+                dc.l MajikLibWord       ;identifies hierarchical mngr
                 dc.b 7,"Overlay"        ;Identifier
 
 ;* the following data is specific to this manager
@@ -14711,7 +14716,7 @@ to its clients.
 \smallskip{}
 
 To interface with a handler, the \emph{dos.library} first needs to
-find a {\tt MsgPort} of handler, either from a path or from an already
+find a {\tt MsgPort} of the handler, either from a path or from an already
 existing object such as a lock\key{Lock} or a file
 handle\key{FileHandle}. For Locks, the {\tt fl\_Task}\key{fl\_Task}
 element of the {\tt FileLock} structure contains the port, and for
@@ -16303,7 +16308,7 @@ void AdjustEnv(struct DosEnvec *env,
 
 All other entries of the environment vector remain untouched. The
 right-shift for the sector size is necessary because the environment vector
-measures it in long-words rather than bytes as provided by the drive
+measures it in long words rather than bytes as provided by the drive
 geometry, and {\tt dg\_Cylinders}\key{dg\_Cylinders} is a count, whereas
 {\tt de\_HighCyl}\key{de\_HighCyl} is an inclusive upper bound. In
 particular, {\tt dg\_BufMemType}\key{dg\_BufMemType} is not copied over, and
