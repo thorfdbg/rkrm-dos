@@ -347,16 +347,17 @@ int __saveds startup(void)
 }
 \end{verbatim}
 The most up to date version of the \emph{dos.library} also discussed in this
-book is $47$, as indicated by the second argument of {\tt
-  OpenLibrary()}. Not all programs will require its most recent version,
+book is $47$, as indicated by the second argument of
+{\tt OpenLibrary()}. Not all
+programs will require its most recent version,
 though; the version in which a particular function of the \emph{dos.library}
 appeared is indicated in brackets behind the function definition. Rather
 than requesting the maximum version, program authors should identify which
 functions of the library they require, identify for each of them the minimum
 version number in which they became available, and then take the maximum of
-all the version numbers and supply this maximum as second argument of {\tt
-  OpenLibrary()}. Table~\ref{table:dosversions} provides the relation
-between the (published) AmigaDOS versions and the corresponding library
+all the version numbers and supply this maximum as second argument of
+{\tt OpenLibrary()}. Table~\ref{table:dosversions} provides the relation
+between AmigaDOS versions and the corresponding library
 version:
 
 \begin{rkrmtable}{AmigaDOS Version Numbers} \label{table:dosversions}
@@ -443,8 +444,8 @@ Indices to 32-bit memory cells in the BCPL abstraction of computer memory
 are called \emph{BCPL pointers} or short \emph{\key{BPTR}BPTR}s, even though
 they are not pointers in the sense of the C language; they are rather
 integer numbers as indices to an array of {\tt LONG} (i.e.\ 32-bit)
-integers. In order to communicate this fact more clearly, the {\tt
-  dos/dos.h} include file defines the following data type:
+integers. In order to communicate this fact more clearly, the
+{\tt dos/dos.h} include file defines the following data type:
 
 \mkey{BPTR}
 \begin{verbatim}
@@ -476,7 +477,7 @@ Luckily, in most cases callers of the \emph{dos.library} do not need to
 convert from and to BPTRs but can rather use such ``pointers'' as
 \emph{opaque values} or \emph{handles} representing some AmigaDOS
 object. Examples for those objects are \emph{file handles}\key{FileHandle} specified in
-chapter~\ref{sec:file}, and \emph{locks}\key{Lock}, see section~\ref{sec:locks}. Both
+chapter~\ref{sec:file}, and \emph{locks}\key{Lock}, see chapter~\ref{sec:locks}. Both
 are represented as BPTRs to some structure the caller usually does not need
 to care about.
 \smallskip{}
@@ -512,7 +513,7 @@ passed into the \emph{dos.library}.
 \smallskip{}
 
 Similar to the C language, a pointer to a non-existing element is
-expressed by the special pointer value $0$. While this is called the
+expressed by the special pointer value~$0$. While this is called the
 {\tt NULL} pointer in C, it is better to reserve another name for it
 in BCPL as BPTRs are rather indices. The following convention
 is suggested to express an invalid BPTR:
@@ -574,8 +575,8 @@ see also section~\ref{sec:paths}.
 Files\key{File} are streams of bytes together with a file pointer that
 identifies the next position to be read, or the next byte position to be
 filled. Files are explained in more detail in
-chapter~\ref{sec:file}. AmigaDOS represents files through \emph{file
-handles}\key{FileHandle} in the form of a \emph{FileHandle}\mkey{FileHandle} structure,
+chapter~\ref{sec:file}. AmigaDOS represents files through
+\emph{file handles}\key{FileHandle} in the form of a \emph{FileHandle}\mkey{FileHandle} structure,
 though most of the time, only BPTRs to such handles are passed around.
 
 \section{Locks}
@@ -615,8 +616,8 @@ in order to locate objects such as files and directories on such data
 carriers. Thus, every file system is a handler --- i.e.\ the Fast File System
 (FFS) is a handler, discussed in section~\ref{sec:ffs} --- but not every
 handler implements a file system. The console window, for example, is
-provided by the \emph{CON-Handler}\key{CON-Handler} in the form of the {\tt
-  CON:} device, even though it surely does not organize
+provided by the CON-Handler\key{CON-Handler} in the form of the
+{\tt CON:} device, even though it surely does not organize
 files. Section~\ref{sec:console} provides more details on this
 particular handler.
 
@@ -1246,7 +1247,7 @@ open {\tt *} in such a case.
 \punchline{Not a wildcard!}{Unlike other operating systems, the
   asterisk {\tt *} is \emph{not} a wildcard under AmigaDOS. It rather
   identifies the current console of a process, or is used as escape
-  character in AmigaDOS shell scripts\key{Shell Script}.}
+  character in AmigaDOS Shell scripts\key{Shell Script}.}
 
 The {\tt CONSOLE}\mkey{CONSOLE (device)} device is the default console of
 the process\key{Process}. This special device name exists since AmigaDOS
@@ -1256,13 +1257,13 @@ identifies a job, and allows the console to block the input and output of
 all but the active foreground job. While the AmigaDOS ROM CON-Handler\key{CON-Handler}
 does not provide job control features, some third party consoles do.
 
-\punchline{Prefer the stars}{The difference between {\tt *} and {\tt
-    CONSOLE} is subtle, and the former should be preferred as it
+\punchline{Prefer the stars}{The difference between ``{\tt *}'' and
+  ``{\tt CONSOLE:}'' is subtle, and the former should be preferred as it
   identifies the process as part of a particular shell job. An attempt
   to output to {\tt CONSOLE:} may block the current process as it does
   not identify it properly as part of its job, but rather denotes the
   job started when creating the shell\key{Shell}. Thus, in case of doubt, use the
-  {\tt *} without any colon if you mean the console.}
+  ``{\tt *}'' without any colon if you mean the console.}
 
 Additional devices can be announced to the system by the
 \emph{Mount}\key{Mount (command)} command, see
@@ -1443,9 +1444,8 @@ conventions. Section~\ref{sec:flathierarchical} provides them.
 
 \subsection{Maximum Path Length} \label{sec:pathlimit}
 
-The \emph{dos.library} does not enforce a limit on the size of file or
-directory names, except that the total length of a path including all of its
-components shall not be larger than 255 characters. This is due to the
+The maximum path length a path passed into the \emph{dos.library} is 255
+characters for most library functions. This is due to the
 AmigaDOS legacy that requires that paths are represented as BSTRs to the
 handlers. How large the name of a directory or a file, i.e.\ a component of a
 path, can be is a matter of the file system itself. The Fast File
@@ -1456,7 +1456,7 @@ structure, see section~\ref{sec:fib}.
 \smallskip{}
 
 File systems typically do not report an error if the maximum component name
-is exceeded; instead, the name is clamped to the maximum size without
+length is exceeded; instead, the name is clamped to the maximum size without
 further notice, which may lead to undesired side effects. For example, a
 file system may clip or remove a trailing {\tt .info} from a Workbench icon
 file name without ever reporting this, resulting in unexpected side
