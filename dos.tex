@@ -1146,7 +1146,7 @@ indefinite amount of time until triggered by an external event.
 Examples for interactive files are the console\key{Console}, where reading
 from it depends on the user entering data in a console window and output
 corresponds to printing to the console. Another example is the serial port,
-where read requests are satisfied by serial data arriving at the serial port
+where read requests are satisfied by data arriving at the serial port
 and written bytes are transmitted out of the port. The parallel port is a
 third example of an interactive file. Requests to read from it result in an
 error condition, while writing prints data on a printer connected to the
@@ -1202,7 +1202,7 @@ regardless of which disk is inserted into it.
 \smallskip{}
 
 Table~\ref{table:romdevices} lists all device names AmigaDOS creates itself
-even without a boot volume available. They can be assumed present any time
+even without a boot volume available. They can be assumed to be present any time
 as they are created by the AmigaDOS ROM components:
 
 \begin{rkrmtable}{System Defined Devices} \label{table:romdevices}
@@ -1217,7 +1217,7 @@ as they are created by the AmigaDOS ROM components:
 {\tt RAM}              & RAM-based file system\\ \hline
 \end{rkrmtable}
 
-If more than one floppy drives are connected to the system, they are named
+If more than one floppy drive is connected to the system, they are named
 {\tt DF1} through {\tt DF3}. If a hard disk is present, then the device
 name(s) of the harddisk partitions depend on the contents of Rigid Disk
 Block, see~\cite{rkrmdev}. These names can be selected upon installation of
@@ -1233,11 +1233,12 @@ The devices {\tt SER}, {\tt PAR}, {\tt PRT} and {\tt PIPE} are created by
 the Kickstart ROM, but the corresponding handler is disk-based and
 loaded from disk as soon as the device is needed. The addition of {\tt PIPE}
 to this list is relatively recent, AmigaDOS V47 (Kickstart 3.2) includes it
-in the ROM-mounted devices as the Boot Shell requires it.
+in the ROM-mounted devices as the Boot Shell requires it. Its handler is
+neither included in the Kickstart.
 \medskip{}
 
 The following device names have a special meaning and do not belong to
-a particular device:
+a particular handler:
 
 \begin{rkrmtable}{System Defined Devices} \label{table:specialdevices}
 {\bf Name} & {\bf Description} \\ \hline \hline
@@ -1256,8 +1257,8 @@ behind its name.
 The {\tt *}\mkey{* (file name)}, if used as complete path name without a
 trailing colon and without a file name, is the current console of the
 process\key{Process}, if such a console\key{Console} exists. Any data output
-to the file named {\tt *} will be printed on the console. Reading from {\tt
-  *} will wait for the user to input data on the console, and will return
+to the file named {\tt *} will be printed on the console. Reading from
+{\tt *} will wait for the user to input data on the console, and will return
 such data. If no console exists, for example for processes run from the
 Workbench, then AmigaDOS versions 36 and later fall back to opening
 {\tt NIL:} which absorbs any output. Earlier versions failed to
@@ -1270,7 +1271,7 @@ open {\tt *} in such a case.
 
 The {\tt CONSOLE}\mkey{CONSOLE (device)} device is the default console of
 the process\key{Process}. This special device name exists since AmigaDOS
-version 36. Unlike {\tt *}\key{* (file name)}, but like any other device name, it shall be
+version~36. Unlike {\tt *}\key{* (file name)}, but like any other device name, it shall be
 followed by a colon. It also takes an optional name behind the colon that
 identifies a job, and allows the console to block the input and output of
 all but the active foreground job. While the AmigaDOS ROM CON-Handler\key{CON-Handler}
@@ -1299,7 +1300,8 @@ carrier within a physical drive. For example, it may identify a
 particular floppy disk, regardless of the drive it is inserted it. For
 example, the volume name ``Workbench3.2'' relates always to the same
 floppy, regardless of whether it is inserted in the first {\tt DF0} or
-second {\tt DF1} drive.
+second {\tt DF1} drive. Partitions on a harddisk also have a volume name by
+which they can be identified.
 
 \subsubsection{Assigns} \label{sec:assignlist}
 An \emph{assign}\mkey{Assign} or \emph{logical volume} identifies a subset
@@ -1359,7 +1361,7 @@ Table~\ref{table:romassigns} lists the assigns made by AmigaDOS
 automatically during bootstrap; except for the {\tt SYS} assign, they
 all go to a directory of the same name on the boot volume. They are
 all regular assigns, except for {\tt ENVARC}, which is
-late binding assign\key{Late Binding Assign}. {\tt ENVARC} was added in release 36 of AmigaDOS.
+late binding assign\key{Late Binding Assign}. {\tt ENVARC} was added in version 36 of AmigaDOS.
 
 \begin{rkrmtable}{System Defined Assigns} \label{table:romassigns}
 {\bf Assign Name} & {\bf Description}\\ \hline \hline
@@ -1376,7 +1378,7 @@ late binding assign\key{Late Binding Assign}. {\tt ENVARC} was added in release 
 In addition to the above table, the following (pseudo-)assign is handled by
 the \emph{dos.library} internally and is not part of the \emph{device
 list}\key{Device List}, (see chapter~\ref{sec:devicelist}), it was also
-added in release 36 of AmigaDOS:
+added in version 36 of AmigaDOS:
 
 \begin{rkrmtable}{System Defined Assigns} \label{table:specialassigns}
 {\bf Assign Name} & {\bf Description}\\ \hline \hline
@@ -1412,10 +1414,10 @@ Table~\ref{table:startupassigns} lists some of them.
 {\tt CLASSES}     & Boopsi GUI components\\ \hline
 \end{rkrmtable}
 
-The assigns\key{Assign} {\tt ENV}, {\tt REXX}, {\tt LOCALE} and {\tt CLASSES} became
-part of AmigaDOS in releases 36, 38 and 39, respectively. Additional assigns
-can always be made with the \emph{Assign}\key{Assign} command, see
-section~\ref{sec:handlers} or the AmigaDOS functions discussed in
+The assigns\key{Assign} {\tt ENV}, {\tt REXX}, {\tt LOCALE} and {\tt
+  CLASSES} became part of AmigaDOS in releases 36, 38 and 39,
+respectively. Additional assigns can always be made with the
+{\tt Assign}\key{Assign} command or the AmigaDOS functions discussed in
 section~\ref{sec:assigns}.
 
 \subsection{Relative and Absolute Paths}
@@ -1428,7 +1430,7 @@ path} because it identifies a location within a logical or physical volume
 relative to the topmost or \emph{root directory}\key{Root Directory} of the
 volume. If the device name and the colon are not present, such a path is
 called a \emph{relative path} because it corresponds to a location in the file system
-relative to the \emph{current directory} of the running process.
+relative to the \emph{current directory} of the process using the path.
 \smallskip{}
 
 If only a colon is present but the device, volume or assign\key{Assign} name is omitted,
