@@ -303,7 +303,7 @@ chapter~\ref{sec:handlers}.
 \section{The DosLibrary Object}
 
 The \emph{dos.library} is typically opened by the startup code of most
-compilers anyhow, and its base pointer is placed into the {\tt DOSBase}
+compilers, and its base pointer is placed into the {\tt DOSBase}
 object by such startup code:
 \begin{verbatim}
 struct DosLibrary *DOSBase;
@@ -311,10 +311,10 @@ struct DosLibrary *DOSBase;
 Hence, in general, there is no need to open this library manually.
 \smallskip{}
 
-The \emph{\mkey{DosLibrary}DosLibrary} structure is defined in {\tt
-  dos/dosextens.h}, but its elements are usually not required and should not
+The \emph{\mkey{DosLibrary}DosLibrary} structure is defined in
+{\tt dos/dosextens.h}, but its elements are usually not required and should not
 be accessed directly. However, chapter~\ref{sec:dosbase} provides further
-details and provides information on all its elements. The most important
+details and provides information on its structure. The most important
 function of the library is to provide functions to applications due to its
 library vector offsets --- or short {\tt \_LVO}s --- which are made
 available to a C compiler by including {\tt proto/dos.h}:
@@ -350,7 +350,7 @@ int __saveds startup(void)
 }
 \end{verbatim}
 The most up to date version of the \emph{dos.library} also discussed in this
-book is $47$, as indicated by the second argument of
+book is~$47$, as indicated by the second argument of
 {\tt OpenLibrary()}. Not all
 programs will require its most recent version,
 though; the version in which a particular function of the \emph{dos.library}
@@ -384,7 +384,7 @@ version:
 
 Most important changes were made in version 36 in which the library was
 largely extended, though the release contained many defects that were
-addressed with version 37. Version 35 was an extension of version 34 with
+addressed in version 37. Version 35 was an extension of version 34 with
 integrated support for the A2024 Hedley monitor that was entirely
 RAM-loaded. Versions 41 to 43 were never published, with the exception of
 some beta versions of the FFS which shipped as version 43. Version 44 was used for
@@ -404,7 +404,7 @@ DOSFALSE & \phantom{-}0  \\ \hline
 DOSTRUE  & -1 \\ \hline
 \end{rkrmtable}
 
-Note that the C language instead uses the value $1$ for
+Note that the C language instead uses the value~$1$ for
 {\tt TRUE}. Code that checks for zero or non-zero return codes will
 function normally, however code shall not compare to {\tt TRUE} in
 boolean tests. Instead, tests shall be made whether particular values are~0
@@ -428,7 +428,7 @@ dividing the byte-address of an element by 4, or equivalently, by
 right-shifting the address as given by a pointer of the C language by two
 bits. This also has the consequence that (most) data structures passed into
 and out of the dos.library shall be aligned to 32-bit boundaries. Similarly,
-in order to obtain the byte-address of a BCPL structure, the index is
+in order to obtain the byte-address of a BCPL structure, its index is
 multiplied by 4, or left-shifted by 2 bits.
 
 \punchline{Not on the Stack!}{Since BCPL structures must have an address
@@ -466,7 +466,7 @@ remains undefined.
 \smallskip{}
 
 Conversion from BCPL pointers to conventional C pointers and back are
-formed by the following macros, also defined in {\tt dos/dos.h}:
+realized by the following macros, also defined in {\tt dos/dos.h}:
 
 \mkey{BADDR()} \mkey{MKBADDR()}
 \begin{verbatim} 
@@ -518,7 +518,7 @@ passed into the \emph{dos.library}.
 Similar to the C language, a pointer to a non-existing element is
 expressed by the special pointer value~$0$. While this is called the
 {\tt NULL} pointer in C, it is better to reserve another name for it
-in BCPL as BPTRs are rather indices. The following convention
+in BCPL as BPTRs are indices instead. The following convention
 is suggested to express an invalid BPTR:
 
 \begin{verbatim}
@@ -560,15 +560,15 @@ However, even though users of the \emph{dos.library} rarely come in
 contact with BSTRs themselves, the BCPL convention has
 an important consequence, namely that (most) strings handled by the
 \emph{dos.library} cannot be longer than 255 characters as this is the
-maximum value an 8-bit byte can take.
+maximum value an byte-sized length value can take.
 
 \punchline{Length-Limited Strings}{Remember that most strings that are
   passed into the \emph{dos.library} are internally converted to
   BSTRs and thus cannot exceed a length of 255 characters.}
 
-Unfortunately, even as of the latest version of \emph{AmigaDOS}, the
+Unfortunately, even in the latest version of \emph{AmigaDOS}, the
 \emph{dos.library} is ill-prepared to take longer strings, and will
-likely fail or mis-interpret the string passed in. If longer strings
+likely fail or mis-interpret if such strings are passed in. If longer strings
 are required, e.g.\ as part of a \emph{path}, it is
 (unfortunately) in the responsibility of the caller to take this path
 apart into components and iterate through the components manually,
@@ -582,18 +582,19 @@ notation will be used throughout this volume.
 
 \punchline{All Zero, but of a Different Kind}{{\tt ZERO},
 {\tt NULL} and {\tt NUL} all encode the value 0, but the first is the name
-of the first BCPL memory index and is often used to indicate the end of a
-BCPL list. Its C equivalent is {\tt NULL}, which however denotes a pointer
+of the first BCPL memory index and indicates an invalid BPTR.
+Its C equivalent is {\tt NULL}, which however denotes a pointer
 and not a memory cell index. {\tt NUL} is the first code
 point of the ASCII code set and represented by a byte of value~0.}
 
 \section{Files}
 Files\key{File} are streams of bytes together with a file pointer that
-identifies the next position to be read, or the next byte position to be
-filled. Files are explained in more detail in
-chapter~\ref{sec:file}. AmigaDOS represents files through
-\emph{file handles}\key{FileHandle} in the form of a \emph{FileHandle}\mkey{FileHandle} structure,
-though most of the time, only BPTRs to such handles are passed around.
+identifies the next position to be read, or the next byte position to write
+to. Files are explained in more detail in chapter~\ref{sec:file}. AmigaDOS
+represents files through \emph{file handles}\key{FileHandle} in the form of
+a BPTR to a \emph{FileHandle}\mkey{FileHandle} structure, though most of the
+time, the elements of the structure are not needed and it is sufficient to
+pass the BPTRs around.
 
 \section{Locks}
 Locks\key{Lock} are access rights to a particular object on a file system,
@@ -611,16 +612,16 @@ the tasks are assigned to the CPU in a round-robin fashion. A
 \emph{Process}\key{Process} is an extension of an AmigaOs
 \emph{Task}\mkey{Task}; it includes additional state information relevant
 to AmigaDOS, such as a \emph{current directory}, a default file
-system, a \emph{console}\key{Console} it is connected to, a default input,
-output and error stream. Most importantly, processes include a {\tt
+system, a \emph{console}\key{Console} it is connected to, and default input,
+output and error streams. Most important, each process includes a {\tt
   MsgPort}, see~\cite{rkrmlib}, through which it communicates with other
 AmigaDOS components such as handlers or file systems. Processes are
 explained in more detail in chapter~\ref{sec:process}.
 
 \section{Handlers and File Systems} \label{sec:handlerovv}
 \emph{Handlers} are special processes that perform input or output
-operations to a logical or physical device, such as the serial port, a
-printer, the floppy or even the RAM. AmigaDOS itself delegates most
+operations to logical or physical devices, such as the serial port, a
+printer, the floppy or even the RAM. The \emph{dos.library} delegates most
 operations, such as reading from a stream or file to such handlers. Handlers
 are explained in more detail in chapter~\ref{sec:handlers}.
 \smallskip{}
@@ -628,7 +629,7 @@ are explained in more detail in chapter~\ref{sec:handlers}.
 \emph{File systems} are special handlers that organize the contents of data
 carriers such as hard disks, floppies or CD-Roms in the form of files and
 (optionally) directories. File systems interpret paths (see~\ref{sec:paths})
-in order to locate objects such as files and directories on such data
+in order to locate objects such as files and directories on data
 carriers. Thus, every file system is a handler --- i.e.\ the Fast File System
 (FFS) is a handler, discussed in section~\ref{sec:ffs} --- but not every
 handler implements a file system. The console window, for example, is
@@ -647,21 +648,21 @@ AmigaDOS. Unlike the graphical user interface, the Workbench, it is purely
 text based and available even without a boot medium.
 \smallskip{}
 
-The Shell reads lines from the console, which is a handler of its own,
-splits those lines into words, and uses the first word as command to which
-all following words are supplied as arguments. Commands are binary
-executable files (see chapter~\ref{sec:binary} for their structure) that are
-contained in a special directory of an AmigaDOS installation, though some
-elementary commands are built into the Shell and do not require access to a
-medium.
+The Shell reads lines from the console, which is a handler of its own, and
+interprets them as commands, potentially along with additional
+arguments to them. Commands are binary executable files (see
+chapter~\ref{sec:binary} for their structure) that are contained in a
+special directory of an AmigaDOS installation, though some elementary
+commands are built into the Shell and do not require access to a medium.
 \smallskip{}
 
-The Shell can also read commands from any other handler, for example from a
-file on a partition operated by the Fast File System, and then interprets
-the commands from such a \emph{Shell Script} or \emph{Batch File}. The most
-important Shell script\key{Shell Script} is the \emph{Startup-Sequence} which is interpreted
-by the Shell when booting AmigaOs. Chapter~\ref{sec:shell} provides the details
-on the AmigaDOS Shell.
+The Shell is not restricted to reading commands from the console. Any other
+handler can serve as source as well, for example in the form of a
+\emph{Shell Script} or \emph{Batch File} located on a partition operated by
+the Fast File System (FFS)\key{Fast File System (FFS)}, the Amiga ROM file
+system. The most important Shell script\key{Shell Script} is the
+\emph{Startup-Sequence} which is interpreted by the Shell when booting
+AmigaOs. Chapter~\ref{sec:shell} provides more details on the AmigaDOS Shell.
 \smallskip{}
 
 AmigaDOS is not limited to its own Shell\key{Shell}, which is also called the Boot
