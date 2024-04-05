@@ -1465,15 +1465,20 @@ conventions. Section~\ref{sec:flathierarchical} provides them.
 
 \subsection{Maximum Path Length} \label{sec:pathlimit}
 
-The maximum path length a path passed into the \emph{dos.library} is 255
-characters for most library functions. This is due to the
-AmigaDOS legacy that requires that paths are represented as BSTRs to the
-handlers. How large the name of a directory or a file, i.e.\ a component of a
-path, can be is a matter of the file system itself. The Fast File
-System\key{Fast File System (FFS)} includes variants that limit component
-(file or directory) names to 30, 54 or 106 characters. The latter is the
-upper limit that is imposed by the {\tt FileInfoBlock}\key{FileInfoBlock}
-structure, see section~\ref{sec:fib}.
+The maximum path length that can be safely used with most functions of the
+\emph{dos.library} is 255 characters. This is because the library has to
+convert such paths internally to BSTRs to communicate them to handlers and
+file systems. The functions from section~\ref{sec:workpaths} and the
+{\tt ReadLink()} function of section~\ref{sec:readlink} are some notable
+exceptions.
+\smallskip{}
+
+How large the name of a directory or a file, i.e.\ a component of a path,
+can be is a matter of the file system itself. The Fast File
+System\key{Fast File System (FFS)} includes variants that limit component (file or
+directory) names to 30, 54 or 106 characters. The latter is the upper limit
+that is imposed by the {\tt FileInfoBlock}\key{FileInfoBlock} structure, see
+section~\ref{sec:fib}.
 \smallskip{}
 
 File systems typically do not report an error if the maximum component name
@@ -1566,26 +1571,106 @@ from the current directory, in a directory named ``{\tt Top}''.
 
 \subsection{Case Sensitivity and Character Encoding}
 
-The \emph{dos.library} does not define whether file names are case-sensitive
-or insensitive, except for the device, volume or assign\key{Assign} names which are
-case-insensitive. Most if not all AmigaDOS file-systems are also
-case-insensitive, or rather should. Some variants of the Fast File
+Device, volume or assign\key{Assign} names are always case-insensitive. The
+\emph{dos.library} uses the service of the currently loaded locale to
+compare the path component with their names, and by default assumes the
+ISO-Latin 1 encoding. Whether all other components of a path are case
+sensitive and how directory and file names are compared to the names of file
+system objects is dependent on the file system. While file systems
+\emph{should} be case-insensitive, some variants of the Fast File
 System\key{Fast File System (FFS)} do not handle case-insensitive
-comparisons correctly on non-ASCII characters, i.e.\ ISO-Latin code points
+comparisons correctly on non-ASCII characters, i.e.\ on ISO-Latin code points
 whose most-significant bit is set, see section~\ref{sec:rootblock} for
-details. These variants should be avoided and the ``international'' variants
-should be preferred, see table~\ref{table:ffsflavours} in section~\ref{sec:envec}.
+details. These variants of the FFS should be avoided and the ``international'' variants
+should be preferred, see table~\ref{table:ffsflavours} in
+section~\ref{sec:envec}. While the string comparison performed by the
+library and the string comparison of the international variants of the FFS
+as implied by the hashing algorithm of section~\ref{sec:rootblock} agree for
+printable ISO-Latin characters, this is \emph{not necessarily} the case for
+other encodings or components containing non-printable characters. 
 \smallskip{}
 
 In general, AmigaDOS support functions such as the pattern matching
-functions discussed in chapter~\ref{sec:patternmatch} assume that file
-systems are case-insensitive, and use the ISO-Latin character set. In
-particular, the functions in the above chapter will not function correctly
-if component names include code points from the control set of ISO-Latin,
-i.e.\ codes between {\tt 0x00} to {\tt 0x1f} or {\tt 0x80} to
-{\tt 0x9f}. These code points are not printable and multiple functions of
-AmigaDOS will behave erratically if component names containing them are
-encountered.
+functions discussed in chapter~\ref{sec:patternmatch} also assume that file
+systems are case-insensitive, and use the ISO-Latin character set. Thus,
+what a file system considers an identical file name can, actually, be
+something different from what the \emph{dos.library} considers a matching
+name. Code points from the control set of ISO-Latin, i.e.\ codes between
+{\tt 0x01} to {\tt 0x1f} or {\tt 0x7f} to {\tt 0x9f} should be avoided, and
+the code point {\tt 0x00} ASCII {\tt NUL} shall not be used at all as it terminates
+C strings and therefore cannot be part of a file name anyhow\footnote{To be very
+precise, it actually \emph{could} be as this character does not have a
+special meaning in a BSTR, though any type of C interface as for example the
+one of the \emph{dos.library} would be heavily confused by such a file
+name.}.
+\smallskip{}
+
+The remaining code points from the control sets of ISO-Latin are
+non-printable characters and multiple modules of AmigaDOS will behave
+erratically if component names containing them are encountered. In
+particular, the pattern matcher of chapter~\ref{sec:patternmatch} uses them
+as tokens for its wildcards and misbehaves if they are encountered as
+input. While the Workbench may attempt to display such control characters if
+the icon font contains glyphs at the above code points, such codes
+form control sequences of the console and thus, in general, do not result in
+useful console output if printed by the Shell, regardless of the console
+font.
+\smallskip{}
+
+Other than the colon (``{\tt :}'') and the slash (``{\tt /}''), names of
+file system objects on FFS\key{Fast File System (FFS)} volumes may contain
+all printable ISO-Latin characters, that is, code points between {\tt 0x20}
+and {\tt 0x7e} and {\tt 0xa0} to {\tt 0xff}. Some file systems can, however,
+impose additional restrictions that origin from their native operating
+system. Regardless of the file system, some characters should be
+nevertheless avoided as the AmigaDOS Shell and some functions of the
+\emph{dos.library} assign special meaning to them; paths containing such characters are hard to
+reach from the AmigaDOS Shell:
+
+\begin{list}{}{}
+\item[{\tt * }] The asterisk as stand-alone file name represents the current
+  console of the calling process\key{* (file name)}, see also
+  section~\ref{sec:deviceoverview}. It is \emph{in addition} also the
+  escape character of the AmigaDOS Shell that becomes active within double
+  quotes, see section~\ref{sec:shellquotes}. While it can always escaped by
+  another asterisk, this can trigger hard to find defects in Shells scripts.
+\item[{\tt >},{\tt <},{\tt |}] While the angle brackets and the vertical bar are
+  allowed within file names, they are also operators of the AmigaDOS Shell
+  that redirect the input, output or error stream of a command,
+  or form compound commands as defined in sections~\ref{sec:redirection}
+  and~\ref{sec:binaryops}. While they can be used in file names, such
+  names require quoting within the Shell as they could be misinterpreted
+  as syntax elements otherwise.
+\item[{\tt SPC}] The ASCII blank space at code point {\tt 0x20} can be
+  used within file names, though also separates arguments and commands in
+  the AmigaDOS Shell and therefore requires proper quoting of paths within
+  Shell scripts and within the Shell. 
+\item[{\tt \#},{\tt ?},{\tt [},{\tt ]},{\tt '}, {\tt
+      \textasciitilde{}},{\tt (},{\tt )},{\tt \%}] These characters are
+  syntax elements of the pattern matcher described in
+  chapter~\ref{sec:patternmatch}. The pattern matcher syntax also defines
+  the apostrophe (``{\tt '}'') as escape character and therefore allows, in
+  principle, to use them in paths, though there is unfortunately no method
+  to identify whether a particular shell command passes its arguments
+  through the pattern matcher, thus requiring to escape them, or uses its
+  arguments literally. Thus, again, for the sake of simplicity, these
+  characters should be better avoided.
+\end{list}
+
+The Workbench is less critical in this regard and allows all characters in
+the above list without requiring escaping or quoting --- the only
+non-working name for a Workbench disk object is the string consisting of a
+single asterisk (``{\tt *}'') as the \emph{dos.library} and not the Shell
+assigns a meaning to it.
+
+\punchline{Avoid Odd File Names}{While AmigaDOS provides mechanisms to
+  include functional characters in file names such as quoting and
+  escaping, characters forming syntax elements of the Shell or the pattern
+  matcher should be avoided as they can trigger hard to find defects in Shell
+  scripts. Characters from the non-printable C0 and C1 control set of
+  ISO-Latin 1 shall not be used at all, even if they seem to display
+  correctly on the Workbench; they may trigger side effects of the pattern
+  matcher.}
 
 \section{Opening and Closing Files}
 
