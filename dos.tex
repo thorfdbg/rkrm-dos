@@ -1681,11 +1681,11 @@ modified. Depending on how the file is opened, multiple processes may access
 the same file simultaneously, or may even alter the file simultaneously.
 \smallskip{}
 
-Once done with the file, file handles\key{FileHandle} shall be released again with {\tt
-  Close()}. This not only returns system resources, it also makes files
-opened for exclusive access available to other processes, and ensures that
-all modifications are written back to the medium the file is located, or
-written out through the interface the file represents.
+Once done with the file, file handles\key{FileHandle} shall be released
+again with {\tt Close()}. This not only returns system resources, it
+also makes files opened for exclusive access available to other processes,
+and ensures that all modifications are written back to the medium the
+file is located, or written out through the interface the file represents.
 
 \subsection{Opening Files} \label{sec:open}
 To read data from or write data to a file, it first needs to be opened
@@ -1697,26 +1697,26 @@ D0           D1    D2
 
 BPTR Open(STRPTR, LONG)
 \end{verbatim}
-The {\tt name} argument is the \emph{path} the file to be opened,
+The {\tt name} argument is the \emph{path} of the file to be opened,
 which is interpreted according to the rules given in
 section~\ref{sec:paths}. The argument {\tt accessMode} identifies how
 the file is opened. The function returns a {\tt BPTR} to a
 file handle\key{FileHandle} on success, or {\tt ZERO} on failure. A secondary result
 code can be retrieved from {\tt IoErr()}; this function is introduced in
 section~\ref{sec:ioerr}. This result code should be~$0$ on success, though unfortunately
-not all handlers initialize it correctly on
-success. In case opening the file failed, {\tt IoErr()}\key{IoErr()}
+not all handlers set it correctly on success.
+In case opening the file failed, {\tt IoErr()}\key{IoErr()}
 delivers one of the error codes from {\tt dos/dos.h},
 section~\ref{sec:ioerr} lists the system defined codes.
 
 \punchline{Length Limited}{As this function needs to convert the path
   argument from a C string to a BSTR, path names longer than 255
-  characters are not supported and results are unpredictable if such
-  names are passed into Open(). If such long path names cannot be
-  avoided, it is the responsibility of the caller to split the path
-  name accordingly and potentially walk through the directories
-  manually if necessary. Note that this strategy may not be suitable
-  for interactive files or for handlers that follow conventions for the
+  characters are not supported and results are unpredictable if
+  passed into {\tt Open()}. It is the responsibility of the caller to
+  split oversized paths and potentially walk through the directories
+  manually by the functions in chapter~\ref{sec:locks} if necessary.
+  Note that this strategy may not be suitable
+  for interactive files or for handlers that follow conventions of the
   path name that are different from the conventions described in
   section~\ref{sec:locate}.}
 
@@ -1732,18 +1732,18 @@ are also defined in {\tt dos/dos.h}:
 
 The access mode {\tt MODE\_OLDFILE}\mkey{MODE\_OLDFILE} attempts to find an existing
 file. If the file does not exist, the function fails. If the file
-exists, it can be read from or written to, though simultaneous
+exists, it can be read from or written to, and simultaneous
 access from multiple processes is possible and does not create an
 error condition. If multiple processes write to the same file
 simultaneously, the result is undefined and no particular order of the
 write operations is imposed.
 \smallskip{}
 
-Under AmigaDOS version 36 and above, the access mode {\tt
-  MODE\_READWRITE}\mkey{MODE\_READWRITE} first attempts to find an existing
+Under AmigaDOS version 36 and above, the access mode
+{\tt MODE\_READWRITE}\mkey{MODE\_READWRITE} first attempts to find an existing
 file, but if the file does not exist, it will be created under the name
 given by the last component of the path. The function does not attempt to
-create directories within the path if they do not access. Once the file is
+create directories in the middle of the path if they do not exist. Once the file is
 opened, access to the file is shared, even if it has been just created. That
 is, multiple processes may then access it for reading or writing. If
 multiple processes write to the file simultaneously, the order in which the
@@ -1752,8 +1752,8 @@ processes.
 \smallskip{}
 
 For AmigaDOS versions 34 and below, {\tt MODE\_READWRITE}\key{MODE\_READWRITE} implements a
-somewhat different access mode. Under such releases, a file system
-attempting to open a file under this mode does not attempt to create files
+somewhat different access mode. Under these releases, a file system
+attempting to open a file in this mode does not attempt to create files
 that do not exist, and exclusive access is granted. Due to these
 inconsistencies, {\tt MODE\_READWRITE} should probably be best avoided. If
 exclusive access without deleting existing file content is required, it is
@@ -1766,20 +1766,20 @@ The access mode {\tt MODE\_NEWFILE}\mkey{MODE\_NEWFILE} creates a new file, pote
 erasing an already existing file of the same name if it already
 exists. The function does not attempt to create directories within the
 path if they do not exist. Access to the file is exclusive, that is,
-any attempt to access the file from a second process fails with an
-error condition.
+any attempt to access the file from a second process fails with the error
+code {\tt ERROR\_OBJECT\_IN\_USE}\key{ERROR\_OBJECT\_IN\_USE}.
 
 \punchline{No Wildcards}{The Open() function, similar to most
   \emph{dos.library} functions, does not attempt to resolve wildcards. That
   is, any character potentially reassembling a wildcard, such as
   ``?'' or ``\#'' will taken as a literal and will be used as part of
   the file name. While these characters are valid, they should be
-  avoided as they make it hard to access such files from the shell\key{Shell}.}
+  avoided as they make it hard to access such files from the Shell\key{Shell}.}
 
 \subsection{Closing Files} \label{sec:close}
 
 The {\tt Close()}\mkey{Close()} function writes all internally
-buffered data to disk and makes an exclusively opened file accessible
+buffered data back and makes an exclusively opened file accessible
 to other processes again.
 
 \begin{verbatim}
@@ -1789,12 +1789,12 @@ D0               D1
 BOOL Close(BPTR)
 \end{verbatim}
 
-The {\tt file} is a BPTR to a file handle\key{FileHandle} identifying the
-file. The return code indicates whether the file system could successfully
-close the file and write back any data. If the result code is {\tt
-  DOSFALSE}, an error code can be obtained through {\tt IoErr()} described
+The {\tt file} argument is a BPTR to a file handle\key{FileHandle} identifying the
+file to close. The return code indicates whether the file system could successfully
+close the file and write back any data. If the result code is
+{\tt DOSFALSE}, an error code can be obtained through {\tt IoErr()} described
 in section~\ref{sec:ioerr}. Otherwise, {\tt IoErr()} will not be
-altered. Under release 34 and below, this function does not return a result
+altered. Under version 34 and below, this function does not return a result
 code and the contents of register {\tt d0} cannot be depended upon.
 \smallskip{}
 
@@ -1807,7 +1807,7 @@ result in a crash.
 \smallskip{}
 
 If closing a file fails, e.g.\ because internal buffers of the file system
-cannot be written back when the volume became inaccessible, unfortunately
+cannot be written back if the volume became inaccessible, unfortunately
 not much can be done and no general advice is possible how to handle this
 situation. At the time {\tt Close()} returns with an error, an error
 requester has already been shown to the user --- unless it has been
@@ -1832,8 +1832,8 @@ files, depending on the nature of the handler.
 A file can be either interactive, in which case attempts to read or write
 data to the file may block indefinitely and the contents and state of the
 file depends on conditions of the outside world, or non-interactive where
-the amount of available data is determined by file itself. The {\tt
-  IsInteractive()} function returns the nature of an already opened file.
+the amount of available data is determined by file itself. The
+{\tt IsInteractive()} function returns the nature of an already opened file.
 
 \begin{verbatim}
 status = IsInteractive( file )
@@ -1843,7 +1843,7 @@ BOOL IsInteractive(BPTR)
 \end{verbatim}
 
 The {\tt IsInteractive()}\mkey{IsInteractive()} function returns
-{\tt TRUE} in case the file handle\key{FileHandle} passed in is interactive, or
+a non-zero result code in case the file handle\key{FileHandle} passed in is interactive, or
 {\tt FALSE} in case it corresponds to a non-interactive stream of
 bytes, potentially on a file system.
 This function cannot fail and does not alter {\tt IoErr()}.
@@ -1857,8 +1857,8 @@ generating interactive files. The FFS\key{Fast File System (FFS)} and the
 RAM-Handler\key{RAM-Handler} are file systems and thus create non-interactive files.
 \smallskip{}
 
-While reading from interactive files may block indefinitely, the {\tt
-  WaitForChar()}\key{WaitForChar()} function introduced in
+While reading from interactive files may block indefinitely, the
+{\tt WaitForChar()}\key{WaitForChar()} function introduced in
 section~\ref{sec:waitforchar} may be used to test for the availability of
 data. Interactive files typically do not support repositioning the file
 pointer through {\tt Seek()}\key{Seek()} (see~\ref{sec:seek})
@@ -1869,8 +1869,8 @@ see section~\ref{sec:setfilesize}.
 
 A handler\key{Handler} that manages physical data carriers and allows to
 access named files on such data carriers is a file system. Such handlers
-will generally create non-interactive files. The {\tt
-  IsFileSystem()}\key{IsFileSystem()} function determines the nature of a
+will generally create non-interactive files. The
+{\tt IsFileSystem()}\key{IsFileSystem()} function determines the nature of a
 handler given a path (see~\ref{sec:paths}) to a candidate handler.
 
 \begin{verbatim}
@@ -1886,25 +1886,27 @@ whether it exists or not.
 \smallskip{}
 
 It is advisable to provide a path that identifies the handler uniquely,
-i.e.\ a string that is terminated by a colon (``{\tt :}''). Otherwise, the
+i.e.\ a device or volume name that is terminated by a colon (``{\tt :}''). Otherwise, the
 call checks whether the handler responsible for the current directory of the
 calling process is a file system.
 \smallskip{}
 
-The returned result is {\tt DOSTRUE} in case the handler identified by the
+The returned result is non-zero in case the handler identified by the
 path is a file system, and as such allows access to multiple files on a
 physical data carrier and examining directories. Otherwise, it
 returns {\tt DOSFALSE}.
 \smallskip{}
 
-This function does not exist prior to release 36 of the
+This function does not exist prior to version 36 of the
 \emph{dos.library}. A possible workaround to check whether a candidate
 handler is a file system is to attempt to lock the root directory\key{Root Directory} of the
 handler, i.e.\ call {\tt Lock()}\key{Lock()} on the device name that is to be
-checked, see section~\ref{sec:lock} for this function. A similar workaround
+checked, see section~\ref{sec:lock} for this function. If this function
+succeeds, the handler corresponding to the provided path is likely a file
+system. A similar workaround
 is also used internally by the library for handlers that do not support the
-identification natively. A side effect of this workaround, but also of {\tt
-  IsFileSystem()} is that it will load and start the corresponding handler
+identification natively. A side effect of this workaround, but also
+of {\tt IsFileSystem()} is that it will load and start the corresponding handler
 if it is not already active.
 
 \section{Unbuffered Input and Output} \label{sec:unbuffered}
@@ -3410,8 +3412,8 @@ Locks come in two types: \emph{Exclusive locks}\key{EXCLUSIVE\_LOCK} and
 \emph{shared locks}\key{SHARED\_LOCK}. Only a single exclusive lock can
 exist on a file system object at a time, and no other locks on an
 exclusively locked object can exist. An attempt to lock an exclusively
-locked object results in failure with the error code {\tt
-  ERROR\_OBJECT\_IN\_USE}\key{ERROR\_OBJECT\_IN\_USE}, and attempting to
+locked object results in failure with the error code
+{\tt ERROR\_OBJECT\_IN\_USE}\key{ERROR\_OBJECT\_IN\_USE}, and attempting to
 exclusively lock an object that is already locked by a shared lock will also
 fail with the same error.
 \smallskip{}
