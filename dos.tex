@@ -598,7 +598,7 @@ pass the BPTRs around.
 
 \section{Locks}
 Locks\key{Lock} are access rights to a particular object on a file system,
-such as a file or a directory. A locked file cannot be altered or removed by
+such as a file or a directory. A locked file cannot be overwritten or removed by
 any other process, a locked directory can be altered, but not be
 deleted. Chapter~\ref{sec:locks} provides more details on locks. AmigaDOS
 represents locks through the \emph{FileLock}\key{FileLock} structure also
@@ -3420,7 +3420,7 @@ in case of failure as the error code is not saved on a failed unlock.
 
 \emph{Locks}\mkey{Lock} are access rights to file system objects, such as
 files or directories. Once an object has been locked, it can no longer be
-deleted, or in case of files, it can no longer altered either. Depending on
+deleted, or in case of files, they cannot be overwritten either. Depending on
 the file system, locks may also prevent other forms of changes of the
 object as well.
 \medskip{}
@@ -3441,17 +3441,25 @@ lock the same object exclusively fails.
 \smallskip{}
 
 One particular use case of locks\key{Lock} is to serve as an identifier of a
-particular directory or file on a file system. Since paths are limited
-to~255 characters, see~\ref{sec:paths}, locks are the preferred method of
-indicating a position within a file system. Even though paths are length
-limited, there is no restriction on the depth within the directory structure
-of a file system. The {\tt ZERO} lock\mkey{ZERO lock} identifies the
-boot volume, also known as {\tt SYS:}, see also section~\ref{sec:assignlist}.
+particular directory or file on a file system. Since most functions of the
+\emph{dos.library} limit the length of paths to~255 characters,
+see~\ref{sec:paths}, locks are the preferred method of point to a directory
+within a file system. Even though paths are length limited, there is no
+restriction on the depth within the directory structure of a file
+system. The {\tt ZERO} lock\mkey{ZERO lock} identifies the boot volume, also
+known as {\tt SYS:}, see also section~\ref{sec:assignlist}\footnote{Or, at
+least, it should. The {\tt ZERO} lock actually corresponds to the root
+directory of the file system in {\tt pr\_FileSystemTask}, and {\tt SYS:} is
+an assign indepdent of it, though typically the two are identical,
+see chapter~\ref{sec:process}.}.
 \smallskip{}
 
-Locks are also the building stone of files; every file is typically
-associated with a lock on the corresponding object, even if the file system
-does not expose this lock to the caller.
+Locks are related to files: From a lock, a file can be opened through by
+{\tt OpenFromLock()}\key{OpenFromLock()}, see~\ref{sec:openfromlock}, and a
+lock associated to an open file can be obtained
+from {\tt DupLockFromFH()}\key{DupLockFromFH()}, see
+section~\ref{sec:duplockfromfh}. A typical file system design is to
+associate each open file handle with an internal hidden lock to the file.
 \smallskip{}
 
 As long as at least a single lock\key{Lock} is held of an object on a particular
@@ -3469,16 +3477,15 @@ itself will be locked.
 \section{Obtaining and Releasing Locks}
 
 Locks can be obtained either explicitly from a path, or can be
-derived from another lock\key{Lock} or file. As locks block altering accesses to
+derived from another lock\key{Lock} or file. As locks block exclusive access to
 an object of a file system, locks need to be released as early as
-possible to allow other processes access to the locked object.
+possible to allow other processes to access to the locked object.
 
 \subsection{Obtaining a Lock from a Path} \label{sec:lock}
 
-The {\tt Lock()}\key{Lock()} function obtains a lock on an object
-given a path to the object. The path can be either absolute, or
-relative (see section~\ref{sec:paths}) to the current directory of the
-calling process.
+The {\tt Lock()}\key{Lock()} function obtains a lock on an object given a
+path to the object. The path can be either absolute, or relative to the
+current directory of the calling process, see section~\ref{sec:paths}.
 
 \begin{verbatim}
 lock  = Lock( name, accessMode )
@@ -3488,8 +3495,8 @@ BPTR Lock(STRPTR, LONG)
 \end{verbatim}
 
 This function locks the object identified by {\tt name}, which is the
-path to the object. The type of the lock is identified by {\tt
-  accessMode}. This mode shall be one of the two following modes,
+path to the object. The type of the lock is identified by
+{\tt accessMode}. This mode shall be one of the two following modes,
 defined in {\tt dos/dos.h}:
 
 \begin{rkrmtable}{Lock Access Modes} \label{table:lockmodes}
@@ -3500,8 +3507,8 @@ defined in {\tt dos/dos.h}:
 {\tt ACCESS\_WRITE} & Synonym of the above, identical to {\tt EXCLUSIVE\_LOCK} \\ \hline
 \end{rkrmtable}
 
-The access mode {\tt SHARED\_LOCK}\mkey{SHARED\_LOCK} or {\tt
-  ACCESS\_READ}\mkey{ACCESS\_READ} allows multiple shared locks on the
+The access mode {\tt SHARED\_LOCK}\mkey{SHARED\_LOCK} or
+{\tt ACCESS\_READ}\mkey{ACCESS\_READ} allows multiple shared locks on the
 same object. This type of lock should be preferred. The access mode
 {\tt EXCLUSIVE\_LOCK}\mkey{EXCLUSIVE\_LOCK} or
 {\tt ACCESS\_WRITE}\mkey{ACCESS\_READ} only allows a single, exclusive
@@ -3511,12 +3518,16 @@ lock on the same object.
 The return code {\tt lock} identifies the lock\key{Lock}. It is non-{\tt ZERO}
 (see~\ref{sec:bptrs}) on success, or {\tt ZERO} on failure. In either
 case, {\tt IoErr()}\key{IoErr()} is set, to an undefined value on success or
-an error code on failure.
+an error code on failure. See section~\ref{sec:ioerr} for a list of error codes.
 \smallskip{}
 
 \punchline{No Wildcards Here!}{Note that this function does not attempt to
   resolve wildcards, similar to {\tt Open()}. All characters in the
   path are literals.}
+
+Due to the way how the paths works, a (new) lock to the current directory of
+the calling process can be obtained by locking the path consisting of the
+empty string.
 
 \subsection{Duplicating a Lock} \label{sec:duplock}
 
