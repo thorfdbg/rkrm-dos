@@ -3489,7 +3489,7 @@ current directory of the calling process, see section~\ref{sec:paths}.
 
 \begin{verbatim}
 lock  = Lock( name, accessMode )
-D0            D1        D2
+D0             D1       D2
 
 BPTR Lock(STRPTR, LONG)
 \end{verbatim}
@@ -3515,51 +3515,48 @@ same object. This type of lock should be preferred. The access mode
 lock on the same object.
 \smallskip{}
 
-The return code {\tt lock} identifies the lock\key{Lock}. It is non-{\tt ZERO}
+The return code {\tt lock} identifies the lock\key{Lock} as a BPTR to a
+{\tt FileLock} structure, see section~\ref{sec:filelock}. It is non-{\tt ZERO}
 (see~\ref{sec:bptrs}) on success, or {\tt ZERO} on failure. In either
 case, {\tt IoErr()}\key{IoErr()} is set, to an undefined value on success or
 an error code on failure. See section~\ref{sec:ioerr} for a list of error codes.
-\smallskip{}
-
-\punchline{No Wildcards Here!}{Note that this function does not attempt to
-  resolve wildcards, similar to {\tt Open()}. All characters in the
-  path are literals.}
-
-Due to the way how the paths works, a (new) lock to the current directory of
-the calling process can be obtained by locking the path consisting of the
-empty string.
 
 \subsection{Duplicating a Lock} \label{sec:duplock}
 
 The {\tt DupLock()}\mkey{DupLock()} function replicates a given
-lock\key{Lock}, returning a copy of the lock on the same object. This
+lock\key{Lock}, returning a copy of a lock on the same object. This
 requires that the original lock is a shared lock, and it returns a shared
 lock if successful.
 
 \begin{verbatim}
-lock = DupLock( lock )
-D0              D1
+copy = DupLock( lock )
+D0               D1
 
 BPTR DupLock(BPTR)
 \end{verbatim}
 
 This function copies the (shared) lock passed in as {\tt lock} and
-returns a copy of it in {\tt lock}. It is not possible to copy a lock by any
-other means (e.g.\ copying the {\tt FileLock} structure \emph{does not}
-work).
+returns a copy of it in {\tt copy}. It is not possible to copy a lock by any
+other means, e.g.\ copying the {\tt FileLock} structure \emph{does not}
+work and attempting to do so can crash the system.
 \smallskip{}
 
 In case of error, {\tt DupLock()}\key{DupLock()} returns {\tt ZERO}, and
 then {\tt IoErr()}\key{IoErr()} returns an error code identifying the
 error. On success, {\tt IoErr()} is set to an undefined value.
-It is not possible to copy an exclusive lock.
+It is not possible to copy an exclusive lock, in such a case the error
+{\tt ERROR\_OBJECT\_IN\_USE}\key{ERROR\_OBJECT\_IN\_USE} is generated.
 \smallskip{}
 
-It is currently not possible to duplicate the {\tt ZERO}
-lock\key{ZERO lock} safely, AmigaDOS up to the most recent version
-simply returns {\tt ZERO} in such a case, but without setting {\tt IoErr()}.
-This means that application programs are not able to distinguish this case
-from the error case.
+Attempting to duplicate the {\tt ZERO} lock\key{ZERO lock} has its pitfalls.
+While AmigaDOS up to its most recent version returns {\tt ZERO} as the
+result of {\tt DupLock(ZERO)}, it leaves {\tt IoErr()} untoched, making it
+hard to distinguish this result from the error case. If an application
+program requires to cover this situation, a possible workaround is to call
+{\tt SetIoErr(0)} upfront to reset the secondary return code, then call
+{\tt DupLock()} and test {\tt IoErr()} if the result was {\tt ZERO}.
+If {\tt IoErr()} is still~0, the {\tt ZERO} lock was duplicated and the
+{\tt ZERO} result of {\tt DupLock()} was not an indication of an error.
 
 \subsection{Obtaining the Parent of an Object} \label{sec:parentdir}
 
@@ -3570,7 +3567,7 @@ directory containing the file.
 
 \begin{verbatim}
 newlock = ParentDir( lock )
-D0                   D1
+D0                    D1
 
 BPTR ParentDir(BPTR)
 \end{verbatim}
