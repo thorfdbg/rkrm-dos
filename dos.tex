@@ -3573,7 +3573,7 @@ BPTR ParentDir(BPTR)
 \end{verbatim}
 
 The {\tt lock} argument identifies the object whose parent is to be
-determined, this argument \emph{is not released} by this function. The function
+determined; this argument \emph{is not released} by this function. The function
 returns a shared lock\key{Lock} on the directory containing this object,
 regardless of the type of the lock passed in. If such parent does not exist,
 or an error occurs, the function returns {\tt ZERO}. The former case applies
@@ -3582,12 +3582,12 @@ directory\key{Root Directory}, or the {\tt ZERO}\key{ZERO lock} lock itself.
 \smallskip{}
 
 To distinguish the two cases, the caller should check the
-{\tt IoErr()}\key{IoErr()} function; if this function returns $0$, then no
+{\tt IoErr()}\key{IoErr()} function; if this function returns~$0$, then no
 error occurred and the passed in object is the topmost directory and does
 not have a parent directory. If {\tt IoErr()}\key{IoErr()} returns a
 non-zero error code, then the file system failed to lock the parent
 directory. Possible reasons are lack of memory, or an exclusive lock on the
-the parent that prevents a second shared lock.
+the parent that prevents to obtain a second shared lock on this directory.
 
 \subsection{Creating a Directory} \label{sec:createdir}
 
@@ -3599,34 +3599,34 @@ calls to this function.
 
 \begin{verbatim}
 lock = CreateDir( name )
- D0                D1
+D0                 D1
 
 BPTR CreateDir(STRPTR)
 \end{verbatim}
 
 The {\tt name} argument is the path to the new directory to be created; that
-is, the directory given by the last component of the path (see
+is, a directory whose name is given by the last component of the path (see
 section~\ref{sec:paths}) will be created. If a file or directory of the same
-name already exists, this function will fail with the error code {\tt
-  ERROR\_OBJECT\_EXISTS}\key{ERROR\_OBJECT\_EXISTS}\footnote{The information
+name already exists, this function will fail with the error code
+{\tt ERROR\_OBJECT\_EXISTS}\key{ERROR\_OBJECT\_EXISTS}\footnote{The information
 in~\cite{guru} that in such a case a conflicting file or directory is
-deleted is not correct.}. If successful, the function returns an exclusive lock to the created directory, otherwise it
-returns {\tt ZERO}.
+deleted is not correct.}. If successful, the function returns an exclusive
+lock to the created directory, otherwise it returns {\tt ZERO}.
 \smallskip{}
 
 In either case, {\tt IoErr()}\key{IoErr()} is set to an error code,
 or to an undefined value in case the function succeeds.
 \smallskip{}
 
-Note that not all file systems support directories, i.e.\ flat file
+Note that file systems do not need to support directories, i.e.\ flat file
 systems (see section~\ref{sec:flathierarchical}) do not.
 
 \subsection{Releasing a Lock} \label{sec:unlock}
 
 Once a lock\key{Lock} is no longer required, it should be released as soon
-as possible to allow other functions or processes to access or modify the
-previously locked object. Note that setting the {\tt
-  CurrentDir()}\key{CurrentDir()} to a particular lock implies usage of the
+as possible to allow other functions or processes to access, overwrite
+or delete the previously locked object. Note that setting the
+{\tt CurrentDir()}\key{CurrentDir()} to a particular lock implies usage of the
 lock, i.e.\ the lock installed as {\tt CurrentDir()} shall not be unlocked.
 
 \begin{verbatim}
@@ -3647,7 +3647,7 @@ Once a lock\key{Lock} has been granted, it is possible to change the
 nature of the lock, either from
 {\tt EXCLUSIVE\_LOCK}\key{EXCLUSIVE\_LOCK} to
 {\tt SHARED\_LOCK}\key{SHARED\_LOCK}, or --- if this is the only lock on
-the locked object --- vice versa.
+the file system object --- vice versa.
 
 \begin{verbatim}
 success = ChangeMode(type, object, newmode) /* since V36 */
@@ -3678,7 +3678,7 @@ On success, the function returns a non-zero result code, and
 {\tt IoErr()}\key{IoErr()} to an appropriate error code.
 \smallskip{}
 
-Unfortunately, this function will not work reliable for file handles\key{FileHandle}
+Unfortunately, this function does not work reliable for file handles\key{FileHandle}
 under all versions of AmigaDOS. In particular, the
 RAM-Handler\key{RAM-Handler} does not interpret {\tt newmode} correctly for
 {\tt CHANGE\_FH}.
@@ -3686,8 +3686,8 @@ RAM-Handler\key{RAM-Handler} does not interpret {\tt newmode} correctly for
 \subsection{Comparing two Locks} \label{sec:samelock}
 
 The {\tt SameLock()}\mkey{SameLock()} function compares two locks and
-returns information whether they are identical, or at least correspond
-to objects on the same volume.
+returns information whether they refer to the same file system object, or at
+least are locks to objects on the same volume.
 
 \begin{verbatim}
 value = SameLock(lock1, lock2) /* since V36 */
@@ -3696,8 +3696,8 @@ D0                D1     D2
 LONG SameLock(BPTR, BPTR)
 \end{verbatim}
 
-This function compares {\tt lock1} with {\tt lock2}. The return code,
-all of them defined in {\tt dos/dos.h}, can be one of the following:
+This function compares {\tt lock1} with {\tt lock2}. The return code
+can be one of the following values, all defined in {\tt dos/dos.h}:
 
 \begin{rkrmtable}{Lock Comparison Return Code} \label{table:lockcompare}
 {\bf Return Code} & {\bf Description}\\ \hline \hline
@@ -3708,9 +3708,10 @@ all of them defined in {\tt dos/dos.h}, can be one of the following:
 
 This function does not set {\tt IoErr()}\key{IoErr()} consistently,
 and callers cannot depend on its value. Furthermore, the function does
-not compare a {\tt ZERO} lock\key{ZERO lock} with lock on the boot volume,
-i.e.\ {\tt SYS:}, as identical. It is recommended not to pass in the {\tt ZERO}
-lock for either {\tt lock1} or {\tt lock2}.
+not identify the {\tt ZERO} lock\key{ZERO lock} as identical with a lock on
+the root directory of the boot volume, i.e.\ {\tt SYS:}.
+It is recommended not to pass in the {\tt ZERO} lock for
+either {\tt lock1} or {\tt lock2}.
 \medskip{}
 
 Under AmigaDOS versions 34 and below, this function is not available. The
@@ -3759,8 +3760,8 @@ is not implemented by the target file system.
 \subsection{Compare two Locks for their Device}
 
 The {\tt SameDevice()}\mkey{SameDevice()} function checks whether two
-locks\key{Lock} refer to two file systems that reside on the same physical
-device, even if on potentially different partitions.
+locks\key{Lock} refer to file system objects that reside on the same physical
+device, even if on potentially different partitions on the same medium.
 
 \begin{verbatim}
 same = SameDevice(lock1, lock2) /* since V36 */
@@ -3778,11 +3779,11 @@ determine whether whether the locks refer to file systems on the same or
 different physical volumes.
 \smallskip{}
 
-This function returns a non-zero result if the responsible file systems
-operate on the same exec device, and it returns~$0$ otherwise. If the
-function is not able to identify the file systems, or cannot identify the
-lower level exec {\tt device} on which the file systems operate, the
-function also returns~$0$.
+This function returns a non-zero result if the file systems handling the
+locks operate on the same unit of the same exec device, and it returns~$0$
+otherwise. If the function is not able to identify the file systems, or
+cannot identify the lower level exec {\tt device} on which the file systems
+operate, the function also returns~$0$.
 \smallskip{}
 
 Unfortunately, this function is not necessarily fully reliable as locks can
@@ -3804,10 +3805,12 @@ determine the device a file system operates on.
 
 \section{Locks and Files}
 
-Each file handle\key{FileHandle} is associated to a lock\key{Lock} to the file that has
-been opened. The type of the lock depends on the access mode
-the file has been opened with, table~\ref{table:modelock} for how lock
-types and access modes relate.
+While it is not a necessary implementation strategy for file systems, each
+file handle\key{FileHandle} can be considered to be associated to a
+lock\key{Lock} on the file that has been opened. The functions in this
+section allow to copy a lock from a file handle, and to open a file handle
+from a lock. The type of the lock corresponds to the access mode a file has
+been opened with, table~\ref{table:modelock} shows this relation:
 
 \begin{rkrmtable}{Lock and File Access Modes} \label{table:modelock}
 {\bf Access Mode} & {\bf Lock Type}\\ \hline \hline
@@ -3818,21 +3821,22 @@ types and access modes relate.
 
 The association of {\tt MODE\_READWRITE} to {\tt SHARED\_LOCK} is
 unfortunate, and due to a defect in the RAM-Handler\key{RAM-Handler}
-implementation in AmigaDOS 2.0 which was then later copied into the Fast
+implementation in AmigaDOS version 36 which was then later copied by the Fast
 File System implementation. In AmigaDOS versions 34 and below, this mode was
-associated to an {\tt EXCLUSIVE\_LOCK}. For version 36 and above, exclusive
+associated to an {\tt EXCLUSIVE\_LOCK}. For versions 36 and above, exclusive
 access to a file without deleting its contents can, however, be established
-through the {\tt OpenFromLock()}\key{OpenFromLock()} function passing in an
-exclusive lock to the function as argument.
+through the {\tt OpenFromLock()}\key{OpenFromLock()} function by providing an
+exclusive lock to the file to be opened as argument.
 
 \subsection{Duplicate the Implicit Lock of a File} \label{sec:duplockfromfh}
 
-The {\tt DupLockFromFH()}\mkey{DupLockFromFH()} function performs a copy of a lock implicit
-to a file handle\key{FileHandle} of an opened file. For this to succeed, the
-file must be opened in the mode {\tt MODE\_OLDFILE}\key{MODE\_OLDFILE}
-or {\tt MODE\_READWRITE}\key{MODE\_READWRITE}. Files opened with {\tt
-  MODE\_NEWFILE}\key{MODE\_NEWFILE} are based on an implicit exclusive
-lock that cannot be duplicated.
+The {\tt DupLockFromFH()}\mkey{DupLockFromFH()} function creates a lock from
+a file handle\key{FileHandle} of an opened file. For this function to
+succeed, the file must have been opened in the modes
+{\tt MODE\_OLDFILE}\key{MODE\_OLDFILE} or
+{\tt MODE\_READWRITE}\key{MODE\_READWRITE}.
+Files opened with {\tt MODE\_NEWFILE}\key{MODE\_NEWFILE} are based on
+an implicit exclusive lock that cannot be duplicated.
 
 \begin{verbatim}
 lock = DupLockFromFH(fh) /* since V36 */
@@ -3841,12 +3845,12 @@ D0                   D1
 BPTR DupLockFromFH(BPTR)
 \end{verbatim}
 
-This function returns a copy of the lock the file handle\key{FileHandle} {\tt fh} is based
-on and returns it in {\tt lock}, that is, returned lock is a lock on the
-file described by the handle {\tt fh}. This file handle remains valid and
-usable after this call. In case of failure, {\tt ZERO} is returned. In
-either case, {\tt IoErr()} is set an undefined value in case of success, or an error
-code on failure.
+This function creates a lock from the file handle\key{FileHandle} {\tt fh}
+and returns it in {\tt lock}; that is, the returned lock is a lock on the
+file which is accessed through the handle {\tt fh}. This file handle remains
+valid and usable after this call. In case of failure, {\tt ZERO} is
+returned. In either case, {\tt IoErr()} is set to an undefined value in case
+of success, or to an error code on failure.
 
 \subsection{Obtaining the Directory a File is Located in} \label{sec:parentoffh}
 
@@ -3855,8 +3859,8 @@ shared lock\key{Lock} on the parent directory of the file associated to
 the file handle\key{FileHandle} passed in. That is, this function it is roughly
 equivalent to first obtaining a lock on the file through
 {\tt DupLockFromFile()} \key{DupLockFromFile()}, and then calling
-{\tt ParentDir()}\key{ParentDir()} on it, except that this function also
-applies to files opened in the {\tt MODE\_NEWFILE}\key{MODE\_NEWFILE}
+{\tt ParentDir()}\key{ParentDir()} on it, except that it also
+succeeds on files opened in the {\tt MODE\_NEWFILE}\key{MODE\_NEWFILE}
 mode.
 
 \begin{verbatim}
@@ -3878,7 +3882,7 @@ case of success.
 The {\tt OpenFromLock()} function uses a lock\key{Lock} to a file and opens
 the locked file, returning a file handle\key{FileHandle}. If the lock is associated to a
 directory, the function fails. The lock passed in is then absorbed into the
-file handle and shall not be unlocked. It will be released by the file
+file handle and shall not be unlocked anymore. It will be released by the file
 system upon closing the returned file handle.
 
 \begin{verbatim}
@@ -3911,7 +3915,8 @@ locks and cannot open files from exclusive locks:
 \begin{verbatim}
 BPTR OpenFromLockV34(BPTR lock)
 {
-  BPTR dir = CurrentDir(lock);
+  /* Yes, really, change the directory to a file! */
+  BPTR dir = CurrentDir(lock); 
   BPTR fh  = Open("",MODE_OLDFILE);
 
   if (fh)
@@ -3922,9 +3927,11 @@ BPTR OpenFromLockV34(BPTR lock)
   return fh;
 }
 \end{verbatim}
+
 This function depends on the empty string describing the object locked by
-the current directory of the calling process, a feature every AmigaDOS file
-system supports, see also section~\ref{sec:actionfindinput}.
+the current directory of the calling process, even if this locked object
+turns out to be a file. This is a feature every AmigaDOS file system
+supports, see also section~\ref{sec:actionfindinput}.
 
 \subsection{Get Information on the State of the Medium} \label{sec:info}
 
