@@ -2664,7 +2664,7 @@ any meaning. However, the {\tt BPTR}, once converted to a regular
 pointer, is a pointer to {\tt FileHandle}\mkey{FileHandle} structure:
 
 \begin{verbatim}
-BPTR file = Open("S:Startup-Sequence,MODE_OLDFILE);
+BPTR file = Open("S:Startup-Sequence",MODE_OLDFILE);
 struct FileHandle *fh = BADDR(file);
 \end{verbatim}
 
@@ -4136,12 +4136,10 @@ this disk type.
 {\tt 'CON\textbackslash0'} and {\tt 'RAW\textbackslash0'} are indicators
 left by the CON-Handler\key{CON-Handler}
 (or console-type handlers) which use the {\tt InfoData} structure for
-other purposes, see section~\ref{sec:console}. As they do not (in
+other purposes, see section~\ref{sec:diskinfoconsole}. As such handlers do not (in
 general) hand out locks\key{Lock}, the {\tt Info()} function cannot
-return these two types, but direct handler communication with a packet
-type of {\tt ACTION\_DISK\_INFO} can. The CON-Handler populates the
-{\tt InfoData} structure in a different way than file systems do, this is
-documented in section~\ref{sec:diskinfoconsole}.
+return these two types, but only direct handler communication with a packet
+type of {\tt ACTION\_DISK\_INFO} can.
 \smallskip{}
 
 All other types are returned in case the file system cannot
@@ -4175,11 +4173,14 @@ On failure, it returns~0 and sets {\tt IoErr()} to an error code.
 
 Locks have been discussed so far as being opaque identifiers. They are,
 however, BPTRs to {\tt FileLock} structures as defined in
-{\tt dos/dosextens.h}. Locks are not allocated by the \emph{dos.library} but by
-file systems when locking files or directories. A file system may
-therefore allocate objects that are somewhat larger than the officially
-documented structure and that may carry additional members that are not shown
-here.
+{\tt dos/dosextens.h}, as obtained by the following code fragment:
+
+\begin{verbatim}
+BPTR lock = Lock("S:Startup-Sequence",SHARED_LOCK);
+struct FileLock *fl = BADDR(lock);
+\end{verbatim}
+
+The definition of the structure is as follows:
 
 \mkey{FileLock}
 \begin{verbatim}
@@ -4192,10 +4193,17 @@ struct FileLock {
 };
 \end{verbatim}
 
-Most of the members of this structure are of no practical value, and
-they should not be interpreted in any way. What is listed here is the
-information users of the \emph{dos.library} can depend upon.
-\medskip{}
+Locks are not allocated nor released by the \emph{dos.library} but by file
+systems when locking or unlocking files or directories. A file system may
+therefore allocate objects that are somewhat larger than the officially
+documented structure and that may carry additional members that are not
+shown here.
+\smallskip{}
+
+The structure elements are described in the following; the first two
+elements are file system internal and should not be used by application
+programs.
+\smallskip{}
 
 The {\tt fl\_Link}\mkey{fl\_Link} member has no practical value for users;
 file systems use it to keep locks on objects located on the same volume in a
