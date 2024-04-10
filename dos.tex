@@ -3936,13 +3936,15 @@ supports, see also section~\ref{sec:actionfindinput}.
 \subsection{Get Information on the State of the Medium} \label{sec:info}
 
 The {\tt Info()}\mkey{Info()} function returns information on the
-file system on which the locked object is located, and fills an {\tt
-  InfoData}\key{InfoData} structure with the status of the file system. If it
-is instead intended to retrieve information on the currently inserted
+file system on which the locked object is located, and fills an
+{\tt InfoData}\key{InfoData} structure with the status of the file system.
+If it is instead intended to retrieve information on the currently inserted
 volume, i.e.\ without requiring a lock, direct communication
 with the file system on the packet level is required by sending
 a packet type of {\tt ACTION\_DISK\_INFO}, see
-section~\ref{sec:packetdiskinfo}.
+section~\ref{sec:packetdiskinfo}. Since this packet fills also fills
+an {\tt InfoData} structure, some information in this section applies
+to it as well.
 
 \begin{verbatim}
 success = Info( lock, parameterBlock )
@@ -3953,7 +3955,7 @@ BOOL Info(BPTR, struct InfoData *)
 
 The {\tt lock} is a lock\key{Lock} to an arbitrary object on the volume
 to be queried; its only purpose is to identify it. The function fills
-out an {\tt InfoData}\key{InfoData} structure that shall be aligned to long-word
+an {\tt InfoData}\key{InfoData} structure that shall be aligned to long-word
 boundaries.
 \smallskip{}
 
@@ -4004,17 +4006,17 @@ software, see section~\ref{sec:packetlock}.
 
 A volume gets the state {\tt ID\_VALIDATING}\mkey{ID\_VALIDATING} if its file system
 detected inconsistencies; some file systems, including the Fast File
-System, then trigger a consistency check of the volume. The Fast File
-System rebuilds the bitmap of the volume that describes which blocks
-are allocated and which are free. It cannot fix more severe errors and
-then presents a requester to the user indicating the problem. During
-validation, file systems typically refuse to accept write requests. If
-validation cannot bring the volume into a consistent state, the disk
-state will remain {\tt ID\_VALIDATING}.
+System\key{Fast File System (FFS)}, then trigger a consistency check
+of the volume. The Fast File System rebuilds the bitmap of the volume
+that describes which blocks are allocated and which are free. It cannot
+fix more severe errors; if some are detected, it presents a requester
+to the user indicating the problem. During validation, file systems typically
+refuse to accept write requests. If validation cannot bring the
+volume into a consistent state, the disk state remains {\tt ID\_VALIDATING}.
 \smallskip{}
 
-A volume in state {\tt ID\_VALIDATED}\mkey{ID\_VALIDATED} is consistent and read- and
-writable.
+A volume in state {\tt ID\_VALIDATED}\mkey{ID\_VALIDATED} is consistent and
+read- and writable.
 \medskip{}
 
 {\tt id\_NumBlocks}\mkey{id\_NumBlocks} is the total number of blocks into which the
@@ -4047,7 +4049,7 @@ blocks and provides in this element the number of data bytes stored there.
 {\tt id\_DiskType}\mkey{id\_DiskType} identifies whether the file system that
 generated the {\tt lock} argument can identify the disk structure and
 claims responsibility for it. Unlike what the name suggests, it is
-\emph{not} a general identifier of the type file system itself
+\emph{not} a general identifier of the file system type itself
 and shall not be used to identify a particular file system. For legacy
 reasons, the various flavors of the Fast File System also leave their
 identifier here, though this principle should not be carried over to
@@ -4055,8 +4057,8 @@ new designs. Instead, a file system should rather return the generic
 {\tt ID\_DOS\_DISK}\key{ID\_DOS\_DISK} if it finds a medium for which it claims
 responsibility. Even if the file system recognizes the disk structure
 as one of its own, it is possible that the structure is
-considered inconsistent by setting {\tt id\_DiskState} to {\tt
-  ID\_VALIDATING}.
+considered inconsistent by setting {\tt id\_DiskState} to
+{\tt ID\_VALIDATING}.
 \smallskip{}
 
 AmigaDOS currently defines the following disk types in {\tt dos/dos.h}:
@@ -4065,7 +4067,7 @@ AmigaDOS currently defines the following disk types in {\tt dos/dos.h}:
 {\bf Disk Type} & {\bf Description}\\ \hline \hline
 {\tt ID\_NO\_DISK\_PRESENT} & No disk is inserted \\ \hline
 {\tt ID\_UNREADABLE\_DISK} & Reading disk data failed at exec device level \\ \hline
-{\tt ID\_DOS\_DISK} & The disk is in a format the file system knows to interpret \\ \hline
+{\tt ID\_DOS\_DISK} & The disk is in a format the file system is able to interpret \\ \hline
 {\tt ID\_NOT\_REALLY\_DOS} & While physically accessible, the disk structure is invalid\\ \hline
 {\tt ID\_KICKSTART\_DISK} & A disk containing an A1000 Kickstart \\ \hline
 {\tt 'BUSY'} & The file system is currently inhibited \\ \hline
@@ -4093,7 +4095,8 @@ reported in table~\ref{table:ffsflavours} of section~\ref{sec:envec}.
   valid and can be interpreted by the file system. Unfortunately,
   some third-party designs do not follow this convention.}
 
-{\tt ID\_NOT\_REALLY\_DOS}\mkey{ID\_NOT\_REALLY\_DOS} and {\tt ID\_UNREADABLE\_DISK}\mkey{ID\_UNREADABLE\_DISK} both
+{\tt ID\_NOT\_REALLY\_DOS}\mkey{ID\_NOT\_REALLY\_DOS} and
+{\tt ID\_UNREADABLE\_DISK}\mkey{ID\_UNREADABLE\_DISK} both
 indicate disks the file system cannot make use of. The first because
 the logical structure of the disk content cannot be interpreted, and
 the second because the underlying exec device cannot gain access to
@@ -4124,34 +4127,34 @@ and~\ref{sec:actionserializedisk}} attempt to access this file system is current
 suspended, probably because some program attempts to modify the
 medium on the device level. Disk editors or disk salvage programs will
 typically make use of this practice to avoid file systems from
-touching the medium while they work on it. The {\tt Inhibit()}\key{Inhibit()} function of
-section~\ref{sec:inhibit} blocks file system access to the physical layer
-and thus causes this disk type.
+touching the medium while they work on it. The
+{\tt Inhibit()}\key{Inhibit()} function of section~\ref{sec:inhibit}
+blocks file system access to the physical layer and thus causes
+this disk type.
 \smallskip{}
 
 {\tt 'CON\textbackslash0'} and {\tt 'RAW\textbackslash0'} are indicators
 left by the CON-Handler\key{CON-Handler}
 (or console-type handlers) which use the {\tt InfoData} structure for
 other purposes, see section~\ref{sec:console}. As they do not (in
-general) hand out locks\key{Lock}, the {\tt Info()} function will usually not
+general) hand out locks\key{Lock}, the {\tt Info()} function cannot
 return these two types, but direct handler communication with a packet
-type of {\tt ACTION\_DISK\_INFO} can. The CON-Handler populates the {\tt
-  InfoData} structure in a different way than file systems do, this is
+type of {\tt ACTION\_DISK\_INFO} can. The CON-Handler populates the
+{\tt InfoData} structure in a different way than file systems do, this is
 documented in section~\ref{sec:diskinfoconsole}.
 \smallskip{}
 
 All other types are returned in case the file system cannot
 interpret the disk structure, and are then copied from the first 4
-bytes of the medium or partition into {\tt id\_DiskType}. In case
-these bytes are all~0, it is changed to {\tt ID\_NOT\_REALLY\_DOS}. One
-special case is {\tt ID\_KICKSTART\_DISK}
+bytes of the boot block, see~\ref{sec:bootblock}, into {\tt id\_DiskType}. In case
+these bytes are all~0, the disk type {\tt ID\_NOT\_REALLY\_DOS} is returned
+instead. One special case is {\tt ID\_KICKSTART\_DISK}
 which identifies a disk containing the A1000 Kickstart. This is, however,
-just a side effect of the first four bytes of the medium containing the
-characters {\tt 'KICK'}. The {\tt Info()} function cannot return such disk
-types, but instead aborts with the error code {\tt
-  ERROR\_NOT\_A\_DOS\_DISK}\key{ERROR\_NOT\_A\_DOS\_DISK}, but the similar
-packet level interface based on {\tt
-  ACTION\_DISK\_INFO}\key{ACTION\_DISK\_INFO} can.
+just a side effect of the first four bytes of the floppy containing the
+characters {\tt 'KICK'}. As above, the {\tt Info()} function cannot return
+such disk types, but instead aborts with the error code
+{\tt ERROR\_NOT\_A\_DOS\_DISK}\key{ERROR\_NOT\_A\_DOS\_DISK}, but the similar
+packet level interface based on {\tt ACTION\_DISK\_INFO}\key{ACTION\_DISK\_INFO} can.
 \medskip{}
 
 {\tt id\_VolumeNode}\mkey{id\_VolumeNode} in the {\tt InfoData} structure is a BPTR to the
@@ -4170,20 +4173,13 @@ On failure, it returns~0 and sets {\tt IoErr()} to an error code.
 
 \subsection{The struct FileLock} \label{sec:filelock}
 
-Locks have been so far been opaque identifiers; in fact, they
-are BPTRs to a {\tt FileLock} structure that is defined in
-{\tt dos/dosextens.h}.
-
-\begin{verbatim}
-#include <dos/dosextens.h>
-lock = Lock("S:Startup-Sequence",SHARED_LOCK);
-struct FileLock *flock = BADDR(lock);
-\end{verbatim}
-
-While this structure is defined there, it is not allocated by the
-\emph{dos.library} but by the file system itself. The file
-system may therefore allocate a structure that is somewhat larger and
-can have additional members that are not shown here. 
+Locks have been discussed so far as being opaque identifiers. They are,
+however, BPTRs to {\tt FileLock} structures as defined in
+{\tt dos/dosextens.h}. Locks are not allocated by the \emph{dos.library} but by
+file systems when locking files or directories. A file system may
+therefore allocate objects that are somewhat larger than the officially
+documented structure and that may carry additional members that are not shown
+here.
 
 \mkey{FileLock}
 \begin{verbatim}
@@ -4198,25 +4194,28 @@ struct FileLock {
 
 Most of the members of this structure are of no practical value, and
 they should not be interpreted in any way. What is listed here is the
-information callers can depend upon.
-\smallskip{}
+information users of the \emph{dos.library} can depend upon.
+\medskip{}
 
 The {\tt fl\_Link}\mkey{fl\_Link} member has no practical value for users;
-the file system can use it to keep multiple links on object on the same
-volume in a list. The Fast File System\key{Fast File System (FFS)} creates a
-singly linked list of all locks of a medium it is responsible for once the medium is
-ejected, and queues them in the {\tt dol\_LockList} element of the {\tt
-  DosList} structure such that a FFS incarnation responsible for the same
-medium, but potentially inserted into a different drive can pick them up
-from there, see also chapter~\ref{sec:devicelist}.
+file systems use it to keep locks on objects located on the same volume in a
+singly linked list. Such lists does not exist permanently, but are created
+once a volume is ejected; all links on an ejected volume are queued up in
+the {\tt dol\_LockList} element of the {\tt DosList} structure describing
+the volume. Another file system responsible for the same medium, but
+potentially managing a different drive will pick the locks up from there
+once the volume is reinserted, see also chapter~\ref{sec:devicelist}, and
+then claims responsibility for them by updating their {\tt fl\_Task}
+elements, see below. This mechanism of transferring file system access
+rights from one medium to another is rather unique to AmigaDOS.
 \smallskip{}
 
 The {\tt fl\_Key}\mkey{fl\_Key} member can be used by the file system to identify the
 object that has been locked. It may not necessarily be an integer, but
 can be any data type, potentially a pointer to some internal
 management object. It shall not be interpreted in any particular way as its
-interpretation is file system dependent. The Fast File System\key{Fast File
-  System (FFS)} stores here the block number (the ``key'') of the file
+meaning is file system dependent. The Fast File
+System\key{Fast File System (FFS)} stores here the block number (the ``key'') of the file
 header block or directory block that has been locked, see
 sections~\ref{sec:rootblock}, \ref{sec:userdirblock} and
 \ref{sec:fileheaderblock} for the structure of these blocks.
@@ -4228,11 +4227,13 @@ function. It is either {\tt SHARED\_LOCK}\key{SHARED\_LOCK} or
 {\tt EXCLUSIVE\_LOCK}\key{EXCLUSIVE\_LOCK}.
 \smallskip{}
 
-The {\tt fl\_Task}\mkey{fl\_Task} member points to the message port of the file
-system for processing requests to the lock\key{Lock}. Any activity on the lock
-goes through this port. In case the medium has been ejected and the lock has
-not yet been reclaimed by any other file system, this is the pointer to the
-port of the most recent file system responsible for the lock.
+The {\tt fl\_Task}\mkey{fl\_Task} member points to the message port of the
+file system contacted for processing requests to the lock\key{Lock}. Any
+activity on the lock goes through this port, see also~\ref{sec:dopkt}. In
+case the medium has been ejected and the lock has not yet been reclaimed by
+any other file system, this is the pointer to the port of the most recent
+file system responsible for the lock. It will be updated once another
+filesystem claims the lock.
 \smallskip{}
 
 The {\tt fl\_Volume}\mkey{fl\_Volume} is a BPTR to the {\tt DosList}
@@ -11427,8 +11428,8 @@ the handler to contact. Depending on the context, this port should be
 taken from various sources. If low-level file I/O is to be performed,
 the best source for the port is the {\tt fh\_Type}\key{fh\_Type}
 pointer in the {\tt FileHandle}\key{FileHandle} structure. If the
-communication is related to a lock\key{Lock}, the {\tt
-  fl\_Task}\key{fl\_Task} element of the {\tt FileLock}\key{FileLock}
+communication is related to a lock\key{Lock}, the
+{\tt fl\_Task}\key{fl\_Task} element of the {\tt FileLock}\key{FileLock}
 is the recommended source. For activities unrelated to locks or files,
 the {\tt dol\_Task}\key{dol\_Task} member of the {\tt DosList}
 structure is another source. To obtain such a structure from a path,
