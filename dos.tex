@@ -4278,9 +4278,11 @@ creation dates.
 
 Given a lock\key{Lock} on a file or a directory, information on the locked
 object can be requested by the {\tt Examine()}\key{Examine()} function of
-the \emph{dos.library}. The {\tt ExAll()}\key{ExAll()} function is an
+the \emph{dos.library}. {\tt ExNext()}\key{ExNext()} iterates
+through the contents of a directory entry by entry, starting from a lock on
+a directory. The {\tt ExAll()}\key{ExAll()} function is an
 advanced interface that allows to read multiple directory entries at once,
-potentially filter them by name, and thus minimize the call overhead.
+potentially filter them, and thus minimize the call overhead.
 
 \punchline{May go away while you look!}{As AmigaDOS is a multitasking
   operating system, the contents may change anytime while scanning a
@@ -4294,19 +4296,20 @@ potentially filter them by name, and thus minimize the call overhead.
 While {\tt ExAll()} seems to provide an advantage by reading multiple
 directory entries in one go, the AmigaOs ROM file system --- the
 FFS\key{Fast File System (FFS)} --- does usually not profit from this
-feature, at least not unless a directory cache is used. The latter has,
-however, other drawbacks and should be avoided for different reasons, see
-section~\ref{sec:ffs}.  Actually, {\tt ExAll()} is (even more) complex to
+feature, at least not unless a variant of the FFS is used that utilizes a
+directory cache. The latter has, however, other drawbacks and should be
+avoided as it creates overhead when creating or deleting objects, see
+section~\ref{sec:ffs}. Actually, {\tt ExAll()} is (even more) complex to
 implement, and it is probably not surprising that its implementation in
 multiple file systems have issues. The {\tt dos.library} provides an
 {\tt ExAll()} fall-back implementation for those file systems that do not
-implement it, but even this (ROM-based) implementation had issues in the
-past. Therefore, {\tt ExAll()} has probably less to offer than it seems.
-\smallskip{}
+implement it, but even this (ROM-based) implementation had (and still has)
+issues. Therefore, {\tt ExAll()} has probably less to offer than it seems.
+\medskip{}
 
-{\tt Examine()} and {\tt ExNext()} fill a {\tt FileInfoBlock}\mkey{FileInfoBlock} structure that provides all information
-on an examined object in a directory.  It is defined in {\tt dos/dos.h} and
-reads as follows:
+{\tt Examine()} and {\tt ExNext()} fill a {\tt FileInfoBlock}\mkey{FileInfoBlock}
+structure that provides all information on an examined object in a
+directory.  It is defined in {\tt dos/dos.h} and reads as follows:
 \begin{verbatim}
 struct FileInfoBlock {
    LONG   fib_DiskKey;
@@ -4323,20 +4326,20 @@ struct FileInfoBlock {
    char   fib_Reserved[32];
 };
 \end{verbatim}
-The meaning of the members of this structure are as follows:
+The semantics of the elements of this structure are as follows:
 \medskip{}
 
 {\tt fib\_DiskKey}\mkey{fib\_DiskKey} is a file system internal identifier
 of the object. It shall not be used, and programs shall not make any
 assumptions on its meaning. The Fast File System\key{Fast File System (FFS)}
-stores here the disk block (the ``key'') administrating the object. Note
-that this key need not to be identical to the {\tt fl\_Key} element of the
-{\tt FileLock} structure, for example if the directory entry is a link which
-will be transparently resolved by {\tt Lock()}\key{Lock()}. The
-RAM-Handler\key{RAM-Handler} stores here a pointer to a structure
-administrating the object. Some file systems do not even fill this element
-at all, and thus, it cannot be used to uniquely identify a file system
-object.
+stores here the disk key\key{Key (FFS)}, see section~\ref{sec:key},
+administrating the object. Note that this key need not to be identical
+to the {\tt fl\_Key} element of the {\tt FileLock} structure, for example
+if the directory entry is a link which will be transparently resolved
+by {\tt Lock()}\key{Lock()}. The RAM-Handler\key{RAM-Handler} stores here
+a pointer to a structure administrating the object. Some file
+systems do not even fill this element at all, and thus, it cannot be
+used to uniquely identify a file system object.
 \smallskip{}
 
 {\tt fib\_DirEntryType}\mkey{fib\_DirEntryType} identifies the type of an object. The types
@@ -4353,14 +4356,14 @@ are defined in {\tt dos/dosextens.h}, replicated the following table:
 Note that {\tt Lock()}\key{Lock()} resolves soft and hard links
 transparently, and thus, {\tt Examine()}\key{Examine()} will never identify
 such types, only {\tt ExNext()}\key{ExNext()} specified in section
-\ref{sec:exnext} and {\tt ExAll()}\key{ExAll()} in section~\ref{sec:exall}
-can when iterating over the contents of a directory. While the
+\ref{sec:exnext} and {\tt ExAll()}\key{ExAll()} of section~\ref{sec:exall}
+can, when iterating over the contents of a directory. While the
 FFS\key{Fast File System (FFS)} implements hard links\key{Hard Link} through
 separate types, other file systems cannot identify hard links at all as they
 are implemented as duplicate directory entries pointing to the same file
 system object; hard links then only appear as regular directory entries. This
 applies for example to all variants of the Linux {\tt ext} file
-systems. Thus, one cannot depend on hard links being easily identifiable. The
+system. Thus, one cannot depend on hard links being easily identifiable. The
 external links\key{External Link} implemented by the
 RAM-Handler\key{RAM-Handler} can neither be identified by the
 {\tt fib\_DirEntryType} and they also appear as regular files or directories.
@@ -4379,7 +4382,7 @@ table~\ref{table:ffsflavours} in section~\ref{sec:envec}.
 
 {\tt fib\_Protection}\mkey{fib\_Protection} are the protection bits of the object. It
 defines which operations can be performed on it. The following
-protection bits are currently defined in {\tt dos/dos.h}:
+protection bits are defined in {\tt dos/dos.h}:
 \begin{rkrmtable}{Protection Bits} \label{table:protectionbits}
 {\bf Protection Bits} & {\bf Description}\\ \hline \hline
 {\tt FIBB\_DELETE} & If this bit is $0$, the object can be deleted.\\ \hline
@@ -4398,11 +4401,11 @@ particular protection function is \emph{not} active.
 \smallskip{}
 
 If the {\tt FIBB\_DELETE}\mkey{FIBB\_DELETE} is set, then the file or directory is delete
-protected. This not only prevents erasing a file completely through {\tt
-  Delete()}\key{Delete()}, but also erasing it though creating a new file on
-top through the {\tt Open()}\key{Open()} mode {\tt
-  MODE\_NEWFILE}\key{MODE\_NEWFILE}. Attempting to delete a protected file system
-object returns the error code {\tt ERROR\_DELETE\_PROTECTED}\key{ERROR\_DELETE\_PROTECTED}.
+protected. This not only prevents erasing a file completely through
+{\tt Delete()}\key{Delete()}, but also erasing it by creating a new file on
+top through the {\tt Open()}\key{Open()} mode
+{\tt MODE\_NEWFILE}\key{MODE\_NEWFILE}. Attempting to delete a protected file system
+object creates the error code {\tt ERROR\_DELETE\_PROTECTED}\key{ERROR\_DELETE\_PROTECTED}.
 \smallskip{}
 
 The {\tt FIBB\_EXECUTE}\mkey{FIBB\_EXECUTE} flag is only interpreted by the
@@ -4414,22 +4417,22 @@ refuses to load the file as command. This bit is respected by Shell versions
 If the {\tt FIBB\_WRITE}\mkey{FIBB\_WRITE} bit is set, then the file system
 refuses to modify the file, including to overwrite it by opening it with the
 mode {\tt MODE\_NEWFILE}\key{MODE\_NEWFILE}. An attempt to modify or
-overwrite the file will instead return the error code {\tt
-  ERROR\_WRITE\_PROTECTED}\key{ERROR\_WRITE\_PROTECTED}.  Deleting the file
+overwrite the file will instead return the error code
+{\tt ERROR\_WRITE\_PROTECTED}\key{ERROR\_WRITE\_PROTECTED}. Deleting the file
 is, however, still permitted. This flag was ignored by the ROM file system
 of AmigaDOS versions 34 and below, i.e.\ by the OFS, and the flag is
 meaningless for directories.
 \smallskip{}
 
 If the {\tt FIBB\_READ}\mkey{FIBB\_READ} bit is set, then opening the file
-for reading fails with
+for reading fails with 
 {\tt ERROR\_READ\_PROTECTED}\key{ERROR\_READ\_PROTECTED}. This flag
 is also unsupported by the AmigaDOS ROM file system versions 34 and below,
 i.e.\ the OFS, and it is meaningless for directories.
 \smallskip{}
 
 The {\tt FIBB\_ARCHIVE}\mkey{FIBB\_ARCHIVE} flag is typically used by
-archival software. Such software will set this flag upon archiving a file,
+archival software. Such software will set this flag when archiving a file,
 whereas the file system will reset the flag when writing to or modifying a
 file, or when creating new files. The archiving software is thus able to
 learn which files had been altered since the last backup. While this flag is
@@ -4451,16 +4454,17 @@ compilers will, however, place objects with external linkage in {\tt DATA}
 or {\tt BSS} sections and will thus cause the compiled executable to modify
 its own segments, such code is typically \emph{not pure}. Some compilers
 provide, however, options where such objects are manually allocated through
-the compiler startup code, and thus allow to generate pure code. Please
-check the corresponding compiler manual.
+the compiler startup code, and thus allow to generate pure code.
 \smallskip{}
 
 The Shell\key{Shell} command {\tt Resident} loads pure binaries into RAM for
-future usage and thus reduces loading time. Unfortunately, nothing in the
-shell\key{Shell} actually \emph{checks} whether a binary is, actually pure, and its
-segment has actually been modified. Thus, the AmigaDOS Shell depends on the
-user setting this flag properly. This flag is supported and recognized from
-version 34 of the AmigaDOS Shell\key{Shell} and up.
+future usage and thus reduces loading time, see
+sections~\ref{sec:cmdexecution} and~\ref{sec:resident}. Unfortunately,
+nothing in the shell\key{Shell} actually \emph{checks} whether a binary is,
+actually pure, and its segment have potentially been modified. Thus, the
+AmigaDOS Shell depends on the user setting this flag properly. This flag is
+supported and recognized from version 34 of the AmigaDOS Shell\key{Shell}
+and up.
 \smallskip{}
 
 The {\tt FIBB\_SCRIPT}\mkey{FIBB\_SCRIPT} flag indicates whether a file is a Shell\key{Shell Script}
@@ -4468,16 +4472,16 @@ or an ARexx script. If this flag is set, and the script is
 given as command to the Shell, it will forward this file to a
 suitable script interpreter, such as ARexx or {\tt Execute}. AmigaDOS
 versions 45 and up also allow additional script interpreters, to be indicated in
-the first line of a shell script, see section~\ref{sec:cmdexecution} for the details.
+the first line of a script, see section~\ref{sec:cmdexecution} for the details.
 \smallskip{}
 
 The {\tt FIBB\_HOLD}\mkey{FIBB\_HOLD} flag indicates whether a command 
 is made resident upon loading it the first time. If the flag is set, and the
 shell\key{Shell} loads the file as executable binary, and the
 {\tt FIBB\_PURE} bit is also set, the file is kept in RAM and stays there for
-future execution. This bit was introduced in version 36 of AmigaDOS, but
-stripped again from the sources in release 40 due to ROM space
-limitations. It was reintroduced in AmigaDOS version 45.
+future execution. This bit was introduced in version~36 of AmigaDOS, but
+stripped again from the sources in release~40 due to ROM space
+limitations. It was reintroduced in AmigaDOS version~45.
 \smallskip{}
 
 Protection bits of links are not necessarily synchronized with the bits of
@@ -4487,24 +4491,22 @@ the link target identical for hard links\key{Hard Link}. For soft
 links\key{Soft Link}, the situation is more complicated as the FFS does not
 allow to set protection bits of the link and rather updates the bits of the
 link target, whereas the RAM-Handler keeps separate protection bits for the
-link target. Separate protection bits for links have only a questionable
+link itself. Separate protection bits for links have only a questionable
 value as they cannot be easily checked without iterating through a directory
 --- this is because links are resolved automatically if an object is locked
 for inspection.
-\smallskip{}
-
 For external links\key{External Link} as provided by the
 RAM-Handler\key{RAM-Handler}, linked objects are equipped with their own set
 of protection bits as the handler creates a copy of the linked object on
-access, see also section~\ref{sec:links}.
+an attempt to lock or open it, see also section~\ref{sec:links}.
 \medskip{}
 
-The {\tt fib\_EntryType}\mkey{fib\_EntryType} member shall not be used; it
+The {\tt fib\_EntryType}\mkey{fib\_EntryType} element shall not be used; it
 can be identical to the {\tt fib\_DirEntryType}, but its use is not
-documented.
+documented and it therefore should be left alone.
 \smallskip{}
 
-The {\tt fib\_Size}\mkey{fib\_Size} member indicates the size of the file in
+The {\tt fib\_Size}\mkey{fib\_Size} element indicates the size of the file in
 bytes. It should have probably be defined as an unsigned type, and it is
 unclear how files larger than 2GB (or 4GB) could be represented. Its value
 is undefined for directories, hard links\key{Hard Link} to directories or
@@ -4518,25 +4520,24 @@ the file system manages these blocks to store data on the medium. The number
 of blocks can be meaningless for directories or file systems that organizes
 their contents differently, e.g.\ network file systems. The Fast File
 System\key{Fast File System (FFS)} includes in the block count also the file
-extension blocks, see section~\ref{sec:fileextensionblock}, and not only the
-data blocks. Unfortunately, not much can be concluded from the block count
+extension blocks, see section~\ref{sec:fileextensionblock}, and not only
+counts the data blocks. Unfortunately, not much can be concluded from the block count
 as it need not to be consistent across different file systems, or even
 different flavors of the same file system. For some file systems, it need
 not to be consistent even for identical file contents.
 \smallskip{}
 
-The {\tt fib\_Date}\mkey{fib\_Date} member indicates when the file was
+The {\tt fib\_Date}\mkey{fib\_Date} element indicates when the file was
 changed last; depending on the file system, the date may also indicate when
 the last modification was made for a directory, such as creating or deleting
-a file or directory within. For the Fast File System\key{Fast File System
-  (FFS)} modification of file or directory metadata, such as file comments
+files or directories within. For the Fast File
+System\key{Fast File System (FFS)} modification of file or directory metadata, such as file comments
 or protection bits are not reflected here. Which operations exactly trigger
-a change of a directory is file system dependent. The
-{\tt DateStamp}\key{DateStamp} structure is specified
-in section~\ref{sec:datestamp}.
+an update of the modification date of a directory is file system dependent. The
+{\tt DateStamp}\key{DateStamp} structure is specified in section~\ref{sec:datestamp}.
 \smallskip{}
 
-As for protection bits, the AmigaDOS core file systems (FFS and RAM)
+As for protection bits, the AmigaDOS ROM file systems (FFS and RAM)
 synchronize the date of hard links\key{Hard Link} and their link targets,
 but keep separate creation dates for soft links\key{Soft Link}. The FFS
 will, however, update the date of the soft link target upon attempting to
@@ -4544,27 +4545,27 @@ modify the date of the link. This is not necessarily true for other file
 systems but rather an implementation choice.
 \smallskip{}
 
-The {\tt fib\_Comment}\mkey{fib\_Comment} member contains a {\tt NUL}
-terminated string to a comment on the file. Not all file systems support
+The {\tt fib\_Comment}\mkey{fib\_Comment} element contains a {\tt NUL}
+terminated string to a comment on the object. Not all file systems support
 comments. The comment has no particular meaning, it is only shown by some
 Shell commands or utilities and can be set by the user. Hard-\key{Hard Link}
-and Soft Links\key{Soft Link} on the FFS\key{Fast
-  File System (FFS)} and the RAM-Handler\key{RAM-Handler} are equipped with
+and Soft Links\key{Soft Link} on the
+FFS\key{Fast File System (FFS)} and the RAM-Handler\key{RAM-Handler} are equipped with
 file comments of their own and do not mirror the file comment of their link
 target. However, this is an implementation detail of the file system and not
 necessarily true for other file systems.
 \smallskip{}
 
 The {\tt fib\_OwnerUID}\mkey{fib\_OwnerUID} and
-{\tt fib\_OwnerGID}\mkey{fib\_OwnerGID} are filled in by some multi-user aware
+{\tt fib\_OwnerGID}\mkey{fib\_OwnerGID} elements are filled in by some multi-user aware
 file systems. They are opaque values representing the owner and group ID
 owning the file or directory. While the FFS\key{Fast File System (FFS)}
 stores such information, no provision is made to moderate access to a particular
-file according to an owner or its group. The two concepts are alien to
-AmigaDOS itself. These fields were introduced in AmigaDOS version 43.
+file according to its owner or its group. The two concepts are alien to
+AmigaDOS itself. These elements were introduced in AmigaDOS version~43.
 \smallskip{}
 
-The {\tt fib\_Reserved}\mkey{fib\_Reserved} field is currently unused and shall not be
+The {\tt fib\_Reserved}\mkey{fib\_Reserved} element is currently unused and shall not be
 accessed.
 
 \subsection{Retrieving Information on an Directory Entry} \label{sec:examine}
@@ -4604,8 +4605,7 @@ an error code on failure.
 
 While {\tt Examine()}\key{Examine()} retrieves information a locked
 object, {\tt ExamineFH()}\mkey{ExamineFH()} retrieves the same
-information from a file handle\key{FileHandle}, or rather from the lock\key{Lock}
-implicit to the handle.
+information from a file handle\key{FileHandle}.
 
 \begin{verbatim}
 success = ExamineFH(fh, fib) /* since V36 */
@@ -4617,7 +4617,7 @@ BOOL ExamineFH(BPTR, struct FileInfoBlock *)
 This function examines the object accessed through the
 file handle {\tt fh}, and returns the information in the
 {\tt FileInfoBlock}\key{FileInfoBlock}\key{FileInfoBlock}. Note that
-the file content and thus its change can be changed any time, and thus
+the file content can be changed any time, and thus
 the information returned by this function may not be fully up-to-date,
 see also the general information in section~\ref{sec:fib}.
 \smallskip{}
@@ -4628,7 +4628,7 @@ just crash. Callers should therefore check the {\tt fh\_Type} element of the
 file handle upfront and fail if it is {\tt NULL}.
 \smallskip{}
 
-This function returns non-zero in case of success, or $0$ on error. In
+This function returns non-zero in case of success, or~$0$ on error. In
 either case, {\tt IoErr()}\key{IoErr()} is set, namely to an undefined value
 on success or to an error code otherwise.
 \smallskip{}
@@ -4638,19 +4638,19 @@ As for {\tt Examine()}\key{Examine()}, the
 
 \subsection{Scanning through a Directory Step by Step} \label{sec:exnext}
 
-The {\tt ExNext()}\mkey{ExNext()} function iterates through entries of
+The {\tt ExNext()}\mkey{ExNext()} function iterates through the entries of
 a directory, retrieving information on one object after another
 contained in this directory. For scanning through a directory, first
-{\tt Lock()}\key{Lock()} the directory itself. Then use {\tt
-  Examine()}\key{Examine()} on the lock\key{Lock}. This provides
+{\tt Lock()}\key{Lock()} the directory itself. Then use
+{\tt Examine()}\key{Examine()} on the lock\key{Lock}. This provides
 information on the directory itself.
 \smallskip{}
 
 To learn about the objects in the directory, iteratively call {\tt ExNext()}
 on the same {\tt lock} and on the same {\tt FileInfoBlock}\key{FileInfoBlock}
 until the function returns {\tt DOSFALSE}. Each iteration provides
-then information on the subsequent element in the directory of the
-{\tt lock}.
+then information on the subsequent element in the directory represented by
+the {\tt lock}.
 
 \begin{verbatim}
 success = ExNext( lock, FileInfoBlock )
@@ -4663,8 +4663,8 @@ This call returns information on the subsequent entry of a directory
 identified by {\tt lock} and deposits this information in the
 {\tt FileInfoBlock}\key{FileInfoBlock} described in~\ref{sec:fib}. The
 {\tt lock} shall be a lock\key{Lock} on a directory, in particular, and
-shall have been prepared for a directory scan by
-{\tt Examine()}\key{Examine()} first. The {\tt ZERO} lock\key{ZERO lock} to identify
+shall have been prepared for a directory scan by calling
+{\tt Examine()}\key{Examine()} before. The {\tt ZERO} lock\key{ZERO lock} to identify
 the root directory of a volume is typically \emph{not sufficient} here.
 \smallskip{}
 
@@ -4709,7 +4709,7 @@ At the end of the directory, {\tt ExNext()}\key{ExNext()} returns {\tt
   returned lock should be duplicated first by {\tt DupLock()}\key{DupLock()}
   before initiating a directory scan on the assign target.}
 
-The following simple code lists the contents of the directory represented
+The following example code lists the contents of the directory represented
 by a lock on the console. It uses the {\tt D\_S} macro of
 section~\ref{sec:bptrs} to allocate a temporary {\tt FileInfoBlock}
 structure on the stack, and returns a boolean success indicator.
@@ -4743,18 +4743,18 @@ D0               D1     D2     D3    D4     D5
 BOOL ExAll(BPTR,STRPTR,LONG,LONG,struct ExAllControl *)
 \end{verbatim}
 
-This function examines as many directory entries belonging to the
-directory identified by {\tt lock} as fit into the buffer {\tt buffer}
-of {\tt size} bytes. This buffer is filled by a linked list of
-{\tt ExAllData} structures, see below for their layout. The {\tt type} argument
-determines which elements of {\tt ExAllData} is filled, and {\tt size}
-limits the number of structures that will be filled --- in worst case none
-at all if the buffer size is not sufficiently large to hold a single
+This function examines as many directory entries belonging to the directory
+identified by {\tt lock} as fit into the buffer {\tt buffer} of {\tt size}
+bytes. This buffer is filled by a linked list of {\tt ExAllData} structures,
+see below for their elements. The {\tt type} argument determines which
+elements of the {\tt ExAllData} is filled, and {\tt size} is the byte size
+of the buffer into which such structures will be filled --- in worst case
+none at all if the buffer size is not sufficiently large to hold a single
 structure with all data associated to it.
 \smallskip{}
 
 The {\tt lock} shall be a lock\key{Lock} on the directory to be examined. It shall not
-be {\tt ZERO}.
+be~{\tt ZERO}.
 \smallskip{}
 
 To start a directory scan, first allocate a {\tt ExAllControl}\mkey{ExAllControl} structure
@@ -4764,16 +4764,16 @@ see~\ref{sec:allocdosobject} and the example below. This structure looks as foll
 \mkey{ExAllControl}
 \begin{verbatim}
 struct ExAllControl {
-  ULONG   eac_Entries;
-  ULONG   eac_LastKey;
-  UBYTE  *eac_MatchString;
+  ULONG        eac_Entries;
+  ULONG        eac_LastKey;
+  UBYTE       *eac_MatchString;
   struct Hook *eac_MatchFunc;
 };
 \end{verbatim}
 
 {\tt eac\_Entries}\mkey{eac\_Entries} is provided by the file system upon
 returning from {\tt ExAll()} and then contains the number of entries
-that fit into the {\tt buffer}. Note that this number may well be~$0$,
+that were fit into the {\tt buffer}. Note that this number may well be~$0$,
 which does not need to indicate termination of the scan. Callers shall
 instead check the return code of {\tt ExAll()}\key{ExAll()} to learn on whether
 scanning may continue or not.
@@ -4808,7 +4808,7 @@ d0                                    a0          a2
                                           a1
 \end{verbatim}
 
-that is, register {\tt a0} points to the hook structure being used for the
+\noindent{}that is, register {\tt a0} points to the hook structure being used for the
 call, register {\tt a1} to the data buffer that is part of the {\tt buffer}
 supplied by the caller of {\tt ExAll()} and which is already filled in with
 a candidate {\tt ExAllData} structure to be checked for acceptance. Register
@@ -4820,7 +4820,7 @@ provisionally filled data is discarded.
 
 {\tt eac\_MatchFunc}\key{eac\_MatchFunc} and {\tt eac\_MatchString}\key{eac\_MatchString}
 shall not be filled in simultaneously, only one of the two shall be non-
-{\tt NULL}. If both members are {\tt NULL}, all entries match.
+{\tt NULL}. If both members are {\tt NULL}, all directory entries match.
 \medskip{}
 
 The {\tt buffer} supplied to {\tt ExAll()} is filled by a singly
@@ -4873,8 +4873,7 @@ Section~\ref{sec:setfiledate} defines these elements more rigorously.
 \smallskip{}
 
 {\tt ed\_Comment}\mkey{ed\_Comment} points to a potential comment of the
-file system element and therefore corresponds to {\tt
-  fib\_Comment}\key{fib\_Comment}.
+file system element and therefore corresponds to {\tt fib\_Comment}\key{fib\_Comment}.
 \smallskip{}
 
 {\tt ed\_ed\_OwnerUID} and {\tt ed\_OwnerGID} contain potential user
@@ -4988,11 +4987,11 @@ LONG ExamineDirectory(BPTR lock)
 }
 \end{verbatim}
 
-Unfortunately, the {\tt ExAll()}\key{ExAll()} implementation had
-historically defects. In AmigaDOS version 36 where this function was
+Unfortunately, the {\tt ExAll()}\key{ExAll()} implementation had 
+defects. In AmigaDOS version 36 where this function was
 introduced, {\tt eac\_MatchString} was used incorrectly by the
 RAM-Handler\key{RAM-Handler} which also failed to initialize {\tt ed\_Next}
-properly. Similar issues existed in the fall-back implementation within the
+properly. Similar issues existed in the fall-back implementation of
 version 36 of the \emph{dos.library}. The FFS\key{Fast File System (FFS)}
 did not fill in {\tt ed\_Comment} correctly prior to version 39, and the FFS flavors supporting
 directory caches broke {\tt ExAll()} up to release 40 where the defect of
@@ -5003,7 +5002,7 @@ As a workaround, a smaller value should be passed as {\tt type} if this
 error is detected.  The fallback implementation within the
 \emph{dos.library} up to version 45 did not provide useful arguments to the
 error requester in case a failure was detected. {\tt SetPatch} also provides
-here a workaround for earlier versions of the library.
+here a workaround for earlier versions.
 \smallskip{}
 
 There was no possibility to abort a running directory scan prior to version
@@ -5038,14 +5037,14 @@ void ExAllEnd(BPTR,STRPTR,LONG,LONG,struct ExAllControl *)
 
 This function aborts an {\tt ExAll()} driven directory scan before it
 terminates due to an error or due to the end of the directory. That is,
-{\tt ExAllEnd()} shall be called whenever scan is to be aborted even though
+{\tt ExAllEnd()} shall be called whenever a scan is to be aborted even though
 {\tt ExAll()} returned a non-zero result code.
 \smallskip{}
 
 {\tt ExAllEnd()} is also be the fastest way to terminate a running directory
-scan, for example of a network file systems where the scan may proceed
+scan, for example of a network file systems where the scan can proceed
 offline on a separate server. The arguments to {\tt ExAllEnd()} shall be
-exactly those supplied to {\tt ExAll()}\key{ExAll()} which it is supposed to
+exactly those supplied to the {\tt ExAll()}\key{ExAll()} call which it is supposed to
 terminate. Note in particular that the {\tt lock} shall be identical to the
 lock\key{Lock} passed into {\tt ExAll()}, and not just a lock to the same
 object.
@@ -16314,8 +16313,8 @@ GlobVec         = -1
 \end{verbatim}
 
 The {\tt BLOCKSIZE}\mkey{BLOCKSIZE} keyword sets the quantum size,
-that is the size of a single buffer in bytes, and the {\tt
-  BUFFERS}\key{BUFFERS} keyword the number of buffers. The argument of
+that is the size of a single buffer in bytes, and the
+{\tt BUFFERS}\key{BUFFERS} keyword the number of buffers. The argument of
 the {\tt DEVICE}\key{DEVICE} parameter is irrelevant, but shall be
 present.
 \smallskip{}
