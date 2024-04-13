@@ -5932,7 +5932,7 @@ changes. If a change is detected, either a signal or a message can be send
 to a specific task or port. Notification requests were added in version 36
 of AmigaDOS, and while the RAM-Handler\key{RAM-Handler} supported it right
 from the start, the Fast File System\key{Fast File System (FFS)} included
-support for it from version 37 onward. However, please be aware that not
+support for it from version 37 onward. However, be aware that not
 all file systems are able to support this mechanism; network file systems,
 for example, need to operate on the basis of existing protocols that do not
 provide a mechanism to monitor file or directory changes on the server
@@ -5955,15 +5955,15 @@ trigger a notification.
 
 A typical application of notification requests is the {\tt IPrefs} program
 which uses them to monitor changes of the preferences files. If it detects
-any changes of the preferences, it reloads the contents of the files and
-re-installs the preferences into the components it serves, most importantly
-the \emph{intuition.library}.
+a changed preferences definition, it reloads the contents of the affected
+settings file and re-installs the preferences into the components it serves,
+most importantly the \emph{intuition.library}.
 
 \subsection{Request Notification on File or Directory Changes} \label{sec:startnotify}
 
 The {\tt StartNotify()}\mkey{StartNotify()} function starts monitoring
 a file or directory for changes, and if such modifications are found,
-a signal is send to a task or a message is placed in a port.
+a signal is send to a task or a message is put into a port.
 
 \begin{verbatim}
 success = StartNotify(notifystructure) /* since V36 */
@@ -5972,13 +5972,13 @@ D0                          D1
 BOOL StartNotify(struct NotifyRequest *)
 \end{verbatim}
 
-This function starts a notification request as described by the {\tt
-  notifystructure} argument. This structure shall be initialized by the
+This function starts a notification request as described by the
+{\tt notifystructure} argument. This structure shall be initialized by the
 caller, and is then enqueued in the file system until the notification
 request is canceled by {\tt EndNotify()}\key{EndNotify()}. Once issued,
-the request shall not be touched anymore as the file system can access it
+the structure shall not be touched anymore as the file system can access it
 any time. As some elements require zero-initialization, it is advisable to
-allocate it through exec with the {\tt MEMF\_CLEAR} flag set.
+allocate it from the exec memory pool with the {\tt MEMF\_CLEAR} flag set.
 \smallskip{}
 
 The {\tt NotifyRequest} structure is defined in {\tt dos/notify.h} and reads as follows:
@@ -6016,15 +6016,15 @@ notification request on an object that does not yet exist to get notified
 once it is created, this feature is currently not supported by AmigaDOS.
 \smallskip{}
 
-The file system will neither inform notification requests when assignments
-are made to a monitored directory, nor if the volume containing the object
+The file system will neither inform notification requests when an assign
+is created to a monitored directory, nor if the volume containing the object
 is removed, reinserted or access to it is inhibited (see section~\ref{sec:inhibit}).
 \smallskip{}
 
-{\tt nr\_FullName}\mkey{nr\_FullName} is initialized by the file system and shall be left alone
-by the caller. The \emph{dos.library} uses it to store the full path of the
-object to monitor. This element is supposed to be used by the file system
-only, see section~\ref{sec:packetaddnotify}.
+{\tt nr\_FullName}\mkey{nr\_FullName} is initialized by the
+\emph{dos.library} for the file system and shall be left alone by the
+caller. It stores the full path of the object to monitor. This element is
+supposed to be used by the file system only, see section~\ref{sec:packetaddnotify}.
 \smallskip{}
 
 {\tt nr\_UserData}\mkey{nr\_UserData} is free for the calling application. It may
@@ -6046,7 +6046,7 @@ following flags are defined in {\tt dos/notify.h}:
 \end{rkrmtable}
 
 All other bits are currently reserved. In specific, bits 16 upwards
-are free for the file system to use.
+are free for the file system to use and shall not be set by the caller.
 \smallskip{}
 
 The flags {\tt NRF\_SEND\_MESSAGE}\mkey{NRF\_SEND\_MESSAGE} and {\tt NRF\_SEND\_SIGNAL}\mkey{NRF\_SEND\_SIGNAL} are
@@ -6067,7 +6067,7 @@ trigger a \emph{single} subsequent request for the file system object monitored.
 
 {\tt NRF\_NOTIFY\_INITIAL}\mkey{NRF\_NOTIFY\_INITIAL} instructs the file system to trigger a
 notification message or signal immediately after the request has been
-received. This allows applications to roll both the initial action and
+issued. This allows applications to roll both the initial action and
 the response of the notification into a single function --- for
 example, for loading an initial version or re-reading a preferences file.
 \medskip{}
@@ -6078,10 +6078,10 @@ which a {\tt NotifyMessage} is send when a change has been
 detected. This structure is specified at the end of this section.
 \smallskip{}
 
-{\tt nr\_Task}\mkey{nr\_Task} and {\tt nr\_SignalNum}\mkey{nr\_SignalNum} are only used if the {\tt
-  NRF\_SEND\_SIGNAL} flag is set in {\tt nr\_Flags}. {\tt nr\_Task} is
-a pointer to the {\tt Task} that will be informed, and {\tt
-  nr\_SignalNum} the bit number of the signal that is set. It is not a
+{\tt nr\_Task}\mkey{nr\_Task} and {\tt nr\_SignalNum}\mkey{nr\_SignalNum}
+are only used if the {\tt NRF\_SEND\_SIGNAL} flag is set in {\tt nr\_Flags}.
+{\tt nr\_Task} is a pointer to the {\tt Task} that will be informed, and
+{\tt nr\_SignalNum} the bit number of the signal that is set. It is not a
 bit mask. Clearly, {\tt NRF\_WAIT\_REPLY}\key{NRF\_WAIT\_REPLY} does not work in combination
 with signal bits.
 \smallskip{}
@@ -6089,8 +6089,8 @@ with signal bits.
 {\tt nr\_Pad}\mkey{nr\_Pad} is only present for alignment and shall be left alone.
 \smallskip{}
 
-{\tt nr\_Reserved}\mkey{nr\_Reserved} shall be zero-initialized; its
-elements are reserved for future extensions.
+{\tt nr\_Reserved}\mkey{nr\_Reserved} shall be zero-initialized; it is
+reserved for future extensions.
 \smallskip{}
 
 {\tt nr\_MsgCount}\mkey{nr\_MsgCount} shall not be touched by the caller and
@@ -6127,25 +6127,25 @@ struct NotifyMessage {
 \smallskip{}
 
 {\tt nm\_Class}\mkey{nm\_Class} is always set to {\tt NOTIFY\_CLASS}\mkey{NOTIFY\_CLASS}, also defined in
-{\tt dos/notify.h}, to identify this message as notification.
+{\tt dos/notify.h}, to identify this message as a notification.
 \smallskip{}
 
 {\tt nm\_Code}\mkey{nm\_Code} is always set to {\tt NOTIFY\_CODE}\mkey{NOTIFY\_CLASS}, again defined in
-{\tt dos/notify.h}. This again may be used to identify notifications.
+{\tt dos/notify.h}. It may be used to identify a notification message.
 \smallskip{}
 
 {\tt nm\_NReq}\mkey{nm\_NReq} is a pointer to the {\tt NotifyRequest}\key{NotifyRequest} through which
-this message was triggered. This may allow clients to identify the
-source of the request and by that the object that has been changed.
+this message was triggered. This allows clients to identify the source of
+the request and by that the object that has been changed.
 \smallskip{}
 
 {\tt nm\_DoNotTouch}\mkey{nm\_DoNotTouch} and {\tt nm\_DoNotTouch2}\mkey{nm\_DoNotTouch2} are strictly for use by
-the file system and shall not be touched or interpreted by the
+the file system and shall not be touched nor interpreted by the
 caller or the client.
 \smallskip{}
 
-By design, the {\tt NotifyMessage} reassembles the layout of an {\tt
-  IntuiMessage} and thus allows reusing an IDCMP port (see~\cite{rkrmlib})
+By design, the {\tt NotifyMessage} reassembles the layout of an
+{\tt IntuiMessage} and thus allows reusing an IDCMP port (see~\cite{rkrmlib})
 of an intuition window for receiving messages --- as long as it can be
 ensured that the port remains available until the notification request is canceled.
 \medskip{}
