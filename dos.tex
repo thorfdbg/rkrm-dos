@@ -5775,7 +5775,7 @@ maximum level of nested soft links, also used by the \emph{dos.library}, is
 success = ReadLink( port, lock, path, buffer, size) /* since V36 */
 D0                   D1    D2    D3     D4     D5
 
-BOOL ReadLink( struct MsgPort *, BPTR, STRPTR, STRPTR, ULONG)
+LONG ReadLink( struct MsgPort *, BPTR, STRPTR, STRPTR, ULONG)
 \end{verbatim}
 
 This function creates an updated path in {\tt buffer} from an input
@@ -5794,19 +5794,41 @@ cases, this port and {\tt lock} are obtained from {\tt dvp\_Port} and
 section~\ref{sec:getdeviceproc} for this structure and the function.
 \smallskip{}
 
-If {\tt size} is too small to hold the adjusted path, the function
-returns~$0$ and the {\tt IoErr()}\key{IoErr()} function returns
-{\tt ERROR\_LINE\_TOO\_LONG}\key{ERROR\_LINE\_TOO\_LONG}.
+Due to various inconsistencies in file system implementations, the return
+code is hard to interpret. If the return code is positive, the function
+completed with success and its value is then the string length of the
+updated path in {\tt buffer}, not including the terminating {\tt NUL}. On success,
+{\tt IoErr()} is always set, but to an undefined value.
 \smallskip{}
 
-The function returns non-zero in case of success, or~$0$ in case of
-error. In either case, {\tt IoErr()}\key{IoErr()} is set to either~$0$
-on success, or an error code otherwise.
-\medskip{}
+If {\tt size} is too small to hold the adjusted path, the function
+should\footnote{The information in~\cite{Bantam} and~\cite{guru} that the
+result code is a boolean success indicator is incorrect.} return~$-2$ and the
+{\tt IoErr()}\key{IoErr()} function indicates
+{\tt ERROR\_LINE\_TOO\_LONG}\key{ERROR\_LINE\_TOO\_LONG}. Unfortunately,
+some file system implementations set the return code erroneously to $0$ or $-1$ in
+this case instead. The FFS\key{Fast File System (FFS)} returns~$0$ for
+versions 46 and below, and $-1$ for version~47 to indicate a buffer overflow.
+\smallskip{}
+
+If some other error was detected, then the function should
+return~$-1$ and {\tt IoErr()}\key{IoErr()} is set to an error code
+identifying the source of the error; error codes are listed in
+section~\ref{sec:ioerr}. Again, some file systems erroneously return~0
+to indicate an error, for example FFS versions 46 and below.
+\smallskip{}
+
+Due to these problems, it is recommended to interpret all positive values as
+success, and 0 and negative values as failure. To identify the cause of the
+failure in the latter case, the error code from {\tt IoErr()} should be
+checked, and if it is {\tt ERROR\_LINE\_TOO\_LONG}, then the buffer size
+needs to be increased and the function should be called again with the
+enlarged buffer.
+\smallskip{}
 
 Section~\ref{sec:actionreadlink} provides further details on the file system
-side of the implementation of this function, in particular how it combines
-the {\tt path} with the target of the soft link\key{Soft Link}.
+side of the implementation of this function, in particular how to combine
+the {\tt path} with the link target stored in the soft link\key{Soft Link}.
 \medskip{}
 
 The following source demonstrates how to use {\tt ReadLink()} to implement a
@@ -5821,6 +5843,8 @@ in case the soft link is accessed through a multi-assign:
 LONG RenameWithLinks(UBYTE *srcpath,UBYTE *dstpath)
 {
   UBYTE *buf         = NULL;
+  UBYTE *newbuf      = NULL;
+  ULONG bufsize      = BUFSIZE;
   struct DevProc *dp = NULL;
   LONG levels        = MAX_LINKS;
   LONG error         = 0;
@@ -5828,26 +5852,37 @@ LONG RenameWithLinks(UBYTE *srcpath,UBYTE *dstpath)
  
   while (!(success = Rename(srcpath,dstpath)) && 
            IoErr() == ERROR_IS_SOFT_LINK) {
-    UBYTE *newbuf;
     /* If too many levels passed, fail */
-    if (--levels < 0)
+    if (--levels < 0) {
+      SetIoErr(ERROR_TOO_MANY_LEVELS);
       break;
+    }
     /* Allocate a target buffer for the new name */
-    if (!(newbuf = AllocMem(BUFSIZE,MEMF_PUBLIC)))
+    if (!(newbuf = AllocVec(bufsize,MEMF_PUBLIC)))
       break;
     /* Find the device and lock                  */
     do {
       if ((dp = GetDeviceProc(srcpath,dp))) {
         /* Ok, attempt to resolve the link */
         if ((success = ReadLink(dp->dvp_Port,dp->dvp_Lock,
-                                srcpath,newbuf,BUFSIZE))) {
-          srcpath = newbuf;
-          newbuf  = buf;
-          buf     = srcpath;
-          error   = 0;
+                                srcpath,newbuf,bufsize)) > 0) {
+          /* rotate buffers */
+          srcpath  = newbuf;
+          newbuf   = buf;
+          buf      = srcpath;
+          error    = 0;
           break;
         } else {
           error = IoErr(); /* get the error */
+          /*
+          ** Check whether the supplied buffer was too short.
+          ** Redo with larger buffer next round.
+          */
+          if (error == ERROR_LINE_TOO_LONG) {
+            bufsize <<= 1;
+            success   = 1;
+            break;
+          }
           /* If the error was ERROR_OBJECT_WRONG_TYPE or 
           ** ERROR_OBJECT_NOT_FOUND, then the source is no link, 
           ** or the source was a multi-assign and the source was 
@@ -5866,23 +5901,23 @@ LONG RenameWithLinks(UBYTE *srcpath,UBYTE *dstpath)
         break;
       }
       /* Retry if the path is a multi-assign */
-    } while(dp && dp->dvp_Flags & DVPF_ASSIGN);
+    } while(dp && (dp->dvp_Flags & DVPF_ASSIGN));
     /* Release the DeviceProc, NULL is fine  */
     FreeDeviceProc(dp);
     dp = NULL;
     /* Release the old or the new buffer */
     if (newbuf)
-      FreeMem(newbuf,BUFSIZE);
+      FreeVec(newbuf);
     /* Fixup or reset the error          */
     SetIoErr(error);
     /* Abort if link resolution failed   */
-    if (!success)
+    if (success <= 0)
       break;
   }
 
   /* Release the temporary/last buffer */
   if (buf)
-    FreeMem(buf,BUFSIZE);
+    FreeVec(buf);
 
   return success;
 }
