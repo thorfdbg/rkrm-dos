@@ -5113,7 +5113,7 @@ target path shall be on the same volume, and the target directory
 shall not already contain an object of the target name; otherwise,
 current and target path may be either relative or absolute paths.
 A third condition is that if the object to relocate is a directory,
-then the target path shall not be a position within the object to
+then the target path shall not be a location within the object to
 relocate, i.e.\ you cannot move a directory into itself.
 \smallskip{}
 
@@ -5123,7 +5123,7 @@ is set, to an error code on failure or to an undefined value otherwise.
 \smallskip{}
 
 Versions 34 and below of the OFS allowed to rename directories into itself,
-and thus make them vanish completely without, actually, deleting them. This
+and thus made them vanish completely without, actually, deleting them. This
 was fixed in at least version 36.
 \smallskip{}
 
@@ -5139,7 +5139,7 @@ supports comments.
 
 \begin{verbatim}
 success = SetComment( name, comment )
-D0                    D1    D2
+D0                     D1    D2
 
 BOOL SetComment(STRPTR, STRPTR)
 \end{verbatim}
@@ -5151,7 +5151,7 @@ length AmigaDOS supports is 79 characters, due to the available space
 in the {\tt FileInfoBlock}\key{FileInfoBlock} structure.
 \smallskip{}
 
-Whether or to which degree soft-\key{Soft Link} or hard links\key{Hard Link}
+Whether or to which degree soft\key{Soft Link} or hard links\key{Hard Link}
 support comments is up to the file system. For the FFS\key{Fast File System (FFS)}
 and the RAM-Handler\key{RAM-Handler}, links can carry their own
 comments that are separate from the comment on the corresponding link
@@ -5172,7 +5172,7 @@ directory.
 success = SetProtection( name, mask )
 D0                         D1    D2
 
-BOOL SetProtection (STRPTR, LONG)
+BOOL SetProtection(STRPTR, LONG)
 \end{verbatim}
 
 This function sets the protection bits of the file system object identified
@@ -5182,7 +5182,7 @@ in table~\ref{table:protectionbits} of section~\ref{sec:fib}. The {\tt mask} val
 what {\tt Examine()}\key{Examine()} returns in the {\tt FileInfoBlock}\key{FileInfoBlock}
 structure in {\tt fib\_Protection}\key{fib\_Protection}, see also
 section~\ref{sec:fib}. In particular, remember that the four least
-significant bits are shown inverted by shell commands and the Workbench.
+significant bits are shown inverted by Shell commands and the Workbench.
 \smallskip{}
 
 The current versions of the AmigaDOS file systems allow changes of the
@@ -5205,7 +5205,7 @@ an undefined value on success or to an error code otherwise.
 \subsection{Set the Modification Date} \label{sec:setfiledate}
 
 The {\tt SetFileDate()}\mkey{SetFileDate()} function sets the
-modification date of an object of a file system. Despite its
+modification date of an object on a file system. Despite its
 name, the function can also set the modification date of directories
 if the file system supports them.
 
@@ -5226,11 +5226,11 @@ For links, it is file system dependent whether a link carries a modification
 date different from the modification date of the link target. The Amiga DOS
 Fast File System\key{Fast File System (FFS)} and the
 RAM-Handler\key{RAM-Handler} synchronize the modification date of a hard
-link\key{Hard Link} with that of the link target. For soft links\key{Soft
-  Link}, the FFS updates the link target if the modification date of link is
+link\key{Hard Link} with that of the link target. For soft
+links\key{Soft Link}, the FFS updates the link target if the modification date of link is
 updated, whereas the RAM-Handler keeps a separate date for the link. The
-modification date of a link is, however, of limited use as the {\tt
-  Lock()}\key{Lock()} function implicitly resolves links and thus cannot
+modification date of a link is, however, of limited use as the
+{\tt Lock()}\key{Lock()} function implicitly resolves links and thus cannot
 gain access to the link itself.
 \smallskip{}
 
@@ -5241,7 +5241,7 @@ or to an error code otherwise.
 
 Note that not all file systems may be able to set the date precisely
 to ticks, e.g.\ {\tt FAT} has only a precision of 2 seconds. Some file
-systems may refuse to set the modification date if an object is
+systems can refuse to set the modification date if an object is
 exclusively locked, this is unfortunately not handled consistently.
 \smallskip{}
 
@@ -5256,19 +5256,18 @@ The {\tt SetOwner()}\mkey{SetOwner()} function sets the user and group
 ID of an object within a file system. Both are concatenated to
 a 32-bit ID value. While this function seems to imply that the file
 system or AmigaDOS seems to offer some multi-user capability, this is
-not the case. User and group ID are purely metadata that is returned
-by the functions discussed in section~\ref{sec:fib}, they usually
-ignore them. AmigaDOS has no concept of the current user of a
-file system and thus cannot decide whether a user is
-privileged to access an object on a file system. While versions~43 and later of the
-FFS\key{Fast File System (FFS)} support this function, the
-RAM-Handler\key{RAM-Handler} does not.
+not the case. User and group ID are pure metadata that are returned
+by the functions discussed in section~\ref{sec:fib}. AmigaDOS has
+no concept of the current user of a file system and thus cannot
+decide whether a user is privileged to access an object on a file
+system. While versions~43 and later of the FFS\key{Fast File System (FFS)}
+support this function, the RAM-Handler\key{RAM-Handler} does not.
 
 \begin{verbatim}
-success = SetOwner( name, owner_info )
+success = SetOwner( name, owner_info ) /* since V39 */
 D0                   D1       D2
 
-BOOL SetOwner (STRPTR, LONG)
+BOOL SetOwner(STRPTR, LONG)
 \end{verbatim}
 
 This function sets the user and group ID of the file system
@@ -5279,7 +5278,7 @@ topmost 16 bits, and the group in the least significant 16 bits.
 \smallskip{}
 
 This function returns a boolean success indicator which is non-zero on
-success and $0$ on error. This function always sets {\tt IoErr()},
+success and~$0$ on error. This function always sets {\tt IoErr()},
 either to an undefined value on success or to an error code otherwise.
 
 \section{Working with Paths} \label{sec:workpaths}
@@ -5317,10 +5316,10 @@ BOOL NameFromLock(BPTR, STRPTR, LONG)
 This function constructs in {\tt buffer} an absolute path that identifies
 the object locked by {\tt lock}. This lock remains usable after the call. At
 most {\tt len} bytes will be filled into {\tt buffer}, including {\tt NUL}
-termination of the string. The created string is always {\tt
-  NUL}-terminated, even if the buffer is too short. However, in such a case
-the function returns~$0$, and {\tt IoErr()}\key{IoErr()} is set to {\tt
-  ERROR\_LINE\_TOO\_LONG}.
+termination of the string. The created string is always
+{\tt NUL}-terminated, even if the buffer is too short. However,
+in such a case the function returns~$0$, and
+{\tt IoErr()}\key{IoErr()} is set to {\tt ERROR\_LINE\_TOO\_LONG}.
 \smallskip{}
 
 The returned path is not necessarily identical to the path through which
@@ -5330,7 +5329,7 @@ refers to the link target(s) and not the link itself.
 \smallskip{}
 
 If the path cannot be constructed due to an error, {\tt success} is also set
-to $0$ and {\tt IoErr()}\key{IoErr()} is set to an error code. In such a
+to~$0$ and {\tt IoErr()}\key{IoErr()} is set to an error code. In such a
 case, the buffer content is not useful. In case of success, {\tt IoErr()} is
 not set consistently and cannot be depended upon. Possible cases of failure
 are that the volume the locked object is located on is currently not
@@ -5343,7 +5342,7 @@ been modified.
 
 The {\tt NameFromFH()}\mkey{NameFromFH()} function constructs a path name
 from a file handle\key{FileHandle}, i.e.\ it finds a path that is suitable to open
-the file identified by the passed in file handle.
+the file corresponding to the passed in file handle.
 
 \begin{verbatim}
 success = NameFromFH(fh, buffer, len) /* since V36 */
@@ -5359,7 +5358,7 @@ terminating {\tt NUL} byte. This even works if the file has been opened for
 exclusive access.
 \smallskip{}
 
-The returned path is not necessarily identical to the path through the file
+The returned path is not necessarily identical to the path through which the file
 was opened; first, the created path is always absolute, and second, if links
 were involved in the original path, the created path refers to the link
 target(s) and not the link itself.
@@ -5381,8 +5380,8 @@ relative to this given directory. The function handles special cases
 such as the colon (``{\tt :}'') and one or multiple leading slashes
 (``{\tt /}'') correctly and interprets according to the rules
 explained in section~\ref{sec:paths}; the colon identifies the root of
-the volume\key{Root Directory}, and a leading slash the parent directory upon which the
-trailing component of the input path is removed.
+the volume\key{Root Directory}, and a leading slash the parent directory
+which removes the trailing component of the directory path.
 
 \begin{verbatim}
 success = AddPart( dirname, filename, size ) /* since V36 */
@@ -5391,7 +5390,7 @@ D0                   D1        D2      D3
 BOOL AddPart( STRPTR, STRPTR, ULONG )
 \end{verbatim}
 
-This function attaches to the existing path in {\tt dirname} another
+This function attaches to the directory path in {\tt dirname} another
 path in {\tt filename}. The constructed path will overwrite the buffer
 in {\tt dirname}, which is able to hold {\tt size} bytes, including a
 terminating {\tt NUL} byte.
@@ -5404,7 +5403,7 @@ and the input buffers are not altered. Otherwise, the function returns
 non-zero, and {\tt IoErr()}\key{IoErr()} is not altered.
 \smallskip{}
 
-This function does not interact with a file system and does not check
+This function does not interact with file systems and does not check
 whether the paths passed in correspond to accessible objects. The output
 path is constructed purely based on the AmigaDOS path syntax. Version 36 of
 AmigaDOS did not handle leading slashes and absolute paths in {\tt filename}
@@ -5457,12 +5456,12 @@ next-to-last component of the {\tt path} passed in. This function
 cannot fail and does not alter {\tt IoErr()}.
 \smallskip{}
 
-The only difference between this function and {\tt
-  FilePath()}\key{FilePart()} is that the latter advanced over a
-potential trailing slash. That is, if the last character of the input
-path of {\tt PathPart()} would be a slash, then {\tt PathPart()} would
+The only difference between this function and {\tt FilePath()}\key{FilePart()}
+is that the latter advanced over a trailing slash if it present.
+That is, if the last character of the input
+path of {\tt PathPart()} is a slash, then {\tt PathPart()} would
 return a pointer to this slash, but {\tt FilePart()} would advance
-beyond this slash. That is, the ``file part'' of a path that
+beyond this slash. Therefore, the ``file part'' of a path that
 explicitly indicates a directory is empty, though the ``path part'' is
 the same path without the trailing slash.
 
@@ -5494,7 +5493,7 @@ case. If the provided separator is found, the separator is not copied into
 If no separator is found, the function returns~$-1$ as {\tt newpos}
 indicating that the entire path has been scanned. Otherwise, it returns the
 offset into {\tt name} at which the next component starts, i.e.\ the offset
-behind the found separator. These return values are also valid even in case
+behind the found separator. The return value is also valid in case
 the found component was too large to fit into {\tt buf} and had to be
 truncated.
 \smallskip{}
@@ -5507,10 +5506,10 @@ The intended purpose of this function is to walk a path component by
 component, extracting the components as scanning progresses. That is, if
 result code {\tt newpos} is not negative, it should be passed back into this
 function as {\tt oldpos} for a subsequent scan which then extracts the next
-component of the path. The intended users of this function are file systems
-for locating objects in the file system tree. For most (if not all)
-AmigaDOS file systems the separator is therefore the forwards slash (``{\tt
-  /}''). Another use case is to identify the device name of an absolute path
+component of the path. Typical users of this function are file systems
+that locate objects in the file system tree. For most (if not all)
+AmigaDOS file systems the separator is therefore the forwards slash
+(``{\tt /}''). Another use case is to identify the device name of an absolute path
 by splitting it at the colon (``{\tt :}'').
 \smallskip{}
 
