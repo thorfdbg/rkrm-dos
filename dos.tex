@@ -7300,7 +7300,7 @@ functions search the device list\key{Device List}, check whether the handler is
 already loaded or load it if necessary, then check whether the handler
 is already running, and if not, launch an instance of it. If
 multi-assigns\key{Multi-Assign} are involved, it can become necessary to contact
-multiple file systems to resolve the task and thus to iterate
+multiple file systems to resolve the path and thus to iterate
 through multiple potential file systems to find the right one.
 
 \subsection{Iterate through Devices Matching a Path} \label{sec:getdeviceproc}
@@ -7312,7 +7312,7 @@ identified, or iteration through matching handlers is to be aborted,
 
 \begin{verbatim}
 devproc = GetDeviceProc(name, devproc) /* since V36 */
-D0                      D1     D2
+D0                       D1     D2
 
 struct DevProc *GetDeviceProc(STRPTR, struct DevProc *)
 \end{verbatim}
@@ -7334,6 +7334,7 @@ lock responsible for it.
   In case of failure, this function will return {\tt NULL} and then
   also release all resources, including the {\tt DevProc} structure provided
   as second argument.}
+\smallskip{}
 
 The {\tt DevProc} structure, defined in {\tt dos/dosextens.h}
 looks as follows:
@@ -7349,8 +7350,8 @@ struct DevProc {
 \end{verbatim}
 
 {\tt dvp\_Port}\mkey{dvp\_Port} is a pointer to a candidate {\tt MsgPort} of
-a handler or file system that potentially contains the path in {\tt
-  name}. If the file system object cannot be reached through this file
+a handler or file system that is potentially responsible for the path in
+{\tt name}. If the file system object in {\tt name} cannot be reached through this file
 system relative to {\tt dvp\_Lock}, iteration over possible candidate file
 systems should continue and {\tt GetDeviceProc()} called again with the same
 name as first and the return code of the current iteration as second
@@ -7360,20 +7361,30 @@ argument.
 {\tt dvp\_Lock} is a directory represented as a lock\key{Lock} relative to which the
 path in {\tt name} could be resolved. If this lock is {\tt ZERO}, the path
 is relative to the root directory\key{Root Directory} of the file system that can be contacted
-through {\tt dvp\_Port}. Beware! In this case, a {\tt ZERO} lock\key{ZERO
-  lock} does not identify the root directory of the boot volume, but the
-root directory of the file system in {\tt dvp\_Port}. 
+through {\tt dvp\_Port}. Beware! In this case,
+a {\tt ZERO} lock\key{ZERO lock} does not identify the root
+directory of the boot volume, but the root directory of the file system in {\tt dvp\_Port}. 
 \smallskip{}
 
 The lock, if non-{\tt ZERO}, is owned by the \emph{dos.library} and shall
-neither be released, nor used for a directory scan by {\tt
-  Examine()}\key{Examine} or {\tt ExAll()}\key{ExAll()}. If this is desired, it
-shall be copied first through {\tt DupLock()}\key{DupLock()}.
+neither be released, nor used for a directory scan
+by {\tt Examine()}\key{Examine} or {\tt ExAll()}\key{ExAll()}. If this is desired, it
+shall be copied first through {\tt DupLock()}\key{DupLock()}, see also
+section~\ref{sec:fib}.
 \smallskip{}
 
-{\tt dvp\_Flags}\mkey{dvp\_Flags} identifies the nature of the found
-port. The flags are also defined in {\tt dos/dosextens.h}. If the
-bit {\tt DVPB\_ASSIGN} is set, i.e {\tt dvp\_Flags \& DVPF\_ASSIGN} is
+{\tt dvp\_Flags}\mkey{dvp\_Flags} identifies properties of the found port
+and lock, though there is typcially no need to test them.
+The flags are defined in the include file {\tt dos/dosextens.h}. The
+currently defined flags are also listed in table~\ref{table:devprocflags}:
+  
+\begin{rkrmtable}{GetDeviceProc Flags} \label{table:devprocflags}
+{\tt Flags} & {\bf Description}\\ \hline \hline
+{\tt DVPF\_ASSIGN} & Path is part of a multi-assign \\ \hline
+{\tt DVPF\_UNLOCK} & Internal, do not interpret \\ \hline
+\end{rkrmtable}
+
+If the bit {\tt DVPB\_ASSIGN} is set, i.e {\tt dvp\_Flags \& DVPF\_ASSIGN} is
 non-zero, then the found port and lock are part of a
 multi-assign\key{Multi-Assign}. The pair returned does not necessarily
 contain the (or an) object identified by the {\tt name}; if it does not,
@@ -7385,7 +7396,7 @@ multi-assign scanned later.
 
 The bit {\tt DVPB\_UNLOCK} in the flags is an internal bit and
 indicates whether the lock in {\tt dvp\_Lock} will be released by the next
-iteration or {\tt FreeDeviceProc()}\key{FreeDeviceProc()}. It shall not be
+iteration or {\tt FreeDeviceProc()}\key{FreeDeviceProc()}. This flag shall not be
 interpreted or altered by the caller.
 \medskip{}
 
@@ -7398,9 +7409,8 @@ A typical use case for this function is to identify a handler or file system
 for direct-packet I/O, see also chapter~\ref{sec:handlers} and in particular
 section~\ref{sec:dopkt}. The packets listed in chapter~\ref{sec:packettypes}
 typically take a lock/path combination to identify a file system object, and
-for them, the lock will be taken from {\tt dvp\_Lock}, and the path from the
-components of {\tt name} behind the colon (``{\tt :}''), or the full {\tt name}
-without one. The target {\tt MsgPort} of the packet is taken from {\tt dvp\_Port}. The interface
+for them, the lock will be taken from {\tt dvp\_Lock} and the path from
+{\tt name}. The target {\tt MsgPort} of the packet is taken from {\tt dvp\_Port}. The interface
 functions of the \emph{dos.library}, such as {\tt Open()}\key{Open()} and
 {\tt Lock()}\key{Lock()}, call through {\tt GetDeviceProc()} and therefore
 perform all these steps within the library. The following code
@@ -7414,32 +7424,33 @@ BPTR myLock(const UBYTE *path)
   struct DevProc *dp = 0;
   BPTR lock          = 0;
   LONG error         = 0;
-  const UBYTE *name;
+  size_t len         = strlen(path);
   struct Buffer {
     UBYTE buf[256];
   };
   D_S(struct Buffer,buf);
   /*
-  ** Convert to BSTR on the stack - no size check performed! 
+  ** Convert to BSTR on the stack.
+  ** Size check not performed by dos.library.
   */
-  name = strchr(path,':');
-  if (name == NULL) {
-    name = path;
-  } else ++name;
-  buf->buf[0] = strlen(name);
-  memcpy(&buf->buf[1],name,buf->buf[0]);
-  while(dp = GetDeviceProc(path,dp)) {
-    lock = DoPkt(dp->dvp_Port,ACTION_LOCATE_OBJECT,dp->dvp_Lock,
-                 MKBADDR(buf->buf),SHARED_LOCK,0,0);
-    if (lock)
-      break;
-    error = IoErr();
-    if (error != ERROR_OBJECT_NOT_FOUND)
-      break;
+  if (len > 255) {
+   error = ERROR_LINE_TOO_LONG;
+  } else {
+    buf->buf[0] = len;
+    memcpy(&buf->buf[1],path,len);
+    while(dp = GetDeviceProc(path,dp)) {
+      lock = DoPkt(dp->dvp_Port,ACTION_LOCATE_OBJECT,dp->dvp_Lock,
+                   MKBADDR(buf->buf),SHARED_LOCK,0,0);
+      if (lock)
+        break;
+      error = IoErr();
+      if (error != ERROR_OBJECT_NOT_FOUND)
+        break;
+    }
   }
 
-  if (dp)
-    FreeDeviceProc(dp);
+  /* Free devproc. NULL is ok */
+  FreeDeviceProc(dp);
 
   SetIoErr(error);
 
@@ -7451,13 +7462,13 @@ long word aligned buffer on the stack, here for the converted name of the
 object to be locked. Unlike what official documentation has to say, it is
 not necessary to check the {\tt DVPF\_ASSIGN} flag.
 {\tt GetDeviceProc()}\key{GetDeviceProc()} may be called again even with this
-flag cleared, though then always returns {\tt NULL}.
+flag cleared, though it then always returns {\tt NULL}.
 \medskip{}
 
 The {\tt GetDeviceProc()}\key{GetDeviceProc()} function has a couple of side
-effects: First, if the corresponding handler is not yet loaded, i.e. {\tt
-dol\_SegList}\key{dol\_SegList} in the {\tt DosList}\key{DosList} is {\tt
-ZERO}, it will be loaded from the path in {\tt dol\_Handler}\key{dol\_Handler}
+effects: First, if the corresponding handler is not yet loaded, i.e.
+{\tt dol\_SegList}\key{dol\_SegList} in the {\tt DosList}\key{DosList} is
+{\tt ZERO}, it will be loaded from the path in {\tt dol\_Handler}\key{dol\_Handler}
 in the context of the calling process. The
 {\tt Mount}\key{Mount (Command)} command uses this side effect to implement the
 {\tt ACTIVATE}\key{ACTIVATE} keyword in mountlists\key{Mountlist}.
@@ -7487,23 +7498,23 @@ see also section~\ref{sec:handlerstartup}.
 If {\tt GetDeviceProc()}\key{GetDeviceProc()} returns {\tt NULL}, then {\tt IoErr()}\key{IoErr()}
 provides additional information on the failure. If the error code is
 {\tt ERROR\_NO\_MORE\_ENTRIES}\key{ERROR\_NO\_MORE\_ENTRIES}, then the last directory of a
-multi-assign\key{Multi-Assign} has been reached. If the error code is {\tt
-  ERROR\_DEVICE\_NOT\_MOUNTED}\key{ERROR\_NO\_MORE\_ENTRIES}, then no matching device could be
-found. Other errors can be returned, e.g.\ if the function could not
-allocate sufficient memory for its operation.
+multi-assign\key{Multi-Assign} has been reached.
+If the error code is {\tt ERROR\_DEVICE\_NOT\_MOUNTED}\key{ERROR\_NO\_MORE\_ENTRIES},
+then no matching device could be found. Other errors can be
+returned, e.g.\ if the function could not allocate sufficient memory for its operation.
 \smallskip{}
 
-Unfortunately, the function does not set {\tt IoErr()} consistently if {\tt
-  GetDeviceProc()} is called again with an existing {\tt DevProc} structure as
+Unfortunately, the function does not set {\tt IoErr()} consistently if
+{\tt GetDeviceProc()} is called again with an existing {\tt DevProc} structure as
 second argument with the {\tt DVPB\_ASSIGN}\mkey{DVPB\_ASSIGN} bit
 cleared. {\tt IoErr()} remains in this case unaltered and it is therefore
 advisable to clear it upfront.
 \smallskip{}
 
 The function also returns {\tt NULL} if {\tt name} corresponds to the
-{\tt NIL} pseudo-device and then sets {\tt IoErr()} to {\tt
-  ERROR\_DEVICE\_NOT\_MOUNTED}\key{ERROR\_DEVICE\_NOT\_MOUNTED}.  This error
-code is not fully correct, and callers need to be aware of this defect.
+{\tt NIL} pseudo-device and then sets {\tt IoErr()} to
+{\tt ERROR\_DEVICE\_NOT\_MOUNTED}\key{ERROR\_DEVICE\_NOT\_MOUNTED}.
+This error code is not fully correct, and callers need to be aware of this defect.
 \smallskip{}
 
 If the path starts with {\tt CONSOLE:}, then this function reports the port
@@ -7515,8 +7526,10 @@ shall not be interpreted in case of success. In case the calling process
 does not have a home directory, probably because it is executing a resident
 command, see section~\ref{sec:resident}, then {\tt GetDeviceProc()}
 erroneously shows a requester asking the user to insert a volume of the name
-{\tt PROGDIR} instead of indicating failure. This defect persists in even
-the latest version of AmigaDOS.
+{\tt PROGDIR} instead of indicating failure, unless requesters are
+disabled by setting  {\tt pr\_WindowPtr}\key{pr\_WindowPtr} to $-1$, see
+also chapter~\ref{sec:process}. This defect persists in even the latest
+version of AmigaDOS.
 \smallskip{}
 
 Also, {\tt GetDeviceProc()} does not handle the path ``{\tt *}''\key{* (file name)} at all,
@@ -7542,13 +7555,15 @@ been passed out to a client is still missing.
 \smallskip{}
 
 Another defect of this function is that it cannot handle device, volume or
-assign\key{Assign} names longer than 30 characters, even though no limit on the path
-name in total is imposed. This is because this function extracts the device
-name into a temporary buffer of this size, and truncates it if it is longer.
+assign\key{Assign} names longer than 30 characters, even though no limit on
+the path name in total is imposed, at least not by this function. This is
+because this function extracts the device name into a temporary buffer of
+this size, and truncates it if it is longer.
 \smallskip{}
 
-{\tt GetDeviceProc()} is also discussed in
-section~\ref{sec:locatehandler}, see there for further details.
+{\tt GetDeviceProc()} and the algorithm by which it loads and starts
+handlers are also discussed in section~\ref{sec:locatehandler}, see there for
+further details.
 
 \subsection{Releasing DevProc Information}
 
@@ -7559,7 +7574,7 @@ resources allocated by this function. It shall be called as soon as
 the {\tt DevProc} structure is no longer needed.
 
 \begin{verbatim}
-FreeDeviceProc(devproc)
+FreeDeviceProc(devproc) /* since V36 */
                  D1
 
 void FreeDeviceProc(struct DevProc *)
@@ -7571,7 +7586,8 @@ resources from an iteration through one or multiple {\tt
 abort an iteration over devices, not within each iteration, see
 section~\ref{sec:getdeviceproc} for an example. In particular, if calling
 {\tt GetDeviceProc()} had returned {\tt NULL} it released such
-resources itself already and {\tt FreeDeviceProc()} shall not be called.
+resources itself already and {\tt FreeDeviceProc()} need not
+to be called.
 \smallskip{}
 
 The {\tt dvp\_Port}\key{dvp\_Port} or {\tt dvp\_Lock}\key{dvp\_Lock} within the {\tt DevProc}
@@ -7598,7 +7614,7 @@ particular value may be assumed. It may or may not alter its value.
 
 The {\tt DeviceProc()}\mkey{DeviceProc()} function is a legacy variant
 of {\tt GetDeviceProc()}\key{GetDeviceProc()} that should not be used
-anymore. It is not able to handle non-binding assigns\key{Non-binding Assign}
+anymore. It is not able to resolve non-binding assigns\key{Non-binding Assign}
 and will not work through all directories of a multi-assign\key{Multi-Assign}.
 
 \begin{verbatim}
@@ -7625,8 +7641,8 @@ a directory.
   the port and lock\key{Lock} to the first directory participating in the
   assign. It also returns {\tt NULL} for non-binding assigns\key{Non-binding Assign} as there
   is no way to release a temporary lock obtained on the target of the
-  assign. Similar to {\tt GetDeviceProc()}, it does not properly handle
-  {\tt NIL:} and ``{\tt *}''\key{* (file name)}.}
+  assign. Similar to {\tt GetDeviceProc()}, it does not handle the paths
+  {\tt NIL:} and ``{\tt *}''\key{* (file name)} properly.}
 
 As this function is based on {\tt GetDeviceProc()}\key{GetDeviceProc()}, it
 suffers from the same race conditions and limitations. It cannot handle
@@ -7660,7 +7676,7 @@ The {\tt GetFileSysTask()}\mkey{GetFileSysTask()} function returns the
 default file system is used as fall-back if a
 file system is required for a path relative to the {\tt ZERO} lock\key{ZERO lock}, and
 the path itself does not contain an indication of the responsible
-handler, i.e.\ is a relative path itself.
+handler, i.e.\ is a relative path.
 \smallskip{}
 
 The default file system is typically the boot file system, or
