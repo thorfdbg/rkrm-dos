@@ -5676,7 +5676,7 @@ to AmigaDOS in version~47.
 \medskip{}
 
 The {\tt FileInfoBlock}\key{FileInfoBlock} introduced in section~\ref{sec:fib} identifies
-links through the {\tt fib\_DirEntryType}\key{fib\_DirEntryType} member. As seen from
+links through the {\tt fib\_DirEntryType}\key{fib\_DirEntryType} element. As seen from
 table~\ref{table:direntrytypes}, hard links to files are
 indicated by {\tt ST\_LINKFILE}\key{ST\_LINKFILE} and hard links\key{Hard Link} to directories
 by {\tt ST\_LINKDIR}\key{ST\_LINKDIR}. Note, however, that not all file systems are
@@ -6189,12 +6189,12 @@ notification request.
 To the \emph{dos.library}, a handler or a file system is represented by an
 exec {\tt MsgPort} (or short ``port'') to which it sends requests to the
 handler, e.g.\ to read bytes from a file or to iterate through a directory
-(see also section~\ref{sec:dospacket}). The library, however, also needs to
-obtain these ports somehow from a device name as included in absolute
-paths. For example, if the file ``{\tt S:Startup-Sequence}'' is to be
-opened, the relation between the ``{\tt S}'' assign and the handler
-responsible for implementing opening and reading from this file must be
-established.
+(see also chapter~\ref{sec:directpkts} and section~\ref{sec:dospacket}). The
+library, however, also needs to obtain these ports somehow from a device
+name as included in absolute paths. For example, if the file
+``{\tt S:Startup-Sequence}'' is to be opened, the relation between the
+``{\tt S}'' assign and the handler responsible for implementing opening and
+reading from this file must be established.
 \smallskip{}
 
 Each volume, assign, handler or file system is therefore represented by a
@@ -6203,11 +6203,12 @@ an absolute path, e.g.\ {\tt S}, and the {\tt MsgPort} responsible for
 it. All {\tt DosList} structures are queued in a global list within the
 \emph{dos.library} (see also section~\ref{sec:dosinfo}) named the
 \emph{device list}\mkey{Device List}. If the library requires to contact a handler through its
-device name, it calls internally the {\tt
-  GetDeviceProc()}\key{GetDeviceProc()} function which searches this list
+device name, it calls internally the
+{\tt GetDeviceProc()}\key{GetDeviceProc()} function
+(see~\ref{sec:getdeviceproc}) which searches this list
 for a matching name and provides a suitable port for the caller. Thus, the
 relation between a name and a port is established through this function and
-the device list.
+the global device list.
 \medskip{}
 
 Entries on the device list are created in multiple ways: The {\tt Mount}\key{Mount (command)}
@@ -6216,42 +6217,46 @@ stored typically in {\tt DEVS:DosDrivers}, see
 section~\ref{sec:mountlist}. Any non-ROM resident handler, such as for
 example {\tt CD0} for the ISO Rock Ridge\key{Rock Ridge File System} file system is announced to AmigaDOS
 in this way. Some devices, such as {\tt DF0} for the first floppy
-drive are created by the ROM itself through the ``System-Startup'' process,
+drive are created by the ROM itself through the ``System-Startup'' process
+as explained in section~\ref{sec:sysstartupdetails},
 or --- in AmigaDOS versions 45 and before --- through the ``Initial CLI''
 and the \emph{dos.library}.
 \smallskip{}
 
 The {\tt Assign} command creates assigns\key{Assign}, i.e.\ logical volume
-names bound to one or multiple directories on this list, which goes through
-the functions listed in section~\ref{sec:assigns}. Some assigns, namely
+names bound to one or multiple directories, which utilizes
+the functions listed in section~\ref{sec:assigns} and by that also creates
+a {\tt DosList} structure representing the assign. Some assigns, namely
 those listed in table~\ref{table:romassigns} of
 section~\ref{sec:assignlist}, are also already created by the System-Startup
 process when booting.
 \smallskip{}
 
 File systems itself also announce their volumes, i.e.\ the media, data carriers
-and partitions they handle, through entries in the device list\key{Device List}. {\tt
-  DosList} structures representing volumes are added and removed on demand
-as media are inserted or removed.
+and partitions they handle, through entries in the device
+list\key{Device List}. {\tt DosList} structures representing volumes
+are added and removed by file systems as media are inserted or removed.
 \smallskip{}
 
 Finally, auto-booting hardware expansions also mount their boot partitions
 here through the \emph{expansion.library} and its {\tt MakeDosNode()}\key{MakeDosNode()} and
-{\tt AddBootNode()}\key{AddBootNode} functions. The System-Startup process picks them up from
+{\tt AddBootNode()}\key{AddBootNode} functions.
+The System-Startup process picks them up from
 the \emph{expansion.library} and adds them to \emph{dos.library} when
 booting the system. This mechanism is explained in more detail
-in~\cite{rkrmdev}.
+in~\cite{rkrmdev}, and details on the boot process are found in
+section~\ref{sec:sysstartup}.
 \smallskip{}
 
 Some special names such as {\tt NIL} or {\tt *}\key{* (file name)} from
 table~\ref{table:specialdevices} in~\ref{sec:deviceoverview} are hard-coded
-into {\tt GetDeviceProc()}\key{GetDeviceProc()} and are not represented as a
+into {\tt GetDeviceProc()}\key{GetDeviceProc()} and are not represented by a
 {\tt DosList} structure. They form an exception because the relation between
 handler and device name is dependent on the calling process, or the target
 device is not representable as a handler at all.
 \smallskip{}
 
-Thus, in short, the {\tt DosList} structure is quite central to the
+Thus, in short, the {\tt DosList} structure is central to the
 \emph{dos.library} and establishes the link between the device name as it
 appears on an absolute path upfront the colon (``{\tt :}'') and the port
 behind it responsible for implementing functions on such a device. This
@@ -6292,11 +6297,12 @@ struct DosList {
 \end{verbatim}
 
 Confusingly, the same data is also accessible through the
-{\tt DeviceList}\mkey{DeviceList (structure)} structure, which is nothing than a {\tt
-DosList} in disguise, but only represents volumes, with elements at the
+{\tt DeviceList}\mkey{DeviceList (structure)} structure, which is nothing
+than a {\tt DosList} in disguise, but only represents volumes, with elements at the
 same byte offsets under different names. Thus, for example {\tt dl\_VolumeDate}
 in the {\tt DeviceList} structure accesses the same elements as
-{\tt dol\_volume.dol\_VolumeDate} and the two may be used interchangeably for volumes.
+{\tt dol\_volume.dol\_VolumeDate} and the two may be used
+interchangeably for volumes.
 \smallskip{}
 
 The {\tt DevInfo}\mkey{DevInfo} structure is another incarnation of a
@@ -6307,8 +6313,8 @@ in {\tt dos/dosextens.h}.
 \smallskip{}
 
 Finally, {\tt dos/filehandler.h} contains a third structure, named
-{\tt DeviceNode}\mkey{DeviceNode}, which is just another representation of a
-{\tt DosList}, also only to be used for file systems, and thus equivalent to
+{\tt DeviceNode}\mkey{DeviceNode}, which is a fourth representation of a
+{\tt DosList}, and only to be used for file systems, and thus equivalent to
 a {\tt DevInfo}. For example, {\tt dn\_Handler} and {\tt dvi\_Handler} are
 equivalent elements, just available under different names.
 \smallskip{}
@@ -6324,7 +6330,7 @@ long word indices relative to a base index in manifests, and thus does not
 offer structures as known from C.}.
 \medskip{}
 
-The elements of a {\tt DosList} now have the following interpretation:
+The elements of a {\tt DosList} have the following interpretation:
 \smallskip{}
 
 {\tt dol\_Next}\mkey{dol\_Next} is a BPTR to the next entry in the singly
@@ -6333,8 +6339,8 @@ list\key{Device List}, or {\tt ZERO} for the last entry on the list.
 The order of the entries has no particular meaning. The head of this list
 is in the {\tt DosInfo}\key{DosInfo} structure specified in
 section~\ref{sec:dosinfo}. However, this list should not be walked manually,
-but instead {\tt FindDosEntry()}\key{FindDosEntry()} should be used for
-iterating through this list.
+but instead {\tt FindDosEntry()}\key{FindDosEntry()}
+(see~\ref{sec:finddosentry} should be used for iterating through this list.
 \smallskip{}
 
 {\tt dol\_Type}\mkey{dol\_Type} identifies the type of the entry, and by that also the
@@ -6355,40 +6361,42 @@ assign\key{Non-binding Assign}, see~\ref{sec:assignlist}\\ \hline
 {\tt dol\_Task}\mkey{dol\_Task} is the {\tt MsgPort} of the handler to
 contact for the particular handler, assign\key{Assign} or volume. If the
 {\tt DosList} represents a handler or file system, this element can be
-{\tt NULL} if the handler is not yet started, or a new handler process is
-supposed to be started for each file opened. This is, for example, the case
-for the console which requires a process for each window it handles. It is
-up to the handler to deposit a port here, and this is typical for file
-systems that handle all activities on the same physical device through a
-single process.
+{\tt NULL} if the handler is not running, and a new handler process is
+supposed to be started. It depends on the handler whether this element will
+ever be populated. The CON-Handler\key{CON-Handler} leaves this element at
+{\tt NULL} as it requires a new process for each window it handles, but file
+systems such as the FFS\key{Fast File System (FFS)} deposit here its
+{\tt MsgPort} as all activities on the same medium or partition go through
+a single process.
 \smallskip{}
 
 Volumes keep here the {\tt MsgPort} of the file system that operates the
-volume, but it to {\tt NULL} in case the volume goes away, e.g.\ is ejected,
-though locks on the volume remained and thus the volume itself remains known
+volume, but set it to {\tt NULL} in case the volume goes away, e.g.\ is ejected,
+but locks on the volume remained and thus the volume itself remains known
 to AmigaDOS.
 \smallskip{}
 
 For regular assigns\key{Assign}, {\tt dol\_Task}\key{dol\_Task} is also the
 pointer to the port of the file system the assign binds to; in case the
 assign is a multi-assign\key{Multi-Assign}, this is the port of the first
-directory bound to. All additional ports can be reached through the locks
+target directory. All additional ports can be reached through the locks
 that are are part of the {\tt dol\_List}\key{dol\_List} discussed below. For
-late binding assigns\key{Late Binding Assign} this member is initially {\tt
-  NULL}, but will be filled in as soon as the assign in bound to a
+late binding assigns\key{Late Binding Assign} this element is initially
+{\tt NULL}, but will be filled in as soon as the assign in bound to a
 particular directory, and then becomes the pointer to the port of the
 handler managing the volume the assign is located on. Finally, for
-non-binding assigns\key{Non-binding Assign} this member always stays
+non-binding assigns\key{Non-binding Assign} this element always stays
 {\tt NULL}.
 \medskip{}
 
 {\tt dol\_Lock}\mkey{dol\_Lock} is only used for assigns\key{Assign}, and
 only if it is bound to a particular directory. It is then the lock\key{Lock}
-to the directory forming the assign, or for multi-assigns\key{Multi-Assign},
-the first directory within the assign. This element remains {\tt ZERO}
-for non-binding assigns\key{Non-binding Assign} and is initially {\tt ZERO}
-for late binding assigns\key{Late Binding Assign}. For all other types, this member stays
-{\tt ZERO}.
+(see chapter~\ref{sec:locks}) to the directory forming the assign, or for
+multi-assigns\key{Multi-Assign}, the first directory within the assign.
+This element remains {\tt ZERO} for non-binding
+assigns\key{Non-binding Assign} and is initially {\tt ZERO}
+for late binding assigns\key{Late Binding Assign}.
+For all other types, this element stays {\tt ZERO}.
 \smallskip{}
 
 {\tt dol\_Name}\mkey{dol\_Name} is a BPTR to a BSTR is the name under which
@@ -6400,7 +6408,7 @@ ensures that this string is also {\tt NUL} terminated, i.e.\
 {\tt dol\_Name[0]}.
 \medskip{}
 
-The members within {\tt dol\_handler}\mkey{dol\_handler} are used by
+The elements within {\tt dol\_handler}\mkey{dol\_handler} are used by
 handlers and file systems, that is if {\tt dol\_Type}\key{dol\_Type} equals
 {\tt DLT\_DEVICE}\key{DLT\_DEVICE}.
 \smallskip{}
@@ -6413,7 +6421,7 @@ relative to the current directory of this process, it should be an absolute
 path. Typically, handlers reside in the {\tt L} assign. Clearly, the path
 should not be on a file system described by its own {\tt DosList}
 structure. This element corresponds to the {\tt HANDLER}\key{HANDLER},
-{\tt FILESYSTEM}\key{FILESYSTEM} and {\tt EHANDLER}\key{EHANDLER} fields of the
+{\tt FILESYSTEM}\key{FILESYSTEM} and {\tt EHANDLER}\key{EHANDLER} entries of the
 mountlist\key{Mountlist}, see section~\ref{sec:mountdoslist}.
 \smallskip{}
 
@@ -6432,14 +6440,15 @@ indicates the type of the handler. This element corresponds to the
 process. Even though it is a {\tt LONG}, it shall be a number between
 $-128$ and $127$ because priorities of the exec task scheduler are
 {\tt BYTE}s. For all practical purposes, the priority should be a
-value between $0$ and $19$. It corresponds to the {\tt Priority} entry
+value between $0$ and $19$. It corresponds to the {\tt PRIORITY} entry
 of the mountlist\key{Mountlist}.
 \smallskip{}
 
 {\tt dol\_Startup}\mkey{dol\_Startup} is a handler-specific startup value
 that is used to communicate a configuration to the handler. For example, the
 CON-Handler\key{CON-Handler} uses this element to distinguish
-whether it is used as {\tt CON} or {\tt RAW} device. The Fast File
+whether it is used as {\tt CON} or {\tt RAW} device (see
+section~\ref{sec:constartup} for details). The Fast File
 System\key{Fast File System (FFS)} and most other file systems
 expect here a BPTR to a {\tt FileSysStartupMsg} structure. While this value
 may be whatever the handler requires, the {\tt Mount}\key{Mount (command)} command either
@@ -6457,26 +6466,26 @@ for details.
 {\tt dol\_SegList}\mkey{dol\_SegList} is a BPTR to the chained
 segment\key{Segment} list of the handler if it is loaded, see
 chapter~\ref{sec:binary} for additional details how binaries are represented
-in memory. For disk-based handlers, this member is initially {\tt
-  ZERO}. When a program attempts to access an object identified by an
+in memory. For disk-based handlers, this member is initially
+{\tt ZERO}. When a program attempts to access an object identified by an
 absolute path starting with the device name {\tt dol\_Name}\key{dol\_Name}, the
-\emph{dos.library} first checks whether this field is {\tt ZERO}, and if so,
-attempts to load a binary from the path stored in {\tt
-  dol\_Handler}\key{dol\_Handler}. Upon success, its segment is stored
+\emph{dos.library} first checks whether this element is {\tt ZERO}, and if so,
+attempts to load a binary from the path stored in
+{\tt dol\_Handler}\key{dol\_Handler}. Upon success, its segment is stored
 here. If the {\tt FORCELOAD}\key{FORCELOAD} entry of the mountlist\key{Mountlist} is
 non-zero, the {\tt Mount}\key{Mount (command)} command already attempts to load the handler or
-file system from disk, otherwise it first scans the {\tt
-  FileSystem.resource} for an entry whose {\tt DOSTYPE}\key{DOSTYPE}
+file system from disk; otherwise, it attempts to reuse an existing file
+system by first scanning the {\tt FileSystem.resource} for an entry whose {\tt DOSTYPE}\key{DOSTYPE}
 matches. If nothing is found there, loading the handler remains to the first
 process requiring it. Details depend on nature of the handler or file system
 and are provided in section~\ref{sec:handlerstartup}.
 \smallskip{}
 
 {\tt dol\_GlobVec}\mkey{dol\_GlobVec} identifies the nature of the handler
-as AmigaDOS (still) supports BCPL and C/assembler handlers and defines how
+as AmigaDOS (still) supports BCPL and C/assembler handlers; this element also defines how
 access to the device list\key{Device List} is secured during handler loading and startup.
 BCPL handlers use a somewhat more complex loading and linking mechanism as
-the BCPL-specific \emph{global vector}\key{Global Vector} needs to be populated. This is
+their BCPL-specific \emph{global vector}\key{Global Vector} needs to be populated. This is
 not required for C or assembler handlers where a simpler mechanism is
 sufficient, more on this in sections~\ref{sec:handlerstartup} and
 \ref{sec:bcplbinding}. Another aspect of the startup process is how the
@@ -6489,7 +6498,7 @@ access through any other process to the list. Shared access allows read
 accesses to the list while preventing exclusive access to it.
 \smallskip{}
 
-The value in {\tt dol\_GlobVec}\key{dol\_GlobVec} corresponds to the {\tt GlobVec} entry
+The value in {\tt dol\_GlobVec}\key{dol\_GlobVec} corresponds to the {\tt GLOBVEC} entry
 in the mountlist\key{Mountlist}. It shall be one of the values in
 table~\ref{table:gvvalues}:
 
@@ -6509,7 +6518,8 @@ objects and all globally reachable functions of a BCPL program,
 including functions of the \emph{dos.library}. The values~$0$ and~$-3$
 fill this vector with the system functions first, and then use the
 BCPL binding mechanism to extend or override entries in this vector
-with the values found in the loaded code. Any values $>0$ require a
+with the values found in the loaded code, see
+section~\ref{sec:bcplbinding} for further details. Any values $>0$ require a
 BPTR to a custom vector which is used instead for initializing
 the handler. This startup mechanism has never been used in AmigaDOS
 and is not quite practical as this vector needs to be communicated into
@@ -6517,7 +6527,7 @@ the \emph{dos.library} somehow. For new code, BCPL linkage and binding
 should not be used anymore.
 \medskip{}
 
-Members of the {\tt dol\_volume}\mkey{dol\_volume} structure are used if
+Elements of the {\tt dol\_volume}\mkey{dol\_volume} structure are used if
 {\tt dol\_Type}\key{dol\_Type} is {\tt DLT\_VOLUME}\key{DLT\_VOLUME},
 identifying this entry as belonging to a known specific data carrier.
 \smallskip{}
@@ -6533,10 +6543,11 @@ of locks. This list is created by the file system when the volume is
 ejected, and contains all still active locks on this volume. It is stored
 here to allow a similar file system to pick up the locks once the volume is
 re-inserted, even if it is re-inserted into another device. The linkage is
-performed with BPTRs and the {\tt fl\_Link}\key{fl\_Link} member of the {\tt
-  FileLock}\key{FileLock} structure, see also
-section~\ref{sec:filelock}. For inserted volumes, this element remains {\tt
-  ZERO}, and the information whether a volume is inserted or not comes from
+performed with BPTRs and the {\tt fl\_Link}\key{fl\_Link} member of the
+{\tt FileLock}\key{FileLock} structure, see also
+section~\ref{sec:filelock}.
+For inserted volumes, this element remains {\tt ZERO}, and the information
+whether a volume is inserted or not comes from
 the {\tt dol\_Task}\key{dol\_Task} element being {\tt NULL} or a valid
 pointer, see there.
 \smallskip{}
@@ -6555,8 +6566,8 @@ as the latter rather identifies the availability of a file system but not
 its type\footnote{This is not accurately stated in~\cite{guru}.}, see section~\ref{sec:info}.
 \medskip{}
 
-Members of the {\tt dol\_assign}\mkey{dol\_assign} structure are used for all other
-types, i.e.\ all types of assigns\key{Assign}.
+Elements of the {\tt dol\_assign}\mkey{dol\_assign} structure are used for
+all types of assigns\key{Assign}:
 \smallskip{}
 
 {\tt dol\_AssignName}\mkey{dol\_AssignName} is pointer (and not a BPTR) to a
@@ -6565,13 +6576,13 @@ and late binding assigns\key{Late Binding Assign}. It remains {\tt NULL}
 otherwise. The \emph{dos.library} uses this string to locate the target
 directory of the assign. For late binding assigns, this member is used only
 on the first attempt to access the assign\key{Assign} at which
-{\tt dol\_Lock}\key{dol\_Lock} is populated, and this element is released with
-{\tt FreeVec()} and then set to {\tt NULL}.
+{\tt dol\_Lock}\key{dol\_Lock} is populated, then this element is released with
+{\tt FreeVec()} and set to {\tt NULL}.
 \smallskip{}
 
 {\tt dol\_List}\key{dol\_List} contains additional locks\key{Lock} for
-multi-assigns\key{Multi-Assign} and is thus only used if {\tt
-dol\_Type}\key{dol\_Type} equals {\tt DLT\_DIRECTORY}\key{DLT\_DIRECTORY}.
+multi-assigns\key{Multi-Assign} and is thus only used if
+{\tt dol\_Type}\key{dol\_Type} equals {\tt DLT\_DIRECTORY}\key{DLT\_DIRECTORY}.
 A regular assign\key{Assign} is a multi-assign\key{Multi-Assign} whose
 {\tt dol\_List} element is {\tt NULL} and thus consists of only a single directory.
 For multi-assigns, {\tt dol\_Lock}\key{dol\_Lock} is the lock to the first
@@ -6609,8 +6620,9 @@ the device list\key{Device List} is through a {\tt mountlist}\mkey{Mountlist} an
 {\tt Mount}\mkey{Mount (command)} command. Many keywords in the mountlist map directly to
 entries in the {\tt DosList}\key{DosList} structure, others to entries in
 the {\tt FileSysStartupMsg}\key{FileSysStartupMsg} and the
-{\tt DosEnvec}\key{DosEnvec} structure pointed to from there there. The latter two
-structures will be introduced in the following.
+{\tt DosEnvec}\key{DosEnvec} structure pointed to from there. The latter two
+structures will be introduced in sections~\ref{sec:filesysstartup}
+and~\ref{sec:envec}.
 
 \subsection{Keywords defining the DosList structure} \label{sec:mountdoslist}
 
@@ -6705,7 +6717,7 @@ It is typically~0.
 \smallskip{}
 
 The {\tt fssm\_Environ}\key{fssm\_Environ} element is a BPTR to another
-structure explained in the following section.
+structure explained in section~\ref{sec:envec}.
 
 \subsection{Keywords controlling the Environment Vector} \label{sec:envec}
 
@@ -6759,41 +6771,44 @@ least~11. AmigaDOS version~33 added {\tt de\_BufMemType}, and AmigaDOS version 3
 fields. 
 \smallskip{}
 
-The keyword {\tt SECTORSIZE}\mkey{SECTORSIZE} and {\tt BLOCKSIZE}\mkey{BLOCKSIZE} set both {\tt
-  de\_SizeBlock}\mkey{de\_SizeBlock}. While the mountlist\key{Mountlist} keywords take a byte count, this
+The keyword {\tt SECTORSIZE}\mkey{SECTORSIZE} and
+{\tt BLOCKSIZE}\mkey{BLOCKSIZE} set both {\tt de\_SizeBlock}\mkey{de\_SizeBlock}.
+While the mountlist\key{Mountlist} keywords take a byte count, this
 byte count is divided by 4 to form a long-word count that is inserted into
 {\tt de\_SizeBlock}. As the name suggests, it defines the size of a storage
-unit on a medium. Typical values are 128 for 512 byte blocks, or 1024 for
-4096 byte blocks. However, not all file systems support all block sizes, and
-some only support the default value of 128, i.e.\ 512 byte blocks. This is
+unit on a medium. Typical values are 128 for 512 byte sectors, or 1024 for
+4096 byte sectors. However, not all file systems support all sectors sizes,
+most of them restrict them to powers of 2, and some only support the
+default value of 128, i.e.\ 512 byte sectors. This is
 also what the {\tt Mount}\key{Mount (command)} command fills in by default.
 \smallskip{}
 
 {\tt de\_SecOrg}\mkey{de\_SecOrg} is not used and shall be~0;
-consequently, the {\tt Mount}\key{Mount (command)} command does not provide a keyword to
-set it.
+consequently, the {\tt Mount}\key{Mount (command)} command
+does not provide a keyword to set it.
 \smallskip{}
 
-The {\tt SURFACES}\mkey{SURFACES} keyword sets {\tt de\_Surfaces}\mkey{de\_Surfaces}. A possible meaning for
-this member is to interpret it as the number of read-write heads of a
+The {\tt SURFACES}\mkey{SURFACES} keyword sets {\tt de\_Surfaces}\mkey{de\_Surfaces}.
+A possible interpretation for this element is the number of read-write heads of a
 magnetic disk drive. However, as the exec device {\tt trackdisk} interface
-for magnetic storage media does not actually allow access to such low-level
-features that are instead abstracted away by the device, file systems
-use this value along with {\tt de\_BlocksPerTrack}\key{de\_BlocksPerTrack} and the number of
-cylinders computed from {\tt de\_LowCyl} and {\tt de\_HighCyl} to determine
-the capacity of the medium they operate on.
+for magnetic storage media does not access media on such a low level and
+instead expects byte counts to address sectors, file systems
+use this value along with {\tt de\_BlocksPerTrack}\key{de\_BlocksPerTrack}
+and the number of cylinders computed from {\tt de\_LowCyl}
+and {\tt de\_HighCyl} to determine the capacity of the medium they operate on.
 \smallskip{}
 
-The {\tt SECTORSPERBLOCK}\mkey{SECTORSPERBLOCK} keyword sets the {\tt de\_SectorsPerBlock}\mkey{de\_SectorsPerBlock}, and
+The {\tt SECTORSPERBLOCK}\mkey{SECTORSPERBLOCK} keyword
+sets the {\tt de\_SectorsPerBlock}\mkey{de\_SectorsPerBlock}, and
 thus the number of physical sectors on a disk the file system
 combines to one logical storage block. Not all file systems support
-values different from~1 here; the FFS\key{Fast
-  File System (FFS)} does, and always reads and writes data
-in units of {\tt de\_SectorsPerBlock} times {\tt de\_SizeBlock} of
-long-words. For the exec {\tt trackdisk} interface, the byte size and offset are the
-only values that matters; however, the ``direct SCSI'' transfer the FFS\key{Fast File System (FFS)}
+values different from~1 here and most restrict this value to powers of 2,
+including the FFS\key{Fast File System (FFS)}. File systems
+read and write data in units of {\tt de\_SectorsPerBlock} times {\tt de\_SizeBlock} of
+long words. For the exec {\tt trackdisk} interface, only this product
+matters; however, the ``direct SCSI'' transfer the FFS\key{Fast File System (FFS)}
 version~45 and above offer addresses the disk in terms of physical sectors, and then
-{\tt de\_SizeBlock}\key{de\_SizeBlock} defines the size of a sector in long-words as addressed
+{\tt de\_SizeBlock}\key{de\_SizeBlock} defines the size of a sector in long words as addressed
 by SCSI commands, whereas {\tt de\_SectorsPerBlock}\key{de\_SectorsPerBlock} is the number of
 physical sectors the FFS\key{Fast File System (FFS)} reads for one logical
 block. For many purposes, only the product of the sector size as defined by {\tt de\_SizeBlock}
@@ -6808,8 +6823,8 @@ not in logical blocks as computed from {\tt de\_SectorsPerBlock}.
 
 The {\tt SECTORSPERTRACK}\mkey{SECTORSPERTRACK} and {\tt BLOCKSPERTRACK}\mkey{BLOCKSPERTRACK} keywords set both the
 {\tt de\_BlocksPerTrack}\mkey{de\_BlocksPerTrack} element of the {\tt DosEnvec}\key{DosEnvec} structure. The first
-name is actually most appropriate as this element defines the number of
-physical sectors, and not the number of logical blocks, a track of a disk
+name is actually more appropriate as this element defines the number of
+physical sectors --- and not the number of logical blocks --- a track of a disk
 contains. Thus, the naming is a historical accident. As for the {\tt SURFACES}\key{SURFACES}
 keyword, the number of sectors per track is only in so far relevant as it
 defines along with the first and last cylinder the storage capacity of the
@@ -6818,12 +6833,13 @@ partition is located, see section~\ref{sec:rootblock}. The values never
 enter the exec device layer directly.
 \smallskip{}
 
-The {\tt RESERVED}\mkey{RESERVED} keyword sets the {\tt
-  de\_Reserved}\mkey{de\_Reserved} element of {\tt DosEnvec}\key{DosEnvec}
+The {\tt RESERVED}\mkey{RESERVED} keyword sets the
+{\tt de\_Reserved}\mkey{de\_Reserved} element of {\tt DosEnvec}\key{DosEnvec}
 and defines the number of (logical) blocks not used by the file system at
 the start of the disk or partition. For floppies, these reserved blocks hold
-a (minimal) boot procedure that initializes the \emph{dos.library}. As the
-FFS\key{Fast File System (FFS)} reserves the block number~0 (actually, the
+a (minimal) boot procedure that initializes the \emph{dos.library},
+see section~\ref{sec:bootblock}. As the FFS\key{Fast File System (FFS)}
+reserves the block number~0 (actually, the
 key~0, see~\ref{sec:key}) to indicate a free or non-existing linkage, the
 very first block of a partition cannot be made use of anyhow, and thus a
 positive number is required here. By convention, the value is~2, which is
@@ -6832,13 +6848,16 @@ the number of boot blocks on a floppy.
 
 The {\tt PREALLOC}\mkey{PREALLOC} keyword installs the
 {\tt de\_PreAlloc}\mkey{de\_PreAlloc} element, which is supposed to be the
-number of logical blocks set aside at the end of the partition. However,
-current FFS\key{Fast File System (FFS)} versions completely ignore it and no
+number of logical blocks set aside at the end of the partition\footnote{This
+is what is also documented in~\cite{guru}, though the purpose of this entry
+changed over time.}. However, current FFS\key{Fast File System (FFS)}
+versions completely ignore it and no
 traces of its use are found in the current source. Historically, the BCPL
 implementation of the OFS shipped with AmigaDOS 34 and before used this
 value instead to compute the number of blocks the file system could pre-read
-from the disk and store in its internal buffers without a penalty. Thus,
-this value was~11 for the (ROM-created) mountlist\key{Mountlist} of the floppy as a track
+from the disk and store in its internal buffers without imposing a penalty for
+repositioning the drive head. Thus, this value was~11 for
+the (ROM-created) mountlist\key{Mountlist} of the floppy as a track
 there consists of~11 (physical) sectors and these~11 sectors are in the
 internal buffer of the \emph{trackdisk.device} anyhow. At present, one can
 only recommend to leave this value alone as its interpretation seem to have
@@ -6847,17 +6866,17 @@ changed over time.
 
 The {\tt INTERLEAVE}\mkey{INTERLEAVE} keyword defines the lower 16 bits of
 the {\tt de\_Interleave}\mkey{de\_Interleave} element. Tripos and AmigaDOS
-versions prior release 45 reserved the entire long-word to define the
+versions prior version 45 reserved the entire long word to define the
 interleave factor of the disk, which is the difference between two sector
-addresses the file system is supposed to reserve for subsequent
+addresses the file system is supposed to use for subsequent
 storage. This interleave factor historically helped to speed up data rates
 of slow harddisk interfaces; as data is transferred, sectors on the rotating
 disk passed under read head and the harddisk controller would have to wait
 for almost an entire disk rotation for the numerically next sector to
-reappear. Setting an interleave factor larger than~0 helped in such cases.
+reappear. Setting an interleave factor larger than~1 helped in such cases.
 However, neither the original BCPL implementation of the OFS nor the latest
 FFS\key{Fast File System (FFS)} make use of this mechanism and allocate
-sectors contiguously, i.e.\ with an interleave of~0, regardless of what is
+sectors contiguously, i.e.\ with an interleave of~1, regardless of what is
 set here. The upper 16 bits of {\tt de\_Interleave}\key{de\_Interleave} suit
 now a different purpose and are set by separate keywords in the mountlist\key{Mountlist}.
 Thus, for all practical purposes, this keyword serves no purpose,
@@ -6867,8 +6886,8 @@ and even the legacy BCPL implementation ignored it.
 The {\tt LOWCYL}\mkey{LOWCYL} keyword initializes the {\tt de\_LowCyl}\mkey{de\_LowCyl} element of the
 {\tt DosEnvec} structure. It sets the lower end of the partition on the
 storage medium, i.e.\ {\tt de\_LowCyl} $\times$ {\tt de\_Surfaces} $\times$
-{\tt de\_BlocksPerTrack} + {\tt de\_Reserved} $\times$ {\tt
-  de\_SectorsPerBlock}\key{de\_SectorsPerBlock} is the first physical sector number on a disk that
+{\tt de\_BlocksPerTrack} + {\tt de\_Reserved}
+$\times$ {\tt de\_SectorsPerBlock}\key{de\_SectorsPerBlock} is the first physical sector number on a disk that
 can carry payload data of the file system.
 \smallskip{}
 
@@ -6877,7 +6896,7 @@ it defines the
 (inclusive) upper end of the partition in units of cylinders. That is,
 ({\tt de\_HighCyl} + 1) $\times$ {\tt de\_Surfaces} $\times$
 {\tt de\_BlocksPerTrack} $- 1$ is the last sector of the partition or medium the
-file system can allocate for payload data.
+file system can allocate for storing data.
 \smallskip{}
 
 The {\tt BUFFERS}\mkey{BUFFERS} keyword sets the
@@ -6900,11 +6919,11 @@ The {\tt BUFMEMTYPE}\mkey{BUFMEMTYPE} defines the
 {\tt de\_BufMemType}\mkey{de\_BufMemType} element. It defines the memory type,
 i.e.\ the second argument of {\tt AllocMem()}, for allocating memory keeping
 the file system buffers. It cannot, of course, control the memory type into
-which users require the file system to read data to. While exec device
+which users require the file system to read data. While exec device
 drivers should be able read and write data to any memory type, several
 legacy drivers are not able reach every memory type; this is often due to
 limitations of the hardware such that Zorro-II hardware cannot reach 32-bit
-memory on CPU expansions. Depending on limitations of the
+memory on CPU expansion boards. Depending on limitations of the
 {\tt fssm\_Device}\key{fssm\_Device}, it is unfortunately up to the user to
 provide a suitable {\tt BUFMEMTYPE}\key{BUFMEMTYPE}. While it seems
 plausible to provide here a memory type of the memory that sits ``closer''
@@ -6913,11 +6932,11 @@ necessarily the case as the CPU still has to access this data anyhow, in
 worst case over the slow Zorro-II bus. Thus, only insignificant performance
 improvements can be expected from playing with this value. Historically, the
 \emph{trackdisk.device} could only access buffers in chip memory and
-required a value of~3 (= {\tt MEMF\_CHIP|MEMF\_PUBLIC}) here, though this
+required a value of~3 (=~{\tt MEMF\_CHIP|MEMF\_PUBLIC}) here, though this
 defect was fixed in AmigaOs~36. This is also the default installed by
 {\tt Mount}\key{Mount (command)}, unless a better value is provided by the
 user. Fully operational device drivers will accept a
-value of~1 (= {\tt MEMF\_PUBLIC}) here.
+value of~1 (=~{\tt MEMF\_PUBLIC}) here.
 
 \punchline{Make Mask and Buffer Match}{It makes little sense to provide a
   very restrictive {\tt BUFMEMTYPE} without also adjusting the {\tt MASK}
@@ -6943,8 +6962,8 @@ memory types. If the address of the host memory buffer has bits set in
 positions where the mask contains 0 bits, the file system assumes that
 the device cannot reach memory of such an address. Instead, it performs
 input or output indirectly through its buffers, allocated from
-{\tt BUFMEMTYPE} memory, and copy the data manually (i.e.\ by the CPU) the
-buffer content to or from the target memory address. Historically,
+{\tt BUFMEMTYPE} memory, and copies the data manually (i.e.\ by the CPU)
+to or from the target memory address. Historically,
 the~\emph{trackdisk.device} required here a mask value restricting access to
 chip memory, though this requirement has been removed in AmigaOs~36. The
 {\tt Mount}\key{Mount (command)} command enforces that bit~0 is always~0, i.e. enforces that
@@ -6977,7 +6996,7 @@ here due to multiple defects a value of {\tt 0x0001fe00}.
   defines a byte count that, when exceeded, requests the file system to
   break up transfers into smaller blocks. While that implicitly limits the throughput of the
   device, it does not define a rate (i.e.\ in units of bytes per second). It
-  is the \emph{amount of sectors to read or write} and not the number of
+  is the \emph{amount of bytes to read or write} and not the number of
   bytes transferred per second that imposes a problem.}
 
 The {\tt BOOTPRI}\mkey{BOOTPRI} keyword sets the {\tt de\_BootPri}\mkey{de\_BootPri}
@@ -7092,13 +7111,13 @@ AmigaDOS 43, it was never officially announced.
 
 The next group of types indicates various flavors of the MS-DOS FAT file
 system\mkey{FAT File System}. The first two types are identical and
-correspond to a file system on a single disk without a
-MBR\mkey{Master Boot Record (MBR)} type partition table, as found on
+correspond to a file system on a single disk without a master boot
+record (MBR)\mkey{Master Boot Record (MBR)} type partition table, as found on
 floppy disks. They are unsuitable for harddisk and thumb-drive partitions
-as both typically include a master boot record (MBR).
+as both typically include a MBR.
 \smallskip{}
 
-The second type indicates FAT on a Master Boot Record (MBR) partition as
+The second type indicates a FAT system on a Master Boot Record (MBR) partition as
 used on (legacy) PC hardware. As AmigaDOS does not natively support the MBR,
 the file system here (as an architectural tweak) interprets the partition
 table. Which partition is used depends on the last character of
@@ -7121,7 +7140,7 @@ second the extended version that includes support for Joliet\mkey{Joliet
 identical.
 \smallskip{}
 
-The next group indicates various file systems for Amiga Unix installations
+The last group indicates various file systems for Amiga Unix installations
 that are not found in mount\-lists, but in the RDB of the booting
 harddisk. These file systems do not run under AmigaDOS but rather under Unix
 variants, and thus do not appear in AmigaDOS mountlists\key{Mountlist}. A {\tt
@@ -7135,7 +7154,7 @@ are mounted by the {\tt EHANDLER}\key{EHANDLER} keyword. For them, it
 provides the baud rate for an (assumed) serial connection. This keyword
 first appeared for serial handlers delivered with the CBM A2232 multi-serial
 port, but is also interpreted by the AmigaDOS Port-Handler\key{Port-Handler}
-from version 43 onward, and by the AUX-Handler\key{AUX-Handler} version~47 onward.
+from version 43 onward and by the AUX-Handler\key{AUX-Handler} version~47 onward.
 \smallskip{}
 
 The {\tt CONTROL}\mkey{CONTROL} keyword sets the {\tt
@@ -7170,11 +7189,11 @@ overwrite the boot code.
 \smallskip{}
 
 The {\tt SUPERFLOPPY}\mkey{SUPERFLOPPY} keyword takes a boolean 0 or 1
-argument and by that either sets or clears the {\tt
-  ENVF\_SUPERFLOPPY}\mkey{ENVF\_SUPERFLOPPY} flag,
+argument and by that either sets or clears the
+{\tt ENVF\_SUPERFLOPPY}\mkey{ENVF\_SUPERFLOPPY} flag,
 defined in {\tt dos/filehandler.h}. This flag has been cut off (or reserved) from the
-otherwise deprecated and thus unused {\tt
-  de\_Interleave}\key{de\_Interleaved} element in version 45 of AmigaDOS. It
+otherwise deprecated and thus unused
+{\tt de\_Interleave}\key{de\_Interleaved} element in version 45 of AmigaDOS. It
 is by default cleared.
 \smallskip{}
 
@@ -7187,7 +7206,8 @@ information is then used to adjust {\tt de\_LowCyl}\key{de\_LowCyl}, {\tt de\_Hi
 {\tt de\_SizeBlock}\key{de\_SizeBlock} and
 {\tt de\_Surfaces}\key{de\_Surfaces} within the {\tt DosEnvec} structure. 
 Thus, a file system mounted with this flag enabled adjusts the disk geometry directly from the
-hardware driver. This is important for drives that allow variably sized
+hardware driver. Details on this procedure are found in
+section~\ref{sec:configffs}. This is important for drives that allow variably sized
 media, such as floppy disks (supporting both DD and HD disks) as well as ZIP
 drives (supporting 100MB to 250MB drives).
 \smallskip{}
@@ -7196,9 +7216,16 @@ AmigaDOS up to release 40 hardwired this special case to ROM-based devices
 that supported variably sized media, namely to the {\tt trackdisk.device}
 and {\tt carddisk.device}, i.e.\ floppies and memory cards in the PCMCIA
 slot. Newer releases allow to enable this mechanism for other device drivers
-as well. As of version 45, the FAT\key{FAT File System} and the FFS\key{Fast
-  File System (FFS)} both support this mechanism, though the former also
-requires the {\tt 'FAT\textbackslash0'} dos type.
+as well. As of version 45, the FAT\key{FAT File System} and the
+FFS\key{Fast File System (FFS)} both support this mechanism.
+\smallskip{}
+
+The FAT system is a special case and only honors {\tt SUPERFLOPPY} if the
+dos type is set to {\tt 'FAT\textbackslash0'}. If {\tt SUPERFLOPPY} is set
+to 1, a FAT file system mounted with the dos type {\tt 'FAT\textbackslash0'}
+receives the partition size from the physical layer
+and ignores the MBR, whereas if this this keyword is set to 0, the MBR is
+interpreted. All other dos types of the FAT system ignore this keyword.
 \medskip{}
 
 The {\tt SCSIDIRECT}\mkey{SCSIDIRECT} keyword is also a boolean indicator
@@ -7212,7 +7239,7 @@ was also introduced in AmigaDOS version~45.
 
 If this flag is set, the file system is instructed to communicate with the
 underlying device through the {\tt HD\_SCSICMD} interface, i.e.\ by SCSI
-commands instead through trackdisk commands. This helps some legacy device
+commands instead of trackdisk commands. This helps some legacy device
 drivers that do not speak the 64-bit dialect of the trackdisk commands
 to access data beyond the~4GB barrier. Very ancient device drivers may not
 even support this command set, and it is therefore not enabled by default.
@@ -7237,18 +7264,18 @@ their supported command range. This flag was also introduced in AmigaDOS version
 
 Unfortunately, multiple command sets exist to access (moderately) large
 disks. If {\tt DIRECTSCSI}\key{DIRECTSCSI} is enabled, SCSI commands will
-always be used, even for probing the medium size if {\tt
-  SUPERFLOPPY}\key{SUPERFLOPPY} is set. If SCSI commands are not enabled,
+always be used, even for probing the medium size if
+{\tt SUPERFLOPPY}\key{SUPERFLOPPY} is set. If SCSI commands are not enabled,
 the FFS\key{Fast File System (FFS)} first attempts to use regular 
- trackdisk commands if the partition does not cross the~4GB barrier. If
+trackdisk commands if the partition does not cross the~4GB barrier. If
 it does, it probes the {\tt TD64} command set as it is
 historically the most popular extension. As last resort, it tries {\tt NSD}
-commands. This last step can be disabled by the line {\tt ENABLENSD = 0} in
-the mountlist\key{Mountlist} should it create problems.
+commands. This last step can be disabled by setting the {\tt ENABLENSD} in
+the mountlist\key{Mountlist} to 0 should NSD create problems.
 \medskip{}
 
-The {\tt ACTIVATE}\mkey{ACTIVATE} keyword in the mountlist\key{Mountlist} is synonym to the {\tt
-  MOUNT}\mkey{MOUNT} keyword, and it also takes a boolean indicator. If it is set,
+The {\tt ACTIVATE}\mkey{ACTIVATE} keyword in the mountlist\key{Mountlist} is
+synonym to the {\tt MOUNT}\mkey{MOUNT} keyword, and it also takes a boolean indicator. If it is set,
 then the {\tt Mount}\key{Mount (command)} command will already load and initiate the handler
 corresponding to the mount entry. Otherwise, the handler or file system will be loaded the first time
 it is accessed through a path. This option is most useful for testing device drivers, or load
@@ -7660,7 +7687,7 @@ of the device list\key{Device List} assign\key{Assign}, they can be different.
 
 While {\tt GetDeviceProc()}\key{GetDeviceProc()} uses the device
   list\key{Device List} to locate a particular {\tt MsgPort} and lock\key{Lock}, all
-other members of the {\tt DosList}\key{DosList} structure remain unavailable. For
+other elments of the {\tt DosList}\key{DosList} structure remain unavailable. For
 them, the device list\key{Device List} containing these structures need to be
 scanned manually. The \emph{dos.library} provides functions to grant
 access, search and release access to this list.
@@ -8179,7 +8206,7 @@ see chapter~\ref{sec:devicelist}.
 
 If successful, the function returns non-zero, but then does not alter
 {\tt IoErr()}\key{IoErr()}. The {\tt DosList}\key{DosList} is then enqueued in the
-\emph{dos.library} database and it and its members shall then no
+\emph{dos.library} database and it and its elements shall then no
 longer be altered or released by the caller. On failure, the function
 returns $0$ and {\tt IoErr()}\key{IoErr()} is set
 to {\tt ERROR\_OBJECT\_EXISTS}\key{ERROR\_OBJECT\_EXISTS}.
@@ -8306,7 +8333,7 @@ the (regular C string) argument {\tt name}.
 \smallskip{}
 
 Note that this function performs only minimal initialization of the
-{\tt DosList} structure. All members except {\tt dol\_Type} and
+{\tt DosList} structure. All elements except {\tt dol\_Type} and
 {\tt dol\_Name} are initialized to~$0$, and additional initialization is
 necessary by the caller.
 \smallskip{}
@@ -9778,7 +9805,7 @@ chapter~\ref{sec:handlers}.
 \smallskip{}
 
 {\tt pr\_Pad}\mkey{pr\_Pad} is unused and only included in the structure to ensure that
-all following members are aligned to long word boundaries.
+all following elements are aligned to long word boundaries.
 \medskip{}
 
 {\tt pr\_SegList}\mkey{pr\_SegList} contains an array of
@@ -16463,8 +16490,8 @@ override the parameters found in the above sources, and therefore
 parameters from the mountlist\key{Mountlist}. In case the device name
 is either ``{\tt trackdisk.device}'' or ``{\tt carddisk.device}'', the
 FFS\key{Fast File System (FFS)} will instead request the disk geometry
-from the underlying exec device. For this, it issues a {\tt
-  TD\_GETGEOMETRY} command when a medium is inserted,
+from the underlying exec device. For this, it issues a
+{\tt TD\_GETGEOMETRY} command when a medium is inserted,
 the FFS starts up or access to the
 volume granted by {\tt Inhibit(}$\ldots${\tt,DOSFALSE)}\key{Inhibit()}, see
 section~\ref{sec:inhibit}.
@@ -16702,8 +16729,8 @@ used directly for SCSI transfer which is enabled by the
   de\_Interleave}\key{de\_Interleave} element of the environment vector.
 \smallskip{}
 
-For trackdisk style commands, e.g.\ {\tt TD\_READ} or {\tt
-  TD\_READ64} that are used otherwise, exec device drivers address
+For trackdisk style commands, e.g.\ {\tt TD\_READ} or
+{\tt TD\_READ64} that are used otherwise, exec device drivers address
 data by a byte offset instead of a sector number. It is computed by
 multiplying $S$ by $\mbox{\tt de\_SizeBlock} \times 4$. The additional
 factor of~4 is required because {\tt de\_SizeBlock} is in units of long-words
