@@ -7713,12 +7713,12 @@ access, search and release access to this list.
 The {\tt LockDosList()}\mkey{LockDosList()} function requests shared
 or exclusive access to a subset of entries of the device list\key{Device List}
 containing all handlers, volumes and assigns\key{Assign} and
-blocks until access is granted. It requires as input a flag that defines
+blocks until access is granted. It requires as input flags that define
 which parts of the list are requested:
 
 \begin{verbatim}
 dlist = LockDosList(flags) /* since V36 */
- D0                   D1
+ D0                  D1
 
 struct DosList *LockDosList(ULONG)
 \end{verbatim}
@@ -7726,8 +7726,8 @@ struct DosList *LockDosList(ULONG)
 This function grants read (shared) or write (exclusive) access to a subset of entries of the device
 list\key{Device List} indicated by {\tt flags}, and returns an opaque handle through
 which elements of the list can be accessed. Unlike what the function
-prototype implies, the returned value \emph{is not} a pointer to a {\tt
-DosList} structure. For locating a particular entry on the device list, see
+prototype implies, the returned value \emph{is not} a pointer to a
+{\tt DosList} structure. For locating a particular entry on the device list, see
 {\tt FindDosEntry()}\key{FindDosEntry()} in section~\ref{sec:finddosentry}.
 \smallskip{}
 
@@ -7750,23 +7750,25 @@ At least {\tt LDF\_READ}\key{LDF\_READ} or {\tt LDF\_WRITE}\key{LDF\_WRITE} shal
 flags, they shall not be set both. For example, {\tt GetDeviceProc()}\key{GetDeviceProc()} performs a read
 access on the list while looking for a particular device, while adding
 assigns through {\tt AssignLock()}\key{AssignLock()} (see
-section~\ref{sec:assignlock}) requires write access with {\tt LDF\_ASSIGNS}. The three first flags may also be
+section~\ref{sec:assignlock}) requires
+write access with {\tt LDF\_ASSIGNS}. The three first flags may also be
 combined to access multiple types, e.g. as {\tt LDF\_ALL} to request all entries.
 \smallskip{}
 
 {\tt LDF\_ENTRY}\key{LDF\_ENTRY} and {\tt LDF\_DELETE}\key{LDF\_DELETE} are
-additional flags that moderate access to entries of the device list\key{Device List}. {\tt
-  LDF\_ENTRY} locks the list while loading and starting new
+additional flags that moderate access to entries of the device
+list\key{Device List}.
+{\tt LDF\_ENTRY} locks the list while loading and starting new
 handlers and file systems. If {\tt LDF\_DELETE} is set, then access is
 granted for removing entries.  Both flags are only set internally by the
 \emph{dos.library} and shall not be used by applications, handlers or file
 systems.
 \medskip{}
 
-The result code {\tt dlist} is \emph{not} a pointer to a {\tt DosList}\key{DosList}
-structure, but only a handle that may be passed into {\tt
-  FindDosEntry()}\key{FindDosEntry()} or {\tt
-  NextDosEntry()}\key{NextDosEntry}. If {\tt dlist} is {\tt NULL},
+The result code {\tt dlist} is \emph{not} a pointer to
+a {\tt DosList}\key{DosList} structure, but only a handle
+that may be passed into {\tt FindDosEntry()}\key{FindDosEntry()}
+or {\tt NextDosEntry()}\key{NextDosEntry}. If {\tt dlist} is {\tt NULL},
 then locking failed because the combination of {\tt flags} passed in
 was invalid.
 \smallskip{}
