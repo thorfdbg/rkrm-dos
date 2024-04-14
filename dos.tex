@@ -6453,14 +6453,14 @@ System\key{Fast File System (FFS)} and most other file systems
 expect here a BPTR to a {\tt FileSysStartupMsg} structure. While this value
 may be whatever the handler requires, the {\tt Mount}\key{Mount (command)} command either
 deposits here a BPTR to the {\tt FileSysStartupMsg} structure, a BPTR to a
-BSTR, or a small integer. Section~\ref{sec:handlerstartup} provides more
-details on mounting handlers and how the startup mechanism
-works. Unfortunately, it is hard to interpret {\tt dol\_Startup} correctly
-as its interpretation is dependent on the file system, though
-section~\ref{sec:accessfssm} provides additional hints and a recommended
-algorithm for interpreting this element. One way to set it is through the
-{\tt STARTUP}\key{STARTUP} in the mountlist\key{Mountlist}, see~\ref{sec:filesysstartup}
-for details.
+BSTR, a BPTR to an array of long words or a small integer.
+Section~\ref{sec:handlerstartup} provides more details on mounting handlers
+and how the startup mechanism works. Unfortunately, it is hard to
+interpret {\tt dol\_Startup} correctly as its interpretation is dependent
+on the file system, though section~\ref{sec:accessfssm} provides
+additional hints and a recommended algorithm for interpreting this element.
+One way to set it is through the {\tt STARTUP}\key{STARTUP} in the
+mountlist\key{Mountlist}, see~\ref{sec:filesysstartup} for details.
 \smallskip{}
 
 {\tt dol\_SegList}\mkey{dol\_SegList} is a BPTR to the chained
@@ -6659,14 +6659,17 @@ location for the BCPL global vector\key{Global Vector} would then be needed.
 
 If the {\tt HANDLER}\key{HANDLER} keyword is present, the
 {\tt STARTUP}\mkey{STARTUP} entry in the mountlist\key{Mountlist} sets
-{\tt dol\_Startup}\key{dol\_Startup}. It can be either an integer value, or if
-the argument is enclosed in double quotes, a string. In the latter case,
-{\tt dol\_Startup} is set to a BPTR to a BSTR which is, to ease handler
-implementation, also {\tt NUL} terminated. The quotes become part of the
-string, and the handler has to remove them when interpreting this startup
-string. The {\tt NUL} terminator is, even though always present, not included
-in the size of the BSTR. It is up to the user to ensure that the arguments
-in the mountlist\key{Mountlist} are what the handler expects.
+{\tt dol\_Startup}\key{dol\_Startup}. It can be either an integer value, a
+comma-separated list of integers enclosed in brackets, or a string, optionally
+enclosed in double quotes. For the array case, {\tt dol\_Startup}
+becomes a BPTR to an array of long words whose first element is the array
+size. In the string case, {\tt dol\_Startup} is set to a BPTR to a
+BSTR which is, to ease handler implementation, also {\tt NUL} terminated.
+If present, the quotes become part of the string, and the handler has to remove them
+when interpreting it. The {\tt NUL} terminator is,
+even though always present, not included in the size of the BSTR.
+It is up to the user to ensure that the arguments in the
+mountlist\key{Mountlist} are what the handler expects.
 
 \subsection{Keywords controlling the FileSysStartupMsg} \label{sec:filesysstartup}
 
@@ -7157,18 +7160,18 @@ port, but is also interpreted by the AmigaDOS Port-Handler\key{Port-Handler}
 from version 43 onward and by the AUX-Handler\key{AUX-Handler} version~47 onward.
 \smallskip{}
 
-The {\tt CONTROL}\mkey{CONTROL} keyword sets the {\tt
-  de\_Control}\mkey{de\_Control} element of the {\tt DosList}
+The {\tt CONTROL}\mkey{CONTROL} keyword sets the
+{\tt de\_Control}\mkey{de\_Control} element of the {\tt DosList}
 structure. Even though this element is here indicated as an {\tt ULONG}, it
-can be either an integer or a string. In the latter case, the argument to
-{\tt CONTROL} shall be enclosed in double quotes, and the {\tt Mount}\key{Mount (command)}
-command then converts this string, including the quotes, to a BSTR and
-installs a BPTR to this string in {\tt de\_Control}. It is up to the user to
-learn from the handler documentation what the handler expects here as the
-{\tt Mount}\key{Mount (command)} command has no means of checking the correctness of the string.
+can be either an integer, an array of integers enclosed in brackets or a
+string, optionally enclosed in double quotes, similar to {\tt dol\_Startup}.
+It is encoded alike either as integer, BPTR to an array or a BSTR.
+It is up to the user to learn from the handler documentation
+what the handler expects here as the {\tt Mount}\key{Mount (command)}
+command has no means of checking the correctness of the value.
 The Port-Handler\key{Port-Handler}, see section~\ref{sec:portstartup}, and
 AUX-Handler\key{AUX-Handler} (see section~\ref{sec:constartup}) interpret
-this parameter to define the parameters of a serial connection.
+this entry as the definition of the serial connection parameters.
 \smallskip{}
 
 The {\tt BOOTBLOCKS}\mkey{BOOTBLOCKS} keyword initializes the {\tt
@@ -7773,18 +7776,32 @@ then locking failed because the combination of {\tt flags} passed in
 was invalid.
 \smallskip{}
 
-Application programs \emph{should not} keep the device list\key{Device List} locked while
-sending a packet to a handler or file system. This is because
-handlers or file systems need access to the device list\key{Device List} themselves under
-certain conditions, for example to add a {\tt DosList} entry representing a
-volume inserted into the drive maintained by the file system. Unfortunately,
-even some system programs \emph{do} keep a lock (despite the above warning),
-and attempting to retrieve a lock from within the file system would then
-cause a deadlock. Instead, handler and file system implementations should
-rather call {\tt AttemptLockDosList()}\key{AttemptLockDosList()} specified
-in section~\ref{sec:attemptlockdoslist} and defer the intended operation
-until after the list becomes accessible.
-\smallskip{}
+Application programs \emph{should not} keep the device list\key{Device List}
+locked while sending a packet to a handler or file system. This is because
+handlers or file systems need access to the device list\key{Device List}
+themselves under certain conditions, for example to add or remove a {\tt
+  DosList} entry representing a volume inserted into or ejected from the
+drive maintained by the file system. Unfortunately, the \emph{dos.library}
+within {\tt GetDeviceProc()}\key{GetDeviceProc()} itself also locks the list
+when attempting to load a handler or file system,
+potentially from the same handler that requires to modify the list at the same
+moment. If the handler requests access using {\tt LockDosList()},
+this can result in a deadlock, as the \emph{dos.library} waits for
+the handler to open the file, and the handler waits for the lock to become
+available to add or remove a volume. To avoid this problem, handler and file
+system implementations should rather call
+{\tt AttemptLockDosList()}\key{AttemptLockDosList()} specified
+in section~\ref{sec:attemptlockdoslist} and defer modifying the list
+until after the semaphore becomes available; in the meantime, they should
+continue to serve incoming requests \emph{without waiting for them}, and
+defer the modification of the device list until after the list could be
+successfully locked.
+
+\punchline{Not for Handlers and File Systems}{Handlers and File Systems
+  should not request blocking access to the device list as this
+  can deadlock the system. Instead, {\tt AttemptLockDosList()} should be
+  used to request access to the list, while continuing to serve incoming
+  packets other processes depend upon before they can release the lock.}
 
 For backwards compatibility to AmigaDOS versions 34 and earlier, this
 function also calls {\tt Forbid()}, implementing the access protocol of such
@@ -7813,30 +7830,30 @@ list\key{Device List} are requested for access, and which type of access is
 required. The flags are a combination of the flags listed in
 table~\ref{table:lockdoslistflags}, and the semantics of the flags are
 exactly as specified for {\tt LockDosList()}\key{LockDosList()}, see
-there for details.
+table~\ref{table:lockdoslistflags} there for details.
 \smallskip{}
 
 This function should be used within handlers to check whether access to a
-(subset) of the device list\key{Device List} is possible as blocking access through {\tt
-  LockDosList()}\key{LockDosList()} may lead to a deadlock, see also
-section~\ref{sec:lockdoslist}.
+(subset) of the device list\key{Device List} is possible as blocking
+access through {\tt LockDosList()}\key{LockDosList()} may lead
+to a deadlock, see also section~\ref{sec:lockdoslist}.
 \smallskip{}
 
 On success, the result code is a non-{\tt NULL} handle that may be
 passed into the {\tt FindDosEntry()}\key{FindDosEntry()} function for
 finding a handler, file system, volume or assign\key{Assign} matching a name, or
 into the {\tt NextDosEntry()}\key{NextDosEntry()} function for
-iterating the device list\key{Device List} manually. On error, the result code is {\tt
-  NULL}, either because the list is currently locked and access
+iterating the device list\key{Device List} manually. On error, the result
+code is {\tt NULL}, either because the list is currently locked and access
 cannot be granted without blocking, or flags are invalid. These two
 cases of failure cannot be distinguished unfortunately.
 \smallskip{}
 
-Up to AmigaDOS versions 39, this function could return either {\tt NULL} or
+Up to AmigaDOS versions~39, this function could return either {\tt NULL} or
 {\tt (struct DosList *)1} on failure\footnote{That is, the numerical value 1
-casted to a {\tt DosList} pointer.}, and thus -- if compatibility to such versions is
+casted to a {\tt DosList} pointer.}, and thus --- if compatibility to such versions is
 intended --- both return codes would need to be checked. This was fixed in
-release 40 at least.
+release 40.
 \smallskip{}
 
 This function does not alter {\tt IoErr()}\key{IoErr()}.
@@ -7854,13 +7871,13 @@ UnLockDosList(flags) /* since V36 */
 void UnLockDosList(ULONG)
 \end{verbatim}
 
-This function releases access to the device list\key{Device List} again. The
+This function releases access to the device list\key{Device List}. The
 {\tt flags} argument shall be identical to the {\tt flags} argument
-provided to {\tt LockDosList()}\key{LockDosList()} or {\tt
-  AttemptLockDosList()}\key{AttemptLockDosList()}.
+provided to {\tt LockDosList()}\key{LockDosList()} or
+{\tt AttemptLockDosList()}\key{AttemptLockDosList()}.
 \smallskip{}
 
-As a compatibility kludge to AmigaDOS versions 34 and before, this function
+As a compatibility kludge to AmigaDOS versions~34 and before, this function
 also calls {\tt Permit()}, implementing the legacy access protocol to the
 device list\key{Device List}.
 
@@ -7872,7 +7889,7 @@ returned by {\tt LockDosList()}\key{LockDosList()} or {\tt AttemptLockDosList()}
 
 \begin{verbatim}
 newdlist = NextDosEntry(dlist,flags) /* since V36 */
- D0                       D1    D2
+ D0                      D1    D2
 
 struct DosList *NextDosEntry(struct DosList *,ULONG)
 \end{verbatim}
@@ -7888,7 +7905,7 @@ call, or the handle returned by {\tt LockDosEntry()} or {\tt AttemptLockDosList(
 {\tt flags} shall be a subset of the flags requested from
 {\tt LockDosList()} or {\tt AttemptLockDosList()} and specifies the type of
 {\tt DosList} structures that shall be iterated over. Only the first~3 elements
-of Table~\ref{table:lockdoslistflags} are relevant here, all other flags are
+of table~\ref{table:lockdoslistflags} are relevant here, all other flags are
 ignored but may be included.
 \smallskip{}
 
@@ -7916,15 +7933,15 @@ void IterateDosList(void)
 Note that the {\tt name} is stored as a BSTR that is, conveniently,
 always {\tt NUL} terminated. The {\tt name} \emph{cannot} be safely printed
 in the loop as printing implies the transfer of a packet to the console while
-the device list\key{Device List} is at this point locked. See also the notes in
+the device list\key{Device List} is at this point locked, see also the notes in
 section~\ref{sec:lockdoslist}. If the names are required, they shall be
 copied within the loop and then printed later.
 
 \subsection{Find a Device List Entry by Name} \label{sec:finddosentry}
 
 The {\tt FindDosEntry()}\mkey{FindDosEntry()} function finds a
-{\tt DosList}\key{DosList} structure of a particular type and particular
-name, from a particular entry on, or the handle returned by
+{\tt DosList}\key{DosList} structure of a particular type and 
+name, searching the list starting at a given entry, or the handle returned by
 {\tt LockDosList()}\key{LockDosList()} or {\tt AttemptLockDosList()}\key{AttemptLockDosList()}.
 
 \begin{verbatim}
@@ -7934,17 +7951,17 @@ D0                       D1    D2   D3
 struct DosList *FindDosEntry(struct DosList *,STRPTR,ULONG)
 \end{verbatim}
 
-This function scans through the device list\key{Device List} starting at the entry {\tt
-dlist}, or the handle returned by {\tt LockDosList()} or {\tt
-AttemptLockDosList()}\key{AttemptLockDosList()}, and returns the next {\tt
-DosList}\key{DosList} structure, potentially \emph{including} the one
+This function scans through the device list\key{Device List} starting at the
+entry {\tt dlist}, or the handle returned by {\tt LockDosList()} or
+{\tt AttemptLockDosList()}\key{AttemptLockDosList()}, and returns the next
+{\tt DosList}\key{DosList} structure, potentially \emph{including} the one
 pointed to by {\tt dlist}, that is of the type indicated by {\tt flags} and
 has the name {\tt name}.
 \smallskip{}
 
 {\tt flags} shall be a subset of the flags requested from
 {\tt LockDosList()}\key{LockDosList()} or {\tt AttemptLockDosList()}\key{AttemptLockDosList()}.
-Only the first 3 elements of Table~\ref{table:lockdoslistflags} are relevant
+Only the first 3 elements of table~\ref{table:lockdoslistflags} are relevant
 here, all other flags are ignored but may be included.
 \smallskip{}
 
@@ -7953,6 +7970,13 @@ assign\key{Assign}, handler, file system or volume to be found. The name
 \emph{shall not} include the colon ('{\tt :}') that separates the name from
 the remaining components of a path, see section~\ref{sec:paths}. It may be
 {\tt NULL} in which case every entry of the requested type matches.
+\smallskip{}
+
+Note that it is possible that more than one entry on the device list matches
+a given name. Duplicate entries of the same name on the device list
+\emph{are} possible as AmigaDOS does supports identically named volumes; they
+are distinguished by their creation date. This is not possible for handlers
+or assigns, their names are unique.
 \smallskip{}
 
 The returned {\tt newdlist} is a pointer to a {\tt DosList}\key{DosList} structure
@@ -7997,39 +8021,40 @@ The mount information, or to be more precise, the configuration of the
 handler or file system is found in the {\tt dol\_Startup}\key{dol\_Startup}
 field; it is, however, up to the handler to interpret it, and AmigaDOS does
 not define its syntax. The {\tt Mount}\key{Mount (command)} command can
-place three different types of objects here: An integer value, a BPTR to a
-BSTR, or a BPTR to a {\tt FileSysStartupMsg}\key{FileSysStartupMsg}, though
-even other types could be deposited here by handler-specific tools.
+place four different types of objects here: An integer value, a BPTR to a
+BSTR, a BPTR to an array of long words, or or a BPTR to a
+{\tt FileSysStartupMsg}\key{FileSysStartupMsg}, though even other types could
+be deposited here by handler-specific tools.
 \smallskip{}
 
 Unfortunately, there is no completely safe way how to distinguish these
 types, and AmigaDOS does not provide any further source of information to
 learn what a handler expects here --- thus a heuristics is needed to tell
-them apart and access mount information.
+them apart and access the mount information.
 \smallskip{}
 
 The following algorithm attempts to detect the nature of the information
-provided in {\tt dol\_Startup} given a pointer to a {\tt DosList}, for
-example as provided by {\tt FindDosEntry()}\key{FindDosEntry()}:
+provided in {\tt dol\_Startup} given a pointer to a {\tt DosList}, that
+has been, for example, returned by {\tt FindDosEntry()}\key{FindDosEntry()}:
 
 \begin{verbatim}
 void AnalyzeDosList(struct DosList *dl)
 {
-LONG *s;
-UBYTE *text;
+ LONG *s;
+ UBYTE *text;
 
- s=(LONG *)(dl->dol_misc.dol_handler.dol_Startup);
+ s = (LONG *)(dl->dol_misc.dol_handler.dol_Startup);
  if (((LONG)s & 0xc0000000)==0 && TypeOfMem(BADDR(s))) {
    LONG *startupmsg = BADDR(s);
    /* Looks like a plausible BPTR */
    /* This checks whether fssm_Device 
    ** is meaningful in order to derive
    */
-   if ((startupmsg[1] & 0xc0000000) == 0) {
+   if ((startupmsg[1] & 0xc0000000)==0) {
      /* Hopefully, a BPTR to a BSTR,
      ** namely the device name.
      */
-     text=((char *)BADDR(startupmsg[1]))+1;
+     text = ((char *)BADDR(startupmsg[1]))+1;
      if (TypeOfMem(text)) {
        /* Now check the want-to-be fssm_Envion */
        if ((startupmsg[2] & 0xc0000000) == 0 && 
@@ -8055,22 +8080,24 @@ UBYTE *text;
            ** by env->de_TableSize.
            */
            ...
+           return;
          }
        }
      }
-   } else {
-     /* This is probably a string.
-     ** "mount" puts NUL-terminated strings in 
-     ** here.
-     */
-     text = ((UBYTE *)startupmsg)+1;
-     ...
    }
+   /* This is probably a string.
+   ** "mount" puts NUL-terminated strings in 
+   ** here.
+   */
+   text = ((UBYTE *)startupmsg)+1;
+   ...
+   return;
  } else {
    /* Likely some sort of handler, and s is
    ** probably some integer
    */
    ...
+   return;
  }
 }
 \end{verbatim}
@@ -8095,7 +8122,7 @@ the {\tt fssm\_Environ}\key{fssm\_Environ} element is also a valid BPTR.
 Even if this function is able to identify an {\tt DosEnvec}\key{DosEnvec} structure
 with high probability, the environment vector found in this way does
 not need to be complete and contain all the elements listed in
-section~\ref{sec:envec}, instead, only the first {\tt de\_TableSize}\key{de\_TableSize}
+section~\ref{sec:envec}; instead, only the first {\tt de\_TableSize}\key{de\_TableSize}
 elements are present, and everything beyond this point shall not be
 interpreted or modified. AmigaDOS versions~32 and above allocate at least 11 entries
 here, for every additional entry a test of
