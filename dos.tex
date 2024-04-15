@@ -8479,12 +8479,14 @@ entry for the device list\key{Device List}, it only performs minimal
 initialization of the structure. For assigns\key{Assign}, specifically, the
 \emph{dos.library} provides specialized functions that allocate,
 initialize and enqueue and remove {\tt DosList}\key{DosList} structures representing assigns
-in a single call and are thus easier to use.
+in a single call and are thus easier to use. They also lock and unlock the
+device list appropriately, and thus {\tt LockDosList()}\key{LockDosList()}
+does not need to be called.
 \smallskip{}
 
 Unfortunately, all the functions provided in this section have a race
 condition in handling locks\key{Lock} representing the target directory (or
-directories) of an assign. As such locks are passed out by
+directories) of an assign. As locks representing such directories are passed out by
 {\tt GetDeviceProc()}\key{GetDeviceProc()} (see section~\ref{sec:getdeviceproc})
 or {\tt DeviceProc()}\key{DeviceProc()} without any internal reference counting, it can happen
 that they are still in use when they are released by canceling,
@@ -8503,7 +8505,8 @@ The {\tt AssignLock()}\mkey{AssignLock()} function scans the device
 list\key{Device List} for an assign of a given name. If this assign is not
 yet present, it adds a regular assign to the directory as represented by a
 lock\key{Lock}. If the assign is already present, the assign is converted to
-a regular assign to the target directory, or the assign is canceled.
+a regular assign to the target directory. If the target lock is {\tt ZERO},
+the assign is canceled.
 
 \begin{verbatim}
 success = AssignLock(name,lock) /* since V36 */
@@ -8512,9 +8515,9 @@ D0                    D1   D2
 BOOL AssignLock(STRPTR,BPTR)
 \end{verbatim}
 This function creates, updates or cancels the assign identified by
-{\tt name} which shall not include a trailing colon (``{\tt :}'') separating
-the assign name from the rest of the path. The {\tt lock} argument
-shall be either {\tt ZERO} or a shared lock\key{Lock} to a directory.
+{\tt name} which shall not include a trailing colon (``{\tt :}'').
+The {\tt lock} argument shall be either {\tt ZERO} or a
+shared lock\key{Lock} to a directory.
 \smallskip{}
 
 If no {\tt DosList} of the given {\tt name} exists, and {\tt lock} is not
@@ -8580,7 +8583,7 @@ assign\key{Non-binding Assign} to {\tt path}. While not a formal requirement of 
 non-binding assigns\key{Non-binding Assign}, the {\tt path} should better be an
 absolute path as otherwise resolution of the created assign can
 be very confusing --- it is then resolved relative to the current
-directory of the calling process.
+directories of the processes using the assign.
 \smallskip{}
 
 If an assign {\tt name} already exists, it is canceled, all of its
@@ -8686,9 +8689,9 @@ volume or any other type of assign fails.
 \smallskip{}
 
 On success, the function returns a non-zero result code. In such a
-case, the {\tt lock} is absorbed into the assign and should no
+case, the {\tt lock} is absorbed into the assign and shall no
 longer be used by the caller. The assign is converted into a
-multi-assign on access if it is not already one. The {\tt lock}
+multi-assign if it is not already one. The {\tt lock}
 is added at the end of the directory list, i.e.\ the new directory is
 scanned last when resolving the assign.
 
