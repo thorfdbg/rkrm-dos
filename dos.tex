@@ -7373,7 +7373,7 @@ section~\ref{sec:fib}.
 \smallskip{}
 
 {\tt dvp\_Flags}\mkey{dvp\_Flags} identifies properties of the found port
-and lock, though there is typcially no need to test them.
+and lock, though there is typically no need to test them.
 The flags are defined in the include file {\tt dos/dosextens.h}. The
 currently defined flags are also listed in table~\ref{table:devprocflags}:
   
@@ -7702,7 +7702,7 @@ of the device list\key{Device List} assign\key{Assign}, they can be different.
 
 While {\tt GetDeviceProc()}\key{GetDeviceProc()} uses the device
   list\key{Device List} to locate a particular {\tt MsgPort} and lock\key{Lock}, all
-other elments of the {\tt DosList}\key{DosList} structure remain unavailable. For
+other elements of the {\tt DosList}\key{DosList} structure remain unavailable. For
 them, the device list\key{Device List} containing these structures need to be
 scanned manually. The \emph{dos.library} provides functions to grant
 access, search and release access to this list.
@@ -8750,7 +8750,7 @@ assign or a multi-assign.
 
 Functions in this section act on a file system as a whole;
 thus, they do not need a file or a lock\key{Lock} to operate on, but modify the
-file system globally.
+file system globally given a volume or device name.
 
 \subsection{Adjusting File System Buffers} \label{sec:addbuffers}
 
@@ -8767,8 +8767,8 @@ LONG AddBuffers(STRPTR, LONG)
 This function adds {\tt number} buffers to the file system responsible for
 the path given by {\tt filesystem}. This should be an absolute path,
 e.g.\ the name of the device followed by a colon (``{\tt :}''), such as
-``{\tt DF0:}''.  In case a relative path is provided, the file system
-responsible for the current directory of the calling process is
+``{\tt DF0:}''.  In case a relative path is provided, the buffer count of
+the file system responsible for the current directory of the calling process is
 modified. The file system object identified by this argument does not
 actually matter and does not even need to exist, and providing a complete
 path is not an error either. See also
@@ -8827,10 +8827,11 @@ BOOL Relabel(STRPTR,STRPTR)
 This function relabels the volume that resides on the file system
 corresponding to the {\tt volumename} path. This path is resolved through
 {\tt GetDeviceProc()}\key{GetDeviceProc()} and thus may be a relative or
-absolute path, the device or the volume name. As {\tt volumename} is
+absolute path based on the device or volume name. As {\tt volumename} is
 interpreted as a path, a device or volume name passed in shall include a
 colon (``{\tt :}'') as it would be otherwise interpreted as a path relative
-to the current directory. The file system object identified by the path does
+to the current directory, and thus relabel the volume on which the current
+directory is located. The file system object identified by the path does
 not matter and does not even need to exist.
 \smallskip{}
 
@@ -8877,9 +8878,9 @@ This function erases all information on the medium or partition
 identified by {\tt filesystem}, which is interpreted as a path. Thus,
 it may be a device or volume name, which shall then be terminated by a
 colon (``{\tt :}''). However, all other paths also work; however,
-if they do not include a colon, the argument is interpreted as a path
-name relative to the current directory, and thus will initialize the
-file system containing it.
+if they do not include a colon, the argument is interpreted as path
+relative to the current directory, and thus will initialize the file system
+responsible for the current directory.
 \smallskip{}
 
 Beware, multiple volumes of the same name, but differing creation dates, can
@@ -8891,17 +8892,19 @@ file system or handler name (e.g. ``{\tt DF0:}'') should be preferred.
 \smallskip{}
 
 To block processes from accessing information on the file system while
-it is initializing, it should be inhibited upfront, e.g by
+it is initializing, it shall be inhibited upfront, e.g by
 {\tt Inhibit(filesystem,DOSTRUE)} or by lower level packet communication to
-the handler, see section~\ref{sec:packetinhibit}. Initializing is
-the only operation file systems are able to perform while being
-inhibited.
+the handler, see section~\ref{sec:packetinhibit}. Initializing
+and serializing the disk, i.e.\ making it unique, by the packet defined in
+section~\ref{sec:actionserializedisk} are the only operations file
+systems are able to perform while being inhibited.
 \smallskip{}
 
 The {\tt Format()}\key{Format()} function \emph{does not} attempt a low-level
 initialization of the corresponding medium; that is, it does not
-attempt to low-level format it at the physical layer as required when
-a floppy disk is prepared for initial use. This step needs to be
+attempt to low-level format it at the physical layer as
+for example required when a floppy disk is prepared for
+initial use. This step needs to be
 performed manually by first blocking access of the file system to the
 floppy through {\tt Inhibit()}\key{Inhibit()}, then initializing the physical
 layer through the exec device driver, e.g.\ by a
@@ -8926,17 +8929,18 @@ ignore this argument if they only support a single flavor.
 Unfortunately, AmigaDOS does not provide an easy way to access the flavors
 supported by a file system. The {\tt Format} command of the Workbench offers
 the types listed in the first half of table~\ref{table:ffsflavours} if the
-mount entry of the file system indicates that it is the FFS\key{Fast File
-  System (FFS)}, and otherwise does not offer any choices and just copies
-the {\tt dostype} from the {\tt de\_DosType}\key{de\_DosType} of the
-{\tt DosEnvec}\key{DosEnvec} structure, see also section~\ref{sec:mountlist}.
+mount entry of the file system indicates that it is the
+FFS\key{Fast File System (FFS)}, and otherwise does not offer any
+choices and just copies the {\tt dostype} from the
+{\tt de\_DosType}\key{de\_DosType} of the {\tt DosEnvec}\key{DosEnvec}
+structure, see also section~\ref{sec:mountlist}.
 \smallskip{}
 
 After initializing the file system, use
 {\tt Inhibit(filesystem,DOSFALSE)}\key{Inhibit()} or the corresponding
 packet {\tt ACTION\_INHIBIT}\key{ACTION\_INHIBIT} to grant the file
 system access to the partition or medium again. See sections~\ref{sec:inhibit}
-and~\ref{table:actioninhibit}.
+and~\ref{sec:packetinhibit}.
 \smallskip{}
 
 After making the volume accessible again, it is possible that write access
@@ -8978,7 +8982,8 @@ relative and absolute paths, device and volume names, and even
 assigns\key{Assign}. As {\tt filesystem} is interpreted as a path, a device
 or volume name passed in shall include a colon (``{\tt :}'') as it would be
 otherwise interpreted as a path relative to the current
-directory.
+directory and thus inhibit the file system responsible for the
+current directory of the caller.
 \smallskip{}
 
 Beware, multiple volumes of the same name, but differing creation dates, can
@@ -8991,8 +8996,8 @@ file system or handler name (e.g. ``{\tt DF0:}'') should be preferred.
 
 The {\tt flag} argument controls whether access to the medium is allowed or
 disallowed. If {\tt flag} is set to {\tt DOSTRUE}, access is inhibited and
-the file system stops accessing the partition or volume. It also sets {\tt
-  id\_DiskType}\key{id\_DiskType} to the four-character code {\tt 'BUSY'},
+the file system stops accessing the partition or volume. It also sets
+{\tt id\_DiskType}\key{id\_DiskType} to the four-character code {\tt 'BUSY'},
 see also section~\ref{sec:info}. Once a file system is inhibited,
 application programs may access the exec device driver directly to access or
 modify blocks within the partition managed by the inhibited file system.
