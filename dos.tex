@@ -9150,7 +9150,7 @@ wildcards within a text file, the pattern tokenizers
 {\tt ParsePatternNoCase()}\key{ParsePatternNoCase()} shall be called first
 to pre-process the pattern.
 
-\punchline{Only ISO-Latin Codepoints}{The pre-parsing step that prepares
+\punchline{Only ISO-Latin Code points}{The pre-parsing step that prepares
   from the input pattern its tokenized version uses the code points
   {\tt 0x80} to {\tt 0x9f} for tokenized versions of wild-cards and other
   instructions for the pattern matcher. This is identical to the extended
@@ -9346,8 +9346,8 @@ used. Its intended purpose was probably to emulate the Unix-style directory
 entries ``{\tt .}'' and ``{\tt ..}'' indicating the current and the parent directory.
 \smallskip{}
 
-{\tt APF\_DirChanged}\mkey{APF\_DirChanged} is a flag that is set by {\tt
-  MatchNext()}\key{MatchNext()} if the scanned directory changed, either by
+{\tt APF\_DirChanged}\mkey{APF\_DirChanged} is a flag that is set by
+{\tt MatchNext()}\key{MatchNext()} if the scanned directory changed, either by
 entering a directory recursively via {\tt APF\_DODIR}, or by leaving a
 recursively entered directory. It is also cleared if the directory is the
 same as in the previous iteration.
@@ -9363,20 +9363,21 @@ for all file systems.
 \smallskip{}
 
 Soft links\key{Soft Link} to directories are never entered, this this cannot
-be enforced by any flag. A potential danger of links is that they may cause
+be enforced by any flag. A potential danger of links is that they can cause
 endless recursion if a link within a directory points to a parent
 directory. Thus, callers should be aware of such situations and store
 directories that have already been analyzed. Otherwise, it is safer to keep
 the {\tt APF\_FollowHLinks} flag cleared.
 \medskip{}
 
-{\tt ap\_Strlen}\mkey{ap\_Strlen} is the size of the buffer {\tt
-  ap\_Buf}\key{ap\_Buf} that is optionally filled with the complete path of the matched
+{\tt ap\_Strlen}\mkey{ap\_Strlen} is the size of the buffer
+{\tt ap\_Buf}\key{ap\_Buf} that is optionally filled with the complete path of the matched
 entry, see below for a more detailed description. Unlike what the name suggests, this is not
 a string length, but the byte size of the buffer, including the
 terminating {\tt NUL} byte of a string. If the complete path of the match
 does not fit into this buffer, it is truncated \emph{without} proper
-string termination and the error code {\tt ERROR\_BUFFER\_OVERFLOW}\key{ERROR\_BUFFER\_OVERFLOW} is
+string termination and the error
+code {\tt ERROR\_BUFFER\_OVERFLOW}\key{ERROR\_BUFFER\_OVERFLOW} is
 returned. If the complete path is not required, this member shall be set
 to~$0$.
 \smallskip{}
@@ -9387,8 +9388,9 @@ it. Note that {\tt fib\_FileName}\key{fib\_FileName} only contains the name of t
 its complete path.
 \smallskip{}
 
-{\tt ap\_Buf}\mkey{ap\_Buf} is filled with the complete path to the matched object if {\tt
-  ap\_Strlen}\key{ap\_Strlen} is non-zero. This buffer shall be allocated by the caller at
+{\tt ap\_Buf}\mkey{ap\_Buf} is filled with the complete path to the matched
+object if {\tt ap\_Strlen}\key{ap\_Strlen} is non-zero.
+This buffer shall be allocated by the caller at
 the end of the {\tt AnchorPath}\key{AnchorPath} structure, i.e.\ for a buffer of $s$ bytes,
 in total {\tt sizeof(AnchorPath)+s-1} bytes are required to store the
 structure and the buffer. The byte size of this additional buffer shall be
@@ -9415,32 +9417,33 @@ something suitable for the lower level pattern matcher.
 \smallskip{}
 
 {\tt AnchorPath}\key{AnchorPath} shall be a pointer to an {\tt AnchorPath} structure
-allocated and initialized by the caller. In particular, {\tt
-  ap\_BreakBits} shall be initialized to a signal mask on which the
+allocated and initialized by the caller. In particular,
+{\tt ap\_BreakBits} shall be initialized to a signal mask on which the
 scan terminates. Furthermore, {\tt ap\_FoundBreak}\key{ap\_FoundBreak} shall be set
 to~$0$, and {\tt ap\_Strlen}\key{ap\_Strlen} to the size of the buffer {\tt ap\_Buf}\key{ap\_Buf}
-which is filled by the path name of the matching objects. If this path
-name is not required, {\tt ap\_Strlen}\key{ap\_Strlen} shall be set to~$0$. {\tt
-  ap\_Flags}\key{ap\_Flags} shall be set to the flags you need, see the parent
+which is filled by the full path of the matching objects. If the path
+is not required, {\tt ap\_Strlen}\key{ap\_Strlen} shall be set to~$0$.
+{\tt ap\_Flags}\key{ap\_Flags} shall be set to the flags you need, see the parent
 section. For forward compatibility, {\tt ap\_Reserved} shall also be set to zero.
 \smallskip{}
 
 Unlike many other functions, {\tt MatchFirst()}\key{MatchFirst()} returns an
 error code directly, and not a success/failure indicator. That is,~$0$
-indicates success, and everything else an error code {\tt
-  IoErr()}\key{IoErr()} would provide for many other functions of the
+indicates success, and everything else an error code
+{\tt IoErr()}\key{IoErr()} would provide for many other functions of the
 \emph{dos.library}. In particular, if {\tt ERROR\_BREAK}\key{ERROR\_BREAK}
 is returned in case any of the signal bits in {\tt ap->ap\_BreakBits} have
-been received during the scan. If {\tt pat} is a wildcard that could match
+been received during the scan. If {\tt pat} is a wild card that could match
 multiple objects and not a single match is found, the error code will be
 {\tt ERROR\_NO\_MORE\_ENTRIES}\key{ERROR\_NO\_MORE\_ENTRIES}. If {\tt pat}
-does not contain a wildcard, the function will attempt to {\tt Lock()}\key{Lock()} the
+does not contain a wild card, the function will attempt to {\tt Lock()}\key{Lock()} the
 provided object name {\tt pat} directly, and {\tt ERROR\_OBJECT\_NOT\_FOUND} will be returned instead
 in this situation. Unfortunately, this has the side effect that a dangling
 soft link\key{Soft Link}, i.e.\ a link whose target is not available, will
-also trigger a return code of  {\tt ERROR\_OBJECT\_NOT\_FOUND}. In some cases, this is undesirable, e.g.\ if
-a scan is made to delete such a link. To work around this issue, the input
-should be forcefully turned into a pattern and the access should be retried:
+also trigger a return code of  {\tt ERROR\_OBJECT\_NOT\_FOUND}.
+In some cases, this is undesirable, e.g.\ if a scan is made to delete such a
+link. To work around this issue, the input should be forcefully turned into
+a pattern and the access should be retried:
 
 \begin{verbatim}
 #define ENVMAX 112
@@ -9469,11 +9472,13 @@ resolve by scanning a directory instead of locking the object itself.
 \medskip{}
 
 On success, {\tt ap->ap\_Info.fib\_FileName} contains the name of the first
-matched object; the directory represented as a lock\key{Lock} containing the
-found object is available in {\tt ap->ap\_Current->an\_Lock}. You would typically set
-the current directory to this lock, then access this object, then revert the
-directory. This lock \emph{shall not} be released; they are implicitly
-released by the functions of this section.
+matched object; the directory containing the found object is available
+in {\tt ap->ap\_Current->an\_Lock}, represented as a lock\key{Lock}. You
+would typically set the current directory to this lock, then access
+the found object, and then revert the directory. This
+lock \emph{shall not} be released; it is implicitly released
+by the pattern matching functions when changing the directory or terminating
+the scan.
 \smallskip{}
 
 If the full path of the matching object is needed, an additional buffer
@@ -9523,7 +9528,7 @@ this function returns an error code on failure and~$0$ for success. It does
 \smallskip{}
 
 As for {\tt MatchFirst()}\key{MatchFirst()}, this call fills {\tt ap\_Info}\key{ap\_Info} with meta
-information on the found object, in particular its file name, and
+information on the found object, in particular its file name, and in
 {\tt ap->ap\_Current->an\_Lock} the lock\key{Lock} of the directory containing the
 object. As for {\tt MatchFirst()}, {\tt APF\_DODIR}\key{APF\_DODIR} may be set to enter
 directories recursively, and {\tt ap\_Buf}\key{ap\_Buf} will be filled with the
@@ -9579,8 +9584,8 @@ that cannot identify hard links to directories. Note that each directory
 will be visited twice: Once when entering it, and once when leaving it.
 \smallskip{}
 
-The {\tt MatchFirst()}\key{MatchFirst()} and {\tt
-  MatchNext()}\key{MatchNext()} functions compare file names with the
+The {\tt MatchFirst()}\key{MatchFirst()} and
+{\tt MatchNext()}\key{MatchNext()} functions compare file names with the
 pattern in a case-insensitive way, thus upper and lower case are considered
 identical. For that, characters of the file name and the pattern are
 converted to upper case by means of the {\tt ToUpper()} function of the
@@ -9596,7 +9601,8 @@ first two (legacy) entries of table~\ref{table:ffsflavours} in
 section~\ref{sec:envec} which consider upper and lower characters from the
 ISO-Latin-1 supplement block as non-identical. For the remaining flavors, the FFS
 interpretation of case-insensitive comparison is, most likely, the correct
-one assuming the locale is also based on ISO-Latin-1.
+one assuming the locale is also based on ISO-Latin-1. Compare also with
+section~\ref{sec:charencoding} for similar quirks.
 
 \subsection{Terminating a Directory Scan} \label{sec:matchend}
 
@@ -9632,16 +9638,17 @@ for example to scan for a pattern within a text document. This requires two
 steps: In the first step, the wildcard is pre-parsed, generating a tokenized
 version of the pattern. The second step checks whether a given input string
 matches the pattern. You would typically tokenize the pattern once, and then
-use it to match multiple strings against the pattern. The encoding of the
-tokens is actually not specified, and can change from version to version,
-however see also the warning at the end of section~\ref{sec:patternmatch},
-namely that they use the ISO-Latin extended control character range, and
-thus, patterns are restricted to the ISO-Latin character set. The tokens the
-tokenizer understands are those from section~\ref{sec:patternmatch}.
+use it to match multiple strings against the pattern. The wild cards
+possible in a pattern are those from section~\ref{sec:patternmatch}. While
+the token encoding is documented in {\tt dos/dosasl.h}, it should be
+considered internal, see also the warning at the end of
+section~\ref{sec:patternmatch} and and also
+section~\ref{sec:charencoding}. As the tokens use the C1 control set of
+ISO-Latin 1, patterns should be restricted to printable ISO-Latin characters.
 \smallskip{}
 
 Two versions of the tokenizer and pattern matcher exist: One pair that is
-case-sensitive, and the second pair is case-insensitive. Note that AmigaDOS
+case-sensitive, and a second pair that is case-insensitive. Note that AmigaDOS
 file names are case-insensitive, so the {\tt MatchFirst()}\key{MatchFirst()}
 and {\tt MatchNext()}\key{MatchNext()} functions internally only use the
 second pair.
@@ -9666,14 +9673,17 @@ LONG ParsePattern(STRPTR, STRPTR, LONG)
 
 This function tokenizes a wildcard pattern in {\tt Source}, generating a
 tokenized version of the pattern in {\tt Dest}. The size (capacity) of the
-target buffer is {\tt DestLength} bytes. The buffer shall be at least
-{\tt 2 + (n <{}< 1)} bytes large, where {\tt n} is the length of the input
-pattern. However, as future implementations can require larger buffers, the
-result code shall be checked nevertheless for error conditions. The result
-code {\tt IsWild} is one of the following:
+target buffer is {\tt DestLength} bytes. The buffer shall be at least {\tt 2
+  + (n <{}< 1)} bytes large, where {\tt n} is the length of the input
+pattern. While this buffer size is currently sufficient, future
+implementations can require larger buffers; the result code shall
+therefore be checked for~$-1$ to determine possible buffer overruns (see
+below) and the buffer should then be enlarged and the call retried. The
+result code {\tt IsWild} is one of the following:
 \smallskip{}
 
-{\tt 1} is returned if the source contained wildcards.
+{\tt 1} is returned if the source contained wildcards and was tokenized
+successfully.
 \smallskip{}
 
 {\tt 0} is returned if the source contains no wildcards. In this case, the
@@ -9685,8 +9695,8 @@ though a simple string comparison would also work.
 is ill-formed, or because {\tt DestLength} is too short. Then,
 {\tt IoErr()}\key{IoErr()} provides an error code. Possible errors include
 {\tt ERROR\_LINE\_TOO\_LONG}\key{ERROR\_LINE\_TOO\_LONG} if the target
-buffer is not large enough to keep the parsed pattern, and {\tt
-  ERROR\_BAD\_TEMPLATE}\key{ERROR\_BAD\_TEMPLATE} if the template is
+buffer is not large enough to keep the parsed pattern, and
+{\tt ERROR\_BAD\_TEMPLATE}\key{ERROR\_BAD\_TEMPLATE} if the template is
 ill-formed, for example if the ``{\tt |}'' token is not enclosed in brackets.
 
 \subsection{Tokenizing a Case-Insensitive Pattern} \label{sec:parsepatternnocase}
@@ -9708,9 +9718,11 @@ This function tokenizes a wildcard pattern in {\tt Source}, generating a
 tokenized version of the pattern in {\tt Dest}. The size (capacity) of the
 target buffer is {\tt DestLength} bytes. The buffer shall be at least
 {\tt 2 + (n <{}< 1)} bytes large, where {\tt n} is the length of the input
-pattern. However, as future implementations can require larger buffers, the
-result code shall be checked nevertheless for error conditions. The result
-code {\tt IsWild} is one of the following:
+pattern. While this buffer size is currently sufficient, future
+implementations can require larger buffers; the result code shall
+therefore be checked for~$-1$ to determine possible buffer overruns (see
+below) and the buffer should then be enlarged and the call retried. The
+result code {\tt IsWild} is one of the following:
 \smallskip{}
 
 {\tt 1} is returned if the source contained wildcards.
@@ -9731,9 +9743,9 @@ ill-formed, for example if the ``{\tt |}'' token is not enclosed in brackets.
 
 \subsection{Match a String against a Pattern}
 
-{\tt MatchPattern()}\mkey{MatchPattern()} matches a string against a tokenized pattern prepared by {\tt
-  ParsePattern()}\key{ParsePattern()}, taking the case of the
-string and the pattern into consideration.
+{\tt MatchPattern()}\mkey{MatchPattern()} matches a string against a
+tokenized pattern prepared by {\tt ParsePattern()}\key{ParsePattern()},
+taking the case of the string and the pattern into consideration.
 
 \begin{verbatim}
 match = MatchPattern(pat, str)
@@ -9750,11 +9762,11 @@ been tokenized by {\tt ParsePattern()}\key{ParsePattern()}.
 
 The result code {\tt match} is non-zero in case the string matches, or~$0$
 in case either the string did not match, or the function run out of
-stack. The latter two cases can be distinguished by {\tt
-  IoErr()}\key{IoErr()}. In case the string did not match, {\tt IoErr()}
+stack. The latter two cases can be distinguished by
+{\tt IoErr()}\key{IoErr()}. In case the string did not match, {\tt IoErr()}
 returns~$0$, or a non-zero error code otherwise. A possible error code is
-{\tt ERROR\_TOO\_MANY\_LEVELS}\key{ERROR\_TOO\_MANY\_LEVELS} indicating that the pattern matcher run out
-of stack due to too many levels of recursion.
+{\tt ERROR\_TOO\_MANY\_LEVELS}\key{ERROR\_TOO\_MANY\_LEVELS} indicating
+that the pattern matcher run out of stack due to too many levels of recursion.
 \smallskip{}
 
 The caller shall have at least~$1500$ bytes of stack space available to
@@ -9792,8 +9804,9 @@ in case either the string did not match, or the function run out of
 stack. The latter two cases can be distinguished by
 {\tt IoErr()}\key{IoErr()}. In case the string did not match, {\tt IoErr()}
 returns~$0$, or a non-zero error code otherwise. A possible error
-code is {\tt ERROR\_TOO\_MANY\_LEVELS}\key{ERROR\_TOO\_MANY\_LEVELS} indicating that the pattern matcher
-run out of stack due to too many levels of recursion.
+code is {\tt ERROR\_TOO\_MANY\_LEVELS}\key{ERROR\_TOO\_MANY\_LEVELS}
+indicating that the pattern matcher run out of stack due to too
+many levels of recursion.
 \smallskip{}
 
 The caller shall have at least~$1500$ bytes of stack space available to
