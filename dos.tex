@@ -587,6 +587,174 @@ Its C equivalent is {\tt NULL}, which however denotes a pointer
 and not a memory cell index. {\tt NUL} is the first code
 point of the ASCII code set and represented by a byte of value~0.}
 
+\section{Elementary Conversion Functions}
+
+Functions in this section perform conversions between the elementary data
+types listed in this chapter, and convert between strings representing numbers as
+human-readable decimals and their binary machine representations. The
+{\tt StrToLong()}\key{StrToLong()} takes such a string and converts it to an
+integer. There is no function in the \emph{dos.library} to perform the
+inverse conversion of an integer into a string, though the \emph{exec.library}
+function {\tt RawDoFmt()} may be used to implement it as a by-product of a
+more general family of functions. Section~\ref{sec:printf} provides a very
+compact and in many cases sufficient implementation of a function that
+closely reassembles the {\tt sprintf()}\key{sprintf()} function of ANSI-C;
+it prints and formats many elementary data types, including integers, into an output
+buffer, and as such, can also convert an integer into a decimal number.
+
+\subsection{Convert a String to a Number} \label{sec:strtolong}
+
+The {\tt StrToLong()}\mkey{StrToLong()} function converts an ASCII encoded
+decimal number to a signed 32 bit integer.
+
+\begin{verbatim}
+characters = StrToLong(string,value) /* since V36 */
+D0                      D1    D2
+
+LONG StrToLong(STRPTR, LONG *)
+\end{verbatim}
+
+This function converts the {\tt NUL}-terminated {\tt string} containing a
+decimal number encoded in ASCII and converts it to a signed integer. The
+return value is the number of characters it could interpret from the string,
+or $-1$ if not a single valid digit could be found. The converted number is
+placed into the 32-bit long word pointed to by {\tt value}.
+\smallskip{}
+
+The function skips leading spaces and tabs, they are included in
+{\tt characters}. It also interprets a leading minus sign
+(``{\tt -}'') to indicate negative numbers, but \emph{does not} accept a
+leading plus sign (``{\tt +}''). This function also aborts in case the
+conversion overflows, i.e.\ the absolute value of the number is larger than
+$2^{31}$, and then returns the number of characters up to which the
+conversion could be performed without overflow. The output of the conversion
+filled into {\tt value} is in that case meaningless.
+
+\subsection{Print Formatted into a Buffer} \label{sec:sprintf}
+
+While not a function of the \emph{dos.library}, the code segment in this
+section implements a function similar to the {\tt sprintf()} function of the
+ANSI C library; it converts many elementary data types to
+strings. It is based on the {\tt RawDoFmt()}\key{RawDoFmt()} function of the
+\emph{exec.library}, which is also patched by the \emph{locale.library} and
+thus converts numbers according to the currently loaded locale.
+
+\mkey{sprintf()}\mkey{vsprintf()}\mkey{LongToStr()}
+\begin{verbatim}
+#include <stdarg.h> /* for va_list macros */
+
+static void prbuf(char c)
+{
+  __builtin_emit(0x16c0);   /* move.b D0,(A3)+ */
+}
+
+/*
+** convert a list of arguments to a string using an
+** ANSI-C format template.
+*/
+void vsprintf(char *buffer, const char *ctlstr, void *args)
+{
+  RawDoFmt((char *)ctlstr, args, prbuf, buffer);
+}
+
+/*
+** Convert multiple arguments to a string, using
+** an ANSI-C format template.
+*/
+void sprintf(char *buffer, const char *ctrl,...)
+{
+  va_list args;
+
+  va_start(args,ctrl);
+  vsprintf(buffer,ctrl,args);
+  va_end(args);
+}
+
+/*
+** Convert a signed integer to a string
+*/
+void LongToStr(char buffer *buf, LONG val)
+{
+  sprintf(buffer,"%ld",val);
+}
+\end{verbatim}
+The {\tt vsprintf()} function defined above takes a target {\tt buffer}, an ANSI-C
+conversion string {\tt ctlstr} containing formatting directives, see~\cite{kernrichie},
+and a buffer of primitive integer data types or strings in {\tt args}. It
+converts these arguments to strings, formats them according to {\tt ctlstr}
+and places the result in the target buffer. The full set of conversion
+directives is found in the description of
+{\tt RawDoFmt()} in~\cite{rkrmlib}, though the most elementary directives
+are shown here:
+
+\begin{itemize}
+\item[\tt \%s] The next argument in {\tt args} is a pointer to a
+  {\tt NUL}-terminated string that is inserted into {\tt buffer}. To limit
+  the number of characters copied into the target buffer, an ANSI-C
+  precision field should
+  be included in the format directive, e.g.\ {\tt \%.30s} truncates the
+  input string to 30 characters.
+\item[\tt \%b] The next argument is a BPTR to a BSTR that is inserted into the
+  {\tt buffer}. This formatting directive was added in AmigaOs~36. Again,
+  it is recommended to truncate the string length by the ANSI-C precision
+  format directive, see above.
+\item[\tt \%ld] The next argument in {\tt args} is a 32-bit signed integer.
+\item[\tt \%lu] Convert a 32-bit unsigned integer --- this formatting directive was added in
+  AmigaOs~37.
+\item[\tt \%lx] Convert a 32-bit unsigned integer to hexadecimal.
+\item[\tt \%lc] Interpret a 32-bit integer as an ISO-Latin or ASCII code
+  point and insert a single character this code point represents.
+\end{itemize}
+
+As also seen above, the ANSI-C flags, field width, precision and length
+modifiers may be included in the format directive starting
+with ``{\tt \%}'', see~\cite{rkrmlib} for more details. 
+
+\punchline{Think Long}{The knowledgeable C developer will notice that many
+  of the above conversion directives include an {\tt l} length modifier
+  which has been added here on purpose, even causing strange directives such
+  as {\tt \%lc}. This is because the {\tt RawDoFmt()} function assumes a
+  16-bit integer model, whereas most compilers operate with 32-bit
+  integers. The length modifier ensures that the \emph{exec.library} removes
+  32-bit arguments from {\tt args}, corresponding to the integer
+  size of many C implementations. Some older compilers use, in fact, a 16-bit
+  integer model in which case the {\tt l} shall be dropped (but only
+  then!). Not following this guideline will cause hard to find bugs
+  resulting in incorrect output.}
+
+The {\tt vsprintf()}\key{vsprintf()} function from the above code segment implements the function
+of the same name in the ANSI-C library only approximately, and the
+formatting directives need to be adjusted carefully to avoid problems. There
+is, as in the ANSI-C standard library, no check whether the target buffer is
+large enough. In particular, string formatting directives should be selected
+carefully to avoid buffer overruns that can lead to system crashes. As the
+{\tt FPrintf()}\key{FPrintf()} function from section~\ref{sec:fprintf} and
+the {\tt Printf()}\key{Printf()} function from section~\ref{sec:printf} are
+based on the same exec function, the same peculiarities apply there as well.
+\smallskip{}
+
+The {\tt sprintf()}\key{sprintf()} function is an --- albeit basic ---
+re-implementation of the C standard library function {\tt sprintf()} which
+prints all its arguments to a buffer. The same formatting directives apply.
+It uses the varargs macros of ANSI-C from {\tt stdarg.h} to forward its
+arguments to {\tt vsprintf()}.
+\smallskip{}
+
+The {\tt LongToStr()}\key{LongToStr()} function is a simple application
+of {\tt sprintf()} to convert a signed integer to a string. It does the inverse of the
+{\tt StrToLong()}\key{StrToLong()} function of the \emph{dos.library}
+introduced in section~\ref{sec:strtolong}.
+\smallskip{}
+
+The {\tt prbuf()} function is hack using a built-in function of the SAS/C
+compiler. Its function body consists only of the {\tt \_\_builtin\_emit()}
+function which injects the object code of the {\tt MOVE.B D0,(A3)+}
+instruction into the function body. It takes
+the function argument placed in register {\tt D0}
+by {\tt RawDoFmt()} and pushes it into the target buffer pointed to by
+register {\tt A3}. Other compilers will need a small assembler stub function
+of the same name that consists only of this instruction, and an {\tt RTS}.
+
 \section{Files}
 Files\key{File} are streams of bytes together with a file pointer that
 identifies the next position to be read, or the next byte position to write
@@ -667,7 +835,8 @@ AmigaOs. Chapter~\ref{sec:shell} provides more details on the AmigaDOS Shell.
 
 AmigaDOS is not limited to its own Shell\key{Shell}, which is also called the Boot
 Shell\key{Boot Shell}; even though this feature is rarely used, users may install additional
-alternative shells. The AmigaDOS interface to shells is specified in
+alternative shells. The AmigaDO
+S interface to shells is specified in
 section~\ref{sec:usershells}.
 
 \chapter{Date and Time} \label{sec:dates}
@@ -794,8 +963,8 @@ This function suspends execution of the calling process by {\tt ticks}
 AmigaDOS ticks. The delay is system-friendly and does not burn CPU cycles;
 instead, the process is suspended from the CPU the indicated amount of time,
 making it available to other processes. Thus, this function is the
-preferred way of delaying program execution. A tick is $1/50^{\mbox{\tiny
-    th}}$ of a second.
+preferred way of delaying program execution. A tick is
+$1/50^{\mbox{\tiny th}}$ of a second.
 \smallskip{}
 
 AmigaDOS variants below version 36 could not handle delays of~0 ticks
@@ -1225,7 +1394,7 @@ the harddisks, e.g.\ through the HDToolBox. The general convention is to
 assign hard disk partitions the device names {\tt DH0} and following. As for floppy
 disks, partitions \emph{also} have a volume name, see
 section~\ref{sec:volumelist}, which should be different from its device
-name. The workbench shows the latter, and \emph{not} the device name, on its
+name. The Workbench shows the latter, and \emph{not} the device name, on its
 screen.
 \smallskip{}
 
@@ -2988,10 +3157,10 @@ requires some preparation by a dummy {\tt UnGetC()}, see there.
 
 \section{Formatted Output}
 
-The functions in this section print strings formatted to a file. Both
+The functions in this section print strings formatted to a file. All 
 functions use the internal buffer of the file handle\key{FileHandle} and are thus buffered.
 
-\subsection{Print Formatted String using C-Syntax to a File}
+\subsection{Print Formatted using C-Syntax to a File} \label{sec:fprintf}
 
 The {\tt VFPrintf()}\mkey{VFPrintf()} function prints multiple
 datatypes using a format string that closely reassembles the syntax of
@@ -3014,8 +3183,9 @@ LONG FPrintf(BPTR, STRPTR, ...)
 This function uses the {\tt fmt} string to format an array of
 arguments pointed to by {\tt argv} and outputs the result to the file
 {\tt fh}. The syntax of the format string is identical to that of the
-exec function {\tt RawDoFmt()}\key{RawDoFmt()}, and shares its problems. In
-particular, format strings indicating integer arguments such as
+exec function {\tt RawDoFmt()}\key{RawDoFmt()}, and shares its problems,
+see also section~\ref{sec:sprintf}.
+In particular, format strings indicating integer arguments such as
 {\tt \%d} and {\tt \%u} assume 16bit integers, independent of the integer
 model of the compiler. On compilers working with 32bit integer
 models, the format modifier {\tt l} must be used, e.g.\ {\tt \%ld}
@@ -3027,6 +3197,48 @@ As {\tt RawDoFmt()}\key{RawDoFmt()} is also patched by the
 \emph{locale.library}, syntax elements from the {\tt FormatString()}
 function of this library become available for {\tt VFPrintf()} and
 {\tt FPrintf()}.
+\smallskip{}
+
+The result {\tt count} delivers the number of characters written to
+the file, or $-1$ for an error. In the latter case,
+{\tt IoErr()}\key{IoErr()} provides an error code.
+
+\subsection{Print Formatted using C-Syntax to the Output Stream} \label{sec:printf}
+
+The {\tt VPrintf()}\mkey{VPrintf()} function prints multiple
+datatypes using a format string to the {\tt Output()}\key{Output()} stream
+of the calling process. {\tt Printf()}\mkey{Printf()} is based on the same
+entry point of the \emph{dos.library}, though the prototype for the C
+language is different and thus arguments are expected directly as function
+arguments instead of requiring them to be collected in an array upfront.
+
+\begin{verbatim}
+count = VPrintf(fmt, argv) /* since V36 */
+D0              D1    D2
+
+LONG VPrintf(STRPTR, LONG *)
+
+count = Printf(fmt, ...)
+
+LONG Printf(STRPTR, ...)
+\end{verbatim}
+
+The {\tt Printf()} function is the closest analog of the ANSI-C library
+function {\tt printf()} within AmigaDOS, but cannot be directly substituted
+for it.  The formatting directives in the {\tt fmt} argument are interpreted
+according to a 16-bit integer model, see also sections~\ref{sec:sprintf}
+and~\ref{sec:fprintf}. Format strings indicating integer arguments such as
+{\tt \%d} and {\tt \%u} assume 16bit integers, independent of the integer
+model of the compiler. On compilers working with 32bit integer models, the
+format modifier {\tt l} must be used, e.g.\ {\tt \%ld} for signed and {\tt
+  \%lu} for unsigned integers, and {\tt \%lc} for printing a single
+character provided as argument.
+\smallskip{}
+
+Since the functions are based on {\tt RawDoFmt()}\key{RawDoFmt()} which is
+patched by the \emph{locale.library}, syntax elements from the
+{\tt FormatString()} function of this library become also available for
+{\tt VPrintf()} and {\tt Printf()}.
 \smallskip{}
 
 The result {\tt count} delivers the number of characters written to
@@ -9868,7 +10080,12 @@ do not interface to handlers but only operate on strings. The
 {\tt DoPkt()}\key{DoPkt()} function from section~\ref{sec:dopkt} is also
 prepared to accept ordinary exec tasks as callers, but then cannot set the
 secondary result code, i.e.\ the return value of {\tt IoErr()}\key{IoErr()},
-as it is represented as an element in the process structure.
+as it is represented as an element in the process structure. To be able to
+initiate processes, {\tt CreateNewProc()}\key{CreateNewProc()} and
+{\tt CreateProc()}\key{CreateProc()} specified in
+sections~\ref{sec:createnewproc} and~\ref{sec:createproc} are also callable
+from tasks; the latter function also existed in AmigaDOS versions 34 and
+below, but was \emph{not} task-callable there.
 \medskip{}
 
 The elements of this structure are as follows:
@@ -10416,7 +10633,7 @@ process = CreateNewProcTags(Tag1, ...) /* since V36 */
 struct Process *CreateNewProcTags(ULONG, ...)
 \end{verbatim}
 
-The above functions go all through the same entry points of the
+The above functions go all through the same entry point of the
 \emph{dos.library}, only the calling conventions are different.
 For {\tt CreateNewProcTags()}, the {\tt TagList} is created by the
 compiler on the stack and a pointer is then implicitly passed into the
@@ -10427,8 +10644,8 @@ The following tags are recognized by the function and are defined in
 {\tt dos/dostags.h}:
 \smallskip{}
 
-{\tt NP\_Seglist}\mkey{NP\_Seglist} takes a BPTR to a segment list as returned by {\tt
-  LoadSeg()} and launches the process at the first byte of the first segment\key{Segment}
+{\tt NP\_Seglist}\mkey{NP\_Seglist} takes a BPTR to a segment list as returned
+by {\tt LoadSeg()} and launches the process at the first byte of the first segment\key{Segment}
 of the list.
 \smallskip{}
 
@@ -10440,15 +10657,15 @@ released by default. The segment list is never released if creating the process 
 regardless of this tag.
 \smallskip{}
 
-{\tt NP\_Entry}\mkey{NP\_Entry} is mutually exclusive to {\tt NP\_Seglist}\key{NP\_Seglist} and defines an
-absolute address (and not a segment) as entry point of the process to be
+{\tt NP\_Entry}\mkey{NP\_Entry} is mutually exclusive to {\tt NP\_Seglist}\key{NP\_Seglist}
+and defines an absolute address (and not a segment) as entry point of the process to be
 created. Either {\tt NP\_Entry} or {\tt NP\_Seglist} shall be included in
 the tags. If {\tt NP\_Entry} tag is present, then {\tt NP\_FreeSeglist} shall
 \emph{not} be included, or shall be set to {\tt DOSFALSE}.
 \smallskip{}
      
-{\tt NP\_Input}\mkey{NP\_Input} sets the input file handle\key{FileHandle}, i.e.\ {\tt
-  pr\_CIS}\key{pr\_CIS}, of the process to be created. This tag takes a
+{\tt NP\_Input}\mkey{NP\_Input} sets the input file handle\key{FileHandle},
+i.e.\ {\tt pr\_CIS}\key{pr\_CIS}, of the process to be created. This tag takes a
 BPTR to a {\tt FileHandle} structure. The default is to open a file handle to
 {\tt NIL:}.
 \smallskip{}
@@ -10506,20 +10723,20 @@ when the process terminates, unless the initial current directory is {\tt ZERO}.
 The provided lock is also released if creating the new process failed.
 \smallskip{}
 
-{\tt NP\_StackSize}\mkey{NP\_StackSize} sets the stack size of the process to be created in
-bytes. The default is a stack size of $4000$ bytes.
+{\tt NP\_StackSize}\mkey{NP\_StackSize} sets the stack size of the
+process to be created in bytes. The default is a stack size of $4000$ bytes.
 \smallskip{}
 
 {\tt NP\_Name}\mkey{NP\_Name} is a pointer to a {\tt NUL} terminated string
-determining the name of the new process. This string is copied before
-the process is launched, and the copy is released automatically when the
-process terminates; thus, the original string remains available to the
-caller. The default process name is ``{\tt New Process}''.
+determining the name of the new process. This string is copied before the
+process is launched, and the copy is released automatically when the process
+terminates or creating the process fails; thus, the original string remains
+available to the caller. The default process name is ``{\tt New Process}''.
 \smallskip{}
 
 {\tt NP\_Priority}\mkey{NP\_Priority} sets the priority of the process to be created. The tag
 value shall be an integer in the range~$-128$ to~$127$, though useful values
-are in the range of~$0$ to~$20$. The default is~$0$.
+are in the range of~$0$ to~$19$. The default is~$0$.
 \smallskip{}
 
 {\tt NP\_ConsoleTask}\mkey{NP\_ConsoleTask} specifies a pointer to a {\tt MsgPort} to the handler
@@ -10538,9 +10755,10 @@ relative to the {\tt ZERO} lock\key{ZERO lock}, and is typically also the
 file system responsible for the {\tt SYS} assign\key{Assign}.
 \smallskip{}
 
-{\tt NP\_WindowPtr}\mkey{NP\_WindowPtr} specifies a pointer to a {\tt
-  Window} structure that determines the title of and the screen on which error requesters
-will be displayed, see also section~\ref{sec:errorreport}. If this pointer is~{\tt NULL}, requesters will be shown on the
+{\tt NP\_WindowPtr}\mkey{NP\_WindowPtr} specifies a pointer to a
+{\tt Window} structure that determines the title of and the screen on which error requesters
+will be displayed, see also section~\ref{sec:errorreport}. If this pointer
+is~{\tt NULL}, requesters will be shown on the
 default public screen --- that is, typically the Workbench --- and if it
 is~$-1$, error requesters are suppressed and the \emph{dos.library} reacts
 as if the user canceled the requester. The argument of the tag will be installed in the
@@ -10551,7 +10769,7 @@ otherwise. To set the {\tt pr\_WindowPtr} of the created process to that of
 the caller, the tag and the window pointer shall be explicitly provided. If called from a task and not a
 process, the default is {\tt NULL}. The reason why {\tt pr\_WindowPtr} is
 not explicitly copied is that otherwise the calling process need to ensure
-that the provided window remains at least as long open as the created
+that its own window remains at least as long open as the created
 process keeps running.
 \smallskip{}
 
@@ -10588,7 +10806,8 @@ created. The latter is also the default.
 \smallskip{}
 
 {\tt NP\_Path}\mkey{NP\_Path} provides a chained list of locks\key{Lock}
-within which commands for shell\key{Shell} execution are searched. This is the same list the {\tt Path} command adjusts, see
+within which commands for shell\key{Shell} execution are searched.
+This is the same list the {\tt Path} command adjusts, see
 section~\ref{sec:getcli} for details on this structure. This tag only applies
 if {\tt NP\_Cli}\key{NP\_Cli} is non-zero to request a shell environment. This chained
 list is \emph{not} copied, only referenced, and will be released when the created process
@@ -10597,7 +10816,7 @@ the caller if {\tt CreateNewProc()}\key{CreateNewProc()} succeeds. If {\tt Creat
 fails, the entire lock list remains a property of the caller and thus needs
 to be potentially released there. The default, if this tag is not provided, is
 to copy the paths of the caller if the calling process is equipped with a
-CLI structure. This copy is, of course, released on error.
+CLI structure. This (implicit) copy is, of course, released on error.
 \smallskip{}
 
 {\tt NP\_CommandName}\mkey{NP\_CommandName} provides the name of the command being executed within
@@ -10652,7 +10871,7 @@ success a pointer to the {\tt Process}\key{Process} structure just created. At t
 stage, the process has already been launched and, depending on its
 priority, may already be running. On failure, the function returns
 {\tt NULL}. Unfortunately, it does not set {\tt IoErr()}\key{IoErr()} consistently
-on failure.
+on failure, thus one cannot easily determine the cause of the error.
 
 \punchline{What's Released on Error?}{Unfortunately,
   {\tt CreateNewProc()}\key{CreateNewProc()} is not very consistent on which
@@ -10699,7 +10918,7 @@ and no shell variables\key{Shell Variable} are copied from the caller either.
 The passed in {\tt seglist} is \emph{not} released upon termination. This
 should be done manually, though {\tt CreateProc()} does not offer a protocol
 to learn when the created process terminates and the segment\key{Segment} list containing
-the running code may be released again. The Workbench startup protocol
+the running code can be safely released again. The Workbench startup protocol
 described in~\cite{rkrmlib} may be used as a blue-print for a similar
 mechanism, though {\tt CreateNewProc()}\key{CreateNewProc()} offers a more
 practical solution by the {\tt NP\_FreeSeglist} tag and should be preferred,
@@ -10725,13 +10944,13 @@ scheduler.
 
 However, this function does not release any resources except those
 implicitly allocated when creating the process through
-{\tt CreateNewProc()}\key{CreateNewProc()}, {\tt CreateProc()}\key{CreateProc()}
-or starting the program from the shell\key{Shell}
+{\tt CreateNewProc()}\key{CreateNewProc()} or {\tt CreateProc()}\key{CreateProc()},
+or the resources created when starting the program from the shell\key{Shell}
 through {\tt RunCommand()}\key{RunCommand()}. As it misses to release
 resources allocated by the program itself or the compiler startup code, this
 function \emph{should not be used} and rather a compiler or language
 specific shutdown function should be preferred. Ideally, programs should
-simply return from their main function to the operating system. The C
+simply return from their {\tt main()} function to the operating system. The C
 standard library provides {\tt exit()} (with smaller case ``{\tt e}'') which
 releases resources obtained through the ANSI C environment.
 
@@ -10747,7 +10966,7 @@ is ignored, or returns to the shell\key{Shell}, then delivering
 {\tt returnCode} as result code. It locates the BCPL stack frame at
 {\tt pr\_ReturnAddr}\key{pr\_ReturnAddr}, removes it,
 initializes the previous stack linked there and then returns to
-whatever function created the previous stack frame. See the beginning of
+whatever function created the previous stack frame; see the beginning of
 chapter~\ref{sec:process} how the stack frame looks like. The function
 returned to is typically either the process shutdown code of AmigaDOS, or
 the shell command shutdown code installed by {\tt RunCommand()}. In the
@@ -10797,9 +11016,9 @@ caller. The standard input stream may be changed through {\tt SelectInput()}\key
 For command line programs started from the shell\key{Shell}, this file handle is
 connected to the console, unless it has been redirected by the ``{\tt <}'', ``{\tt <{}<}''
 or ``{\tt <>}'' operators, see section~\ref{sec:redirection}. Programs started from the
-workbench do not receive an input file handle at all, {\tt pr\_CIS} remains
+Workbench do not receive an input file handle at all, {\tt pr\_CIS} remains
 {\tt ZERO} unless explicitly set\footnote{The information in~\cite{guru}
-that programs run from the workbench receive a {\tt NIL:} handle is
+that programs run from the Workbench receive a {\tt NIL:} handle is
 incorrect.}.
 
 \subsection{Replace the Input File Handle} \label{sec:selectinput}
@@ -10846,9 +11065,9 @@ stream may be changed through {\tt SelectOutput()}\key{SelectOutput()}.
 For command line programs started from the shell\key{Shell}, this file handle is
 connected to the console, unless it has been redirected by the ``{\tt >}'',
 ``{\tt >{}>}'' or ``{\tt <>}'' operators, see section~\ref{sec:redirection}. Programs started from the
-workbench do not receive an output file handle at all, {\tt pr\_COS} remains
+Workbench do not receive an output file handle at all, {\tt pr\_COS} remains
 {\tt ZERO} unless explicitly set\footnote{Again, while~\cite{guru}
-claims that programs run from the workbench receive a {\tt NIL:} handle,
+claims that programs run from the Workbench receive a {\tt NIL:} handle,
 this is not the case.}.
 
 \subsection{Replace the Output File Handle} \label{sec:selectoutput}
@@ -10902,7 +11121,7 @@ this is different from how shells under Unix type operating systems work.
 The standard error stream of command line executables can be explicitly
 redirected to a different file by means of the ``{\tt *>}'', ``{\tt *<>}''
 or ``{\tt *>{}>}'' operators, see section~\ref{sec:redirection}. Programs
-started from the workbench do not receive an error file, {\tt pr\_CES}
+started from the Workbench do not receive an error file, {\tt pr\_CES}
 remains {\tt ZERO} unless explicitly set.
 
 \subsection{Replace the Error File Handle} \label{sec:selecterror}
@@ -10954,7 +11173,7 @@ paths, see also section~\ref{sec:paths}.
 
 \begin{verbatim}
 oldLock = CurrentDir( lock )
-D0                    D1
+D0                     D1
 
 BPTR CurrentDir(BPTR)
 \end{verbatim}
@@ -11026,33 +11245,34 @@ which underlying device is used by a handler or file system, and thus lacks
 the proper interpretation of such codes. Instead, and handlers and file systems
 should rather attempt to restrict the delivered error codes to those defined
 in the above two files and potentially translate errors from a lower level
-to those defined within AmigaDOS.
+to those defined within AmigaDOS, i.e.\ should use codes from the list below.
 \smallskip{}
 
 Generally, handlers and file systems can select error codes as they seem
 fit, the list below provides a general indication how the codes are used by
-the \emph{dos.library} itself, or what its suggested usage is:
+the \emph{dos.library} itself, or what their suggested usage is:
 \smallskip{}
 
 {\tt ERROR\_NO\_FREE\_STORE}\mkey{ERROR\_NO\_FREE\_STORE}: This error
 code is set if the system runs out of memory. Actually, this error code
 is not set by the \emph{dos.library}, but rather by the
-\emph{exec.library} memory allocation functions.
+\emph{exec.library} memory allocation functions if the caller is a process.
 \smallskip{}
 
 {\tt ERROR\_TASK\_TABLE\_FULL}\mkey{ERROR\_TASK\_TABLE\_FULL}: This
 error code was generated by AmigaDOS versions 34 and before
 if more than~$20$ shell\key{Shell} processes were about to be created. It
-used a fixed-size table to store CLI processes that cannot hold more than~20
+used a fixed-size table to store CLI processes that could not hold more than~20
 processes. See also section~\ref{sec:findcliproc} and following for more details. As this
 limitation was removed, the error code is unused in AmigaDOS version~36 and
 above.
 \smallskip{}
 
 {\tt ERROR\_BAD\_TEMPLATE}\mkey{ERROR\_BAD\_TEMPLATE}: This error code
-indicates that the command line template for {\tt ReadArgs()}\key{ReadArgs()}
+indicates that the argument template for {\tt ReadArgs()}\key{ReadArgs()}
 is syntactical incorrect, see section~\ref{sec:readargs}. It is also set
-by the pattern matcher in case the pattern is syntactically incorrect, see~\ref{sec:stringpat}.
+by the pattern matcher in case the pattern is syntactically
+incorrect, see~\ref{sec:stringpat}.
 \smallskip{}
 
 {\tt ERROR\_BAD\_NUMBER}\mkey{ERROR\_BAD\_NUMBER}: This error code
@@ -15721,7 +15941,7 @@ the icon for the console. If the iconification gadget is
 pressed, this icon will appear on the Workbench, and the window will
 disappear. The window will be forced open when a incoming read or
 write request requires a window to read from or write data
-into, or when the icon on the workbench is double-clicked.
+into, or when the icon on the Workbench is double-clicked.
 Similar to the {\tt AUTO}\key{AUTO} option, windows will loose
 the ability to become iconified if a program requests the window
 pointer through {\tt ACTION\_DISK\_INFO}\key{ACTION\_DISK\_INFO}, see
@@ -21112,7 +21332,7 @@ medium, drive or partition.
 This packet implements the {\tt Format()}\key{Format()} function of
 the \emph{dos.library} introduced in section~\ref{sec:format}. It
 was added in AmigaDOS~36. Before that release, the {\tt Format}
-command of the workbench included code to
+command of the Workbench included code to
 initialize the OFS or FFS\key{Fast File System (FFS)} disk structure.
 \smallskip{}
 
@@ -25164,7 +25384,7 @@ The Shell is even added three times to this list. First, as
 ``{\tt shell}''\key{Shell (resident)}, which is the the shell that is used by
 default by the {\tt Shell} icon and the {\tt System()}\key{System()}
 function. A user shell\key{Shell} may replace this entry and thus become
-accessible by the {\tt Shell} icon on the workbench.
+accessible by the {\tt Shell} icon on the Workbench.
 Second, as ``{\tt BootShell}''\key{BootShell},
 which shall remain unchanged. It always refers to the shell that booted the
 system, and is also the shell that is used by the
@@ -26814,6 +27034,9 @@ Addison-Wesley Publishing Company (1992)
 \bibitem{guru} Ralph Babel:
 {\sl The Amiga Guru Book.}
 Ralph Babel, Taunusstein (1993)
+\bibitem{kernrichie} Brian W. Kernighan and Dennis M. Ritchie:
+{\sl The C Programming Language}, $2^{\mbox{nd}}$ edition, Prentice Hall
+(1988)
 \bibitem{ecma48} ECMA:
 {\sl Control Functions for Coded Character Sets.}
 ECMA International (1998)
