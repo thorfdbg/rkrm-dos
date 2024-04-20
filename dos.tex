@@ -14250,8 +14250,8 @@ struct MANXPatchedTrampoline {
 
 When unloading an overlay node, the original trampolines have to be
 restored such that a call to an overlay symbol triggers again loading
-the segments containing the symbol from disk. For that, {\tt
-  mt\_JMP}\mkey{mt\_JMP} is replaced by a {\tt bsr.w} instruction,
+the segments containing the symbol from disk. For that,
+{\tt mt\_JMP}\mkey{mt\_JMP} is replaced by a {\tt bsr.w} instruction,
 {\tt mt\_OvMngrOffset}\key{mt\_OvMngrOffset} is moved to the next
 word, and the overlay node is found by identifying the {\tt OvNode}
 that contains the offset to the trampoline that is to be unloaded. As
@@ -14266,15 +14266,13 @@ absolute symbol address.
 
 While the AmigaDOS loader, i.e.\ {\tt LoadSeg()}\key{LoadSeg()} and
 related functions, do not care about the contents of the segments\key{Segment} it
-loaded, some other components of AmigaDOS do actually analyze their
-contents.
+loaded, some other components of AmigaDOS do actually analyze them.
 
 \subsection{The Version Cookie} \label{sec:versioncookie}
 
 The {\tt Version} command scans a ROM-resident modules or all segments
 of an executable for the character sequence {\tt \$VER:} followed by
-at least a single blank space, and if such a sequence is found, the
-following string is scanned.
+at least a single blank space.
 \smallskip{}
 
 The syntax of the version cookie is formally specified as follows:
@@ -14284,20 +14282,20 @@ The syntax of the version cookie is formally specified as follows:
 {\bf Size} & {\bf Data} & {\bf Syntax} \\ \hline \hline
 40     & \tt '\$VER:' & The version cookie identifier \\ \hline
 $\ge$8 & \tt ' ' $\ldots$ & One or more blank spaces \\ \hline
-$\ge$8 & name         & Program name, terminated by {\tt '\textbackslash{}0'}, {\tt '\textbackslash{}n'}, {\tt '\textbackslash{}r'} or a digit between {\tt '0'} and {\tt '9'} \\ \hline
-$\ge$8 & version      & Major \emph{version} of the program encoded as decimal number in ASCII\\ \hline
+$\ge$8 & \it name     & Program name, terminated by {\tt '\textbackslash{}0'}, {\tt '\textbackslash{}n'}, {\tt '\textbackslash{}r'} or a digit between {\tt '0'} and {\tt '9'} \\ \hline
+$\ge$8 & \it version  & Major \emph{version} of the program encoded as decimal number in ASCII\\ \hline
 8      & \tt '.'      & An ASCII dot \\ \hline
-$\ge$8 & revision     & Minor \emph{revision} of the program encoded as decimal number \\ \hline
+$\ge$8 & \it revision & Minor \emph{revision} of the program encoded as decimal number \\ \hline
 $\ge$0 & \tt ' ' $\ldots$ & Zero or more blank spaces \\ \hline
 8      & \tt '('      & An opening bracket \\ \hline
-$\ge$8 & day          & Day of the month, between 1 and 31, encoded as decimal number \\ \hline
+$\ge$8 & \it day      & Day of the month, between 1 and 31, encoded as decimal number \\ \hline
 8      & \tt '.'      & A dot \\ \hline
-$\ge$8 & month        & Month, between 1 and 12, encoded as decimal number \\ \hline
+$\ge$8 & \it month    & Month, between 1 and 12, encoded as decimal number \\ \hline
 8      & \tt '.'      & A dot \\ \hline
-$\ge$8 & year         & Year, either as two or four decimal digits \\ \hline
+$\ge$8 & \it year     & Year, either as two or four decimal digits \\ \hline
 8      & \tt ')'      & Closing bracket \\ \hline
 $\ge$0 & \tt ' ' $\ldots$ & Zero or more blank spaces \\ \hline
-$\ge$8 & comment      & A comment, terminated by {\tt '\textbackslash{}0'}, {\tt '\textbackslash{}n'}, or {\tt '\textbackslash{}r'} \\ \hline
+$\ge$8 & \it comment  & A comment, terminated by {\tt '\textbackslash{}0'}, {\tt '\textbackslash{}n'}, or {\tt '\textbackslash{}r'} \\ \hline
 \end{longtable}
 \end{rkrmtabular}
 
@@ -14328,11 +14326,11 @@ the {\tt FULL} command line argument.
 
 \subsection{The Stack Cookie} \label{sec:stackcookie}
 
-The Workbench, the shell\key{Shell}, and also {\tt
-  GetDeviceProc()}\key{GetDeviceProc()} when loading handlers,
+The Workbench, the shell\key{Shell}, and also
+{\tt GetDeviceProc()}\key{GetDeviceProc()} when loading handlers,
 scan the loaded binary for the string sequence {\tt \$STACK:}. If this
 string sequence is found, AmigaDOS attempts to read a following
-decimal number, and interprets this as stack size in bytes.
+decimal number, and interprets this as minimum stack size in bytes.
 \smallskip{}
 
 Formally, the stack size cookie looks as follows:
@@ -14369,7 +14367,7 @@ This ensures that the stack size of the program is at least 8192 bytes.
 The \emph{dos.library} provides with the
 {\tt ScanStackToken()}\mkey{ScanStackToken()} an optimized function to quickly
 scan segments\key{Segment} for the stack cookie and potentially adjust a default
-stack size to at least the value found in the stack cookie.
+stack size to at least the value found in there.
 
 \begin{verbatim}
 stack = ScanStackToken(segment, defaultstack) /* since V47 */
@@ -14393,7 +14391,7 @@ e.g.\ as returned by {\tt LoadSeg()}\key{LoadSeg()} function.
 \subsection{Runtime binding of BCPL programs} \label{sec:bcplbinding}
 
 BCPL programs depend on a Global Vector\mkey{Global Vector} that
-includes function entries and data that is made available to all its
+contains function entries and data that is made available to all its
 program units. AmigaDOS includes a runtime binder functionality that
 creates the Global Vector of such BCPL code from data found in the
 segments\key{Segment} of the loaded binary and the \emph{dos.library}
@@ -14403,7 +14401,7 @@ public Global Vector.
 Even though this mechanism is deprecated and AmigaDOS has long been
 ported to C and assembler, some of its components still depend on this
 legacy mechanism, namely all handlers and file systems mounted with
-the {\tt GLOBVEC = 0} or {\tt GLOBVEC = -3}\key{GLOBVEC} entry in the
+a {\tt GLOBVEC = 0} or {\tt GLOBVEC = -3}\key{GLOBVEC} entry in the
 mount list, see table~\ref{table:gvvalues} in
 chapter~\ref{sec:devicelist}. While newer handlers should not depend
 on this mechanism anymore, the Port-Handler\key{Port-Handler} mount
@@ -14439,7 +14437,7 @@ populate the Global Vector. The layout of the segments is as follows:
 
 The \emph{first long-word} of the segment\key{Segment}, usually the
 entry point of the process for C/Assembler startup, contains instead
-the long-word offset from the start of the process to the start of the
+the long-word offset from the start of the segment to the start of the
 Global Vector initialization data. This initialization data is
 \emph{scanned backwards} from the given offset towards lower
 addresses, starting with the long-word right before the address computed
@@ -14488,6 +14486,7 @@ CStart:         sub.l   a0,a0           ; no startup message
                 bsr.w   _main           ; need to GetMsg() in main
                 rts
 
+*               Align to a long word boundary
                 CNOP    0,4
 
 *               BCPL startup function, called for GlobVec=0 or -3
@@ -14498,8 +14497,9 @@ BCPLStart:      movem.l a0-a6,-(a7)     ; save for BCPL use
                 movem.l (a7)+,a0-a6     ; restore everyone
                 jmp     (a6)            ; BCPL-style return
 
-BCPLTable:      CNOP    0,4
-
+*               Align to a long word boundary
+                CNOP    0,4
+BCPLTable:      
                 DC.L    0               ; End of global list
                 DC.L    G_CLISTART,BCPLStart-CodeHeader ;for the shell
                 DC.L    G_START,BCPLStart-CodeHeader
@@ -14508,40 +14508,41 @@ CodeEnd:
                    END
 \end{verbatim}
 
-Note that there are other differences for BCPL handlers the {\tt
-  main()} function of the handler needs to take care of. BCPL handlers
-do not receive their startup message in the process {\tt
-  pr\_MsgPort}\key{pr\_MsgPort}, but rather receive a BPTR to the
+Note that there are other differences for BCPL handlers the
+{\tt main()} function of the handler needs to take care of. BCPL handlers
+do not receive their startup message in the process
+{\tt pr\_MsgPort}\key{pr\_MsgPort}, but rather receive a BPTR to the
 startup {\tt DosPacket}\key{DosPacket} in register {\tt d1} (see also
 sections~\ref{sec:dospacket},\ref{sec:handlerstartup} and
 \ref{sec:usershells}). Likewise, the CLI also receives the startup
-packet in this register rather than the process port. For convenience,
+packet in this register rather than in its process port. For convenience,
 the above startup code converts it to a C-style pointer and provides
-it in register {\tt a0} to the {\tt main()} function.
+it in register {\tt a0} to the {\tt main()} function of the handler or
+shell.
 \smallskip{}
 
 The {\tt CStart} label is not called at all if the handler is mounted
 with {\tt GLOBVEC=0} or {\tt GLOBVEC=-3}, and thus would be not
 required for pure BCPL-type handlers or the CLI. It is included here
 to demonstrate another technique, namely \emph{dual use} handlers that
-can be mounted both as C and as BCPL handlers. The FFS\mkey{Fast File
-  System (FFS)} makes use of this technique to be able to drive both
-OFS-mounted floppy disks based on the BCPL startup mechanism as well
-as harddisk partitions typically using the more modern C/Assembler
-startup mechanism.
+can be mounted both as C and as BCPL handlers.
+The FFS\mkey{Fast File System (FFS)} makes use of this technique
+to be able to drive both OFS-mounted floppy disks requesting the BCPL
+startup mechanism, as well as harddisk partitions mounting the FFS
+with parameters signaling C startup.
 \smallskip{}
 
-In such a case, i.e. if {\tt GLOBVEC=-1} or {\tt GLOBVEC=-2} is
-indicated in the mountlist\key{Mountlist}, the code \emph{is} started
-from the first byte of the first segment, which is in this case
-actually the long-word offset to the BCPL initializer list. This still
-works because the offset value assembles to a harmless {\tt ORI}
-instruction, provided the offset to the end of the code is short
-enough, i.e.\ below 64K. As the calling syntax is different, the {\tt main()}
-function is now invoked with a {\tt NULL} argument in register {\tt
-  a0}, and then shall wait for the startup package itself. A
-corresponding handler main program for this startup code is provided
-as example in section~\ref{sec:handlerstartup}.
+In such a case, i.e. if {\tt GLOBVEC=-1} or {\tt GLOBVEC=-2} is indicated in
+the mountlist\key{Mountlist}, the code \emph{is} started from the first byte
+of the first segment, which is in this case actually the long-word offset to
+the BCPL initializer list. This still works because the offset represents
+the 68K opcode of a harmless {\tt ORI} instruction as long as it is small
+enough, i.e.\ below 64K. To signal the C startup mechanism, the
+{\tt main()} function is now invoked with a {\tt NULL}
+argument in register {\tt a0}, indicating that the handler or CLI implementation shall
+wait for the startup package to arrive in the {\tt pr\_MsgPort} of its
+process instead. A corresponding handler main program for this startup code
+is provided as example in section~\ref{sec:handlerstartup}.
 \smallskip{}
 
 For the CLI, in particular, a second entry in the Global Vector
