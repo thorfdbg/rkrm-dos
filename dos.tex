@@ -628,7 +628,7 @@ leading plus sign (``{\tt +}''). This function also aborts in case the
 conversion overflows, i.e.\ the absolute value of the number is larger than
 $2^{31}$, and then returns the number of characters up to which the
 conversion could be performed without overflow. The output of the conversion
-filled into {\tt value} is in that case meaningless.
+filled into {\tt value} is in this case meaningless.
 \smallskip{}
 
 Even in case of error, this function does not alter {\tt IoErr()}\key{IoErr()}.
@@ -11819,13 +11819,20 @@ way before a loaded program starts up.
 \chapter{Direct Packet Communication} \label{sec:directpkts}
 
 The \emph{dos.library} communicates with handlers or file systems via
-DosPackets\key{DosPacket}, specified in section~\ref{sec:dospacket}, which ride on top of
-exec messages, see~\cite{rkrmlib} for how the exec message system
-works. DosPackets are send to a {\tt MsgPort} to request a particular action
-from the handler, such as to open a file or read data from it. The
+DosPackets\key{DosPacket} --- more on this structure in
+section~\ref{sec:dospacket} --- which ride on top of
+exec messages. The message-based inter-process communication system of the
+exec kernel is described in more detail in~\cite{rkrmlib}.
+DosPackets are send to a {\tt MsgPort} of a handler or file system to request a particular action,
+such as to open a file or read data. The
 port is typically the process port {\tt pr\_MsgPort} of the handler
 process. Chapter~\ref{sec:process} provides more details on processes
-and the {\tt Process} structure containing this port.
+and the {\tt Process} structure containing this port. Once the handler has
+performed the requested action, it replies to the packet and delivers
+through it also a primary and a secondary result code. The primary result
+code in the packet is typically delivered as result code of a corresponding
+function of the \emph{dos.library}, whereas the secondary result code is
+often the error code that can be retrieved by {\tt IoErr()}\key{IoErr()}.
 \smallskip{}
 
 While it is in many cases more practical to interact with handlers
@@ -11837,12 +11844,18 @@ desired activity is not exposed as function in the library.
 
 The functions and structures in this chapter perform direct
 communication with handlers through packets and thus form the lower
-level interface between the \emph{dos.library} and its handlers. While
-most functions of the \emph{dos.library} are synchronous, i.e.\ wait
-for the handler to perform the requested action, the direct packet
-interface also allows asynchronous input and output. This keeps the
-process initiating an operation running while the handler is working
-on the requested operation in parallel.
+level interface between the \emph{dos.library} and its handlers. Many of the
+higher level functions such as {\tt Open()}\key{Open()} or
+{\tt Read()}\key{Read()} call through the functions in this
+section.
+\smallskip{}
+
+While most functions of the \emph{dos.library} are synchronous, i.e.\ wait
+for the handler to perform the requested action, the direct packet interface
+also allows asynchronous input and output. This keeps the process initiating
+an operation running while the handler is working on the requested operation
+in parallel. The result of the operation is delivered to a
+{\tt MsgPort} of the originating process at a later time.
 
 \section{Request an Action from a Handler and Wait for Reply} \label{sec:dopkt}
 
@@ -11891,7 +11904,7 @@ section~\ref{sec:dospacket} for the raw packet interface.
 This function returns the primary result code of the handler, and
 installs the secondary result code in {\tt IoErr()}\key{IoErr()}, see
 also section~\ref{sec:dospacket}. In particular, {\tt IoErr()} is
-always set, even if the handler did not deliver a meaningful secondary
+always set, even if the handler does not deliver a meaningful secondary
 result code.
 \smallskip{}
 
@@ -11903,7 +11916,7 @@ chapter~\ref{sec:process}.
 Otherwise, {\tt DoPkt()} waits on {\tt pr\_MsgPort}\key{pr\_MsgPort}
 with {\tt WaitPort()} and removes the message through {\tt GetMsg()}.
 If the caller is a task, the function builds an exec {\tt MsgPort}
-on the fly and waits on this temporary port --- thus unlike
+on the fly and waits on this temporary port --- unlike
 many other functions of the \emph{dos.library}, this function is even
 callable from tasks.
 \smallskip{}
@@ -11940,8 +11953,8 @@ exec design is a copy of the Tripos design and not vice versa.}.
 
 To trigger an asynchronous input or output operation, the caller first
 needs to create a {\tt DosPacket}\key{DosPacket}, see section~\ref{sec:dospacket},
-fill this packet with the action requested from the handler plus zero
-or more additional arguments and then send the packet to the handler
+fill this packet with the action requested from the handler and zero
+or more additional arguments, and then send the packet to the handler
 with~{\tt SendPkt()}, see section~\ref{sec:sendpkt}.  The sending
 process keeps running after the packet has been submitted to the
 handler, and is then free to perform other activities, for example
@@ -11966,7 +11979,7 @@ of a packet.
 Communication with handlers is based on \emph{packets}. For example,
 the {\tt DoPkt()}\key{DoPkt()} function creates a packet on the fly on
 the stack, submits it to the handler via the given port, and waits for
-it to return.
+it to return. This section describes the packet structure and its elements.
 \smallskip{}
 
 A packet is represented by a {\tt DosPacket}\mkey{DosPacket} structure
@@ -12003,17 +12016,18 @@ follows:
 
 {\tt dp\_Link}\mkey{dp\_Link} shall point to the message which is used for transmitting the
 {\tt DosPacket}. The message node name in {\tt mn\_Node.ln\_Name} shall be
-initialized to point to the {\tt DosPacket} itself.
+initialized to point back to the {\tt DosPacket}.
 \smallskip{}
 
 {\tt dp\_Port}\mkey{dp\_Port} shall point to the {\tt MsgPort}
 structure to which the packet shall be send back after the handler has
 completed the requested activity. This is typically, but not necessary
 {\tt pr\_MsgPort} of the process sending the packet. See
-chapter~\ref{sec:process} for the definition of the {\tt
-  Process}\key{Process} structure. {\tt DoPkt()}\key{DoPkt()} uses
-always the process message port of the caller as reply port for the
-packet if the caller is a process.
+chapter~\ref{sec:process} for the definition of the
+{\tt Process}\key{Process} structure. {\tt DoPkt()}\key{DoPkt()} uses
+the process message port of the caller as reply port for the
+packet if the caller is a process, otherwise a temporary port is created
+just for the purpose of sending a packet.
 \smallskip{}
 
 {\tt dp\_Type}\mkey{dp\_Type} identifies the action requested from the handler. It shall be
@@ -12031,7 +12045,7 @@ return {\tt dp\_Res1} as their (primary) result.
 \smallskip{}
 
 {\tt dp\_Res2}\mkey{dp\_Res2} is the secondary result code filled by
-the handler and is typically is 0 for success, or an error code on
+the handler and is typically an error code on
 failure. Many functions of the \emph{dos.library} install this error
 code into {\tt IoErr()}, and so does {\tt DoPkt()}\key{DoPkt()}.
 Section~\ref{sec:ioerr} lists the error codes defined by the
@@ -12041,11 +12055,11 @@ conditions.
 
 {\tt dp\_Arg1} to {\tt dp\_Arg7} provide additional
 arguments to the handler. They shall be filled by the issuer of a
-packet, and provide additional arguments to the handler for performing
-the activity encoded by {\tt dp\_Type}. Most packet types do not
+packet; which and how many arguments are required depends on the packet
+type encoded by {\tt dp\_Type}. Most packet types do not
 require all 7 possible arguments; in such a case, only the necessary
-arguments may be initialized. The first~5 arguments correspond to {\tt
-  arg1} to {\tt arg5} of the {\tt DoPkt()} function.
+arguments may be initialized. The first~5 arguments correspond
+to {\tt arg1} to {\tt arg5} of the {\tt DoPkt()} function.
 
 \subsection{Send a Packet to a Handler Asynchronously} \label{sec:sendpkt}
 
@@ -12071,7 +12085,7 @@ The {\tt packet} shall be partially initialized; in particular,
 {\tt mn\_Node.ln\_Name} element points back to {\tt packet}.
 {\tt SendPkt()}\key{SendPkt()} \emph{does not} supply or initialize such a
 message. It is recommended to create packets through
-{\tt AllocDosObject()}\key{AllocDosObject()} which also initializes it properly, see below and
+{\tt AllocDosObject()}\key{AllocDosObject()} which also initializes them properly, see below and
 section~\ref{sec:allocdosobject}.
 \smallskip{}
 
@@ -12079,14 +12093,14 @@ section~\ref{sec:allocdosobject}.
 identifier specifying the type of activity requested from the handler,
 see chapter~\ref{sec:packettypes}. Depending on this type, a subset of
 the packet arguments {\tt dp\_Arg1} through {\tt dp\_Arg7}
-carry additional arguments for the requested action and
+carry additional information for the requested action and
 shall be initialized accordingly.
 \medskip{}
 
 {\tt DosPackets} can be constructed in multiple ways:
 {\tt AllocDosObject(DOS\_STDPKT,NULL)}\key{AllocDosObject()} allocates a packet along
 with a message and initializes the linkage between the structures,
-see~\ref{sec:allocdosobject} for additional information.
+see~\ref{sec:allocdosobject} for the full description of this function.
 It creates a {\tt StandardPacket}\mkey{StandardPacket} which contains both a
 {\tt Message} and a {\tt DosPacket}\key{DosPacket}. This structure is defined in
 {\tt dos/dosextens.h} and looks as follows:
@@ -12105,12 +12119,17 @@ section~\ref{sec:allocdosobject}.
 Another option is to allocate memory for the packet from the heap
 and initialize the linkage between the structures manually:
 \begin{verbatim}
-struct StandardPacket *sp;
+struct StandardPacket *CreatePacket(void)
+{
+  struct StandardPacket *sp;
 
-sp  = AllocMem(sizeof(struct StandardPacket),MEMF_PUBLIC);
+  sp  = AllocMem(sizeof(struct StandardPacket),MEMF_PUBLIC);
 
-sp->sp_Msg.mn_Node.ln_Name = (UBYTE *)&(sp->sp_Pkt);
-sp->sp_Pkt.dp_Link         = &(sp->sp_Msg);
+  sp->sp_Msg.mn_Node.ln_Name = (UBYTE *)&(sp->sp_Pkt);
+  sp->sp_Pkt.dp_Link         = &(sp->sp_Msg);
+
+  return sp;
+}
 \end{verbatim}
 At least the {\tt DosPacket}\key{DosPacket} structure shall be aligned to a long
 word boundary to make it and its elements accessible to BCPL
@@ -12124,7 +12143,7 @@ this idea is discouraged. It only works if the same function or one of
 its callees also wait for the packet to return, which is
 hard to enforce in a design based on asynchronous packet
 communication. Otherwise, the stack frame containing the packet would
-be destroyed upon returning from the constructing function.
+be destroyed upon returning from the packet constructing function.
 
 \subsection{Waiting for a Packet to Return} \label{sec:waitpkt}
 
@@ -12160,7 +12179,7 @@ This function does not test whether the received message does,
 actually, belong to a packet. The caller shall ensure that only
 messages corresponding to {\tt DosPacket}s\key{DosPacket} can arrive at the process
 message port, and shall remove all other messages from this port
-before.
+upfront.
 \smallskip{}
 
 As {\tt WaitPkt()}\key{WaitPkt()} always waits on the process message
