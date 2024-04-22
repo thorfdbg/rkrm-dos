@@ -15315,13 +15315,14 @@ the handlers included in AmigaDOS.
 
 \section{The Handler Interface}
 
-A handler or a file system is an Amiga process that retrieves
-commands in the form of {\tt DosPacket}\key{DosPacket} structures. The main loop of a handler is
-conceptually similar to a program implementing a graphical user interface,
-except that the latter retrieves messages via the \emph{intuition} IDCMP
-port and reacts on the messages whereas the handlers receive commands from
-the {\tt pr\_MsgPort}\key{pr\_MsgPort} of its process, or any other port they indicated
-to its clients.
+A handler or a file system is an Amiga process that retrieves commands in
+the form of {\tt DosPacket}\key{DosPacket} structures; this structure is
+defined and discussed in section~\ref{sec:dospacket}. The main loop of a
+handler is conceptually similar to a program implementing a graphical user
+interface, except that the latter retrieves messages via the
+\emph{intuition} IDCMP port and reacts on the messages whereas handlers
+receive packets from the {\tt pr\_MsgPort}\key{pr\_MsgPort} of their processes,
+or any other port they indicated to their clients.
 \smallskip{}
 
 To interface with a handler, the \emph{dos.library} first needs to
@@ -15331,53 +15332,60 @@ handle\key{FileHandle}. For Locks, the {\tt fl\_Task}\key{fl\_Task}
 element of the {\tt FileLock} structure contains the port, and for
 files the {\tt fh\_Type}\key{fh\_Type} field is the pointer to the
 port, see sections~\ref{sec:filelock}
-and~\ref{sec:filehandle}. Section~\ref{sec:locatehandler} describes how
-the library finds a port given a path.
+and~\ref{sec:filehandle}. If only a path is given,
+then section~\ref{sec:locatehandler} describes how a port and thus a handler
+responsible for a path is identified.
  
 \subsection{Locating a Handler from a Path} \label{sec:locatehandler}
 
 Handlers are located by the \emph{dos.library} function
 {\tt GetDeviceProc()}\key{GetDeviceProc()}. This function receives an
 absolute or relative path, and from this path it determines a {\tt MsgPort}
-through which to contact the handler; the function itself is specified in section~\ref{sec:getdeviceproc}. All
+through which the handler responsible for the path can be contacted; the function itself
+is specified in section~\ref{sec:getdeviceproc}. All
 other functions of the \emph{dos.library} requiring to resolve a path
-to a handler also call through {\tt GetDeviceProc()}\key{GetDeviceProc()}\footnote{Unfortunately, they
-do not call it through the vector of the library, which is probably
-a defect.}, e.g.\ so do {\tt Open()}\key{Open()} or {\tt Lock()}\key{Lock()}, and
-also {\tt DeviceProc()}\key{DeviceProc()} as legacy function.
+to a handler also call through
+{\tt GetDeviceProc()}\key{GetDeviceProc()}\footnote{Unfortunately, they do
+not call it through the vector of the library, which is
+probably a defect.}, e.g.\ so does {\tt Lock()}\key{Lock()} and also
+{\tt DeviceProc()}\key{DeviceProc()} as legacy function. While
+{\tt Open()}\key{Open()} also calls through {\tt GetDeviceProc()}, it
+processes a couple of special cases itself.
 \smallskip{}
 
-If the argument is a relative path, i.e.\ a path not containing a colon
-(``{\tt :}''), {\tt pr\_CurrentDir}\key{pr\_CurrentDir} of the calling process is
-checked. If non-{\tt ZERO}, the {\tt fl\_Task}\key{fl\_Task} element
-of the {\tt FileLock}\key{FileLock} kept there is a pointer to a
-{\tt MsgPort} through which packets are send to the handler.
-If it is {\tt ZERO}, then {\tt pr\_FileSystemTask}
-provides the {\tt MsgPort} to contact.  More on this in
-section~\ref{sec:filelock} and chapter~\ref{sec:process}.
+For a relative path, i.e.\ a path not containing a colon (``{\tt :}''),
+{\tt pr\_CurrentDir}\key{pr\_CurrentDir} of the calling process is checked.
+If non-{\tt ZERO}, the {\tt fl\_Task}\key{fl\_Task} element of the
+{\tt FileLock}\key{FileLock} kept there is a pointer to a {\tt MsgPort} through
+which packets are send to the handler.  If it is {\tt ZERO}, then
+{\tt pr\_FileSystemTask} provides the {\tt MsgPort} to contact.  More on this
+in section~\ref{sec:filelock} and chapter~\ref{sec:process}.
 \smallskip{}
 
 If an absolute path to the (pseudo-)device {\tt CONSOLE} or to the
-path ``{\tt *}'' is provided, the {\tt MsgPort} in {\tt
-  pr\_ConsoleTask} is contacted to interact with a handler. This corresponds
-to the current console to which the calling process is attached.
-\smallskip{}
-
+path ``{\tt *}'' is\key{* (file name)} provided, the {\tt MsgPort} in
+{\tt pr\_ConsoleTask} is contacted. This port belongs
+to the current console the calling process is running in. While
+{\tt CONSOLE} is handled within {\tt GetDeviceProc()}\key{GetDeviceProc()},
+the ``{\tt *}'' and paths relative to {\tt CONSOLE:} are filtered out by
+{\tt Open()}\key{Open()}.
 If a path relative to the pseudo-assign {\tt PROGDIR} has been
 passed, the lock in {\tt pr\_HomeDir} is used to identify a
-handler. If this element is {\tt ZERO}, then the path is considered
-relative to an assign, volume or device named {\tt PROGDIR}\footnote{This is
-probably a defect, it would be more reasonable if resolution would fail in this
-case.}.
+handler\footnote{Unfortunately, {\tt GetDeviceProc()} has issues
+in both handling {\tt CONSOLE} and {\tt PROGDIR} correctly if no handler or
+no lock representing these elements is available. Instead, it attempts then to
+find a device, volume or assign of the name {\tt CONSOLE} or {\tt PROGDIR}.
+It is unclear whether this is intentional or a defect.}.
 \smallskip{}
 
-If the path is relative to {\tt NIL:}, no port is provided, i.e.\ the result is
+If the path is relative to {\tt NIL:}, no handler exists and the result is
 {\tt NULL}. This is not a failure, but rather an indicator to higher
-level functions that a dummy handler is requested that does nothing.
+level functions that a dummy handler is requested that does nothing. As for
+paths identifying the console, this case is already filtered out
+by {\tt Open()}\key{Open()}.
 \smallskip{}
 
-For every other absolute path, the \emph{dos.library} by {\tt
-  GetDeviceProc()}\key{GetDeviceProc()} walks the device
+For every other absolute path, the \emph{dos.library} walks the device
 list\key{Device List} (see chapter~\ref{sec:devicelist}
 and~\ref{sec:getdeviceproc}) to find a suitable {\tt MsgPort} through
 which to contact a handler. For this, it compares the string upfront
@@ -15400,7 +15408,9 @@ the port of the handler responsible for the first directory in the assign, and
 also be found in the {\tt fl\_Type} element of this lock. All additional
 directories in a multi-assign are only represented by locks in the
 {\tt AssignList}\key{AssignList} structure, and the port can taken
-from the corresponding {\tt fl\_Type} element, see chapter~\ref{sec:devicelist} for a detailed discussion of this structure.
+from the corresponding {\tt fl\_Type} element, see
+chapter~\ref{sec:devicelist} for a detailed
+discussion of this structure.
 \smallskip{}
 
 Late\key{Late Binding Assign} and non-binding assigns\key{Non-binding Assign}
@@ -15425,7 +15435,8 @@ whether {\tt dol\_SegList}\key{dol\_SegList} is {\tt ZERO}. If
 it is, the handler code is not yet resident in memory and will be
 loaded from the file name indicated in {\tt dol\_Handler}\key{dol\_Handler} through
 {\tt LoadSeg()}\key{LoadSeg()}, see section~\ref{sec:loadseg}, and
-{\tt dol\_SegList} will be filled with the loaded {\tt SegmentList}\key{SegmentList}.
+{\tt dol\_SegList} will be filled with the loaded segment
+list\key{SegmentList}.
 \smallskip{}
 
 Next, a new process is created by running it from
@@ -15433,38 +15444,28 @@ the first byte of {\tt dol\_SegList} for C or assembler handlers, or
 from the {\tt START} entry of the Global Vector\key{Global Vector} for
 BCPL handlers. To further initialize the handler, a startup package
 is delivered; details depend on the {\tt dol\_GlobVec}\key{dol\_GlobVec}
-element of the device list\key{Device List} entry, see Table~\ref{table:gvvalues} in chapter~\ref{sec:devicelist}. For
+element of the device list\key{Device List} entry, see
+Table~\ref{table:gvvalues} in chapter~\ref{sec:devicelist}. For
 C or assembler handlers with a {\tt dol\_GlobVec} value of $-1$ or $-2$, the
 startup packet is send to the {\tt pr\_MsgPort}\key{pr\_MsgPort} of the handler
-process. For all other values of {\tt dol\_GlobVec}, i.e.\ BCPL handlers, the startup packet
-becomes the first argument of the {\tt START} function at index 1 of the
-Global Vector\key{Global Vector}, see also section~\ref{sec:bcplbinding}.
+process. For all other values of {\tt dol\_GlobVec}, i.e.\ BCPL handlers,
+the startup packet becomes the first argument of the {\tt START} function
+at index 1 of the Global Vector\key{Global Vector}, see also section~\ref{sec:bcplbinding}.
 If the ``fake'' BCPL startup code from section~\ref{sec:bcplbinding}
 is used, this packet is either delivered in register {\tt a0} of the
 handler main function, or shall be retrieved from {\tt pr\_MsgPort} if {\tt a0}
 is {\tt NULL}.
 \smallskip{}
 
-{\tt GetDeviceProc()} then finally waits for the startup packet to
-return. It \emph{does not} initialize {\tt dol\_Task} if handler
-startup succeeded, this is up to the handler, see below.
-\smallskip{}
-
-While waiting for the startup packet to return, {\tt GetDeviceProc()}
-keeps the device list\key{DeviceList (structure)} locked. This is an exclusive
-lock if {\tt dol\_GlobVec}\key{dol\_GlobVec} is larger or equal than~$-1$.
-This implies an attempt to gain access to the device list within
-the handler startup by {\tt LockDosList()}\key{LockDosList()} can
-deadlock. Even if such a lock is not requested explicitly,
-\emph{dos.library} functions can require implicitly such a lock, and
-thus attempting to access files or locks from the handler process
-should be avoided, not only during startup.
-\smallskip{}
-
-If {\tt dol\_GlobVec}\key{dol\_GlobVec} is $-2$ or $-3$,
-{\tt GetDeviceProc()}\key{GetDeviceProc()} will only acquire a shared
-lock, and thus will allow the handler to retrieve a shared lock on the
-device list\key{Device List} as well.
+While the handler is starting, {\tt GetDeviceProc()} waits for the startup
+packet to return and keeps the device list\key{DeviceList (structure)}
+locked. This is an exclusive lock if {\tt dol\_GlobVec}\key{dol\_GlobVec} is
+larger or equal than~$-1$ and otherwise a shared lock. This implies that
+attempting to gain access to the device list within the handler startup by
+{\tt LockDosList()}\key{LockDosList()} can deadlock. Even if such a lock is not
+requested explicitly, \emph{dos.library} functions can require implicitly
+such a lock, and thus attempting to access files or locks from the handler
+process should be avoided, not only during startup.
 \smallskip{}
 
 The startup packet consists of a {\tt DosPacket}\key{DosPacket}
@@ -15497,9 +15498,9 @@ but a BSTR whose first element is the size of the string. This is the
 \emph{full} path which triggered the request for the handler, not only
 the device name. For the CON-Handler\key{CON-Handler} for example,
 this is the window specification that informs the handler on the
-position, size and title of the console; window parameters are \emph{not} taken from
-the subsequent {\tt DosPacket}\key{DosPacket} send for opening a file, see also
-section~\ref{sec:console}.
+position, size and title of the console; window parameters
+are \emph{not} taken from the subsequent {\tt DosPacket}\key{DosPacket}
+send for opening a file, see also section~\ref{sec:console}.
 \smallskip{}
 
 {\tt dp\_Arg2} is a copy of the {\tt dol\_Startup}\key{dol\_Startup}
@@ -15523,22 +15524,22 @@ the handler was identified and which the handler may modify according
 to its needs.
 \medskip{}
 
-During startup, the handler may or may not initialize {\tt dol\_Task}
-with a port of its choice. A
-file system process would typically handle multiple files
-by the same process. To ensure that the \emph{dos.library} sends
-all requests to the process just started, the file system places
-a pointer to a {\tt MsgPort} in {\tt dol\_Task} of the {\tt DosList}
-structure received in {\tt dp\_Art3}. This is typically, but not
-necessarily, the {\tt pr\_MsgPort} of the handler process. The Fast
-File System\key{Fast File System (FFS)} and file systems in general
-proceed in this way.
+During startup, the handler may or may not initialize {\tt dol\_Task}.
+{\tt GetDeviceProc()}\key{GetDeviceProc()} \emph{does not} initialize it and
+leaves at {\tt NULL}. A file system process would typically handle multiple
+files by the same process. To ensure that the \emph{dos.library} sends all
+requests to the process just started, the file system places a pointer to a
+{\tt MsgPort} in {\tt dol\_Task} of the {\tt DosList} structure received in
+{\tt dp\_Art3}. This is typically, but not necessarily, the
+{\tt pr\_MsgPort} of the handler process. The Fast File
+System\key{Fast File System (FFS)} and file systems in general proceed in
+this way.
 \smallskip{}
 
 A handler such as the CON-Handler\key{CON-Handler} requires a separate
 process for each window it manages. In such a case, {\tt dol\_Task}
 remains {\tt NULL} and {\tt GetDeviceProc()}\key{GetDeviceProc()} will
-initiate a new process for each path name to the handler. This
+initiate a new process for each path to the handler. This
 does \emph{not} imply that the handler process only receives a single request
 to open a file in its lifetime, though. Any attempt to open a file
 named ``{\tt *}'' or a using a file name relative to the (pseudo-)
@@ -15553,15 +15554,16 @@ Many (non file-system) handlers leave {\tt dol\_Task} uninitialized,
 though some exceptions exist, e.g.\ the
 Queue-Handler\key{Queue-Handler} serves all requests from a single
 process to allow inter-process communication. Concluding, handlers
-decide whether they require a new process on an attempt to access them.
+decide whether they require a new process on an attempt to access them
+through leaving {\tt dol\_Task} uninitialized.
 \medskip{}
 
-Once the handler or file system initiated itself from the
-startup packet, this packet shall be replied. If startup failed, the primary
-result code shall be {\tt DOSFALSE} and the secondary result code shall be
-an error code suitable for reporting through {\tt IoErr()}\key{IoErr()}, see
-section~\ref{sec:ioerr} for a list of common error codes. Then, the handler
-shall release all resources acquired so far and terminate.
+Once the handler or file system initiated itself from the startup packet,
+this packet shall be replied. If startup failed, the primary result code
+shall be {\tt DOSFALSE} and the secondary result code shall be an error code
+suitable for reporting through {\tt IoErr()}\key{IoErr()}, see
+section~\ref{sec:ioerr} for a list of common error codes. Then, on error,
+the handler shall release all resources acquired so far and terminate.
 \smallskip{}
 
 On success, the main processing loop of the handler is entered
