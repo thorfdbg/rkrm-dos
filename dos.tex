@@ -15581,15 +15581,14 @@ implement additional packet types.
 \smallskip{}
 
 When opening files through the packets documented in
-section~\ref{sec:actionfindinput} and following, the handler or file
-system receives a BPTR to a {\tt FileHandle} structure whose
-{\tt fh\_Arg1} element may be initialized to an identifier of
-the file. On this account,
-it may also update the {\tt fh\_Type} element of the handle to have
-packets related to the file delivered to an alternative port. The
-identifier from {\tt fh\_Arg1} is then used to identify the file for all other
-operations related to it, such as reading or writing to it.
-Section~\ref{sec:fileactions} contains all packets interacting with files.
+section~\ref{sec:actionfindinput} and following, the handler or file system
+receives a BPTR to a {\tt FileHandle} structure whose {\tt fh\_Arg1} element
+may serve as an identifier of the file and associated resources. It is
+delivered back to the handler on all operations on the file, such as reading
+from or writing to it. At this point, the handler may also update the
+{\tt fh\_Type} element of the file handle to have packets related to the file
+delivered to an alternative port. Section~\ref{sec:fileactions} lists all
+packets interacting with files.
 \smallskip{}
 
 Unlike file handles, locks and the {\tt FileLock}\key{FileLock}
@@ -15598,7 +15597,7 @@ packets in section~\ref{sec:actionlocateobject} and following,
 e.g.\ when locking a file system object.
 The {\tt fl\_Task}\key{fl\_Task} element of this structure, in particular,
 shall be initialized to point to a {\tt MsgPort} clients will contact for interacting
-with the file system on this lock. While this is typically the {\tt pr\_MsgPort} of
+with the file system on a lock. While this is typically the {\tt pr\_MsgPort} of
 the file system process, it may also provide a custom
 port instead. Section~\ref{sec:actionlocks} lists all packet types that
 interact with locks.
@@ -15662,14 +15661,21 @@ LONG __asm __saveds main(register __a0 struct DosPacket *pkt)
 
     if (error) {
       /*
-      ** Potentially initialize dol_Task 
-      ** Remove if a new instance is required.
+      ** Reply packet manually with 
+      ** an error - the dos.library did
+      ** not open.
       */
-      ReplyPkt(pkt,DOSFALSE,error);
+      pkt->dp_Res1 = DOSFALSE;
+      pkt->dp_Res2 = error;
+      PutMsg(pkt->dp_Port,pkt->dp_Link);
       return;
     }
 
-    /* dlist->dol_Task = &proc->pr_MsgPort; */
+    /*
+    ** Potentially initialize dol_Task 
+    ** Uncomment for single-instance handlers.
+    ** dlist->dol_Task = &proc->pr_MsgPort; 
+    */
     ReplyPkt(pkt,DOSTRUE,0);
     /* main program loop */
     do {
@@ -15715,6 +15721,23 @@ LONG __asm __saveds main(register __a0 struct DosPacket *pkt)
 }
 \end{verbatim}
 
+The handler first checks whether it received a startup packet through the
+BCPL binder, and if not, retrieves it from its process port. It then
+allocates its resources, in this case it only opens the
+\emph{dos.library}. If that fails, the startup packet is replied with an
+error code, though without having the library available, this is a manual
+step. Otherwise, it is replied indicating success.
+\smallskip{}
+
+The main processing loop follows: The handler receives packets from this
+process port, and checks for the type. For each request to open a file, a
+use counter is incremented, and for each request to close one, the counter
+is decremented. In this simple example, no other activity is performed as
+this dummy handler serves no purpose. Read and write requests are answered with an
+{\tt EOF} condition or success indicating that all bytes had been written.
+\smallskip{}
+
+The remaining cases implement error handling:
 A handler or file system receiving a packet it does not implement
 shall set the {\tt dp\_Res2} element of the packet to
 {\tt ERROR\_ACTION\_NOT\_KNOWN}\key{ERROR\_ACTION\_NOT\_KNOWN}.
@@ -15737,6 +15760,11 @@ all others & ~0 \\ \hline
 The packet shall then be replied. This ensures that clients of the
 handler or file system will receive a result that is an indication of
 an error.
+\smallskip{}
+
+Once the use counter reaches zero again, the handler releases all its
+resources and terminates processing. The handler shutdown is discussed in
+more detail in section~\ref{sec:terminatehandler}.
 
 \subsection{Handler Shutdown} \label{sec:terminatehandler}
 
@@ -15745,8 +15773,10 @@ A handler that does not initialize the {\tt dol\_Task}\key{dol\_Task} element of
 object it creates, and decremented for each object deleted. For
 example, if the handler supports opening files, then the initialization of
 each file handle\key{FileHandle} should increment the counter, and each file handle
-closed through {\tt ACTION\_END}\key{ACTION\_END} should decrement the counter. Once the use
-counter reaches zero, the handler process should die by releasing all of its
+closed through {\tt ACTION\_END}\key{ACTION\_END} should decrement the
+counter. Similarly, if locks are supported, every lock created should
+increment it, and every lock unlocked should decrement it. Once the use
+counter reaches 0, the handler process should die by releasing all of its
 resources and falling off its main function. This ensures that AmigaDOS is
 not congested by creating more and more processes of the same handler that,
 effectively, cannot be contacted anymore because its process port is not
@@ -15784,7 +15814,7 @@ Despite such precautions, {\tt ACTION\_DIE}\key{ACTION\_DIE} cannot be
 implemented in a fully reliable way as some of the {\tt MsgPort}(s) of the
 file system could still be cached by client programs even without
 having access to any of its resources. Section~\ref{sec:packetactiondie} contains
-further details on this packet and file system shutdown.
+further details on this packet.
 
 \section{The CON-Handler} \label{sec:console}
 
