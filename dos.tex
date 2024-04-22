@@ -18502,35 +18502,37 @@ the file was delivered.
 \medskip{}
 
 {\tt dp\_Arg2} contains a {\tt BPTR} to a {\tt FileLock}\key{FileLock}
-structure identifying the directory within which the file to be opened
-is located. Typically, this corresponds to the current directory of
-the caller of {\tt Open()}\key{Open()}.  If this lock\key{Lock} is
-{\tt ZERO}\key{ZERO lock}, then the file system shall assume that the provided path
-is relative to the root directory of the currently inserted
-volume. Handlers that do not implement locks, in particular interactive handlers,
-ignore this argument.
+structure identifying the directory from which the file system starts
+searching for the file to be opened. Typically, this corresponds to the
+current directory of the process calling {\tt Open()}\key{Open()}. If this
+lock\key{Lock} is {\tt ZERO}\key{ZERO lock}, then the file system shall
+assume that the provided path is relative to the root directory of the
+currently inserted volume. Handlers that do not implement locks, in
+particular interactive handlers, ignore this argument.
 \smallskip{}
 
-{\tt dp\_Arg3} contains a {\tt BPTR} to a {\tt BSTR} providing the
-path of the file relative to the directory in {\tt dp\_Arg2}. That is,
-it is the path of the file to be opened. For interactive handlers, the
-interpretation of the path is up to the handler, see
-sections~\ref{sec:console} or~\ref{sec:porthandler} for examples. Even
+{\tt dp\_Arg3} contains a {\tt BPTR} to a {\tt BSTR} providing the path
+including the file name of the file relative to the directory in
+{\tt dp\_Arg2}. The path/lock combination identifies the file to be opened. For
+interactive handlers, the interpretation of the path is up to the handler,
+see sections~\ref{sec:console} or~\ref{sec:porthandler} for examples. Even
 though the interpretation of paths by file systems is up to their
 implementation, too, it is advisable to follow the conventions of
-section~\ref{sec:locate}, namely to separate components by forward
-slashes (``{\tt /}'') and the device name from the path by a colon
-(``{\tt :}''). The path may consist of multiple components whose last
-component is the name of the file, and whose initial components
-indicate a path relative to {\tt Arg2}.
+section~\ref{sec:locate}, namely to separate components by forward slashes
+(``{\tt /}'') and the device name from the path by a colon
+(``{\tt :}''). The path may consist of multiple components whose last component is
+the name of the file, and whose initial components indicate a path relative
+to {\tt Arg2}.
 \medskip{}
 
-All other arguments of the packet shall be ignored. The handler should
-locate the file indicated by {\tt dp\_Arg3} relative to {\tt dp\_Arg2}, and
-fill in a boolean success code in {\tt dp\_Res1}. It shall be set to
-{\tt DOSTRUE} for success or {\tt DOSFALSE} for error. On error, {\tt dp\_Res2} shall be
-set to an error code from {\tt dos/dos.h}, see also section~\ref{sec:ioerr} for the list, or shall be
-set to~0 on success.
+All other arguments of the packet shall be ignored. The handler shall locate
+the file whose path is provided by {\tt dp\_Arg3} relative to the directory
+in {\tt dp\_Arg2}. If {\tt dp\_Arg2} is {\tt ZERO}, the path in
+{\tt dp\_Arg3} is relative to the root of the file system. On success, the
+handler shall set {\tt dp\_Res1} to {\tt DOSTRUE}, otherwise to
+{\tt DOSFALSE} for error. On error, {\tt dp\_Res2} shall be set to an error
+code from {\tt dos/dos.h}, see also section~\ref{sec:ioerr} for the list, or
+shall be set to~0 on success.
 \medskip{}
 
 The purpose of this packet is to prepare a {\tt FileHandle} structure
@@ -19963,8 +19965,8 @@ Similarly, on subsequent requests forming a scan of a directory, the
 a lock to the same directory, though it need not necessarily be the identical
 lock\key{Lock} as used in the previous iteration over the same directory.
 In other words, {\tt eac\_DiskKey}\key{eac\_DiskKey} shall hold sufficient
-state information to reconstruct the point from which the scan can be continued. What is, however, is ensured
-is that the pointer to the {\tt ExAllControl}\key{ExAllControl} structure
+state information to reconstruct the point from which the scan can be continued. It is, however, ensured
+that the pointer to the {\tt ExAllControl}\key{ExAllControl} structure
 stored in {\tt dp\_Arg5} does not change between requests, and the file system may depend on the pointer
 having the same value as on a the previous (incomplete) request for the directory. Also,
 file systems may depend on the client sending a packet of type
@@ -20828,7 +20830,7 @@ support this request, or may only support comments on a subset of objects.
 \smallskip{}
 
 {\tt dp\_Arg2} represents a directory relative to which the path in
-{\tt dp\_Arg3} shall be interpreted.
+{\tt dp\_Arg3} shall be interpreted\footnote{Again, {\tt dp\_Arg1} is unused.}.
 \smallskip{}
 
 {\tt dp\_Arg3} is the path relative to {\tt dp\_Arg2} of the object whose
@@ -20993,7 +20995,7 @@ introduced in AmigaDOS~36.
 \smallskip{}
 
 {\tt dp\_Arg1} is a C pointer\footnote{In~\cite{Bantam} this argument is
-documented to be a BPTR, though this information incorrect.} to a
+documented to be a BPTR, though this information is incorrect.} to a
 {\tt NotifyRequest}\key{NotifyRequest} structure that defines the object
 to be monitored, and the task, signal or message port to be triggered
 on such changes. This structure is specified in section~\ref{sec:startnotify}.
@@ -21288,8 +21290,9 @@ disk state in the {\tt InfoData}\key{InfoData} structure in any case.
 \subsection{Retrieving Information on the Currently Inserted Volume} \label{sec:packetdiskinfo}
 
 The {\tt ACTION\_DISK\_INFO}\mkey{ACTION\_DISK\_INFO} packet retrieves
-information on the volume currently mounted by the file system (if
-any) and provides this information in an {\tt InfoData} structure.
+information on whether the drive a file system is operating on contains a
+medium, whether this medium contains a valid file structure and whether it
+is writable. It provides this information in an {\tt InfoData} structure.
 
 \begin{rkrmtable}{\tt ACTION\_DISK\_INFO} \label{table:actiondiskinfo}
 {\bf DosPacket Element}   & {\bf Value}\\ \hline \hline
@@ -21364,6 +21367,12 @@ Before replying this packet, {\tt dp\_Res1} shall be set to a boolean success
 indicator. On success, it shall be set to {\tt DOSTRUE} and {\tt dp\_Res2} shall
 be set to~0. On failure, {\tt dp\_Res1} shall be set to {\tt DOSFALSE} and
 {\tt dp\_Res2} to an error code.
+\smallskip{}
+
+This packet does not use any mechanism to identify the medium to be
+relabeled. If the user changes the medium after the packet has been send,
+but before it has been received by the file system, the recently inserted
+medium will be relabeled.
 
 \subsection{Initializing a New File System} \label{sec:actionformat}
 
@@ -22654,8 +22663,8 @@ the console or a script\key{Shell Script}. Each line consists of at
 least one command and its arguments, all separated by spaces or
 tabulators. Each argument is either a value, e.g.\ a file name or a
 number, or a pair of a keyword and a value. The keyword may be either
-separated by blank spaces or tabulators from its value, or by an
-(``{\tt = }''), without any spaces or tabulators in between. The
+separated by blank spaces or tabulators from its value, or by an equals sign
+(``{\tt =}''), without any spaces or tabulators in between. The
 command refers to an executable file within the \emph{path}, which is
 a list of directories that can be adjusted by the user. It always
 contains the current directory and the {\tt C} assign, though
@@ -22671,15 +22680,20 @@ redirection operators.
 
 \subsection{Input/Output Redirection} \label{sec:redirection}
 
-Commands receive from the Shell\key{Shell} an input and output stream, and a console
-handler to which commands can refer by the special file name
-``{\tt *}''\key{* (file name)}. Optionally, commands can be provided with an error stream through which
-diagnostic messages are printed. The Shell allows redirecting or creating
-these streams by operators on the command line that shall also be separated
-by the spaces or tabulators from the arguments and the command.
+Commands receive from the Shell\key{Shell} an input and output stream, and a
+console handler to which commands can refer by the special file name
+``{\tt *}''\key{* (file name)}. Optionally, commands can also be provided with an
+error stream through which diagnostic messages are printed.  The Shell
+allows redirecting or creating these streams by operators on the command
+line that shall also be separated by the spaces or tabulators from the
+arguments and the command. In the following, the term ``{\it path}'' is an
+absolute or relative path to a file or device in the sense of
+section~\ref{sec:paths} that can be opened to provide alternative input,
+output or error streams.
 \smallskip{}
 
-The shell\key{Shell} supports the following redirection operators\mkey{Redirection (Shell)}:
+The Shell\key{Shell} supports the following redirection
+operators\mkey{Redirection (Shell)}:
 
 \begin{itemize}[leftmargin=5em]
   \item[{\tt >}{\it path}] redirects the output of a command to a
@@ -22787,6 +22801,7 @@ will pipe the output of the {\tt list} command through the pager, and the comman
 echo "Current Directory Content:" || List | More
 \end{verbatim}
 will print an additional title on top which will also be run through the pager.
+\smallskip{}
 
 The command line
 \begin{verbatim}
@@ -23191,8 +23206,9 @@ is represented internally.
 \smallskip{}
 
 If nothing is found in the path, the Shell finally checks the {\tt C}
-assign. The {\tt C:} directory is also always implicitly in the path and,
-similar to the current directory, cannot be removed from it.
+assign. The directory --- or directories, in case it is a multi-assign ---
+the assign points to is also always implicitly in the path and, similar to
+the current directory, cannot be removed from it.
 \smallskip{}
 
 If neither a resident segment nor a file or directory could be found, the
@@ -23523,7 +23539,8 @@ the stack size of the shell of the caller, if such a shell exists, i.e.\
 {\tt pr\_CLI}\key{pr\_CLI} of the calling process is non-{\tt ZERO}. Otherwise,
 a default path containing only the {\tt C:} directory and the current directory will be
 created, no local variables will be defined, the prompt will be set to
-``{\tt \%N> }'' and the current directory to ``{\tt SYS:}''.
+``{\tt \%N> }'' (including a trailing space) and the current
+directory to ``{\tt SYS:}''.
 \smallskip{}
 
 By default, the executing shell\key{Shell} will be the system Shell whose segment is
@@ -24103,7 +24120,7 @@ able to hold. Second, only shells\key{Shell} and commands run within or from she
 are recorded in the process table, and other processes as those started from
 the Workbench, or handlers, file systems or device drivers do not enter this
 table. Third, the size of this table changes dynamically depending on how
-many shell processes are active, even under the feed of the caller.
+many shell processes are active, even under the feet of the caller.
 \smallskip{}
 
 As the \emph{dos.library} does not protect the process table from
@@ -24194,8 +24211,12 @@ if such a shell exists. In such a case, it copies the supplied string into
 {\tt cli\_SetName} and potentially truncates it to the size of the
 shell-internal buffer. Even if the string is truncated, the function returns
 {\tt DOSTRUE}. It does not update {\tt IoErr()}\key{IoErr()} in either case. For some
-legacy reasons, the size of this buffer is rather small, and thus may not
-reflect the full directory name supplied.
+legacy reasons, the size of this buffer is limited, and thus may not
+reflect the full directory name supplied. While in principle the size of the
+{\tt cli\_SetName} buffer can be changed when creating a CLI structure
+with {\tt AllocDosObject()}\key{AllocDosObject()} introduced in
+section~\ref{sec:allocdosobject}, AmigaDOS ignores the buffer size
+allocated there.
 \smallskip{}
 
 If the caller is not a shell\key{Shell} command, this function returns {\tt DOSFALSE}
@@ -24240,7 +24261,7 @@ an empty string in {\tt buf} if {\tt len} is at least~1 and returns
 \smallskip{}
 
 The Shell buffer that keeps the current command name is unfortunately due to
-legacy reasons quite limited in size, and at present shorter than the 106
+legacy reasons limited in size, and at present shorter than the 106
 character limit imposed by the {\tt FileInfoBlock}\key{FileInfoBlock} structure, see
 section~\ref{sec:fib}. Even though the Shell uses internally a longer buffer
 and thus is not limited in the file name size of commands it executes, the
@@ -24345,7 +24366,7 @@ The Shell prompt provided to this function may contain all format strings
 described in~\ref{sec:getprompt}, such as {\tt \%S} for the current directory, or
 Shell variables\key{Shell Variable} and back-ticks to construct a prompt
 dynamically. The shell-internal buffer size for the prompt is unfortunately
-quite limited. If longer prompts are required, they could be placed in a
+limited. If longer prompts are required, they could be placed in a
 local shell\key{Shell Variable} variable which is expanded in the prompt.
 
 \subsection{Retrieving the CLI Structure} \label{sec:getcli}
@@ -25079,7 +25100,9 @@ The following options are supported:
     the end of the {\tt M} keywords. This allows templates such as
     {\tt FROM/A/M,TO/A} where the final, last argument on the command line
     fills the {\tt TO} keyword even without the keyword explicitly appearing
-    on the command line.
+    on the command line. The {\tt Copy} command is a typical application
+    of such a template as it requires one destination directory, but also
+    one or many source files to copy.
   \item[{\tt /F}] The entire rest of the command line is matched to this
     argument, even if keywords appear in it. The corresponding entry in
     {\tt array} is filled with a single pointer to a string. Such templates are
@@ -25481,8 +25504,8 @@ segments, and decremented once the segment\key{Segment (resident)} is not used a
 the resident command terminates execution. It is confusingly initially~1
 (not 0) if the segment is unused. Resident commands with a {\tt seg\_UC}
 counter larger than~1 cannot be unloaded as they are currently in
-use\footnote{The {\tt Resident} command prints {\tt seg\_UC} - 1 instead of
-{\tt seg\_UC}.}.
+use\footnote{To add to the confusion, the {\tt Resident} command prints
+not {\tt seg\_UC}, but {\tt seg\_UC}-1.}.
 \smallskip{}
 
 Despite these regular entries used for disk-based commands that have been
@@ -25897,7 +25920,7 @@ the official AmigaDOS headers; instead, the following names for these bits are
 suggested here:
 
 \begin{rkrmtabular}{{\tt\bf CliInitRun()} flags} \label{table:cliinitrunflags}
-\begin{longtable}{|l|l|l|} \hline
+\begin{longtable}{|l|r|l|} \hline
 {\bf Acronym}       & {\bf Bit Number} & {\bf Notes} \\ \hline \hline
 {\tt FN\_VALID}\key{FN\_VALID}     & 31     & indicates that remaining bits are valid \\ \hline
 {\tt FN\_ASYNC}\key{FN\_ASYNC}     & 3      & asynchronous execution intended \\ \hline
@@ -26234,14 +26257,14 @@ structure used to iterate over directory contents, see
 section~\ref{sec:exall}; no additional tags are required.
 \smallskip{}
 
-The {\tt DOS\_FIB}\mkey{DOS\_FIB} type creates a {\tt FileInfoBlock}\key{FileInfoBlock} structure as
-defined in section~\ref{sec:fib}. This structure may also be manually
-constructed as it does not contain any hidden elements. However, the
-structure shall be aligned to long word boundaries.
-The macro {\tt D\_S()}\key{D\_S() macro} in section~\ref{sec:bptrs} should
-be used if the memory for this structure is to be taken from the stack.
-This macro ensures the required alignment. No further tags are necessary for
-constructing the {\tt FileInfoBlock} through {\tt AllocDosObject()}.
+The {\tt DOS\_FIB}\mkey{DOS\_FIB} type creates a
+{\tt FileInfoBlock}\key{FileInfoBlock} structure as defined in
+section~\ref{sec:fib}. This structure may also be manually constructed as it
+does not contain any hidden elements, however, the structure shall be
+aligned to long word boundaries. If the memory is taken from the stack, the
+macro {\tt D\_S()}\key{D\_S() macro} in section~\ref{sec:bptrs} should be
+used to ensure alignment. No further tags are necessary for constructing the
+{\tt FileInfoBlock} through {\tt AllocDosObject()}.
 \smallskip{}
 
 The {\tt DOS\_STDPKT}\mkey{DOS\_STDPKT} type creates a {\tt StandardPacket}\key{StandardPacket} structure used
@@ -26377,7 +26400,7 @@ The {\tt code} argument is an error identifier returned by
 {\tt IoErr()}\key{IoErr()}. Only a subset of the error codes listed
 in section~\ref{sec:ioerr} and defined in {\tt dos/dos.h} are supported by
 this function; all others result in a non-zero return code, indicating
-cancellation of the activity. Table~\ref{table:reporterrors} list
+cancellation of the activity. Table~\ref{table:reporterrors} lists
 the error codes for which this function is able to create a requester:
 
 \begin{rkrmtable}{Errors supported by {\tt \bf ErrorReport()}} \label{table:reporterrors}
@@ -26442,15 +26465,15 @@ The {\tt Fault()} function fills a buffer with an error message from
 an error code and an initial string.
 
 \begin{verbatim}
-len = Fault(code, header, buffer, len) /* since V36 */
+len = Fault(code, header, buffer, size) /* since V36 */
 D0           D1     D2      D3    D4
 
 LONG Fault(LONG, STRPTR, STRPTR, LONG)
 \end{verbatim}
 
-This function fills the {\tt buffer} that is {\tt len} bytes long with an
-optional {\tt header}, followed by a string generated from the error {\tt
-  code} given as first argument. The generated string does not include a
+This function fills the {\tt buffer} that is {\tt size} bytes long with an
+optional {\tt header}, followed by a string generated from the error
+{\tt code} given as first argument. The generated string does not include a
 line feed.
 \smallskip{}
 
@@ -26463,7 +26486,7 @@ If no localized error message is available, the numeric
 value of the error is inserted instead.
 \smallskip{}
 
-The {\tt len} of {\tt buffer} shall not be~0. It includes the
+The {\tt size} of {\tt buffer} shall not be~0. It includes the
 {\tt NUL} byte terminating the string created in {\tt buffer}.
 \smallskip{}
 
@@ -26475,7 +26498,7 @@ non-zero:
 
 \begin{verbatim}
 if (code) {
-  Fault(code,header,buffer,len);
+  Fault(code,header,buffer,size);
   len = strlen(buffer);
 } else {
   len = 0;
@@ -26954,8 +26977,8 @@ In the next step, {\tt System-Startup} creates the mount entries for
 {\tt PRT}, {\tt PAR}, {\tt SER} and {\tt PIPE}, and then starts the file
 system of the boot device. This is possibly, but not necessarily the FFS
 found in the previous step. After devices, the system assigns\key{Assign}
-are created, namely {\tt L}, {\tt FONTS}, {\tt DEVS}, {\tt S}, {\tt C},
-{\tt SYS} and {\tt ENVARC}. The latter is a late-binding assign
+are created, namely {\tt L}, {\tt FONTS}, {\tt DEVS}, {\tt LIBS},
+{\tt S}, {\tt C}, {\tt SYS} and {\tt ENVARC}. The latter is a late-binding assign
 \key{Late-Binding Assign} pointing to ``{\tt SYS:Prefs/Env-Archive}''.
 \smallskip{}
 
@@ -27015,8 +27038,8 @@ mechanism executed before.
 
 The next step consists of loading the system
 preferences from {\tt DEVS:System-Configuration} and installing them into
-intuition. While this is a legacy mechanism that is overloaded by the {\tt
-  IPrefs} program, it allows users to already customize the boot console to
+intuition. While this is a legacy mechanism that is overloaded by the
+{\tt IPrefs} program, it allows users to already customize the boot console to
 a limited degree. This boot console is then opened next, though the
 CON-Handler\key{CON-Handler} is opened in {\tt AUTO} mode, see
 section~\ref{sec:conwindowpath}, such that opening the intuition window and
