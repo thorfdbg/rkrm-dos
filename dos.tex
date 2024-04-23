@@ -16519,22 +16519,23 @@ RAW:}.}.
 
 \section{The Port-Handler} \label{sec:porthandler}
 
-The Port-Handler\mkey{Port-Handler} is responsible for the {\tt PAR}, {\tt
-  SER} and {\tt PRT} devices and thus represents the Amiga hardware
-interfaces as AmigaDOS devices. Clearly, {\tt PAR} interfaces to the {\tt
-  parallel.device}, {\tt PRT} to the {\tt printer.device} and {\tt SER} to
-the {\tt serial.device}. The difference between {\tt SER} and {\tt AUX} is
+The Port-Handler\mkey{Port-Handler} is responsible for the {\tt PAR},
+{\tt SER} and {\tt PRT} devices and thus represents the Amiga hardware
+interfaces as AmigaDOS devices. Clearly, {\tt PAR} interfaces to the
+\emph{parallel.device}, {\tt PRT} to the \emph{printer.device} and {\tt SER} to
+the \emph{serial.device}. The difference between {\tt SER} and {\tt AUX} is
 that the former processes raw streams of bytes transmitted over a serial
 connection, whereas {\tt AUX} provides line buffering and line editing
-capabilities and thus implements a console\footnote{Even in the raw mode, {\tt AUX} is different
-from {\tt SER}; for example, the former creates a signal on {\tt Ctrl+C}, the latter sends the byte {\tt 0x03}.}.
+capabilities and thus implements a console\footnote{Even in the raw mode,
+{\tt AUX} is different from {\tt SER}; for example, the former creates a
+signal on {\tt Ctrl+C}, the latter sends the byte {\tt 0x03}.}.
 
 \subsection{Port-Handler Path} \label{sec:portpath}
 
-Access to the Port-Handler\key{Port-Handler} is configurable through
-the mountlist and the path through which a device mounted on it is
-opened. In this section, configuration through the path is
-discussed. While the Port-Handler was not configurable in AmigaDOS versions~40 and below, AmigaDOS~45 upgraded it.
+Access to the Port-Handler\key{Port-Handler} is configurable through the
+mountlist and the path through which it is opened. In this section,
+configuration through the path is discussed. While the Port-Handler was not
+configurable in AmigaDOS versions~40 and below, AmigaDOS~45 upgraded it.
 The path, depending on how the handler is mounted, looks as follows:
 
 \begin{verbatim}
@@ -16554,20 +16555,20 @@ The Port-Handler parses the following parameters from its path:
 {\tt BAUD}\key{BAUD} sets the baud rate, which is only relevant for
 serial connections and thus {\tt SER:}. It specifies the number of
 bits per second transmitted over a serial connection. If this
-parameter is not present, the default from the mountlist, see
-section~\ref{sec:portstartup}, is used, and if not present there, the
+parameter is not present, the default from the mountlist is used, see
+section~\ref{sec:portstartup}, and if not present there, the
 Serial preferences provide the baud rate. Optionally, this parameter
 may be introduced with the keyword {\tt BAUD} which shall be separated
 from the decimal baud rate by spaces or an equals sign, e.g.\
 {\tt BAUD~9600}. Without the keyword, it shall be the first parameter in the path.
-Clearly, this parameter is only used by {\tt SER:}.
+Clearly, this parameter is only used by the {\tt SER} device.
 \smallskip{}
 
 {\tt CONTROL}\key{CONTROL} specifies additional parameters of the
 serial connection such as number of data bits, parity and number of
 stop bits, represented as 3 letter string. It is also only relevant
-for the {\tt SER} device. If this parameter is not present, the {\tt
-  CONTROL} parameter of the mountlist\key{Mountlist} provides a
+for the {\tt SER} device. If this parameter is not present, the
+{\tt CONTROL} parameter of the mountlist\key{Mountlist} provides a
 control string of identical encoding, and if not present there, the
 settings from the Serial preferences are used.
 \smallskip{}
@@ -16579,7 +16580,7 @@ either {\tt N}, {\tt E}, {\tt O}, {\tt M} or {\tt S}, indicating no
 parity, even or odd parity, or mark or space parity. The last digit is
 the number of stop bits and is a number between ``{\tt 0}'' and ``{\tt 2}''.
 A typical control string is {\tt 8N1} indicating 8 data bits, no parity and
-1 stop bit, which is also the optimal setting for the {\tt serial.device}.
+1 stop bit, which is also the optimal setting for the \emph{serial.device}.
 \smallskip{}
 
 This parameter is either matched by position as second
@@ -16594,7 +16595,7 @@ printer, but will be send untranslated (as-is). By
 default, the {\tt PRT} device accepts the ECMA-48 (see~\cite{ecma48})
 and AmigaDOS defined CSI sequences (see~\cite{rkrmdev}) that are device
 independent and translates them to printer specific sequences by the
-{\tt printer.device}. With this option, {\tt PRT:} expects raw control
+\emph{printer.device}. With this option, {\tt PRT:} expects raw control
 sequences that are printer and model specific. This option matches by
 keyword, its position in the path is irrelevant.
 \smallskip{}
@@ -16606,16 +16607,16 @@ applies to the {\tt PRT} device and is not used otherwise. It matches by
 keyword, its position is irrelevant.
 \smallskip{}
 
-{\tt UNIT}\key{UNIT} takes a numeric argument and provides the unit of
-the device that shall be used. This makes most sense for {\tt PRT:} as
-the {\tt printer.device} supports multiple units, or if the
-Port-Handler\key{Port-Handler} is mounted on a third-party device
+{\tt UNIT}\key{UNIT} takes a numeric argument and provides the unit of the
+device that shall be used. This makes most sense for {\tt PRT:} as the
+\emph{printer.device} supports multiple units. While the ROM-based
+\emph{serial} or \emph{parallel.device} only support a single unit each, the
+Port-Handler\key{Port-Handler} can also be mounted on a third-party devices
 provided through a custom mountlist\key{Mountlist}, see
-section~\ref{sec:portstartup} for details. The ROM-based {\tt serial}
-or {\tt parallel.device} only support a single unit each. The unit
-number is represented as decimal number separated from the keyword by
-spaces or an equals-sign, e.g.\ {\tt UNIT} {\tt 1}. This option applies to
-all devices mounted on the Port-Handler, and matches by keyword.
+section~\ref{sec:portstartup} for details. The unit number is represented as
+decimal number separated from the keyword by spaces or an equals-sign,
+e.g.\ {\tt UNIT}~{\tt 1}. This option applies to all devices mounted on the
+Port-Handler, and matches by keyword.
 \smallskip{}
 
 {\tt NOWAIT}\key{NOWAIT} is boolean switch that, if present, avoids blocking when
@@ -16634,11 +16635,10 @@ for this function in the Port-Handler is also new in AmigaDOS~45.
 \subsection{Port-Handler Startup and Mount Parameters} \label{sec:portstartup}
 
 The Port-Handler\key{Port-Handler} is also configurable through its
-mountlist\key{Mountlist}, though mount parameters for {\tt PAR},
-{\tt SER} and {\tt PRT} are hard-coded within the Kickstart ROM and
-thus cannot be customized in this way. However, users may create
-custom mountlist\key{Mountlist}s and mount the handler under a custom
-device name.
+mountlist\key{Mountlist}, though mount parameters for {\tt PAR}, {\tt SER}
+and {\tt PRT} are hard-coded into the Kickstart ROM and thus cannot be
+customized. However, users may create custom mountlist\key{Mountlist}s and
+mount the handler under a custom device name.
 \smallskip{}
 
 As most handlers, the Port-Handler is parametrized through
@@ -16666,8 +16666,10 @@ GlobVec = 0
 \end{verbatim}
 where {\tt <n>} is one of the values above. Unfortunately, the
 {\tt STARTUP} keyword is mutually exclusive to a device and unit
-specification, and thus the Port-Handler in the above configuration always uses the unit 0 of the
-default devices according to table~\ref{table:portstartup}. As seen in
+specification, and thus the Port-Handler in the above configuration always
+uses the unit 0 of the default devices according to
+table~\ref{table:portstartup}, unless the unit is set explicitly in the
+path, see section~\ref{sec:portpath}. As seen in
 the above mountlist, the Port-Handler relies for legacy reasons on the
 BCPL startup mechanism and \emph{cannot} be run as C/Assembler
 handler, even though it is nowadays implemented in C.
@@ -16681,9 +16683,9 @@ keywords then provide the name of the device and the
 unit the handler is run on. If the mountlist\key{Mountlist} includes
 in addition a {\tt BAUD}\key{BAUD} value, it is used as default value
 for the baud rate which can be overridden by the {\tt BAUD} parameter
-in the path described in section~\ref{sec:portpath}.  The {\tt
-  CONTROL}\key{CONTROL} parameter in the mountlist\key{Mountlist}, if
-present, controls the serial settings. Its encoding is identical to
+in the path described in section~\ref{sec:portpath}.
+The {\tt CONTROL}\key{CONTROL} parameter in the mountlist\key{Mountlist},
+if present, controls the serial settings. Its encoding is identical to
 the {\tt CONTROL} parameter in the path, see
 section~\ref{sec:portpath}.
 \smallskip{}
@@ -16704,10 +16706,10 @@ GlobVec  = 0
 
 In the absence of additional sources of information, such a mountlist
 creates a {\tt SER} style device and assumes the device
-to accept the command set of the {\tt serial.device}.
+to accept the command set of the \emph{serial.device}.
 However, the Port-Handler uses the AmigaDOS~43 extension
 {\tt NSCMD\_DEVICEQUERY} to identify devices that operate similar to
-the {\tt parallel} or {\tt printer.device} and then adjusts its mode
+the \emph{parallel.device} or \emph{printer.device} and then adjusts its mode
 of operation accordingly. In such a case, the {\tt BAUD} and
 {\tt CONTROL} parameters in the mountlist are irrelevant and ignored,
 and the device becomes a lookalike of either {\tt PAR} or {\tt PRT}.
