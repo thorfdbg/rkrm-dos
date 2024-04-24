@@ -1392,7 +1392,7 @@ as they are created by the AmigaDOS ROM components:
 If more than one floppy drive is connected to the system, they are named
 {\tt DF1} through {\tt DF3}. If a hard disk is present, then the device
 name(s) of the harddisk partitions depend on the contents of Rigid Disk
-Block, see~\cite{rkrmdev}. These names can be selected upon installation of
+Block\key{Rigid Disk Block (RDB)}, see~\cite{rkrmdev}. These names can be selected upon installation of
 the harddisks, e.g.\ through the HDToolBox. The general convention is to
 assign hard disk partitions the device names {\tt DH0} and following. As for floppy
 disks, partitions \emph{also} have a volume name, see
@@ -1693,9 +1693,9 @@ delegates the interpretation of the path to the handler.
 
 Otherwise, it uses the \emph{current directory} of the calling
 process\key{Process} to locate a handler responsible for the
-interpretation of the path name. If this current directory is {\tt
-  ZERO} (see section~\ref{sec:bptrs}), it uses the \emph{default file
-  system}\key{Default file system} of the process, which by itself,
+interpretation of the path name. If this current directory is
+{\tt ZERO} (see section~\ref{sec:bptrs}), it uses the
+\emph{default file system}\key{Default file system} of the process, which by itself,
 defaults to the file system that booted the system.
 \smallskip{}
 
@@ -5408,7 +5408,7 @@ they are there not very useful as upon locking an object through a link
 resolves the link and thus allows only to retrieve the protection bits of
 the link target. The FFS\key{Fast File System (FFS)} and the
 RAM-Handler\key{RAM-Handler} mirror any protection bits of a
-hard-link\key{Hard Link} target in the link. For soft links\key{Soft Link},
+hard link\key{Hard Link} target in the link. For soft links\key{Soft Link},
 the RAM-Handler supports a separate set of protection bits.
 \smallskip{}
 
@@ -5866,7 +5866,7 @@ from the file system on which the soft link is stored.
 
 The process of link resolution continues until either the requested action
 could be performed, or a maximum number of attempts failed. Currently, the
-\emph{dos.library} will try at most~15 times to resolve a soft-link until it
+\emph{dos.library} will try at most~15 times to resolve a soft link until it
 finally fails. The reason for introducing such a limit is that nothing in
 the system prevents the user from creating a circular graph of soft links
 that point to each other, and the process of link resolution would never
@@ -5953,7 +5953,7 @@ target. External links were added to AmigaDOS in version~47.
 
 If {\tt soft} is {\tt LINK\_SOFT}\mkey{LINK\_SOFT}, {\tt dest} is a {\tt const UBYTE *}~that
 shall be casted to a {\tt LONG}. Then, this function creates a
-\emph{soft-link} that is relative to the path of the link, i.e.\  {\tt
+\emph{soft link} that is relative to the path of the link, i.e.\  {\tt
   name}. For details on soft link resolution, see
 section~\ref{sec:readlink}. In case of soft links, the target does not even
 need to exist. Soft links did not work reliable prior to version 45 of AmigaDOS.
@@ -13147,7 +13147,7 @@ this interface.
 The purpose of this function is to load a segment\key{Segment} or a binary
 without having access to a file or a file system, or for loading binaries
 into dedicated memory areas; for example, this function could load
-binaries from ROM-space, or from the Rigid Disk Block of a boot
+binaries from ROM-space, or from the Rigid Disk Block\key{Rigid Disk Block (RDB)} of a boot
 partition. In particular, the {\tt fh} argument does not need to be a
 regular file handle\key{FileHandle}; it is rather an opaque value
 identifying the source. This argument is not interpreted, it is
@@ -16912,18 +16912,18 @@ The Fast File System\mkey{Fast File System (FFS)} (FFS) is the
 standard Amiga file system and as such included in the ROM. However,
 the bootstrap code of Amiga host adapters are typically able to load an
 updated version of this (and other) file systems from the
-\emph{rigid disk block} of the boot disk and make it available to the
-system. The \emph{System-Startup} module described in
+\emph{Rigid Disk Block} (RDB)\mkey{Rigid Disk Block (RDB)} of the boot disk
+and make it available to the system. The \emph{System-Startup} module described in
 section~\ref{sec:sysstartup} will updates also available for all other
 devices, see there for more details.
 \smallskip{}
 
-The FFS serves from the same code multiple variants or flavors of
-the file system that differ slightly in the structure and organization
-of data on disk, all listed in table~\ref{table:ffsflavours} of
-section~\ref{sec:envec}. This section describes the disk structure for
-all variants. It is configured through a mountlist\key{Mountlist} configuring it
-through the keywords and structures listed in section~\ref{sec:mountdoslist}.
+The FFS serves from the same code multiple variants or flavors of the file
+system that differ slightly in the structure and organization of data on
+disk, all listed in table~\ref{table:ffsflavours} of
+section~\ref{sec:envec}. This section describes the disk structure for all
+variants. It is configured by a mountlist\key{Mountlist} through the
+keywords and structures listed in section~\ref{sec:mountdoslist}.
 Section~\ref{sec:configffs} provides further details.
 \smallskip{}
 
@@ -16934,15 +16934,16 @@ section~\ref{sec:packetsinteractive} are an exception and not implemented.
 The FFS\key{Fast File System (FFS)} does support record locking, soft-\key{Soft Link} and hard
 links\key{Hard Link} and notification
 requests. External links remain currently exclusive to the RAM-Handler\key{RAM-Handler} and
-are neither supported. Latest versions of the FFS\key{Fast File System (FFS)} can also be shut down by
-{\tt ACTION\_DIE}\key{ACTION\_DIE}.
+are not supported. Latest versions of the FFS\key{Fast File System (FFS)}
+can also be shut down by {\tt ACTION\_DIE}\key{ACTION\_DIE} described in
+section~\ref{sec:packetactiondie}.
 
 \subsection{FFS Startup and Mount Parameters} \label{sec:configffs}
 
 The FFS\key{Fast File System (FFS)} is customized through multiple
-sources. First of all, the {\tt DosList}\key{DosList}, the
+sources. First of all, by the {\tt DosList}\key{DosList}, the
 {\tt FileSysStartupMsg}\key{FileSysStartupMsg} pointed to by this
-structure, see~\ref{sec:filesysstartup}, and the environment vector
+structure, see~\ref{sec:filesysstartup}, and by the environment vector
 (\ref{sec:envec}) in the latter. Section~\ref{sec:mountlist} provides
 a list of the configurable options and the corresponding entries in
 the mountlist\key{Mountlist}. Actually, the environment vector
@@ -16952,8 +16953,8 @@ other handlers and file systems.
 \smallskip{}
 
 In some situations, however, the FFS\key{Fast File System (FFS)} will
-override the parameters found in the above sources, and therefore
-parameters from the mountlist\key{Mountlist}. In case the device name
+override the parameters found in the above sources, and therefore ignore
+parameters in the mountlist\key{Mountlist}. In case the device name
 is either ``{\tt trackdisk.device}'' or ``{\tt carddisk.device}'', the
 FFS\key{Fast File System (FFS)} will instead request the disk geometry
 from the underlying exec device. For this, it issues a
@@ -16963,20 +16964,20 @@ volume granted by {\tt Inhibit(}$\ldots${\tt,DOSFALSE)}\key{Inhibit()}, see
 section~\ref{sec:inhibit}.
 \smallskip{}
 
-The same procedure can
-also be enabled for AmigaDOS~45 and up for all other devices by the mountlist\key{Mountlist}
-parameter {\tt SUPERFLOPPY}, which corresponds to the
-{\tt ENVF\_SUPERFLOPPY}\key{ENVF\_SUPERFLOPPY} flag in the {\tt
-  de\_Interleave}\key{de\_Interleave} element of the environment
+Adjusting to the device geometry can
+also be enabled for AmigaDOS~45 and up for all other devices
+by the mountlist\key{Mountlist} parameter {\tt SUPERFLOPPY}, which
+corresponds to the
+{\tt ENVF\_SUPERFLOPPY}\key{ENVF\_SUPERFLOPPY} flag in the
+{\tt de\_Interleave}\key{de\_Interleave} element of the environment
 vector. This flag, along with the environment vector is defined in the file
 {\tt dos/filehandler.h} and also introduced in section~\ref{sec:envec}.
 \smallskip{}
 
-Upon detecting device parameters, data from the device provided {\tt
-  DriveGeometry} structure documented in {\tt devices/trackdisk.h} are
+Upon detecting device parameters, data from the device provided
+{\tt DriveGeometry} structure documented in {\tt devices/trackdisk.h} are
 copied into the environment vector of the file system. The following
 algorithm is used to adjust the data in the environment vector:
-
 
 \begin{verbatim}
 void AdjustEnv(struct DosEnvec *env, 
@@ -16995,18 +16996,18 @@ geometry, and {\tt dg\_Cylinders}\key{dg\_Cylinders} is a count, whereas
 {\tt de\_HighCyl}\key{de\_HighCyl} is an inclusive upper bound. In
 particular, {\tt dg\_BufMemType}\key{dg\_BufMemType} is not copied over, and
 therefore {\tt de\_BufMemType}\key{de\_BufMemType} shall be setup correctly by the
-mountlist\key{Mountlist} or the rigid disk block. Ideally, of course, any
+mountlist\key{Mountlist} or the Rigid Disk Block\key{Rigid Disk Block (RDB)}. Ideally, of course, any
 memory type should be supported and this workaround should not be necessary.
 \smallskip{}
 
-In case the {\tt ENVF\_SCSIDIRECT}\key{ENVF\_SCSIDIRECT} flag is set
-in addition, the FFS does not use {\tt TD\_GETGEOMETRY}, but collects
-the parameters for the drive geometry using the SCSI {\tt MODE\_SENSE}
-command requesting all pages. The number of sectors and sector size is
-then taken from the SCSI block descriptor in the mode page header;
-additionally a SCSI {\tt READ\_CAPACITY} is issued and if successful,
-the data returned by it overrides the information from the previous
-step.
+In case the {\tt ENVF\_SCSIDIRECT}\key{ENVF\_SCSIDIRECT} flag is set in
+addition, the FFS does not use {\tt TD\_GETGEOMETRY}, but collects the
+parameters for the drive geometry using the SCSI {\tt MODE\_SENSE} command
+(see for exampe~\cite{scsi}) requesting all pages. The number of sectors and
+sector size is then taken from the SCSI block descriptor in the mode page
+header; additionally a SCSI {\tt READ\_CAPACITY} is issued and if
+successful, the data returned by it overrides the information from the
+previous step.
 \smallskip{}
 
 The number of heads and the number of blocks per track is obtained
@@ -17019,8 +17020,8 @@ whenever it finds a value that divides the total sector count.
 
 The algorithm by which the FFS attempts to obtain the disk geometry
 through SCSI is not necessarily identical to the algorithm the
-underlying exec device would use to compute them for filling the {\tt
-  DriveGeometry} structure, and thus super floppies mounted with the
+underlying exec device would use to compute them for filling the
+{\tt DriveGeometry} structure, and thus super floppies mounted with the
 {\tt ENVF\_SCSIDIRECT} flag set are not necessarily compatible to
 those mounted without them.
 \medskip{}
@@ -17047,12 +17048,13 @@ from table~\ref{table:ffsflavours} in \ref{sec:envec}, the currently
 active flavor remains in force and is used to initialize the disk structure.
 \smallskip{}
 
-During disk insertion, or if a volume becomes accessible to the FFS\key{Fast
-  File System (FFS)} by other means such as mounting it or uninhibiting a
-volume through the {\tt Inhibit()}\key{Inhibit()} function (see~\ref{sec:inhibit}), the FFS\key{Fast
-  File System (FFS)} reads the flavor from the first long-word of the
-\emph{boot block}\mkey{Boot Block}, even if this block is placed on a
-hard-disk and not actually used for booting. It is found at sector
+During disk insertion, or if a volume becomes accessible to the
+FFS\key{Fast File System (FFS)} by other means such as mounting it or uninhibiting a
+volume through the {\tt Inhibit()}\key{Inhibit()} function
+(see~\ref{sec:inhibit}), the FFS\key{Fast File System (FFS)} reads the
+flavor from the first long-word of the \emph{boot block}\mkey{Boot Block},
+even if this block is placed on a hard-disk and not actually used
+for booting. It is found at sector
 
 \[
 \mbox{\tt BootBlock} = \mbox{\tt de\_LowCyl} \times \mbox{\tt de\_Surfaces} \times
@@ -17092,10 +17094,10 @@ The structure of the boot block is follows:
 
 {\tt DosType}\key{DosType (Boot Block)} contains the file system
 identifier (or the flavor) of the FFS. It is one of the constants
-from table~\ref{table:ffsflavours} in section~\ref{sec:envec} or the
-special value {\tt 'BOOT'} also indicating a bootable (non-FFS) partition. All
+from table~\ref{table:ffsflavours} in section~\ref{sec:envec}, or the
+special value {\tt 'BOOT'} which also indicates a bootable (non-FFS) partition. All
 other values are rejected by the {\tt strap} module, it does not allow
-bootblock booting from such devices.
+bootblock booting from them.
 \smallskip{}
 
 The {\tt DosType} constant is not, in general, the file system type,
@@ -17158,7 +17160,7 @@ smbbSumDBF:
 root block, see section~\ref{sec:rootblock}, or at least it should
 be. However, nothing in the system depends on its value, and the FFS
 does not take the position of the root block from here. Instead, it
-computes it from the disk geometry as indicated in~\ref{sec:rootblock}.
+computes it from the disk geometry as specified in~\ref{sec:rootblock}.
 Actually, it is deposited here by the {\tt Install} command, which does
 not even attempt to adjust this value depending on whether a double or high
 density floppy disk is installed. Thus, program code cannot rely on this value being
@@ -17166,14 +17168,13 @@ correct.
 \medskip{}
 
 {\tt Code}\key{Code (Boot Block)} is the boot code in 68000 machine
-code that is executed if the {\tt DosType} is valid and the
+code that is executed if the {\tt DosType} is accepted and the
 {\tt Chksum} is valid. All the default boot code does is that it locates the
 \emph{dos.library} resident module and initializes it. Under AmigaDOS~36
 and later, it also sets the {\tt EBF\_SILENTSTART} flag in the
 \emph{expansion.library} to prevent the System-Startup component from opening
 the boot console, see section~\ref{sec:sysstartup} for additional
 details.
-
 
 \subsection{Disk Keys and Sectors} \label{sec:key}
 
@@ -17189,10 +17190,10 @@ S = \mbox{\tt de\_LowCyl} \times \mbox{\tt de\_Surfaces} \times
        de\_SectorPerBlock}
 \]
 
-In particular, the boot block has therefore the key~0. The sector number~$S$ is
+In particular, the boot block has the key~0. The sector number~$S$ is
 used directly for SCSI transfer which is enabled by the
-{\tt ENVF\_SCSIDIRECT}\key{ENVF\_SCSIDIRECT} flag in the {\tt
-  de\_Interleave}\key{de\_Interleave} element of the environment vector.
+{\tt ENVF\_SCSIDIRECT}\key{ENVF\_SCSIDIRECT} flag in the
+{\tt de\_Interleave}\key{de\_Interleave} element of the environment vector.
 \smallskip{}
 
 For trackdisk style commands, e.g.\ {\tt TD\_READ} or
@@ -17203,8 +17204,8 @@ factor of~4 is required because {\tt de\_SizeBlock} is in units of long-words
 and not a byte count.
 \smallskip{}
 
-Even though {\tt de\_SizeBlock}\key{de\_SizeBlock} and {\tt
-  de\_SectorsPerBlock}\key{de\_SectorsPerBlock} could be any number, the
+Even though {\tt de\_SizeBlock}\key{de\_SizeBlock} and
+{\tt de\_SectorsPerBlock}\key{de\_SectorsPerBlock} could be any number, the
 FFS, and likely many other file systems only accept powers of 2
 here. Thus, any multiplication or division by these numbers are easily
 implementable as shifts.
@@ -17213,7 +17214,8 @@ implementable as shifts.
 
 The Root Block\mkey{Root Block} represents the root directory of a
 volume and contains the objects in the root directory, the creation
-date of the volume and its name. It corresponds to the path ``{\tt :}''.
+date of the volume and its name. It corresponds to the path ``{\tt :}'' and
+the {\tt ZERO} lock\mkey{ZERO lock}.
 \smallskip{}
 
 The root block is placed in the middle of the volume at
@@ -17231,18 +17233,18 @@ Note that the element name {\tt de\_BlocksPerTrack} is actually
 misleading as this the size of a track in (physical) sectors and not
 in (logical) blocks or keys. The brackets $\lfloor \cdot \rfloor$
 indicate rounding down to the next integer.
-\smallskip{}
-
-The division by {\tt de\_SectorsPerBlock}\key{de\_SectorsPerBlock}
-computes from the sector index a key, and the addition of
-{\tt de\_Reserved}\key{de\_Reserved} skips the reserved blocks at the
-start of the partition, including the boot block.
-\smallskip{}
-
-The parameters above come from the disk geometry defined by the
-environment vector, see~\ref{sec:envec}, but are potentially adjusted
-by the FFS for floppies or partitions that are configured as floppies, see
-section~\ref{sec:configffs}.
+%\smallskip{}
+%
+%The division by {\tt de\_SectorsPerBlock}\key{de\_SectorsPerBlock}
+%computes from the sector index a key, and the addition of
+%{\tt de\_Reserved}\key{de\_Reserved} skips the reserved blocks at the
+%start of the partition, including the boot block.
+%\smallskip{}
+%
+%The parameters above come from the disk geometry defined by the
+%environment vector, see~\ref{sec:envec}, but are potentially adjusted
+%by the FFS for floppies or partitions that are configured as floppies, see
+%section~\ref{sec:configffs}.
 \medskip{}
 
 The structure of the root block is as follows:
@@ -17347,7 +17349,7 @@ ULONG ComputeHash(UBYTE *name)
 }
 \end{verbatim}
 
-In the above, {\tt HTSize}\key{HTSize} is the value of the element of the
+In the above, {\tt HTSize}\key{HTSize} is the value of the field of the
 same name in the disk root block. As seen from the code, the
 non-international versions of the FFS\key{Fast File System (FFS)} only convert the ASCII characters
 between 'a' and 'z' to upper case, whereas the international version
@@ -17361,13 +17363,14 @@ of characters that are converted to upper case. The algorithm above therefore
 also works correctly for Latin-15.
 \medskip{}
 
-{\tt BMFlag}\mkey{BMFlag} is {\tt DOSTRUE} in case the bitmap is valid.
-The bitmap keeps information on which blocks of the volume are allocated and
-which are free. More on this block in section~\ref{sec:bitmapblock}. If the quick
-validation on disk insertion finds that this element is~0, then the disk
-status is set to non-validated. The bitmap is then recomputed by a
-complete directory scan, recursively locating all objects on disks and marking
-the blocks they reside in as occupied.
+{\tt BMFlag}\mkey{BMFlag} is {\tt DOSTRUE} in case the bitmap is valid.  The
+bitmap keeps information on which blocks of the volume are allocated and
+which are free. More on this block is found in
+section~\ref{sec:bitmapblock}. If the quick validation on disk insertion
+finds that this field is~0, then the disk status is set to
+non-validated. The bitmap is then recomputed by a complete directory scan,
+recursively locating all objects on disks and marking the blocks they reside
+in as occupied.
 \smallskip{}
 
 {\tt BMKeys}\mkey{BMKeys} is an array containing the keys of the
@@ -17381,25 +17384,25 @@ bitmap array is not sufficient to represent all blocks of the volume. This block
 described in section~\ref{sec:bmextblock}.
 \smallskip{}
 
-The elements at offsets $L-23$ to $L-21$ form a {\tt DateStamp}\key{DateStamp} structure as
+The fields at offsets $L-23$ to $L-21$ form a {\tt DateStamp}\key{DateStamp} structure as
 specified in chapter~\ref{sec:dates}. The date and time there indicate the
 last change within the root directory.
 \smallskip{}
 
 {\tt Name}\mkey{Name (FFS)} is the volume name, encoded as BSTR; the first byte is
-therefore the size of the name. This element is 8 long words large. While
+therefore the size of the name. This field is 8 long words large. While
 this is sufficient space for 31 characters, one extra character is reserved,
 limiting the volume name to 30 characters.
 \smallskip{}
 
-The elements at offsets $L-10$ to $L-8$ form a {\tt DateStamp} structure
+The fields at offsets $L-10$ to $L-8$ form a {\tt DateStamp} structure
 that is updated on every change of the volume.
 \smallskip{}
 
-The elements at offsets $L-7$ to $L-5$ are also a {\tt DateStamp} structure
+The fields at offsets $L-7$ to $L-5$ are also a {\tt DateStamp} structure
 that represent the time and date at which the volume was initialized. The
 packet {\tt ACTION\_SERIALIZE\_DISK} updates this date, too, but it remains
-otherwise unchanged.
+otherwise unchanged even if objects in the root directory change.
 \smallskip{}
 
 {\tt DCache}\mkey{DCache} is the key of the directory cache list of
@@ -17409,7 +17412,7 @@ This block is described in section~\ref{sec:dircacheblock}.
 
 Unlike user directories, the root block lacks a list of hard links\key{Hard Link} that
 point to it. This has the consequence that the FFS\key{Fast File System (FFS)} does not allow to create
-hard-links to the root directory of a volume.
+hard links to the root directory of a volume.
 
 \subsection{The User Directory Block} \label{sec:userdirblock}
 
@@ -17448,7 +17451,7 @@ L-20       & \tt Name    & directory name as BSTR \\
 \multicolumn{3}{;{1.5pt/1.5pt}c;{1.5pt/1.5pt}}{} \\ \hline
 L-12       & \tt NameX1  & name extension for {\tt DOS\textbackslash08} \\ \hline
 L-11       & \tt 0       & reserved for future use \\ \hline
-L-10       & \tt BckLink & key of first hard-link to this object \\ \hline
+L-10       & \tt BckLink & key of first hard link to this object \\ \hline
 L-9        & \tt NameX2  & name extension for {\tt DOS\textbackslash08} \\
 \multicolumn{3}{;{1.5pt/1.5pt}c;{1.5pt/1.5pt}}{} \\ \hline
 L-4        & \tt NxtHash & next key of the same hash \\ \hline
@@ -17467,7 +17470,7 @@ block itself.
 \smallskip{}
 
 {\tt Chksum}\key{Chksum} is the checksum over the entire block. It is chosen such that
-the long word sum over the entire block, including this element, is zero.
+the long word sum over the entire block, including this field, is zero.
 \smallskip{}
 
 {\tt Hash}\key{Hash} contains for user directories all the hashes\key{Hash (FFS)} of the file
@@ -17477,11 +17480,11 @@ system objects contained within.
 {\tt OwnerID}\key{OwnerID} is reserved for the owner ID of this directory that can be set
 with {\tt SetOwner()}\key{SetOwner()}, see section~\ref{sec:setowner}.
 As the FFS\key{Fast File System (FFS)} has no means to validate the directory owner,
-this element does not bear any practical meaning.
+this field does not bear any practical meaning.
 \smallskip{}
 
 {\tt PrtBits}\mkey{PrtBits} are the protection bits of this directory. The
-FFS\key{Fast File System (FFS)} actually ignores the protection bits on the directory, but stores the
+FFS\key{Fast File System (FFS)} actually ignores the protection bits on directories, but stores the
 value here anyhow. The protection bits are explained in section~\ref{sec:fib}.
 \smallskip{}
 
@@ -17491,7 +17494,7 @@ the first character. There is room for 80 bytes, i.e.\ the maximum comment
 size is 79 characters.
 \smallskip{}
 
-The elements at offset $L-23$ to $L-21$ form a {\tt DateStamp}\key{DateStamp} structure,
+The fields at offset $L-23$ to $L-21$ form a {\tt DateStamp}\key{DateStamp} structure,
 see chapter~\ref{sec:dates}, that identifies the timestamp of the last change of this directory.
 \smallskip{}
 
@@ -17527,12 +17530,12 @@ it stays~0.
 \smallskip{}
 
 {\tt SecType}\key{SecType} along with {\tt Type} identifies the type of this block. The
-value of this element shall be~2, identifying this as a user directory
+value of this field shall be~2, identifying this as a user directory
 block.
 \medskip{}
 
-For the long file name enabled flavors of the FFS, namely {\tt
-  DOS\textbackslash{}06} and {\tt DOS\textbackslash{}07}, this block looks
+For the long file name enabled flavors of the FFS, namely
+{\tt DOS\textbackslash{}06} and {\tt DOS\textbackslash{}07}, this block looks
 somewhat different:
 
 \begin{rkrmtabular}{Long-Filename FFS Directory User Header Block}
@@ -17560,33 +17563,38 @@ L-14       & \tt Mins    & \\ \cline{1-2}
 L-13       & \tt Ticks   & \\ \hline
 L-12       & \tt 0       & reserved for future use \\ \hline
 L-11       & \tt 0       & reserved for future use \\ \hline
-L-10       & \tt BckLink & key of first hard-link to this object \\ \hline
+L-10       & \tt BckLink & key of first hard link to this object \\ \hline
 L-9        & \tt 0       & reserved for future use \\ 
 \multicolumn{3}{;{1.5pt/1.5pt}c;{1.5pt/1.5pt}}{} \\ \hline
 L-4        & \tt NxtHash & next key of the same hash \\ \hline
 L-3        & \tt Parent  & key of the parent directory \\ \hline
-L-2        & \tt DCache  & key of directory cache block if used \\ \hline
+L-2        & \tt 0       & reserved for future use \\ \hline
 L-1        & \tt SecType & shall be 2, this is the BCPL constant {\tt ST.USERDIR}\key{ST.USERDIR} \\ \hline
 \end{longtable}
 \end{rkrmtabular}
 
 Compared to the regular directory header block, the time stamp of the last
 modification date is relocated to offsets $L-15$ and following, and the name
-and comment field is replaced by a new field at offset $L-46$.
+and comment fields are replaced by a new field at offset $L-46$. All other
+fields remain unchanged.
+\smallskip{}
+
+As this flavor of the flavor of the FFS does not offer a directory change,
+the field at $L-2$ remains unused.
 \smallskip{}
 
 {\tt NaC}\mkey{NaC} contains both the file name and file comment as two BSTRs,
 directly placed next to each other. The file name comes first, followed by
-the comment. This element is capable of storing 112 bytes, but the FFS\key{Fast File System (FFS)}
+the comment. This field is capable of storing 112 bytes, but the FFS\key{Fast File System (FFS)}
 reserves one byte making in total 110 bytes available. In case the comment
-is too long and cannot be placed in this element, an additional comment
-block is created keeping only the comment, and this element then only keeps
+is too long and cannot be placed in this field, an additional comment
+block is created keeping only the comment, and this field then only keeps
 the file name. 
 \smallskip{}
 
 {\tt CmtBlk}\mkey{CmtBlk} is the key of the comment block, keeping the file comment if
-the {\tt NaC} element is too short. If no comment block is needed, this
-element is~0. The comment block\key{Comment Block} is described in section~\ref{sec:commentblock}.
+the {\tt NaC} field is too short. If no comment block is needed, this
+field is~0. The comment block\key{Comment Block} is described in section~\ref{sec:commentblock}.
 
 \subsection{The File Header Block} \label{sec:fileheaderblock}
 
@@ -17594,8 +17602,8 @@ The file header block\mkey{File Header Block} represents a file in a directory o
 root. It is enqueued in one of the hash-chains of the root block or its
 parent user directory block. This block exists in multiple variants,
 depending on the flavor of the FFS. Table~\ref{table:fileheaderblock} applies
-to all FFS\key{Fast File System (FFS)} variants except the long file name variants {\tt
-  DOS\textbackslash{}06} and {\tt DOS\textbackslash{}07}.
+to all FFS\key{Fast File System (FFS)} variants except the long file name
+variants {\tt DOS\textbackslash{}06} and {\tt DOS\textbackslash{}07}.
 
 \begin{rkrmtabular}{FFS File Header Block} \label{table:fileheaderblock}
 \begin{longtable}{|l|l|l|} \hline
@@ -17623,7 +17631,7 @@ L-20       & \tt Name    & file name as BSTR \\
 \multicolumn{3}{;{1.5pt/1.5pt}c;{1.5pt/1.5pt}}{} \\ \hline
 L-12       & \tt NameX1  & name extension for {\tt DOS\textbackslash08} \\ \hline
 L-11       & \tt 0       & reserved for future use \\ \hline
-L-10       & \tt BckLink & key of first hard-link to this object \\ \hline
+L-10       & \tt BckLink & key of first hard link to this object \\ \hline
 L-9        & \tt NameX2  & name extension for {\tt DOS\textbackslash08} \\ 
 \multicolumn{3}{;{1.5pt/1.5pt}c;{1.5pt/1.5pt}}{} \\ \hline
 L-4        & \tt NxtHash & next key of the same hash \\ \hline
@@ -17647,25 +17655,26 @@ the limited number of slots, this number is smaller or equal than $L-56$.
 
 {\tt Data1st} is the key of the first data block of the file. This data
 block is actually made available twice, once here, and once again at offset
-$L-49$. Probably the key at this offset was historically used for sequential
+$L-51$. Probably the key at this offset was historically used for sequential
 access into the file, whereas the block list at offset~$L-6$ following were
 used for random access.
 \smallskip{}
 
 {\tt Chksum} is the checksum over the entire block. It is chosen such that
-the long word sum over the entire block, including this element, is zero.
+the long word sum over the entire block, including this field, is zero.
 \smallskip{}
 
 {\tt DataBlk} is an array containing the first $L-56$ data blocks of the
-file. The array is filled from its bottom-end, i.e.\ $L-49$ contains the
-key of first data block, $L-50$ the second key and so on. If this array
+file. The array is filled from its bottom-end, i.e.\ $L-51$ contains the
+key of first data block, $L-52$ the second key and so on. If this array
 overflows, additional blocks are in one or more file extension blocks
-chained at $L-2$.
+chained at $L-2$. This block type is defined in
+section~\ref{sec:fileextensionblock}.
 \smallskip{}
 
 {\tt OwnerID} is reserved for the owner ID of this file that can be
 set with {\tt SetOwner()}\key{SetOwner()}, see section~\ref{sec:setowner}.
-As the FFS\key{Fast File System (FFS)} has no means to validate the file owner, this element does not bear any
+As the FFS\key{Fast File System (FFS)} has no means to validate the file owner, this field does not bear any
 practical meaning.
 \smallskip{}
 
@@ -17683,7 +17692,7 @@ character. There is room for 80 bytes, i.e.\ the maximum comment size is
 79 characters.
 \smallskip{}
 
-The elements at offset $L-23$ to $L-21$ form a {\tt DateStamp} structure
+The fields at offset $L-23$ to $L-21$ form a {\tt DateStamp} structure
 that identifies the timestamp of the last change of this file.
 \smallskip{}
 
@@ -17718,7 +17727,7 @@ used if the file requires more than $L-56$ blocks. Otherwise, it stays~0.
 \smallskip{}
 
 {\tt SecType} along with {\tt Type} identifies the type of this block. The
-value of this element shall be~-3, identifying this as file header block.
+value of this field shall be~-3, identifying this as file header block.
 \medskip{}
 
 For the long file name enabled flavors of the FFS, namely {\tt
@@ -17750,7 +17759,7 @@ L-14       & \tt Mins    & \\ \cline{1-2}
 L-13       & \tt Ticks   & \\ \hline
 L-12       & \tt 0       & reserved for future use \\ \hline
 L-11       & \tt 0       & reserved for future use \\ \hline
-L-10       & \tt BckLink & key of first hard-link to this object \\ \hline
+L-10       & \tt BckLink & key of first hard link to this object \\ \hline
 L-9        & \tt 0       & reserved for future use \\ 
 \multicolumn{3}{;{1.5pt/1.5pt}c;{1.5pt/1.5pt}}{} \\ \hline
 L-4        & \tt NxtHash & next key of the same hash \\ \hline
@@ -17762,25 +17771,25 @@ L-1        & \tt SecType & shall be -3, this is the BCPL constant {\tt ST.FILE}\
 
 Compared to the regular file header block, the time stamp of the last
 modification date is relocated to offsets $L-15$ and following, and the name
-and comment field is replaced by a new field at offset $L-46$.
+and comment fields are replaced by a new field at offset $L-46$.
 \smallskip{}
 
 {\tt NaC} contains both the file name and file comment as two BSTRs,
 directly placed next to each other. The file name comes first, followed by
-the comment. This element is capable of storing 112 bytes, but the FFS\key{Fast File System (FFS)}
+the comment. This field is capable of storing 112 bytes, but the FFS\key{Fast File System (FFS)}
 reserves one byte making in total 110 bytes available. In case the comment
-is too long and cannot be placed in this element, an additional comment
-block is created keeping only the comment, and this element then only keeps
+is too long and cannot be placed in this field, an additional comment
+block is created keeping only the comment, and this field then only keeps
 the file name.
 \smallskip{}
 
 {\tt CmtBlk} is the key of the comment block\key{Comment Block}, keeping the file comment if
-the {\tt NaC} element is too short. If no comment block is needed, this
-element is~0. The comment block\key{Comment Block} is described in section~\ref{sec:commentblock}.
+the {\tt NaC} field is too short. If no comment block is needed, this
+field is~0. The comment block\key{Comment Block} is described in section~\ref{sec:commentblock}.
 
-\subsection{The Soft- and Hard-Link Block} \label{sec:linkblock}
+\subsection{The Soft and Hard Link Block} \label{sec:linkblock}
 
-The soft-\key{Soft Link} and hard-link\key{Hard Link} block represent a soft-link or a hard-link to
+The soft-\key{Soft Link} and hard link\key{Hard Link} block represent a soft link or a hard link to
 another file system object.\mkey{Link Block}
 Similar to the file header and user directory blocks, this block exists in two variants,
 depending on the flavor of the FFS. Table~\ref{table:linkblock} applies
@@ -17796,7 +17805,7 @@ to all FFS\key{Fast File System (FFS)} variants except the long file name varian
 3          & \tt 0       & reserved for future use \\ \hline
 4          & \tt 0       & reserved for future use \\ \hline
 5          & \tt Chksum  & LW sum over block is 0 \\ \hline
-6          & \tt Target  & link target for soft-links \\ 
+6          & \tt Target  & link target for soft links \\ 
 \multicolumn{3}{;{1.5pt/1.5pt}c;{1.5pt/1.5pt}}{} \\ \hline
 L-50       & \tt 0       & reserved for future use \\ \hline
 L-49       & \tt Owner   & reserved for owner ID \\ \hline
@@ -17812,7 +17821,7 @@ L-21       & \tt Ticks   & \\ \hline
 L-20       & \tt Name    & link name as BSTR \\ 
 \multicolumn{3}{;{1.5pt/1.5pt}c;{1.5pt/1.5pt}}{} \\ \hline
 L-12       & \tt NameX1  & name extension for {\tt DOS\textbackslash08} \\ \hline
-L-11       & \tt Link    & key of link target for hard-links \\ \hline
+L-11       & \tt Link    & key of link target for hard links \\ \hline
 L-10       & \tt BckLink & key of next hard link to the same object \\ \hline
 L-9        & \tt NameX2  & name extension for {\tt DOS\textbackslash08} \\ 
 \multicolumn{3}{;{1.5pt/1.5pt}c;{1.5pt/1.5pt}}{} \\ \hline
@@ -17832,23 +17841,23 @@ block itself.
 \smallskip{}
 
 {\tt Chksum}\key{Chksum} is the checksum over the entire block. It is chosen such that
-the long word sum over the entire block, including this element, is zero.
+the long word sum over the entire block, including this field, is zero.
 \smallskip{}
 
-{\tt Target}\key{Target} is the path of the link target for soft-links. This is stored
+{\tt Target}\key{Target} is the path of the link target for soft links. This is stored
 as {\tt NUL}-terminated C-string, not as BSTR\footnote{The information
 in~\cite{Bantam} that this is a BSTR is incorrect}. The maximum path name
 that can be stored here is $(L-56)\times 4 - 1$ characters
 long. Unfortunately, all versions of the FFS\key{Fast File System (FFS)} currently do not check the
 maximum link name and damage the file system structure if this path is too
-long, though for a default floppy with 512 bytes per sector, this element
+long, though for a default floppy with 512 bytes per sector, this field
 leaves room for paths up to 287 characters.
 \smallskip{}
 
 {\tt OwnerID}\key{OwnerID} is reserved for the owner ID of this link
 that can be set with {\tt SetOwner()}\key{SetOwner()}, see
 section~\ref{sec:setowner}. As the FFS\key{Fast File System (FFS)} has
-no means to validate the link owner, this element does not bear any
+no means to validate the link owner, this field does not bear any
 practical meaning.
 \smallskip{}
 
@@ -17868,36 +17877,38 @@ represented as a BSTR with the comment length in the first character. The block 
 room for 80 bytes, i.e.\ the maximum comment size is 79
 characters. Comments of links \emph{can} be set with
 {\tt SetComment()}\key{SetComment()} as the FFS\key{Fast File System (FFS)} does not attempt
-to follow links when setting comments. Thus link and link target have separate file notes.
+to follow links when setting comments. Thus link and link target have
+separate comments.
 \smallskip{}
 
-The elements at offset $L-23$ to $L-21$ form a {\tt DateStamp}
+The fields at offset $L-23$ to $L-21$ form a {\tt DateStamp}
 structure that identifies the timestamp of the creation of the
-link. For hard links\key{Hard Link}, this element bears no practical
-meaning as a {\tt SetFileDate()}\key{SetFileDate()} (see~\ref{sec:setfiledate})
+link. For hard links\key{Hard Link}, this field bears no practical
+meaning as a {\tt SetFileDate()}\key{SetFileDate()} (see section~\ref{sec:setfiledate})
 will update the date of the link target and not the date of the link
 itself. An attempt to change the date of
 a soft link creates an {\tt ERROR\_IS\_SOFT\_LINK}\key{ERROR\_IS\_SOFT\_LINK} and thus instructs
 the client of the FFS\key{Fast File System (FFS)} to rather redirect
-the request to the linked target. Thus, this date can be
+the request to the link target. Thus, this date can be
 seen when walking a directory, but it cannot be changed.
 \smallskip{}
 
 {\tt Name}\key{Name (FFS)} is the name of the link encoded as BSTR with the name
 length in the first byte; even though~32 bytes are available here, the FFS\key{Fast File System (FFS)}
-reserves one character, thus limiting the maximal size.
+reserves one character, thus limiting the maximal size to 30 characters.
 \smallskip{}
 
-{\tt NameX1}\key{NameX1} and {\tt NameX2}\key{NameX2} are name extensions that are used by the {\tt
-  DOS\textbackslash{}08} flavor of the FFS. They add additional~24 bytes of
+{\tt NameX1}\key{NameX1} and {\tt NameX2}\key{NameX2} are name extensions
+that are used by the {\tt DOS\textbackslash{}08} flavor of the FFS. They add additional~24 bytes of
 storage for the directory name. Again, one character is reserved, limiting
 the maximum size for this variant to~54. The link name
 extends from {\tt Name}, then overflows into {\tt NameX1} and from there to
 {\tt NameX2}.
 \smallskip{}
 
-{\tt Link}\key{Link (FFS Block)} is the key of the file header or user directory key for
-hard links. For soft links, this element is not used and set to~0.
+{\tt Link}\key{Link (FFS Block)} is the key of the file header or user
+directory key for hard links, that is, the key of the link target. For soft
+links, this field is not used and set to~0.
 \smallskip{}
 
 {\tt BckLink}\key{BckLink} is the key to the next hard link to the same link target, or~0
@@ -17915,8 +17926,8 @@ the root block in case this link is directly in the volume root.
 
 {\tt SecType}\key{SecType} along with {\tt Type} identifies the type of this block. It
 can be either~$-4$, that is {\tt ST.LINKFILE}\mkey{ST.LINKFILE} for a hard link\key{Hard Link} to a
-file, or~$4$, which is {\tt ST.LINKDIR}\mkey{ST.LINKDIR}, for a hard link to a directory, or~3
-corresponding to {\tt ST.SOFTLINK}\mkey{ST.SOFTLINK} for soft links\key{Soft Link}.
+file, or~$4$, which is {\tt ST.LINKDIR}\mkey{ST.LINKDIR}, for a hard link to
+a directory. This field is~3, corresponding to {\tt ST.SOFTLINK}\mkey{ST.SOFTLINK}, for soft links\key{Soft Link}.
 \medskip{}
 
 For the long file name enabled flavors of the FFS, namely
@@ -17932,7 +17943,7 @@ somewhat different:
 3          & \tt 0       & reserved for future use \\ \hline
 4          & \tt 0       & reserved for future use \\ \hline
 5          & \tt Chksum  & LW sum over block is 0 \\ \hline
-6          & \tt Target  & link target for soft-links \\ 
+6          & \tt Target  & link target for soft links \\ 
 \multicolumn{3}{;{1.5pt/1.5pt}c;{1.5pt/1.5pt}}{} \\ \hline
 L-50       & \tt 0       & reserved for future use \\ \hline
 L-49       & \tt Owner   & reserved for owner ID \\ \hline
@@ -17947,7 +17958,7 @@ L-15       & \tt Days    & \multirow{3}{*}{timestamp of last directory change} \
 L-14       & \tt Mins    & \\ \cline{1-2}
 L-13       & \tt Ticks   & \\ \hline
 L-12       & \tt 0       & reserved for future use \\ \hline
-L-11       & \tt Link    & key of link target for hard-links \\ \hline
+L-11       & \tt Link    & key of link target for hard links \\ \hline
 L-10       & \tt BckLink & key of next hard link to the same object \\ \hline
 L-9        & \tt 0       & reserved for future use \\
 \multicolumn{3}{;{1.5pt/1.5pt}c;{1.5pt/1.5pt}}{} \\ \hline
@@ -17960,21 +17971,21 @@ L-1        & \tt SecType & identifies the type of the link \\ \hline
 
 Compared to the regular link block, the time stamp of the last modification
 date is relocated to offsets $L-15$ and following, and the name and comment
-field is replaced by a new field at offset $L-46$.
+fields are replaced by a new field at offset $L-46$.
 \smallskip{}
 
 {\tt NaC}\key{NaC} contains both the link name and comment as two BSTRs,
 directly placed next to each other. The link name comes first, followed by
-the comment. This element is capable of storing 112 bytes, but the FFS\key{Fast File System (FFS)}
+the comment. This field is capable of storing 112 bytes, but the FFS\key{Fast File System (FFS)}
 reserves one byte making in total 110 bytes available. In case the comment
-is too long and cannot be placed in this element, an additional comment
-block is created keeping only the comment, and this element then only keeps
+is too long and cannot be placed in this field, an additional comment
+block is created keeping only the comment, and this field then only keeps
 the file name.
 \smallskip{}
 
 {\tt CmtBlk}\key{CmtBlk} is the key of the comment block\key{Comment Block}, keeping the file comment if
-the {\tt NaC} element is too short. If no comment block is needed, this
-element is~0. The comment block\key{Comment Block} is described in section~\ref{sec:commentblock}.
+the {\tt NaC} field is too short. If no comment block is needed, this
+field is~0. The comment block\key{Comment Block} is described in section~\ref{sec:commentblock}.
 
 \subsection{The File Extension Block} \label{sec:fileextensionblock}
 
@@ -18013,12 +18024,12 @@ the limited number of slots, this number is smaller or equal than $L-56$.
 \smallskip{}
 
 {\tt Chksum}\key{Chksum} is the checksum over the entire block. It is chosen such that
-the long-word sum over the entire block, including this element, is zero.
+the long-word sum over the entire block, including this field, is zero.
 \smallskip{}
 
 {\tt DataBlk}\key{DataBlk} is an array containing the next $L-56$ data blocks of the
-file. The array is filled from its bottom end, i.e.\ $L-49$ contains the key
-of first data block referenced in this extension block, $L-50$ the second
+file. The array is filled from its bottom end, i.e.\ $L-51$ contains the key
+of first data block referenced in this extension block, $L-52$ the second
 key and so on. If this array overflows, additional blocks are provided in another
 file extension block whose key is provided at offset $L-2$.
 \smallskip{}
@@ -18033,7 +18044,7 @@ block, it is~0.
 \smallskip{}
 
 {\tt SecType}\key{SecType} along with {\tt Type} identifies the type of this
-block. The value of this element shall be~-3 ({\tt ST.FILE})\key{ST.FILE},
+block. The value of this field shall be~-3, that is {\tt ST.FILE}\key{ST.FILE},
 identifying this block as belonging to a file.
 
 \subsection{The Comment Block} \label{sec:commentblock}
@@ -18072,11 +18083,11 @@ in this block applies and which is extended by this block.
 \smallskip{}
 
 {\tt Chksum}\key{Chksum} is the checksum over the entire block. It is chosen such that
-the long-word sum over the entire block, including this element, is zero.
+the long-word sum over the entire block, including this field, is zero.
 \smallskip{}
 
 {\tt Comment}\key{Comment (FFS)} is the comment, stored as a BSTR with the first character
-containing its size. This element is 80 bytes large, sufficient for comments
+containing its size. This field is 80 bytes large, sufficient for comments
 of 79 characters.
 \smallskip{}
 
@@ -18131,7 +18142,7 @@ directory, or~0 in case this is the last block.
 \smallskip{}
 
 {\tt Chksum}\key{Chksum} is the checksum over the entire block. It is chosen such that
-the long word sum over the entire block, including this element, is zero.
+the long word sum over the entire block, including this field, is zero.
 \smallskip{}
 
 {\tt Entries}\mkey{Entries (FFS)} contains the payload data of the directory cache. It consists
@@ -18154,7 +18165,7 @@ pad(16)    & \tt padding & padding to 16-bit boundary \\ \hline
 \end{longtable}
 \end{rkrmtabular}
 
-The elements of this structure are as follows:
+The fields of this structure are as follows:
 \smallskip{}
 
 {\tt Key}\key{Key} is the key of the file header block\key{File Header
@@ -18172,30 +18183,30 @@ link block\key{Link Block} of this directory entry, depending on the type of the
 {\tt OwnerID}\key{OwnerID} is reserved for a 32-bit group and owner ID that can be set by
 the {\tt SetOwner()}\key{SetOwner()} function (see~\ref{sec:setowner}).
 However, as the FFS\key{Fast File System (FFS)} has no means to verify access rights
-to an object, the purpose of this field remains opaque.
+to an object, this field bears no practical meaning.
 \smallskip{}
 
 {\tt Days}, {\tt Mins} and {\tt Ticks} are the timestamp of the last time
 the corresponding object was modified and a copy from the corresponding
 header block provided by {\tt Key}. However, unlike there, only 16 bits are
-available for each element. This is sufficient if the {\tt DateStamp()}
-structure is normalized, i.e.\ each element is as small as possible.
+available for each field. This is sufficient if the {\tt DateStamp()}
+structure is normalized, i.e.\ each field is as small as possible.
 \smallskip{}
 
-{\tt SecType}\key{SecType} is a copy from the {\tt SecType} element of the
+{\tt SecType}\key{SecType} is a copy from the {\tt SecType} field of the
 file, user directory or link block indexed by {\tt Key}. All possible values
 can be represented by a signed byte and are thus abbreviated here in an
-8-bit element.
+8-bit field.
 \smallskip{}
 
-{\tt Name}\key{Name (FFS)} is a copy of the {\tt Name} element of the file,
+{\tt Name}\key{Name (FFS)} is a copy of the {\tt Name} field of the file,
 user directory or link, though only the minimal number of bytes are copied,
 i.e.\ $N+1$ bytes for a file name of size~$N$. The first byte of {\tt Name}
 is its length, i.e.\ it is a BSTR without {\tt NUL}-termination.
 \smallskip{}
 
 {\tt Comment}\key{Comment (FFS)} follows directly after the last byte of
-{\tt Name} and is a copy of the {\tt Comment} element of the file, user
+{\tt Name} and is a copy of the {\tt Comment} field of the file, user
 directory or link block; again, only the minimal amount of bytes are copied
 to the directory cache, i.e.\ the length byte and the comment itself. This
 forms again a BSTR without any {\tt NUL} termination, and not a C string.
@@ -18212,7 +18223,7 @@ is gained from the regular directory structure.
 \smallskip{}
 
 Within a directory cache block, zero or more directory cache entries follow
-each other; their count is provided by the {\tt NumNtry} element in the
+each other; their count is provided by the {\tt NumNtry} field in the
 directory cache block. If the FFS\key{Fast File System (FFS)} has to delete entries from the directory,
 it moves entries within the current block upwards over the released
 entry. In worst case, no entries remain in a directory cache block. Such
@@ -18241,8 +18252,8 @@ contents cannot be moved by DMA into client supplied buffers, these variants are
 
 All remaining variants, including {\tt DOS\textbackslash{}08}, only keep
 payload data in the data blocks. This enables the FFS\key{Fast File System (FFS)} to directly transmit
-data from the medium to the target buffer of the client if the {\tt
-  de\_Mask}\key{de\_Mask} allows it. Section~\ref{sec:envec} provides more information on DMA and its pitfalls.
+data from the medium to the target buffer of the client if the
+{\tt de\_Mask}\key{de\_Mask} allows it. Section~\ref{sec:envec} provides more information on DMA and its pitfalls.
 If the host adapter offers DMA, the CPU is not 
 involved in copying the data and thus these variants of the FFS\key{Fast File System (FFS)} are faster,
 though also less robust. However, modern media rarely corrupt data, unlike
@@ -18284,7 +18295,7 @@ does not necessarily extend to the end of the block.
 \smallskip{}
 
 {\tt Chksum}\key{Chksum} is the checksum over the entire block. It is chosen such that
-the long word sum over the entire block, including this element, is zero.
+the long word sum over the entire block, including this field, is zero.
 \smallskip{}
 
 {\tt Data}\key{Data (FFS)} is the actual payload data of the block. It
@@ -18322,7 +18333,7 @@ The structure of a bitmap block is as follows:
 \end{rkrmtabular}
 
 {\tt Chksum}\key{Chksum} is the checksum over the entire block. It is chosen
-such that the long word sum over the entire block, including this element,
+such that the long word sum over the entire block, including this field,
 is zero.
 \smallskip{}
 
@@ -18341,7 +18352,7 @@ corresponds to the boot block\key{Boot Block} and this block keeps the flavor of
 and potentially boot code, {\tt de\_Reserved} cannot be~0 as otherwise the
 FFS\key{Fast File System (FFS)} could allocate it as key, and thus overwrite parts of its administration
 information. While the FFS\key{Fast File System (FFS)} could, in principle, always reserve key~0 for
-such purpose, no such provisions are made.
+such purpose in the bitmap, no such provisions are made.
 \smallskip{}
 
 Identifying whether a particular key is allocated is demonstrated by the
@@ -18356,7 +18367,7 @@ representing the block contents:
 /* Bring key to memory */
 ULONG *readKey(ULONG key);
 
-/* Offsets of block elements */
+/* Offsets of block fields */
 #define BMKeys 49
 #define BMNext 1
 #define BMExt  24
@@ -18484,8 +18495,8 @@ and also specifies in section~\ref{sec:dospacket} the structure of
 such packets.
 \smallskip{}
 
-When a handler receives a packet, it checks its {\tt
-  dp\_Type}\key{dp\_Type} element for the requested action, retrieves
+When a handler receives a packet, it checks its
+{\tt dp\_Type}\key{dp\_Type} element for the requested action, retrieves
 the parameters from it, executes the requested function, then fills
 the packet with the results of this function and replies it to the
 originating process. Section~\ref{sec:handlermain} provides more
@@ -27037,7 +27048,7 @@ will become the boot volume.
 The {\tt System-Startup} process then locates the
 FFS\key{Fast File System (FFS)} in the list of resident modules. It is represented there
 as a resident module named ``{\tt filesystem}''. If an autobooting host
-adapter loaded a newer version of the FFS from the Rigid Disk Block (RDB), this
+adapter loaded a newer version of the FFS from the Rigid Disk Block (RDB)\key{Rigid Disk Block (RDB)}, this
 version replaces the ROM version. It is then also used for the mount
 entries of all other devices using the FFS, for example the disk drive
 {\tt DF0}. From this file system, or the ROM version of the FFS if no newer
@@ -27188,6 +27199,9 @@ Ralph Babel, Taunusstein (1993)
 \bibitem{ecma48} ECMA:
 {\sl Control Functions for Coded Character Sets.}
 ECMA International (1998)
+\bibitem{scsi} Brian Sawert
+{\sl The Programmer's Guide to SCSI},
+Addison-Wesley Publishing Company (1998)
 \end{thebibliography}
 %\begin{theindex}
 {
