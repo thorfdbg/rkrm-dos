@@ -6689,7 +6689,7 @@ attempts to load a binary from the path stored in
 here. If the {\tt FORCELOAD}\key{FORCELOAD} entry of the mountlist\key{Mountlist} is
 non-zero, the {\tt Mount}\key{Mount (command)} command already attempts to load the handler or
 file system from disk; otherwise, it attempts to reuse an existing file
-system by first scanning the {\tt FileSystem.resource} for an entry whose {\tt DOSTYPE}\key{DOSTYPE}
+system by first scanning the \emph{FileSystem.resource} for an entry whose {\tt DOSTYPE}\key{DOSTYPE}
 matches. If nothing is found there, loading the handler remains to the first
 process requiring it. Details depend on nature of the handler or file system
 and are provided in section~\ref{sec:handlerstartup}.
@@ -15837,15 +15837,17 @@ other program, for example by {\tt Ed}.
 Quite similar to file systems, the CON-Handler\key{CON-Handler} does not implement all of its
 functionality itself. It rather depends on services of exec devices. For the
 graphical console, it creates an intuition window and initializes the
-\emph{console.device} to run within. For the serial console, i.e.\ {\tt AUX}, it
+\emph{console.device} to run within it. For the serial console, i.e.\ {\tt AUX}, it
 operates on top of the \emph{serial.device}, but can be made to use any other
-interface device with proper mount parameters.
+interface device with proper mount parameters, see also
+section~\ref{sec:constartup} for examples how to mount a customized
+{\tt AUX} handler.
 
 \subsection{CON-Handler Path for Graphical Consoles} \label{sec:conwindowpath}
 
-The path through which a stream to the {\tt CON} and {\tt RAW}
-devices is opened determines the size, position and features of the
-window the console runs in; for the {\tt AUX} device, it defines
+The path through which a stream to the {\tt CON} and {\tt RAW} devices is
+opened determines the size, position of the window and features of the
+console that runs in this window; for the {\tt AUX} device, it defines
 connection parameters such as the baud rate and the parity.
 \smallskip{}
 
@@ -15863,7 +15865,7 @@ The {\tt <left>} parameter determines the left edge of the window
 within which the console appears; it is measured in pixels. If
 this parameter is not present or negative, intuition is instructed to
 pick a default, which itself defaults to a window position under the
-cursor.
+mouse pointer.
 \smallskip{}
 
 The {\tt <top>} parameter is the top edge of the window, also measured in
@@ -15897,7 +15899,7 @@ backslash in the title.
 \medskip{}
 
 All following path components configure options for the graphical
-console; multiple of these parameters may be combined, separated by a
+console; multiple of these parameters may be combined, separated by
 forwards slashes (``{\tt /}'') from each other:
 \smallskip{}
 
@@ -15905,8 +15907,8 @@ forwards slashes (``{\tt /}'') from each other:
 happens if the user presses on this gadget depends on the mode the
 console is operating in, see section~\ref{sec:conmodes}, whether any
 file handles are open to the console, and whether any read requests
-are pending. In particular, the options {\tt AUTO} and {\tt WAIT} impact
-how this gadget works.
+are pending. In particular, the options {\tt AUTO} and {\tt WAIT} also
+impact how this gadget works.
 \smallskip{}
 
 {\tt NOCLOSE}\mkey{NOCLOSE} is the negative form of the above option and removes a
@@ -15914,9 +15916,9 @@ potentially added close gadget from the window.
 \smallskip{}
 
 {\tt AUTO}\mkey{AUTO} delays opening the window to the point where an attempt is made
-to read data from the console or print data in it. If neither read nor write
+to read data from the console or print text into it. If neither read nor write
 requests are pending, the close gadget will also close the window without
-queuing an end-of-file condition to read requests; the window will pop-open again as soon as read or
+queuing an end-of-file condition to read requests; the window will pop open again as soon as read or
 write requests are received. Unfortunately, an {\tt ACTION\_DISK\_INFO} will
 lock the window open, thus disabling this parameter, see section~\ref{sec:diskinfoconsole} for alternatives
 to this packet or how to regain the {\tt AUTO} feature.
@@ -15926,55 +15928,61 @@ reasons explained below.
 
 {\tt WAIT}\mkey{WAIT} waits for the user to close the window. With
 this option present, the window stays open even though the last file
-handle has been closed, and will only close when explicitly requested
+handle has been closed, and it will only close when explicitly requested
 by pressing the close gadget. This option does not work for the
-{\tt RAW} device or in raw mode either.
+{\tt RAW} device or in raw mode either. The purpose of this option is to
+leave the output of a program in a window visible even after the program
+creating the window terminated.
 \smallskip{}
 
 If read requests are waiting on the console, it depends on the console
 mode, see section~\ref{sec:conmodes}, how the console reacts on the close gadget, but it
 will \emph{not} close the window by itself. If the console is
 operating in raw mode\key{Raw Mode} and a process has requested to
-receive window close events with the {\tt CSI 11 \{} sequence, then a
+receive window close events with the {\tt CSI 11\{} sequence, then a
 CSI raw event will be send to the next reading stream, thus indicating
 to an application --- such as an editor --- the request to close the window.
 The raw event interface for requesting and delivering input events in the
 form of CSI sequences is \emph{not} implemented by the CON-Handler,
-but rather inherited from the \emph{console.device} and therefore
-documented in~\cite{rkrmdev}.
+but rather inherited from the \emph{console.device} and therefore documented
+in~\cite{rkrmdev}. 
 \smallskip{}
 
-That the options {\tt AUTO} and {\tt WAIT} do not work for {\tt RAW}
-is also a side-effect of the above: These options require
-interpretation of the raw events send by the \emph{console.device}, but
-the console only forwards all received data in raw mode to its clients.
+That the options {\tt AUTO} and {\tt WAIT} do not work for {\tt RAW} is also
+a side-effect of the above: These options require interpretation of the raw
+events send by the \emph{console.device}, but in raw mode the console only
+forwards all received data to its clients directly.
 \smallskip{}
 
 In all other modes, an EOF condition is generated if the window
 close gadget is pressed and the console is still in use by at least one file
 handle. It is again up to the receiving process how to react on an end of
-file. The window will only be closed by the CON-Handler itself if the
-{\tt WAIT} option is present and all file handles to the console have been
-closed.
+file. If the process then closes its file handle to the console, and this
+handle was the last open handle, the CON-Handler will either shut down
+directly and thus as part of its shutdown code will also close the window, or
+will stay open if the {\tt WAIT} option is present and wait for the user to
+press the close gadget --- probably once more.
 \smallskip{}
 
 If the console is not in raw mode, the keyboard combination
 {\tt Ctrl+\textbackslash{}} also triggers an EOF condition. As for the close
 gadget, this keyboard combination is not functional in raw mode and there
-sends the ASCII {\tt FS} control character at code point {\tt 0x1c}. The
-same keyboard combination also closes a console with the {\tt WAIT} option
-after all file handles have closed.
+sends the ASCII {\tt FS} control character of the code {\tt 0x1c}. The
+same keyboard combination also closes a console whose file handles have all
+been closed and which only stays open due to the {\tt WAIT} option.
 \medskip{}
 
-{\tt SMART}\mkey{SMART} enforces smart refresh of the window. If this is enabled, more
-RAM is required, but it is not necessary to re-render the contents of the
-console window if it is moved upfront another window. In most cases,
-rendering speed improves only little at the price of a larger RAM footprint.
+{\tt SMART}\mkey{SMART} enforces smart refresh of the window. If this is
+enabled, more RAM is required for saving the graphics hidden behind other windows,
+but it is not necessary to re-render the contents of the console window if
+it is moved upfront another window. In most cases, rendering speed improves
+only insignificantly, but at the price of a larger RAM footprint.
 \smallskip{}
 
-{\tt SIMPLE}\mkey{SIMPLE} enforces simple refresh of the window. If hidden window
-contents are made visible, they will be reprinted. This does usually
-not cost a lot of time, saves RAM and is also the default.
+{\tt SIMPLE}\mkey{SIMPLE} enforces simple refresh of the window. If parts of
+a hidden window is moved upfront and made visible again, those parts will be
+reprinted. This does usually not cost a lot of time, saves RAM and is also
+the default.
 \smallskip{}
 
 {\tt INACTIVE}\mkey{INACTIVE} prevents that the window is receiving
@@ -15984,9 +15992,9 @@ it to activate it and thus to be able to type into it.
 
 {\tt BACKDROP}\mkey{BACKDROP} instructs intuition to place the window behind all other
 windows on a screen. This works best in conjunction with {\tt NOBORDER}\key{NOBORDER}, an
-empty window title, the {\tt NOSIZE}\key{NOSIZE}, {\tt NODRAG}\key{NODRAG} and {\tt NODEPTH}\key{NODEPTH} option
+empty window title, the {\tt NOSIZE}\key{NOSIZE}, {\tt NODRAG}\key{NODRAG} and {\tt NODEPTH}\key{NODEPTH} options
 and a console redirected to a public screen. If the window is made as large
-as the screen, it results in a full-screen console.
+as the screen, this results in a full-screen console.
 \smallskip{}
 
 {\tt NOBORDER}\mkey{NOBORDER} removes the window decorations; if a title is present, the
@@ -16005,7 +16013,8 @@ non-movable console as screen background.
 
 {\tt WINDOW}\mkey{WINDOW} instructs the console to hijack an already open
 window and run the console within. This window will also be
-closed if the console closes. The address of the {\tt Window} structure is
+closed if the console closes, i.e.\ the console owns the window from this
+point on and controls its life-time. The address of the {\tt Window} structure is
 provided in hexadecimal behind the parameter, optionally separated by
 spaces, e.g.\ {\tt WINDOW~200AFC0}. An optional ``{\tt 0x}'' string may appear
 upfront the hexadecimal window address. This parameter replaces a legacy
@@ -16015,10 +16024,10 @@ documented in~\cite{rkrmlib} and defined in {\tt intuition/intuition.h}.
 \smallskip{}
 
 {\tt SCREEN}\mkey{SCREEN} provides a name of a public screen on which the
-console shall appear instead of the Workbench. The public screen name
-follows the option, optionally separated by spaces, e.g.\ {\tt SCREEN~myProgram.1}. If
-the screen name is {\tt *}, then the front-most public screen will be used as
-host for the console.
+console shall appear. The public screen name
+follows the option, optionally separated by spaces, e.g.\
+{\tt SCREEN~myProgram.1}. If the screen name is {\tt *}, then the front-most
+public screen will be used as host for the console.
 \smallskip{}
 
 {\tt ALT}\mkey{ALT} provides an alternative window position and dimension to
@@ -16031,8 +16040,8 @@ e.g.\ {\tt ALT 0,0,320,200}.
 \smallskip{}
 
 {\tt ICONIFY}\mkey{ICONIFY} equips the window with an iconification
-gadget. This requires the {\tt ConCip} program running as it loads
-the icon for the console. If the iconification gadget is
+gadget. This requires that the {\tt ConCip} program is running as it loads
+the console icon. If the iconification gadget is
 pressed, this icon will appear on the Workbench, and the window will
 disappear. The window will be forced open when a incoming read or
 write request requires interaction with the console, or when
@@ -16046,26 +16055,26 @@ again section~\ref{sec:diskinfoconsole} for details.
 Similar to {\tt AUTO}, {\tt ICONIFY} also works not quite as
 expected in raw mode. As reaction to a click on the iconification gadget,
 the \emph{console.device} will send a raw event CSI sequence the CON-Handler
-will not interpret, but forward forward it blindly to its clients.
-Thus, iconification is to be performed by the process reading from the
-console in raw mode.
+will not interpret, but instead forward blindly to its clients.
+Thus, iconification is to be performed by the process reading from a
+console operating in raw mode, and not by the console itself.
 
 \subsection{CON-Handler Path for Serial Consoles} \label{sec:auxwindowpath}
 
-The following section covers the {\tt AUX} device which is managed by
-the CON-Handler in AmigaDOS version~47. In earlier versions, the
-device was operated by an independent handler implemented in BCPL that
-was phased out. Therefore, the description in this section only
-applies to AmigaDOS~47 and beyond.
+The following section covers the {\tt AUX} device which is also managed by
+the CON-Handler in AmigaDOS version~47. In earlier versions, the device was
+operated by an independent handler implemented in BCPL that was phased
+out. Therefore, the description in this section only applies to AmigaDOS~47
+and beyond.
 \smallskip{}
 
 If the console is a serial console, e.g.\ mounted as
 AUX-Handler\mkey{AUX-Handler}, another set of parameters in its path becomes
-available that configures the serial connection; if the console is run
-on any other than the \emph{serial.device} through mount parameters,
-this device shall support the {\tt SDCMD\_SETPARAMS} command through
-which the parameters in the path are forwarded to the underlying
-device.
+available that configures the serial connection; if the console is run on
+any other than the \emph{serial.device} because it was mounted with custom
+parameters as described in section~\ref{sec:constartup}, the underlying exec device
+shall support the {\tt SDCMD\_SETPARAMS} command through which the
+parameters in the path are forwarded.
 \smallskip{}
 
 Parameters for the handler come from three sources: First, from the
@@ -16073,7 +16082,10 @@ Serial preferences of the system. These default parameters are
 overridden by the mountlist for {\tt AUX}, described separately in
 section~\ref{sec:constartup}. Third, the parameters from the mountlist
 can be overridden through components in the path from which
-{\tt AUX:} is opened. The description of the path is as follows:
+{\tt AUX:} is opened.
+\smallskip{}
+
+The syntax of the path is as follows:
 
 \begin{verbatim}
 AUX:<baud>/<control>[/<options>]
@@ -16145,8 +16157,8 @@ The mount parameters for {\tt CON} and {\tt RAW} are hard-coded into the
 Kickstart ROM, though the mountlist\key{Mountlist} for {\tt AUX} is available in the
 {\tt DEVS:DosDrivers} directory and can be altered there; users can
 create custom mountlists for additional devices based on the CON-Handler by
-specifying {\tt L:AUX-Handler} either as {\tt HANDLER}\key{HANDLER} or {\tt EHANDLER}\key{EHANDLER} in
-the mountlist\key{Mountlist}. All the AUX-Handler does is to collect startup parameters
+specifying {\tt L:AUX-Handler} either as {\tt HANDLER}\key{HANDLER} or
+{\tt EHANDLER}\key{EHANDLER}. All the AUX-Handler does is to collect startup parameters
 and forward them directly to the CON-Handler, making it customizable.
 \smallskip{}
 
@@ -16184,11 +16196,10 @@ The handler startup mechanism in general is specified in
 section~\ref{sec:handlerstartup}.  As described there, {\tt dp\_Arg2}
 of the startup packet is a copy of the {\tt dol\_Startup} entry of the
 {\tt DosList}\key{DosList} created from the mountlist\key{Mountlist}.
-The path from which the CON-Handler receives its parameters described in
-sections~\ref{sec:conwindowpath} and~\ref{sec:auxwindowpath} is received
+The path from which the CON-Handler receives the path described in
+sections~\ref{sec:conwindowpath} and~\ref{sec:auxwindowpath} is taken
 from {\tt dp\_Arg1} of the startup packet, and not --- as one might expect
---- from the packets opening file handles. Details on the startup mechanism
-are found in section~\ref{sec:filesysstartup}.
+--- from the packets opening file handles.
 \smallskip{}
 
 The following table specifies the values of {\tt dol\_Startup}\key{dol\_Startup} the
@@ -16208,10 +16219,11 @@ BPTR with bit 30 set    & cooked mode open on a device specified by a
 \end{rkrmtable}
 
 The values~0 to~3 configure the line buffer mode and correspond to the
-{\tt mode} selected by~{\tt SetMode()}\key{SetMode()}. The buffer
-mode~3 is currently not used and reserved for future extensions.
-Mode~2 is a new mode introduced in AmigaDOS 47 and described along
-with all other modes in section~\ref{sec:conmodes}.
+{\tt mode} selected by~{\tt SetMode()}\key{SetMode()}. The buffer mode~3 is
+currently not used and reserved for future extensions.  Mode~2 is a new mode
+introduced in AmigaDOS 47. Its primary purpose is to support the Shell with
+additional features. It is described along with all other modes in
+section~\ref{sec:conmodes}.
 \smallskip{}
 
 The case of a negative {\tt dol\_Startup} value is a legacy startup
@@ -16236,8 +16248,8 @@ does not use this startup mechanism, the CON-Handler\key{CON-Handler} receives s
 startup message through the AUX-Handler if it is mounted as {\tt EHANDLER}\key{EHANDLER},
 and it then contains the {\tt DEVICE}\key{DEVICE} and {\tt UNIT}\key{UNIT} parameters
 from its mountlist\key{Mountlist}. Thus, a console can be run on any kind of device provided
-it supports {\tt CMD\_WRITE} to print text and {\tt CMD\_READ} to
-receive keystrokes.
+it supports {\tt CMD\_WRITE} to print text, {\tt CMD\_READ} to
+receive keystrokes and {\tt SDCMD\_SETPARAMS} to configure it.
 \smallskip{}
 
 As BPTRs are upshifted by two bits to gain a regular pointer, the otherwise
@@ -16630,7 +16642,7 @@ Another possibility to implement non-blocking reading from the serial
 port is to use {\tt WaitForChar()}\key{WaitForChar()}, see
 section~\ref{sec:waitforchar}. This function blocks until either the
 specified time has elapsed, or input is available on the port. Support
-for this function in the Port-Handler is also new in AmigaDOS~45.
+for this function in the Port-Handler was introduced in AmigaDOS~45.
 
 \subsection{Port-Handler Startup and Mount Parameters} \label{sec:portstartup}
 
@@ -16680,7 +16692,7 @@ custom mountlist\key{Mountlist} based on the {\tt EHANDLER} keyword,
 see also section~\ref{sec:filesysstartup}. This requires AmigaDOS
 version 45 or better. The {\tt DEVICE}\key{DEVICE} and {\tt UNIT}\key{UNIT}
 keywords then provide the name of the device and the
-unit the handler is run on. If the mountlist\key{Mountlist} includes
+unit the handler runs on. If the mountlist\key{Mountlist} includes
 in addition a {\tt BAUD}\key{BAUD} value, it is used as default value
 for the baud rate which can be overridden by the {\tt BAUD} parameter
 in the path described in section~\ref{sec:portpath}.
@@ -16712,7 +16724,9 @@ However, the Port-Handler uses the AmigaDOS~43 extension
 the \emph{parallel.device} or \emph{printer.device} and then adjusts its mode
 of operation accordingly. In such a case, the {\tt BAUD} and
 {\tt CONTROL} parameters in the mountlist are irrelevant and ignored,
-and the device becomes a lookalike of either {\tt PAR} or {\tt PRT}.
+and the device becomes a lookalike of either {\tt PAR} or {\tt PRT}, which
+also accepts those parameters listed in~\ref{sec:portpath} in their path
+that correspond to the nature of the device.
 
 \section{The Queue-Handler} \label{sec:queuehandler}
 
@@ -16723,12 +16737,12 @@ without requiring to store the output in a temporary file. The reading end of a 
 blocks as long as no data becomes available at the writing end, and the
 writing end blocks if the reading end is not able to consume data fast
 enough. If the reading end closes the pipe, the Queue-Handler attempts to
-abort the writing end by sending a {\tt SIGBREAKF\_CTRL\_C}\key{SIGBREAKF\_CTRL\_C} bit
+abort the writing end by sending a {\tt SIGBREAKF\_CTRL\_C}\key{SIGBREAKF\_CTRL\_C} signal
 to it.
 \smallskip{}
 
 Even though the Queue-Handler is disk-based, AmigaDOS~47 already mounts it
-during its startup as {\tt PIPE}. While a handler of the
+during its startup under the name {\tt PIPE}. While a handler of the
 same name and a similar purpose already existed in prior versions of
 AmigaDOS, it had to be mounted manually and lacked some of the
 features of the most recent version.
@@ -16760,15 +16774,14 @@ fails. Its purpose is in Shell command lines such as
 \begin{verbatim}
 Join A B to PIPE: | More
 \end{verbatim}
-
-where the writing end of the pipe is explicitly addressed as anonymous
-pipe, while the Shell connected the standard output of the {\tt Join}
-command to a named pipe created for the purpose of the {\tt |}
-operator, see also section~\ref{sec:binaryops}. The anonymous {\tt PIPE:}
-connects to the named pipe created by the Shell. This construction is
-necessary here because the command line syntax of {\tt Join} does not
-offer to write to its output stream as prepared by the Shell. Anonymous
-pipes were introduced in AmigaDOS~45.
+where the writing end of the pipe is explicitly addressed as anonymous pipe
+as {\tt PIPE:}. The Shell connected the standard output of the {\tt Join}
+command to a named pipe created for the purpose of the {\tt |} operator, see
+also section~\ref{sec:binaryops}, and the file name {\tt PIPE:} connects to
+this named pipe. This construction is necessary here because the command
+line syntax of {\tt Join} does not offer to write to its output stream as
+prepared by the Shell but only to an explicit file name. Anonymous pipes
+were introduced in AmigaDOS~45.
 \smallskip{}
 
 The path of the Queue-Handler may include options configuring it; the
@@ -16810,7 +16823,6 @@ Handler         = L:Queue-Handler
 Startup         = 0
 GlobVec         = -1
 \end{verbatim}
-
 which mounts the Queue-Handler with its default parameter described in~\ref{sec:queuepath}.
 The handler is implemented in C and thus does not require a
 Global Vector\key{Global Vector}, thus {\tt GlobVec} shall be set to~$-1$.
@@ -16878,9 +16890,21 @@ not necessary.
 
 The RAM-Handler does not interpret any arguments in its startup packet
 and cannot be configured through it. The {\tt STARTUP}\key{STARTUP} value prepared by
-AmigaDOS is simply~0 and not interpreted by the RAM-Handler. As the
-RAM-Handler is not represented as file nor registered as file system,
-it cannot be mounted through a custom mountlist.
+AmigaDOS is~0 and not interpreted by the RAM-Handler. As the
+RAM-Handler is not represented as file nor registered as file system
+in the \emph{FileSystem.resource}, it cannot be mounted through a custom
+mountlist.
+\medskip{}
+
+The RAM-Handler is not responsible for the reset-resident {\tt RAD}
+device. It is driven by the Fast File System\key{Fast File System (FFS)}
+described in section~\ref{sec:ffs} mounted on the
+\emph{ramdrive.device}. The latter is a ROM-resident device that makes part
+of the system RAM available as a block device, and unlike the RAM-Handler,
+not as a file system. Even though the \emph{ramdrive.device} could in
+principle carry any other file system, it initializes its contents such that
+it reassembles the structure of an empty FFS volume and thus does not
+require a separate initialization step after mounting.
 
 \section{The Fast File System} \label{sec:ffs}
 
@@ -18597,8 +18621,8 @@ of activities here, except incrementing a use counter, see also section~\ref{sec
 the lock in {\tt dp\_Arg2} is irrelevant for them, and if the path was already interpreted
 during the handler startup, see section~\ref{sec:handlerstartup}, then
 {\tt dp\_Arg3} may also be ignored. Interactive handlers shall be
-prepared to receive in {\tt dp\_Arg3} the file name ``{\tt *}''\key{*
-  (file name)} or a path relative to {\tt CONSOLE:} in which case the
+prepared to receive in {\tt dp\_Arg3} the file name
+``{\tt *}''\key{* (file name)} or a path relative to {\tt CONSOLE:} in which case the
 newly created file shall use the same resources as the already running
 handler process at which port the packet was received, i.e. the above file names
 create duplicates of an already open file, see also
