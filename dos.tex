@@ -18587,12 +18587,14 @@ the file was delivered.
 
 {\tt dp\_Arg2} contains a {\tt BPTR} to a {\tt FileLock}\key{FileLock}
 structure identifying the directory from which the file system starts
-searching for the file to be opened. Typically, this corresponds to the
-current directory of the process calling {\tt Open()}\key{Open()}. If this
-lock\key{Lock} is {\tt ZERO}\key{ZERO lock}, then the file system shall
-assume that the provided path is relative to the root directory of the
-currently inserted volume. Handlers that do not implement locks, in
-particular interactive handlers, ignore this argument.
+searching for the file to be opened. If this lock\key{Lock} is
+{\tt ZERO}\key{ZERO lock}, then the file system shall assume that the provided
+path is relative to the root directory of the currently inserted
+volume. Handlers that do not implement locks, in particular interactive
+handlers, ignore this argument. The {\tt Open()} function obtains this
+lock through {\tt GetDeviceProc()}\key{GetDeviceProc()}, and it is typically
+the current directory of the calling process, or the lock of an assign
+taken from the file name argument.
 \smallskip{}
 
 {\tt dp\_Arg3} contains a {\tt BPTR} to a {\tt BSTR} providing the path
@@ -18913,8 +18915,8 @@ Packet arguments contain the following data:
 
 {\tt dp\_Arg1} is a copy from {\tt fh\_Arg1} of the
 {\tt FileHandle}\key{FileHandle} structure and may be used by the file
-system or handler to identify the file. Note that it is \emph{not} the {\tt
-  FileHandle} itself; instead, the handler may create and insert such an
+system or handler to identify the file. Note that it is \emph{not} the
+{\tt FileHandle} itself; instead, the handler may create and insert such an
 identifier into the {\tt FileHandle} when opening a file, see~\ref{sec:actionfindinput} for details.
 \smallskip{}
 
@@ -19340,7 +19342,10 @@ relative, also represented by a lock. As such, this packet implements the
 the object to which the path given in {\tt dp\_Arg2} is relative. The
 {\tt Lock()}\key{Lock()} function fills it from the current directory of
 the calling process. If {\tt dp\_Arg1} is {\tt ZERO}\key{ZERO lock}, the path in
-{\tt dp\_Arg2} is relative to the root of the currently inserted volume.
+{\tt dp\_Arg2} is relative to the root of the currently inserted
+volume. The {\tt Lock()}\key{Lock()} function determines this lock from the
+{\tt GetDeviceProc()} function, which delivers for example the current
+directory of the caller or the lock of an assign identified from the path.
 \smallskip{}
 
 {\tt dp\_Arg2} is a BPTR to a BSTR of an absolute path or a path
@@ -19590,7 +19595,7 @@ are as follows:
 
 The lock in {\tt dp\_Arg1} is the directory to which the path in
 {\tt dp\_Arg2} is relative. The {\tt CreateDir()} function fills it
-with the current directory of the calling process.
+for example with the current directory of the calling process.
 \smallskip{}
 
 The path in {\tt dp\_Arg2} is logically concatenated with the directory
@@ -20727,7 +20732,10 @@ Arguments are populated as follows:
 \smallskip{}
 
 {\tt dp\_Arg1} represents the directory to which the source {\tt dp\_Arg2}
-is relative to.
+is relative to. The {\tt Rename()}\key{Rename()} function takes it from the
+output of the {\tt GetDeviceProc()}\key{GetDeviceProc()} function applied to the
+source path, and it typically corresponds to the current directory of the
+calling process or the lock of an assign in the source path.
 \smallskip{}
 
 {\tt dp\_Arg2} is the path of the original object. This path need
@@ -20738,7 +20746,8 @@ that is to be renamed or moved.
 \smallskip{}
 
 {\tt dp\_Arg3} is the directory to which the target path {\tt dp\_Arg4} is
-relative to, represented as a lock.
+relative to, represented as a lock. {\tt Rename()}\key{Rename()} also
+determines this lock through {\tt GetDeviceProc()} and the target path.
 \smallskip{}
 
 {\tt dp\_Arg4} is the target path of the object, relative to
@@ -20816,8 +20825,8 @@ and links.
 \smallskip{}
 
 {\tt dp\_Arg1} is a lock\key{Lock} to the directory to which the path in
-{\tt dp\_Arg2} is relative. The {\tt DeleteFile()} function fills it with the
-current directory of the calling process.
+{\tt dp\_Arg2} is relative. The {\tt DeleteFile()} function fills it for
+example with the current directory of the calling process.
 \smallskip{}
 
 {\tt dp\_Arg2} is the path to the object to be deleted. The path can
@@ -20874,7 +20883,7 @@ request, or may only implement a subset of all bits.
 
 {\tt dp\_Arg2} is a lock\key{Lock} of a directory to which the path in {\tt dp\_Arg3} is
 relative\footnote{This is not a typo, {\tt dp\_Arg1} is really unused.}. The
-{\tt SetProtection()} function sets it to the current directory of the
+{\tt SetProtection()} function sets it for example to the current directory of the
 calling process.
 \smallskip{}
 
@@ -20933,7 +20942,7 @@ support this request, or may only support comments on a subset of objects.
 
 {\tt dp\_Arg2} represents a directory relative to which the path in
 {\tt dp\_Arg3} shall be interpreted. The {\tt SetComment()} function fills
-it with the current directory of the calling process.
+it for example with the current directory of the calling process.
 \smallskip{}
 
 {\tt dp\_Arg3} is the path relative to {\tt dp\_Arg2} of the object whose
@@ -20981,7 +20990,8 @@ will support this packet, or may only support it with reduced precision of the d
 {\tt dp\_Arg2} represents a directory relative to which the path in
 {\tt dp\_Arg3} is interpreted\footnote{The information in~\cite{Bantam} is
 incorrect, and {\tt dp\_Arg1} is, indeed, unused.}. The implementation of
-the {\tt SetFileDate()} function fills it with the current directory of the calling process.
+the {\tt SetFileDate()} function fills it for example
+with the current directory of the calling process.
 \smallskip{}
 
 {\tt dp\_Arg3} is the path of the object whose creation date is to be
@@ -21038,7 +21048,8 @@ version~43, the RAM-Handler\key{RAM-Handler} does not implement it.
 
 {\tt dp\_Arg2} represents a directory relative to which the path in
 {\tt dp\_Arg3} is interpreted. The implementation of the
-{\tt SetOwner()}\key{SetOwner()} function fills it with
+{\tt SetOwner()}\key{SetOwner()} function determines it from its argument
+through {\tt GetDeviceProc()}\key{GetDeviceProc()} and fills it for example with
 the current directory of the calling process.
 \smallskip{}
 
