@@ -20716,8 +20716,8 @@ within the directory tree of a volume.
 
 This packet implements the {\tt Rename()}\key{Rename()} function of
 the \emph{dos.library}, see section~\ref{sec:rename}, and relocates
-and/or renames objects within the directory structure of a
-volume. This packet cannot relocate across volumes, i.e.\
+and/or renames an object within the directory structure of a
+volume. This packet cannot relocate objects across volumes, i.e.\
 {\tt dp\_Arg1} and {\tt dp\_Arg3} are locks\key{Lock} to objects within
 the same volume, and {\tt dp\_Arg2} and {\tt dp\_Arg4} represent paths
 within this volume.
@@ -20730,9 +20730,9 @@ Arguments are populated as follows:
 is relative to.
 \smallskip{}
 
-{\tt dp\_Arg2} is the path of the original object location. This path need
+{\tt dp\_Arg2} is the path of the original object. This path need
 not to consist of a single component, though the object to rename or
-relocate is the last component of this path. The file system needs to
+relocate is the last component of this path. The file system shall
 walk the provided path, starting from {\tt dp\_Arg1}, to identify the object
 that is to be renamed or moved.
 \smallskip{}
@@ -20746,8 +20746,8 @@ relative to, represented as a lock.
 path from {\tt dp\_Arg4} to the directory in {\tt dp\_Arg3}.
 \medskip{}
 
-First, the file system needs to find a suitable target directory for
-the object to move into. For this, it shall walk the directory tree
+The file system shall find a suitable target directory into which
+the object is to be moved: for this, it shall walk the directory tree
 starting at {\tt dp\_Arg3}, resolving directories as given by the path
 in {\tt dp\_Arg4}. If any of the components in this path but the last
 component does not exist or is not a directory or not a hard link to a
@@ -20781,7 +20781,7 @@ shall fail with the error code {\tt ERROR\_IS\_SOFT\_LINK}\key{ERROR\_IS\_SOFT\_
 
 If the last component of the target path is an existing file or a hard link to an
 existing file, renaming shall fail with {\tt ERROR\_OBJECT\_EXISTS}\key{ERROR\_OBJECT\_EXISTS}. That is,
-it is not permitted to rename into an existing file.
+it is not permissible to rename into an existing file or replace an existing file.
 \smallskip{}
 
 Particular care needs to be taken if the object to be relocated is a
@@ -20821,7 +20821,7 @@ current directory of the calling process.
 \smallskip{}
 
 {\tt dp\_Arg2} is the path to the object to be deleted. The path can
-contain multiple components, in which case the file system need to
+contain multiple components, in which case the file system shall
 walk the path starting at {\tt dp\_Arg1} until reaching its last
 component which is the object to be deleted. If the target is a
 directory, the file system shall check, in addition, if the directory
@@ -20872,14 +20872,16 @@ objects, such as directories or links; in such a case, they may ignore the
 request, or may only implement a subset of all bits.
 \smallskip{}
 
-{\tt dp\_Arg2} is a lock\key{Lock} of a directory which the path in {\tt dp\_Arg3} is
-relative to\footnote{This is not a typo, {\tt dp\_Arg1} is really unused.}.
+{\tt dp\_Arg2} is a lock\key{Lock} of a directory to which the path in {\tt dp\_Arg3} is
+relative\footnote{This is not a typo, {\tt dp\_Arg1} is really unused.}. The
+{\tt SetProtection()} function sets it to the current directory of the
+calling process.
 \smallskip{}
 
 {\tt dp\_Arg3} is a path relative to {\tt dp\_Arg2}. This path need
 not to consist of a single component, though the object whose protection bits shall be
-changed is the last component of this path. The file system needs to
-walk the provided path, starting from {\tt dp\_Arg2} to find the affected object.
+changed is the last component of this path. The file system shall
+walk the provided path, starting from {\tt dp\_Arg2} to find the object to modify.
 \smallskip{}
 
 {\tt dp\_Arg4} are the new protection bits as specified in
@@ -20889,7 +20891,7 @@ inverted by most system tools such as the {\tt List} command.
 
 Links are a special case, and here file system authors need to decide
 whether the protection bits apply to the object itself or the
-directory entries representing the object. The FFS\key{Fast File System (FFS)} keeps the
+links pointing to the object. The FFS\key{Fast File System (FFS)} keeps the
 protection bits of the object and links to the object always in
 sync. The RAM-Handler\key{RAM-Handler} ignores requests to change the
 protection bits of hard links\key{Hard Link}, but copies its
@@ -20910,7 +20912,7 @@ code.
 \subsection{Setting the Comment to an Object}
 
 The {\tt ACTION\_SET\_COMMENT}\mkey{ACTION\_SET\_COMMENT} packet changes,
-adds or removes a comment on a file system object such as a directory, file
+adds or removes a comment of a file system object such as a directory, file
 or link.
 
 \begin{rkrmtable}{\tt ACTION\_SET\_COMMENT} \label{table:actionsetcomment}
@@ -20930,7 +20932,8 @@ support this request, or may only support comments on a subset of objects.
 \smallskip{}
 
 {\tt dp\_Arg2} represents a directory relative to which the path in
-{\tt dp\_Arg3} shall be interpreted\footnote{Again, {\tt dp\_Arg1} is unused.}.
+{\tt dp\_Arg3} shall be interpreted. The {\tt SetComment()} function fills
+it with the current directory of the calling process.
 \smallskip{}
 
 {\tt dp\_Arg3} is the path relative to {\tt dp\_Arg2} of the object whose
@@ -20977,7 +20980,8 @@ will support this packet, or may only support it with reduced precision of the d
 
 {\tt dp\_Arg2} represents a directory relative to which the path in
 {\tt dp\_Arg3} is interpreted\footnote{The information in~\cite{Bantam} is
-incorrect, and {\tt dp\_Arg1} is, indeed, unused.}.
+incorrect, and {\tt dp\_Arg1} is, indeed, unused.}. The implementation of
+the {\tt SetFileDate()} function fills it with the current directory of the calling process.
 \smallskip{}
 
 {\tt dp\_Arg3} is the path of the object whose creation date is to be
@@ -21032,8 +21036,10 @@ is questionable; the FFS\key{Fast File System (FFS)} supports this packet since
 version~43, the RAM-Handler\key{RAM-Handler} does not implement it.
 \smallskip{}
 
-{\tt dp\_Arg2} represents a directory relative to which the path in {\tt
-  dp\_Arg3} is interpreted.
+{\tt dp\_Arg2} represents a directory relative to which the path in
+{\tt dp\_Arg3} is interpreted. The implementation of the
+{\tt SetOwner()}\key{SetOwner()} function fills it with
+the current directory of the calling process.
 \smallskip{}
 
 {\tt dp\_Arg3} is the path of the object whose owner information is to be
