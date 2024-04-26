@@ -20225,7 +20225,7 @@ information.
 \smallskip{}
 
 The packet interface consists of two packets: one for creating all
-type of links given the path of the link and the link target, and a
+types of links given the path of the link and the link target, and a
 second that is specific to soft links\key{Soft Link} only: this packet
 finds the path of the link target given a path containing a soft link
 as one of its components. It is mostly used by the \emph{dos.library}
@@ -20237,18 +20237,19 @@ within the handler and do not require interaction with the
 \emph{dos.library}.
 \smallskip{}
 
-AmigaDOS~47 introduced another type of link, the \emph{external
-  link}\key{External Link}. When accessing the link, the file system
+AmigaDOS version~47 introduced another type of link, the
+\emph{external link}\key{External Link}. When accessing the link, the file system
 containing the link interacts with the file system of the link target
 and copies the contents of the target into the link. Thus, external
-links implement a ``copy on read'' access. They are created by the
+links implement a ``copy on read'' functionality. Such links are created by the
 same packet that also creates soft and hard links, and similar to hard links,
-do not require an additional packet for resolving them.
+they do not require an additional packet for resolving them.
 
 \subsection{Creating Links}
 
 The {\tt ACTION\_MAKE\_LINK}\mkey{ACTION\_MAKE\_LINK} packet creates
-soft\key{Soft Link} or hard links\key{Hard Link} in a file system.
+soft\key{Soft Link}, hard\key{Hard Link} or external
+links\key{External Link} in a file system.
 
 \begin{rkrmtable}{\tt ACTION\_MAKE\_LINK} \label{table:actionmakelink}
 {\bf DosPacket Element}   & {\bf Value}\\ \hline \hline
@@ -20264,7 +20265,7 @@ soft\key{Soft Link} or hard links\key{Hard Link} in a file system.
 This packet implements the {\tt MakeLink()}\key{MakeLink()} function
 of the \emph{dos.library}, see section~\ref{sec:makelink}, and as such
 creates soft\key{Soft Link}, hard\key{Hard Link} or external links\key{External Link}
-within the file system. It was added in AmigaDOS~36. 
+within the file system. It was added in AmigaDOS version~36. 
 \smallskip{}
 
 Arguments are populated as follows:
@@ -20310,7 +20311,7 @@ itself contains a list of links that reference it. If a link is deleted, it
 is removed from its directory and from the list of links within the target
 object. If the object itself is deleted, one of the links becomes the object
 itself and the list of links is copied from the deleted object to the
-link. The FFS\key{Fast File System (FFS)} follows this latter approach.
+link. The FFS\key{Fast File System (FFS)} implements the latter design.
 \medskip{}
 
 If {\tt dp\_Arg4} is {\tt LINK\_HARD}\key{LINK\_HARD} and the
@@ -20321,8 +20322,8 @@ create a file or directory within its own file system in the directory
 containing the link, and this file or directory shall mirror the
 contents of the link target given by {\tt dp\_Arg4} whenever the link or an
 object within the link is accessed; the file system shall thus implement
-a ``copy on read'' for the linked object and all objects within the linked
-object --- if the link target is a directory.
+a ``copy on read'' for the linked object, and if the link target is a
+directory, also for all objects within it.
 \smallskip{}
 
 If the target of such a link is deleted or an object within the linked
@@ -20337,7 +20338,7 @@ is there used to realize the {\tt ENV} assign containing all preferences
 settings. The external link\key{External Link} pulls only those preferences settings into the
 RAM disk that are actually required, at the time they are required.
 Section~\ref{sec:links} contains more information on external links which
-were added in AmigaDOS~47.
+were added in AmigaDOS version~47.
 \medskip{}
 
 If {\tt dp\_Arg4} is {\tt LINK\_SOFT}\key{LINK\_SOFT}, then {\tt dp\_Arg3}
@@ -20345,24 +20346,25 @@ is a pointer to a {\tt NUL}-terminated C string providing
 the target of the link. This string is not immediately interpreted by the file system and stored as-is;
 it is interpreted as a path name relative to the location of the link at the
 time the link is resolved\footnote{This is quite unusual as AmigaDOS
-  otherwise represents strings as BSTR, though that would limit the length of the link target.},
-see section~\ref{sec:actionreadlink} for how soft link link resolution works.
+otherwise represents strings as BSTR, though that would limit the length of
+the link target.}.
 \smallskip{}
 
 Resolution of soft links\key{Soft Link} is performed within the \emph{dos.library} or
 within the client application as not all functions of the library implement
 soft link resolution. For a list of functions that \emph{do} implement it,
-see table~\ref{table:softenabled} in section~\ref{sec:links}.
+see table~\ref{table:softenabled} in section~\ref{sec:links}, see also
+section~\ref{sec:actionreadlink} for how to resolve soft links manually.
 \smallskip{}
 
 Upon accessing a soft link\key{Soft Link}, or a path containing a soft link, the file
 system shall create an error code {\tt ERROR\_IS\_SOFT\_LINK}\key{ERROR\_IS\_SOFT\_LINK}. If this
-error is returned, the sender of a packet accessing the link --- thus
+error is received, the sender of a packet accessing the link --- thus
 typically the \emph{dos.library} itself --- shall read the target of the
 link with the {\tt ReadLink()}\key{ReadLink()} function specified in
 section~\ref{sec:readlink}. This function then again contacts the file
 system containing the link with a {\tt ACTION\_READ\_LINK}\key{ACTION\_READ\_LINK}
-which will construct from the link an updated path to the object. Section~\ref{sec:actionreadlink}
+which shall construct from the link an updated path to the object. Section~\ref{sec:actionreadlink}
 provides more details on this packet.
 \smallskip{}
 
@@ -20395,16 +20397,16 @@ link.
 \tt dp\_Res2  & Error code \\ \hline
 \end{rkrmtable}
 
-This packet implements the {\tt ReadLink()}\key{ReadLink()} function,
-see section~\ref{sec:readlink}, of the \emph{dos.library} and is used
-there to resolve soft links\key{Soft Link} and obtain the link
-target. This packet was added in AmigaDOS~36.
+This packet implements the {\tt ReadLink()}\key{ReadLink()} function of the
+\emph{dos.library}, see section~\ref{sec:readlink}, and is used there to
+resolve soft links\key{Soft Link} and obtain the link target. This packet
+was added in AmigaDOS version~36.
 \smallskip{}
 
 Implementing this packet correctly requires, however, some care as the
 soft link may be in the middle of the path provided by {\tt dp\_Arg2}
 and not just at its last component, and the soft link itself may be an
-absolute or relative path. This packet needs to provide from the
+absolute or relative path. This packet shall provide from the
 original path an updated path that points to the intended location
 relative to the location \emph{of the soft link}, and that is not
 necessarily the same as a path relative to {\tt dp\_Arg1}.
@@ -20416,7 +20418,7 @@ Arguments of this packet are populated as follows:
 {\tt dp\_Arg1} is a lock\key{Lock} to a directory in the file system
 relative to which the path in {\tt dp\_Arg2} shall be
 interpreted. This \emph{need not} to be directly the directory containing the
-link. The {\tt lock} argument of {\tt ReadLink()} will be placed here.
+link. The {\tt lock} argument of {\tt ReadLink()}\key{ReadLink()} will be placed here.
 \smallskip{}
 
 {\tt dp\_Arg2} is a pointer to a path name relative to {\tt dp\_Arg1}
@@ -20436,12 +20438,12 @@ volume, an isolated slash (``{\tt /}'') shall enter the parent directory,
 and all other components terminated by a slash shall be interpreted as names
 of directories that shall be recursively entered. This process continues
 until either the end of the path is found, or --- and this is the purpose of
-this packet --- a soft link is found.
+this packet --- a soft link is detected.
 \smallskip{}
 
 If a soft link\key{Soft Link} is detected as part of the path, the target of the link as
-stored in the file system shall be read. Note that the link target may not
-only consist of an isolated file or directory name, but may well be an
+stored in the file system shall be read. Note that the link target can not
+only consist of an isolated file or directory name, but can well be an
 absolute or relative path that shall be merged with the path provided in
 {\tt dp\_Arg2}.
 \smallskip{}
