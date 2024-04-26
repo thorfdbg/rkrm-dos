@@ -19762,18 +19762,18 @@ errors to its callers.
 \section{Packets for Examining Objects} \label{sec:actionfib}
 
 The packets in this section implement the functions of
-section~\ref{sec:fib} on packet level, i.e.\ they retrieve information
-from the file system on the metadata of objects identified by
-locks\key{Lock}. They also allow to iterate over a directory and
+section~\ref{sec:fib} on packet level, i.e.\ they retrieve 
+from the file system information on objects identified by
+locks\key{Lock}. They also allow to iterate over directories and
 receive information from all objects within. Unfortunately,
 implementing the packets in this section in a robust way is nontrivial
-as directory contents can change while the scan is active.
+as directory contents can change while iterating over it.
 
 \subsection{Examining a Locked Object} \label{sec:actionexamineobject}
 
 The {\tt ACTION\_EXAMINE\_OBJECT}\mkey{ACTION\_EXAMINE\_OBJECT} packet
-retrieves metadata such as file name, comment and protection bits from a
-lock\key{Lock} on an object on a file system and fills a {\tt FileInfoBlock}\key{FileInfoBlock} with this
+retrieves information such as file name, comment and protection bits from a
+lock\key{Lock} on an object and fills a {\tt FileInfoBlock}\key{FileInfoBlock} with this
 data.
 
 \begin{rkrmtable}{\tt ACTION\_EXAMINE\_OBJECT} \label{table:actionexamineobject}
@@ -19786,10 +19786,10 @@ data.
 \end{rkrmtable}
 
 This packet implements the {\tt Examine()}\key{Examine()} function of
-the \emph{dos.library}, see section~\ref{sec:examine}. It fills the {\tt
-  FileInfoBlock} structure pointed to by {\tt dp\_Arg2} with
+the \emph{dos.library}, see section~\ref{sec:examine}. It fills the
+{\tt FileInfoBlock} structure pointed to by {\tt dp\_Arg2} with
 information on the object identified by the lock in
-{\tt dp\_Arg1}. See section~\ref{sec:fib} for the definition of this
+{\tt dp\_Arg1}. See section~\ref{sec:fib} for the specification of this
 structure.
 \smallskip{}
 
@@ -19809,14 +19809,14 @@ identifying the type of the object. As programs are not consistent on
 the element they read, both should be filled with the same value. The
 value~0 should be avoided as some programs identify directories by
 testing against a positive value whereas others check for a
-non-negative value, i.e.\ accept~0 as a directory.
+non-negative value, i.e.\ interpret~0 as a directory.
 \smallskip{}
 
 The fields {\tt fib\_OwnerUID}\key{fib\_OwnerUID} and
 {\tt fib\_OwnerGID}\key{fib\_OwnerGID} shall be set to~0, unless the file
 system has an idea on user and group IDs --- unfortunately AmigaDOS cannot
 make use of these values anyhow, and it is not documented how these fields
-shall be interpreted; they are probably an opaque value. {\tt fib\_Reserved} shall
+shall be interpreted. {\tt fib\_Reserved} shall
 be left alone, in particular file systems \emph{shall not} use it to store
 internal state information. Such information may \emph{only} go
 into {\tt fib\_DiskKey}\key{fib\_DiskKey}, which is an element application
@@ -19831,8 +19831,8 @@ filled with the name of the volume.
 This packet is also used to initiate a scan over a directory to
 examine all objects within in it. Then {\tt dp\_Arg1} is the lock of
 the directory to be scanned. File systems may use this packet to
-initialize internal state information stored in this lock for the
-scan, section~\ref{sec:actionexnext} provides more information why
+initialize internal state information stored in this lock,
+section~\ref{sec:actionexnext} provides more information why
 this might be necessary. Depending on the file system, the {\tt ZERO}
 lock may then be not suitable to scan the contents of the root directory, in which
 case applications need to obtain a lock on ``{\tt :}'' explicitly.
@@ -19842,8 +19842,8 @@ This function returns a boolean success code in {\tt dp\_Res1}, it
 shall be either set to {\tt DOSTRUE} in case information on the locked
 object could be retrieved and was inserted into the {\tt FileInfoBlock}\key{FileInfoBlock}
 given by {\tt dp\_Arg2}. In case of success, {\tt dp\_Res2} shall be set
-to~0. In case of an error, {\tt dp\_Res1} shall be set to {\tt
-  DOSFALSE} and {\tt dp\_Res2} to an error code.
+to~0. In case of an error, {\tt dp\_Res1} shall be set to
+{\tt DOSFALSE} and {\tt dp\_Res2} to an error code.
 
 \subsection{Scanning Directory Contents} \label{sec:actionexnext}
 
@@ -19883,13 +19883,13 @@ such a case.
 Unlike Unix like file systems, AmigaDOS does not keep entries in directories
 that correspond to the directory itself or its parent directory, i.e.\
 AmigaDOS file systems do not carry ``{\tt .}'' or ``{\tt ..}'' directory
-entries. When parsing paths, the current directory is identified by the
-empty string, and the parent directory by the isolated slash (``{\tt /}''). They
-are neither represented as objects within a directory.
+entries. Even if alien file system structures contain such entries, they
+should not be accessible by this packet and thus be hidden from
+AmigaDOS applications.
 \smallskip{}
 
 Unfortunately, this packet is one of the hardest to implement as
-directory contents may change between two {\tt ACTION\_EXAMINE\_OBJECT} packets.
+directory contents can change between two {\tt ACTION\_EXAMINE\_OBJECT} packets.
 In particular, file
 systems shall handle the situation gracefully in which the object from
 the previous iteration identified by {\tt fib\_DiskKey}\key{fib\_DiskKey}
@@ -19948,7 +19948,7 @@ be {\tt ERROR\_NO\_MORE\_ENTRIES}\key{ERROR\_NO\_MORE\_ENTRIES}.
 \subsection{Examining Multiple Entries at once}
 
 The {\tt ACTION\_EXAMINE\_ALL}\mkey{ACTION\_EXAMINE\_ALL} packet scans a
-directory supplying multiple entries at once, potentially filtering entries
+directory supplying multiple entries at once, potentially filtering them
 through a pattern or through a hook.
 
 \begin{rkrmtable}{\tt ACTION\_EXAMINE\_ALL} \label{table:actionexamineall}
@@ -19984,14 +19984,13 @@ Packet arguments are as follows:
 be {\tt ZERO} by the requirements of {\tt ExAll()}\key{ExAll()}, see section~\ref{sec:exall}.
 \smallskip{}
 
-{\tt dp\_Arg2} is a pointer to the buffer to be filled with information on
+{\tt dp\_Arg2} is a word aligned pointer to the buffer to be filled with information on
 the objects found in the directory, it is \emph{not} a BPTR. This buffer shall be
 filled with a singly linked list of {\tt ExAllData}\key{ExAllData} structures, see
 again section~\ref{sec:exall} for the definition of this structure. Only the
 elements requested by {\tt dp\_Arg4} are filled. Remaining entries are
 undefined and need not to be present at all, i.e.\ only the minimal amount of information requested may be
-filled into memory, using the unused elements to store subsequent (incomplete)
-{\tt ExAllData} structures.
+filled in, using the unused elements to store subsequent {\tt ExAllData} structures.
 \smallskip{}
 
 In addition, file systems shall align the {\tt ExAllData}\key{ExAllData} in the buffer
@@ -20004,8 +20003,8 @@ In other words, the file system shall build a {\tt NULL}-terminated singly linke
 structures that are properly aligned.
 \medskip{}
 
-{\tt dp\_Arg3} is the size of the buffer in bytes to which {\tt dp\_Arg2} points to, and into which
-the result of the scan is filled.
+{\tt dp\_Arg3} is the size of the buffer in bytes {\tt dp\_Arg2} points to, and into which
+the result of the scan shall be filled.
 \smallskip{}
 
 {\tt dp\_Arg4} defines which elements of the {\tt ExAllData}\key{ExAllData} are filled. The
@@ -20028,8 +20027,7 @@ The file system may store internal state information of the directory scanner in
 {\tt eac\_LastKey}. This state information could, for example, correspond to
 the {\tt fib\_DiskKey}\key{fib\_DiskKey} in the {\tt FileInfoBlock}\key{FileInfoBlock}
 identifying an element in a directory at which to continue an interrupted scan. It is zero-initialized before the
-first packet, and thus the file system may assume that a value of~0 for the
-key identifies the start of the scan.
+first packet, and thus the file system may assume that a key value of~0 identifies the start of the scan.
 \smallskip{}
 
 If non-{\tt NULL}, {\tt eac\_MatchString}\key{eac\_MatchString} is a parsed pattern as
@@ -20041,8 +20039,13 @@ filled into the target buffer.
 
 {\tt eac\_MatchFunc}\key{eac\_MatchFunc} provides even finer control of which objects are
 filled into the target buffer; it supplies a {\tt Hook} structure whose
-{\tt h\_Entry} function shall be called for each candidate directory entry. If the
-hook returns non-zero, the {\tt ExAllData}\key{ExAllData} copied to the buffer shall be
+{\tt h\_Entry} function shall be called for each candidate directory entry,
+e.g.\ by the {\tt CallHookPkt()} function of the \emph{utility.library}. Its
+{\tt object} argument is then a pointer a {\tt LONG} containing the
+{\tt type} from {\tt dp\_Arg4}, and
+its {\tt message} argument a pointer to the {\tt ExAllData} structure filled
+with a candidate entry. If the
+hook returns non-zero, the {\tt ExAllData}\key{ExAllData} copied into the buffer shall be
 considered accepted and shall remain in the buffer; if it returns zero, this
 candidate entry is rejected and shall not appear in the 
 output. Calling conventions of this hook are also described in
@@ -20054,7 +20057,7 @@ hold for {\tt ACTION\_EXAMINE\_ALL}\key{ACTION\_EXAMINE\_ALL}, too.
 In particular, the file system shall be prepared for the
 directory to get modified within scans, by either adding, removing,
 renaming or moving objects out of or into the directory. Using a disk block or
-a pointer to a structure representing a specific object as
+a pointer to a structure representing a specific object through
 {\tt eac\_LastKey}\key{eac\_LastKey} is therefore discouraged.
 Similarly, on subsequent requests forming a scan of a directory, the
 {\tt ExAll()}\key{ExAll()} interface requires that {\tt dp\_Arg1} is
@@ -20084,15 +20087,15 @@ In case the end of the directory has reached and all directory entries could
 fit into the buffer, {\tt dp\_Res1} shall be set to~0, and {\tt dp\_Res2} to
 {\tt ERROR\_NO\_MORE\_ENTRIES}. In case the directory scan had been aborted due
 to an error, {\tt dp\_Res1} shall be set to~0 and {\tt dp\_Res2} to an error
-code.
+code. In both cases, all resources corresponding to the scan shall be
+released.
 
 \subsection{Aborting a Directory Scan}
 
 The packet {\tt ACTION\_EXAMINE\_ALL\_END}\mkey{ACTION\_EXAMINE\_ALL\_END} aborts a
-directory scan started with {\tt ACTION\_EXAMINE\_ALL}\key{ACTION\_EXAMINE\_ALL}.
-that returned with a non-zero result in {\tt dp\_Res1} and thus indicated that the end of
-the directory has not yet been reached. It allows file systems to release resources
-associated to the scan.
+directory scan started with {\tt ACTION\_EXAMINE\_ALL}\key{ACTION\_EXAMINE\_ALL}
+that returned with a non-zero result in {\tt dp\_Res1}. It allows file
+systems to release resources associated to the scan.
 
 \begin{rkrmtable}{\tt ACTION\_EXAMINE\_ALL\_END} \label{table:actionexamineallend}
 {\bf DosPacket Element}   & {\bf Value}\\ \hline \hline
@@ -20136,11 +20139,11 @@ this packet should not fill any data into the supplied buffer, file systems
 may also ignore it.
 \smallskip{}
 
-{\tt dp\_Arg5} is a pointer to a {\tt ExAllControl}\key{ExAllControl} structure, and the
-pointer provided here is identical to the pointer provided to 
-{\tt ACTION\_EXAMINE\_ALL}\key{ACTION\_EXAMINE\_ALL} whose abortion is requested. Thus, file systems
+{\tt dp\_Arg5} is a pointer to an {\tt ExAllControl}\key{ExAllControl} structure, and the
+pointer provided here is identical to the pointer provided to the
+{\tt ACTION\_EXAMINE\_ALL}\key{ACTION\_EXAMINE\_ALL} packet whose abortion is requested. Thus, file systems
 may use the pointer value and specifically the {\tt eac\_DiskKey}\key{eac\_DiskKey} element in the
-structure it points to to release any resources related to the scan.
+structure it points to to identify and release any resources related to the scan.
 \medskip{}
 
 Before replying this packet, the file system shall set {\tt dp\_Res1}
@@ -20157,7 +20160,7 @@ matches no entry, and then continues the scan with a
 {\tt ACTION\_EXAMINE\_ALL}\key{ACTION\_EXAMINE\_ALL}
 packet. This would then clearly reach the end of the directory without
 overrunning the buffer. However, due to a defect in the \emph{dos.library} up
-to the latest release, the (non-matching) pattern is a literal pattern and
+to the latest version, the (non-matching) pattern is a literal pattern and
 not a pre-parsed pattern. It therefore could match an entry in the
 directory. Thus, it is advised to always implement
 {\tt ACTION\_EXAMINE\_ALL\_END}\key{ACTION\_EXAMINE\_ALL\_END}
@@ -20172,8 +20175,7 @@ On any other error, {\tt dp\_Res1} shall be set to {\tt DOSFALSE} and
 
 The {\tt ACTION\_EXAMINE\_FH}\mkey{ACTION\_EXAMINE\_FH} packet examines
 an object identified by a file handle\key{FileHandle} rather than a
-lock\key{Lock}; that is, it uses the (implied) lock of the opened file to
-retrieve information on the opened file.
+lock\key{Lock}.
 
 \begin{rkrmtable}{\tt ACTION\_EXAMINE\_FH} \label{table:actionexaminefh}
 {\bf DosPacket Element}   & {\bf Value}\\ \hline \hline
@@ -20189,7 +20191,7 @@ of the \emph{dos.library}, see section~\ref{sec:examinefh}, and
 retrieves information on an object from a file handle\key{FileHandle}
 opened to this object rather than a lock\key{Lock}. This packet therefore
 allows to retrieve information on files from handlers
-that do not support locks. It was introduced in AmigaDOS~36.
+that do not support locks. It was introduced in AmigaDOS version~36.
 \smallskip{}
 
 {\tt dp\_Arg1} is a copy of the {\tt fh\_Arg1} element of the
