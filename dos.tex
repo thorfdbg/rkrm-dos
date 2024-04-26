@@ -19359,7 +19359,7 @@ value {\tt EXCLUSIVE\_LOCK}\key{EXCLUSIVE\_LOCK} requests an exclusive
 lock. Attempting to exclusively lock an object that is already locked
 shall fail, and attempting to lock an object that is already
 exclusively locked shall fail as well\footnote{As the root directory is always
-represented as {\tt ZERO}\key{ZERO lock} lock, an exclusive lock on this directory
+also represented as {\tt ZERO}\key{ZERO lock} lock, an exclusive lock on this directory
 is probably not very exclusive, which is why~\cite{guru} suggests not to
 permit exclusive locks on the volume root.}.
 Unfortunately, some programs call {\tt Lock()}\key{Lock()} with an
@@ -19368,9 +19368,9 @@ to receive such values in {\tt dp\_Arg3}. They should be considered equivalent t
 {\tt SHARED\_LOCK}\key{SHARED\_LOCK}.
 \smallskip{}
 
-As opening files implies getting a file system internal lock on the
-file to be opened, an exclusively locked file cannot be opened again
-in any mode, except by turning the lock into a file by
+As opening a file implies getting access rights on the file to be opened
+similar to locks, an exclusively locked file cannot be opened
+in any mode from its name, but only by 
 {\tt ACTION\_FH\_FROM\_LOCK}\key{ACTION\_FH\_FROM\_LOCK}.
 A file locked in a shared mode cannot be replaced by a
 packet of type {\tt ACTION\_FINDOUTPUT}, but is accessible in any
@@ -19397,7 +19397,7 @@ representing the volume on which the locked object is located, see
 chapter~\ref{sec:devicelist}.
 \smallskip{}
 
-{\tt fl\_Access}\key{fl\_Access} shall be filled with {\tt dp\_Arg2},
+{\tt fl\_Access}\key{fl\_Access} shall be filled with {\tt dp\_Arg3},
 identifying the type of the lock\key{Lock}.
 \smallskip{}
 
@@ -19406,7 +19406,8 @@ on a volume that is currently not accessible. As locking an object on a
 non-inserted volume is not possible, this element is only filled when
 a volume containing locked objects is ejected or becomes otherwise inaccessible.
 The file system will then store all such locks in a singly linked list
-starting at {\tt dol\_LockList}\key{dol\_LockList} and chained by {\tt fl\_Link}.
+starting at {\tt dol\_LockList}\key{dol\_LockList} of the
+{\tt DosList}\key{DosList} and chained by {\tt fl\_Link}.
 If the same volume is then re-inserted into another drive, another
 instance of the same file system is able to pick up these locks and
 manages them instead; this requires patching {\tt fl\_Task} to point to
@@ -19444,8 +19445,8 @@ of their memory representation.
 This packet implements the {\tt DupLock()}\key{DupLock()} function of
 the \emph{dos.library}, see section~\ref{sec:duplock}, and attempts to
 replicate the lock\key{Lock} passed in {\tt dp\_Arg1}. If this
-argument is {\tt ZERO}, the packet is shall to create a lock on the
-root directory of the currently mounted volume.
+argument is {\tt ZERO}, the packet shall create a lock on the
+root directory of the currently inserted volume.
 \smallskip{}
 
 On success, {\tt dp\_Res1} is filled with the BPTR to a copy of the
@@ -19481,7 +19482,8 @@ object identified by {\tt dp\_Arg1}. If no parent exists because
 {\tt dp\_Arg1} is a lock on the root directory or the {\tt ZERO}
 lock\key{ZERO lock}, the file system shall set {\tt dp\_Res1} to
 {\tt ZERO} and {\tt dp\_Res2} to~0, indicating that this is not a failure
-case. In particular, {\tt dp\_Arg1} may also be the lock on a file.
+case. Note that {\tt dp\_Arg1} may also be the lock on a file in which case
+a lock on the containing directory shall be created.
 \smallskip{}
 
 This packet is subtly different from attempting to lock the path
@@ -19491,16 +19493,19 @@ find the parent of the root directory. In all other cases, the two
 approaches to lock the parent directory work alike.
 \smallskip{}
 
-This packet returns on success a BPTR to the {\tt FileLock}\key{FileLock}
-representing the parent directory in {\tt dp\_Arg1} and sets {\tt dp\_Arg2}
-to~0. On error, {\tt dp\_Res1} is set to {\tt ZERO} and {\tt dp\_Arg2} to an
-error code.
+On success, this packet shall fill {\tt dp\_Res1} with a BPTR to
+a {\tt FileLock}\key{FileLock} representing the parent
+directory of {\tt dp\_Arg1}, or {\tt ZERO} if {\tt dp\_Arg1} is a lock
+on the root directory. {\tt dp\_Res2} shall be set to~0 on success.
+On error, {\tt dp\_Res1} is set to {\tt ZERO} and {\tt dp\_Arg2}
+to an error code.
 
 \subsection{Duplicating a Lock from a File Handle}
 
 The packet {\tt ACTION\_COPY\_DIR\_FH}\mkey{ACTION\_COPY\_DIR\_FH} creates a
-shared lock\key{Lock} from an opened file represented by a file handle\key{FileHandle}; that is, it
-copies the implicit lock of the handle.
+shared lock\key{Lock} from an opened file represented by a file
+handle\key{FileHandle}; that is, it locks the object accessed by the
+handle.
 
 \begin{rkrmtable}{\tt ACTION\_COPY\_DIR\_FH} \label{table:actioncopydirfh}
 {\bf DosPacket Element}   & {\bf Value}\\ \hline \hline
@@ -19511,20 +19516,22 @@ copies the implicit lock of the handle.
 \end{rkrmtable}
 
 This packet implements the {\tt DupLockFromFH()}\key{DupLockFromFH()}
-function of the \emph{dos.library}, see~\ref{sec:duplockfromfh}, and
-thus creates a copy of the lock\key{Lock} that is implicit to a file handle\key{FileHandle}.
-It was added in AmigaDOS~36. Duplicating the lock associated to a file handle
+function of the \emph{dos.library}, see~\ref{sec:duplockfromfh}.
+It was added in AmigaDOS~36. Creating a lock from a file handle
 works only if the file has been opened in a non-exclusive mode, i.e.\
-either in {\tt MODE\_READWRITE}\key{MODE\_READWRITE} or in {\tt MODE\_OLDFILE}\key{MODE\_OLDFILE}.
+either in {\tt MODE\_READWRITE}\key{MODE\_READWRITE} or in
+{\tt MODE\_OLDFILE}\key{MODE\_OLDFILE}, and results in a shared lock
+on the opened file.
 \smallskip{}
 
-{\tt dp\_Arg1} is a copy of the {\tt fh\_Arg1} element of the {\tt FileHandle} structure
-and thus serves to identify the opened file. This handle shall stay usable after this packet
-returns.
+{\tt dp\_Arg1} is a copy of the {\tt fh\_Arg1} element of the
+{\tt FileHandle} structure, see section~\ref{sec:filehandle}, 
+and thus serves to identify the opened file. This handle shall remain
+unchanged and usable after this packet returns.
 \smallskip{}
 
-On success, {\tt dp\_Res1} shall be filled by the BPTR to the {\tt FileLock}\key{FileLock} created,
-namely a shared lock\key{Lock} to the file opened by the file handle\key{FileHandle}. In such a case,
+On success, {\tt dp\_Res1} shall be filled by the BPTR to the
+{\tt FileLock}\key{FileLock} created. In such a case,
 {\tt dp\_Res2} shall be set to~0. On error, {\tt dp\_Res1} shall be set to
 {\tt ZERO} and {\tt dp\_Res2} to an error code.
 
@@ -19544,8 +19551,8 @@ on the directory containing a file identified by a file handle\key{FileHandle}.
 This packet implements the {\tt ParentOfFH()}\key{ParentOfFH()}
 function of the \emph{dos.library}, see section~\ref{sec:parentoffh},
 and as such creates a shared lock\key{Lock} on the directory that
-contains the provided file handle\key{FileHandle}. Same as the function,
-this packet was added in AmigaDOS~36.
+contains the file opened to the provided file handle\key{FileHandle}.
+Same as the function, this packet was added in AmigaDOS~36.
 \smallskip{}
 
 {\tt dp\_Arg1} is a copy of the {\tt fh\_Arg1} element of the
@@ -19582,18 +19589,18 @@ are as follows:
 \smallskip{}
 
 The lock in {\tt dp\_Arg1} is the directory to which the path in
-{\tt dp\_Arg2} is relative. This is, for example, the current directory
-of the process calling {\tt CreateDir()}.
+{\tt dp\_Arg2} is relative. The {\tt CreateDir()} function fills it
+with the current directory of the calling process.
 \smallskip{}
 
-The path in {\tt dp\_Arg2} is logically concatenated to the directory
+The path in {\tt dp\_Arg2} is logically concatenated with the directory
 represented by the lock in {\tt dp\_Arg1}, or is relative to the root
 directory of the currently inserted volume if {\tt dp\_Arg1} is
 {\tt ZERO}\key{ZERO lock}. The name of the directory to be created is given by the last
 component of the path in {\tt dp\_Arg2}, all components in the path
 upfront must exist or the packet shall fail with the error
 {\tt ERROR\_OBJECT\_NOT\_FOUND}\key{ERROR\_OBJECT\_NOT\_FOUND}, i.e.\
-this packet does not attempt to create directories recursively.
+this packet shall not attempt to create directories recursively.
 \smallskip{}
 
 If the path in {\tt dp\_Arg2} describes an already existing file
@@ -19748,8 +19755,9 @@ success and {\tt DOSFALSE} on error. On success, {\tt dp\_Res2} shall be set
 to~0, otherwise it shall be set to an error code. There are actually only few
 reasons why this packet could fail, probably because the passed in BPTR is
 invalid and does not point to a valid {\tt FileLock}\key{FileLock}. The {\tt UnLock()}
-function does not return this result code, but only adjusts {\tt IoErr()}\key{IoErr()}
-from {\tt dp\_Res2}.
+function does not return this result code, and also ignores
+{\tt dp\_Res2}. Thus, the \emph{dos.library} has no means to forward such
+errors to its callers.
 
 \section{Packets for Examining Objects} \label{sec:actionfib}
 
