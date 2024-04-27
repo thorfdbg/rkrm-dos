@@ -21085,7 +21085,7 @@ code.
 
 The packets in this section implement notification requests. Once a
 notification request has been registered, the file system informs a task
-through a signal or through a message send to a port if the observed object
+through a signal or through a message send to a port when the observed object
 changes. This mechanism is for example used by the {\tt IPrefs} program to
 load new preferences when they are modified through the preferences editors.
 The \emph{dos.library} interface for notification requests is introduced in
@@ -21104,11 +21104,11 @@ notification request at a file system.
 \tt dp\_Res2  & Error code \\ \hline
 \end{rkrmtable}
 
-This packet implements the {\tt StartNotify()}\key{StartNotify()}
-function of the \emph{dos.library}, see section~\ref{sec:startnotify},
-registering a request at a file system to get informed on changes
-on a file system object. Notification requests, and therefore this packet, have been
-introduced in AmigaDOS~36.
+This packet implements the {\tt StartNotify()}\key{StartNotify()} function
+of the \emph{dos.library}, see section~\ref{sec:startnotify}.  It registers
+a request at a file system to get informed on changes on a selected file
+system object. Notification requests, and therefore this packet, have been
+introduced in AmigaDOS version~36.
 \smallskip{}
 
 {\tt dp\_Arg1} is a C pointer\footnote{In~\cite{Bantam} this argument is
@@ -21118,10 +21118,10 @@ to be monitored, and the task, signal or message port to be triggered
 on such changes. This structure is specified in section~\ref{sec:startnotify}.
 \smallskip{}
 
-The {\tt nr\_FullName} element of the {\tt NotifyRequest}\key{NotifyRequest} structure
+The {\tt nr\_FullName}\key{nr\_FullName} element of the {\tt NotifyRequest}\key{NotifyRequest} structure
 is already filled by an absolute path to the object to be monitored which may
 or may not yet exist. This path is computed by the \emph{dos.library}
-within the {\tt StartNotify()} function from the {\tt nr\_Name} element and
+within the {\tt StartNotify()} function from the {\tt nr\_Name}\key{nr\_Name} element and
 the current directory of the calling process, and the file system shall
 depend on this path and not on the contents of {\tt nr\_Name} which, from the
 perspective of the file system, is undefined and may not even be filled.
@@ -21131,12 +21131,57 @@ The file system should store this request in its internal structures,
 and then monitor the object and hard links\key{Hard Link} to the
 object identified by {\tt nr\_FullName} for changes. Notification
 requests on directories shall also monitor objects directly contained
-in this directory, though not contained recursively in one of its sub-directories.
+in this directory for changes; the request does not extend recursively to
+the contents of sub-directories.
+\medskip{}
+
+A notification event is either signaled through {\tt Signal()} or by
+sending a message to a {\tt MsgPort}:
 \smallskip{}
 
-The following table lists the packets which shall or may trigger a
-notification request on a monitored object, or the parent directory
-within which an object is modified.
+If {\tt NRF\_SEND\_MESSAGE}\key{NRF\_SEND\_MESSAGE} is set in
+{\tt nr\_Flags}, then a {\tt NotifyMessage}\key{NotifyMessage} is send to the
+port indicated in {\tt nr\_Msg.nr\_Port}\key{nr\_Port}. This structure is also specified
+in section~\ref{sec:startnotify}. Its {\tt nm\_Class} element shall be set
+to {\tt NOTIFY\_CLASS}\key{NOTIFY\_CLASS}, and its {\tt nm\_Code} element to
+{\tt NOTIFY\_CODE}\key{NOTIFY\_CODE}, both are defined in
+{\tt dos/notify.h}. In addition, {\tt nm\_NReq} shall point to the
+{\tt NotifyRequest}\key{NotifyRequest} structure through which the object is monitored. The
+elements {\tt nm\_DoNotTouch} and {\tt nm\_DoNotTouch2} may be used for
+internal administration of the file system.
+\smallskip{}
+
+If {\tt NRF\_SEND\_SIGNAL}\key{NRF\_SEND\_SIGNAL} is set, then the file system shall
+set a signal bit of the target task if the monitored object changes by
+\begin{verbatim}
+  Signal(nr->nr_Signal.nr_Task,1UL<<nr->nr_Signal.nr_SignalNum);
+\end{verbatim}
+\medskip{}
+
+If the {\tt NRF\_NOTIFY\_INITIAL}\key{NRF\_NOTIFY\_INITIAL} flag is set in {\tt nr\_Flags}\key{nr\_Flags}, the
+file system shall send a notification immediately after receiving
+this packet, regardless of whether or not the object has been modified
+already. If {\tt NRF\_WAIT\_REPLY}\key{NRF\_WAIT\_REPLY} is set, and a {\tt NotifyMessage}\key{NotifyMessage} has
+already been send out, it shall rather note the modification, though defer
+any further notification on the same object until the former
+{\tt NotifyMessage} has been replied. This avoids queuing up too many
+notifications at the client port.
+The {\tt NRF\_MAGIC}\mkey{NRF\_MAGIC} bit in {\tt nr\_Flags}\key{nr\_Flags} may be
+used by the handler to implement this functionality; it may mark those requests
+for which a message has been send, but no reply has been received yet.
+\smallskip{}
+
+{\tt NRF\_WAIT\_REPLY} is, of course, non-functional if notifications are
+transmitted through a signal by {\tt NRF\_SEND\_SIGNAL}\key{NRF\_SEND\_SIGNAL}.
+\medskip{}
+
+Table~\ref{table:notifyingpackets} lists the packets which shall or may
+trigger a notification request on a monitored object. Some changes do not
+trigger a notification request immediately, but only after the modified file
+is closed. This avoids sending notifications on incomplete objects and
+avoids piling up too many notifications at once. Monitoring a directory
+implicitly also monitors its direct content for the changes listed in this
+table.
 
 \begin{rkrmtabular}{Packets triggering a Notification} \label{table:notifyingpackets}
 \begin{longtable}{|ll|} \hline
@@ -21167,46 +21212,10 @@ changed, and re-inserted into another drive, the notification requests
 need to be carried over to the file system of the drive into which the
 medium has been reinserted, in the same way locks are carried over from
 one file system to the other, see~\ref{sec:actionlocateobject}.
-This step also requires patching the {\tt nr\_Handler}\key{nr\_Handler} element
-of the file system such that the correct file system will be contacted for canceling
-the request.
-\smallskip{}
-
-If the {\tt NRF\_NOTIFY\_INITIAL}\key{NRF\_NOTIFY\_INITIAL} flag is set in {\tt nr\_Flags}, the
-file system shall send a notification immediately after receiving
-this packet, regardless of whether or not the object has been modified
-already. If {\tt NRF\_WAIT\_REPLY}\key{NRF\_WAIT\_REPLY} is set, and a {\tt NotifyMessage}\key{NotifyMessage} has
-already been send out, it shall rather note the modification, though defer
-any further notification on the same object until the former
-{\tt NotifyMessage} has been replied. This avoids queuing up too many
-notifications at the client port.
-The {\tt NRF\_MAGIC}\mkey{NRF\_MAGIC} bit in {\tt nr\_Flags} may be
-used by the handler to implement this functionality; it may mark those requests
-for which a message has been send, but no reply has been received yet.
-\medskip{}
-
-A notification event is either signaled through {\tt Signal()} or by
-sending a message to a {\tt MsgPort}:
-\smallskip{}
-
-If {\tt NRF\_SEND\_MESSAGE}\key{NRF\_SEND\_MESSAGE} is set in
-{\tt nr\_Flags}, then a {\tt NotifyMessage}\key{NotifyMessage} is send to the
-port indicated in {\tt nr\_Msg.nr\_Port}. This structure is also specified
-in section~\ref{sec:startnotify}. Its {\tt nm\_Class} element shall be set
-to {\tt NOTIFY\_CLASS}\key{NOTIFY\_CLASS}, and its {\tt nm\_Code} element to
-{\tt NOTIFY\_CODE}\key{NOTIFY\_CODE}, both are defined in
-{\tt dos/notify.h}. In addition, {\tt nm\_NReq} shall point to the
-{\tt NotifyRequest}\key{NotifyRequest} structure through which the object is monitored. The
-elements {\tt nm\_DoNotTouch} and {\tt nm\_DoNotTouch2} may be used for
-internal administration of the file system.
-\smallskip{}
-
-If {\tt NRF\_SEND\_SIGNAL}\key{NRF\_SEND\_SIGNAL} is set, then the file system should
-trigger a signal bit on the target task if the monitored object changes by
-\begin{verbatim}
-  Signal(nr->nr_Signal.nr_Task,1UL<<nr->nr_Signal.nr_SignalNum);
-\end{verbatim}
-For this method, {\tt NRF\_WAIT\_REPLY} is, of course, non-functional.
+On a medium change, the file system shall also patch the {\tt nr\_Handler}\key{nr\_Handler} element
+of the {\tt NotifyRequest} structure to point to the {\tt MsgPort} of the
+file system into which the medium has been re-inserted. This ensures that
+the correct file system is contacted for canceling the request.
 \medskip{}
 
 Upon replying this packet, {\tt dp\_Res1} shall be set to a boolean success
@@ -21217,7 +21226,7 @@ be set to~0. On failure, {\tt dp\_Res1} shall be set to {\tt DOSFALSE} and
 \subsection{Canceling a Notification Request}
 
 The {\tt ACTION\_REMOVE\_NOTIFY}\mkey{ACTION\_REMOVE\_NOTIFY} packet cancels
-a notification request and aborts monitoring the object in the
+a notification request and aborts monitoring the object recorded in the
 {\tt NotifyRequest}\key{NotifyRequest} structure.
 
 \begin{rkrmtable}{\tt ACTION\_REMOVE\_NOTIFY} \label{table:actionremovenotify}
@@ -21232,7 +21241,7 @@ This packet implements the {\tt EndNotify()}\key{EndNotify()} function
 of the \emph{dos.library}, see section~\ref{sec:endnotify}, and
 terminates monitoring the object in {\tt nr\_FullName} element of the
 {\tt NotifyRequest}\key{NotifyRequest} structure. This packet was
-introduced along with notification requests in AmigaDOS~36.
+introduced along with notification requests in AmigaDOS version~36.
 \smallskip{}
 
 {\tt nr\_Arg1} is a C-pointer to the structure that indicates which
@@ -21244,8 +21253,8 @@ If any notifications are still pending, e.g.\ because the monitored object
 has already been changed through a file handle\key{FileHandle} though this file handle has
 not yet been closed, such pending notifications shall be canceled as
 well. The file system shall be aware that even after this packet has
-been replied, some {\tt NotifyMessage}s send out to clients may come back
-because the client is still working on them. In particular, the memory
+been replied, some {\tt NotifyMessage}s send out to clients can come back
+later because the client is still working on them. In particular, the memory
 associated to such messages shall not be released upon receiving the
 {\tt ACTION\_REMOVE\_NOTIFY}\key{ACTION\_REMOVE\_NOTIFY} packet, but
 only after the {\tt NotifyMessage} has
@@ -21300,7 +21309,7 @@ From there, the name is copied into the requester, for example to ask the user t
 a {\tt FileHandle} structure, or shall be {\tt ZERO}. If a non-{\tt ZERO} handle is
 provided, the file system shall provide a BPTR to the {\tt DosList} of the
 volume the handle is located on in {\tt dp\_Res1}. In such case, the packet is safe as the
-volume entry cannot vanish as long as the lock\key{Lock} implicit to the handle
+volume entry cannot vanish as long as the handle still 
 uses it\footnote{In~\cite{Bantam}, {\tt dp\_Arg1} is not mentioned,
 though providing it is important to avoid a race condition. The RAM-Handler\key{RAM-Handler}
 is probably an exception as it only maintains a single volume that cannot vanish during its lifetime.}.
@@ -21315,17 +21324,14 @@ a case, the issuer of the packet should lock\key{Lock} the device list\key{Devic
 and should copy the name before the list is unlocked again, i.e.\
 
 \begin{verbatim}
-char name[256];
-struct DosList *dl;
-
-  LockDosList(LDF_VOLUMES|LDF_READ);
-  dl = (struct DosList *)BADDR(DoPkt0(port,ACTION_CURRENT_VOLUME));
-  if (dl) {
-    /* dol_Name is always a 0-terminated BSTR */
-    strncpy(name,(UBYTE *)BADDR(dl->dol_Name) + 1,sizeof(name));
-    name[sizeof(name)-1] = 0;
-  } else name[0] = 0;
-  UnLockDosList(LDF_VOLUMES|LDF_READ);
+LockDosList(LDF_VOLUMES|LDF_READ);
+dl = (struct DosList *)BADDR(DoPkt1(port,ACTION_CURRENT_VOLUME,NULL));
+if (dl) {
+  /* dol_Name is always a 0-terminated BSTR */
+  strncpy(name,(UBYTE *)BADDR(dl->dol_Name) + 1,sizeof(name));
+  name[sizeof(name)-1] = 0;
+} else name[0] = 0;
+UnLockDosList(LDF_VOLUMES|LDF_READ);
 \end{verbatim}
 
 The file system shall set {\tt dp\_Res1} to a BPTR to the
@@ -21348,7 +21354,7 @@ file handles.
 \subsection{Retrieving Information on a Volume from a Lock} \label{sec:actioninfo}
 
 The {\tt ACTION\_INFO}\mkey{ACTION\_INFO} packet retrieves information on a
-volume, given a lock\key{Lock} on an object on the volume, and provides it in an
+volume, given a lock\key{Lock} of an object on the volume, and provides it in an
 {\tt InfoData} structure.
 
 \begin{rkrmtable}{\tt ACTION\_INFO} \label{table:actioninfo}
@@ -21380,7 +21386,7 @@ currently inserted volume; if no volume is inserted, it shall fail with
 {\tt ERROR\_NO\_DISK}\key{ERROR\_NO\_DISK}. If the inserted volume
 could not be validated, the error code
 {\tt ERROR\_NOT\_A\_DOS\_DISK}\key{ERROR\_NOT\_A\_DOS\_DISK} shall be
-returned.
+indicated.
 \smallskip{}
 
 {\tt dp\_Arg2} is a BPTR to an {\tt InfoData}\key{InfoData} structure
@@ -21401,7 +21407,7 @@ This packet is \emph{not identical} to {\tt ACTION\_DISK\_INFO}\key{ACTION\_DISK
 introduced in section~\ref{sec:packetdiskinfo} even if {\tt dp\_Arg1} is
 set to {\tt ZERO}. {\tt ACTION\_INFO} checks in addition the state of the inserted volume and generates
 an error code if no disk is inserted or the inserted disk is not validated. The packet in
-section~\ref{sec:packetdiskinfo} does not fail under such conditions, but returns the
+section~\ref{sec:packetdiskinfo} does not fail under such conditions, but returns a
 disk state in the {\tt InfoData}\key{InfoData} structure in any case.
 
 \subsection{Retrieving Information on the Currently Inserted Volume} \label{sec:packetdiskinfo}
@@ -21486,10 +21492,10 @@ be set to~0. On failure, {\tt dp\_Res1} shall be set to {\tt DOSFALSE} and
 {\tt dp\_Res2} to an error code.
 \smallskip{}
 
-This packet does not use any mechanism to identify the medium to be
-relabeled. If the user changes the medium after the packet has been send,
-but before it has been received by the file system, the recently inserted
-medium will be relabeled.
+This packet does not provide means to identify the medium to be relabeled,
+it always affects the currently inserted medium. If the user changes the
+medium after the packet has been send, but before it has been received by
+the file system, the recently inserted medium will be relabeled.
 
 \subsection{Initializing a New File System} \label{sec:actionformat}
 
@@ -21509,8 +21515,8 @@ medium, drive or partition.
 
 This packet implements the {\tt Format()}\key{Format()} function of
 the \emph{dos.library} introduced in section~\ref{sec:format}. It
-was added in AmigaDOS~36. Before that release, the {\tt Format}
-command of the Workbench included code to
+was added in AmigaDOS version~36. Before that release, the {\tt Format}
+command of the Workbench included the code to
 initialize the OFS or FFS\key{Fast File System (FFS)} disk structure.
 \smallskip{}
 
@@ -21518,7 +21524,7 @@ When the file system receives this packet, it performs a
 soft-initialization of the partition or medium currently
 inserted. Note, however, that it does not perform
 low-level formatting, such as creating sectors on a floppy disk or
-issuing a low-level SCSI command. If this is intended, formatting must be
+issuing a low-level SCSI format command. If this is intended, formatting must be
 performed by a client application, e.g.\ by using the {\tt TD\_FORMAT} command of
 the underlying exec device. This packet only writes administration information
 on a volume that represents it in empty state. This packet and
@@ -21562,10 +21568,10 @@ distinguishable from other media available to the system.
 \end{rkrmtable}
 
 This packet is not exposed by the \emph{dos.library}. The packet interface
-e.g.\ {\tt DoPkt()}\key{DoPkt()}, needs to be used to issue it. The purpose
+e.g.\ {\tt DoPkt()}\key{DoPkt()}, must be used to issue it. The purpose
 of this packet is to ensure that the volume inserted in a drive is unique
-and distinguishable from other volumes. Along with {\tt
-  ACTION\_FORMAT}\key{ACTION\_FORMAT}, this packet shall only be issued while
+and distinguishable from other volumes. Along with
+{\tt ACTION\_FORMAT}\key{ACTION\_FORMAT}, this packet shall only be issued while
 the file system is inhibited, see sections~\ref{sec:inhibit}
 and~\ref{sec:packetinhibit}.
 \smallskip{}
@@ -21620,8 +21626,8 @@ password key used for re-protection.
 
 {\tt dp\_Arg2} is an integer password hash key that is stored internally in
 the file system when the write protection is set, and compared against if it
-is to be released again. If this has is 0, then any password releases the lock;
-otherwise, if the stored password hash is not equal to the
+is to be released again. If this hash is 0, then any password releases the lock;
+otherwise, if the received password hash is not equal to the
 original hash, attempting to release the protection shall fail with
 {\tt ERROR\_INVALID\_COMPONENT\_NAME}\key{ERROR\_INVALID\_COMPONENT\_NAME}.
 \medskip{}
@@ -21655,7 +21661,7 @@ or parallel port and also makes the printer accessible to AmigaDOS.
 \subsection{Waiting for Input Becoming Available} \label{sec:actionwaitchar}
 
 The packet {\tt ACTION\_WAIT\_CHAR}\mkey{ACTION\_WAIT\_CHAR} waits for
-characters becoming available on an interactive handler.
+characters becoming available from an interactive handler.
 
 \begin{rkrmtable}{\tt ACTION\_WAIT\_CHAR} \label{table:actionwaitchar}
 {\bf DosPacket Element}   & {\bf Value}\\ \hline \hline
@@ -21868,7 +21874,7 @@ void CursorPosition(BPTR file,LONG *x,LONG *y)
 /*
 ** Maximum time to wait for the console
 ** to respond in ticks. May require 
-** adjustment on slow connections.
+** adjustment for slow connections.
 */
 #define MAX_DELAY       200000
 
@@ -21894,14 +21900,16 @@ UBYTE in;
   negative = FALSE;
   counter  = 0;
 
-  /* Now send a window borders request to the stream */
+  /* Now send a window borders or
+  ** cursor status request to the stream 
+  */
   if (answer == 'R') {
     Write(file,"\033[6n",4);
   } else {
     Write(file,"\033[0 q",5);
   }
 
-  /* Now parse an incoming string */
+  /* Parse the incoming string */
   for(;;) {
     if (WaitForChar(file,MAX_DELAY) == FALSE) {
       success = FALSE;
@@ -21913,6 +21921,10 @@ UBYTE in;
       break;
     }
 
+    /*
+    ** State machine for interpreting CSI or ESC
+    ** sequences.
+    */
     if (incsi) {
       if ((in<' ') || (in>'~')) { /* Invalid sequence? */
         incsi = FALSE;
@@ -22017,8 +22029,10 @@ any resources obtained by {\tt ACTION\_DISK\_INFO}\key{ACTION\_DISK\_INFO}.
 \tt dp\_Res2  & Error code\\ \hline
 \end{rkrmtable}
 
-This packet is not exposed by the \emph{dos.library}, the packet needs to be
-issued through the {\tt DoPkt()}\key{DoPkt()} function.
+This packet is not exposed by the \emph{dos.library}, the packet must be
+issued through the {\tt DoPkt()}\key{DoPkt()} function. It was added in
+AmigaDOS version~45, but was already implemented in some third party
+handlers before.
 \smallskip{}
 
 The purpose of this packet is to let the console know that the pointers to
@@ -22061,13 +22075,14 @@ start of the output buffer of the console.
 \tt dp\_Res2  & Error code\\ \hline
 \end{rkrmtable}
 
-This packet is not exposed by the \emph{dos.library}, it rather needs to be
+This packet is not exposed by the \emph{dos.library}, it rather must be
 issued through the packet interface, e.g.\ {\tt DoPkt()}\key{DoPkt()}. This packet injects
 a line at the top of the output buffer of the console. This buffer keeps all
 lines entered by the user, and lines injected by {\tt ACTION\_STACK}\key{ACTION\_STACK} and
 {\tt ACTION\_QUEUE}\key{ACTION\_QUEUE}. The number of lines in this output buffer can be
 obtained through {\tt ACTION\_WAIT\_CHAR}\key{ACTION\_WAIT\_CHAR} which delivers the line count in
-{\tt dp\_Res2}.
+{\tt dp\_Res2}. While this packet does not show up in~\cite{Bantam}, it is
+present since AmigaDOS version~36 and the integration of ARexx.
 \smallskip{}
 
 Lines from this buffer are provided to clients on {\tt ACTION\_READ}\key{ACTION\_READ}
@@ -22112,13 +22127,14 @@ of the output buffer of the console.
 \tt dp\_Res2  & Error code\\ \hline
 \end{rkrmtable}
 
-This packet is not exposed by the \emph{dos.library}, it rather needs to be
+This packet is not exposed by the \emph{dos.library}, it rather must be
 issued through the packet interface, e.g.\ {\tt DoPkt()}\key{DoPkt()}. This packet injects
 a line at the end of the output buffer of the console. This buffer keeps all
 lines entered by the user, and lines injected by {\tt ACTION\_STACK}\key{ACTION\_STACK} and
 {\tt ACTION\_QUEUE}\key{ACTION\_QUEUE}. The number of lines in this output buffer can be
 obtained through {\tt ACTION\_WAIT\_CHAR}\key{ACTION\_WAIT\_CHAR} which delivers the line count in
-{\tt dp\_Res2}.
+{\tt dp\_Res2}. While this packet does not show up in~\cite{Bantam},
+it is present since AmigaDOS version~36 and the integration of ARexx.
 \smallskip{}
 
 Lines from this buffer are provided to clients on {\tt
@@ -22164,21 +22180,23 @@ the keyboard input buffer of the console, as if the user typed them.
 \tt dp\_Res2  & Error code\\ \hline
 \end{rkrmtable}
 
-This packet is not exposed by the \emph{dos.library}, it rather needs to be
-issued through the packet interface, e.g.\ {\tt DoPkt()}\key{DoPkt()}. This packet injects
-characters into the input buffer of the console, at the same place
-keystrokes are recorded. Such characters are echoed on the console, or
-executed in case of control sequences. E.g, this packet also allows to move
+This packet is not exposed by the \emph{dos.library}, it rather must be
+issued through the packet interface, e.g.\ {\tt DoPkt()}\key{DoPkt()}. This
+packet injects characters into the input buffer of the console, at the same
+place keystrokes are recorded. Such characters are echoed on the console, or
+executed in case of control sequences. E.g.\ this packet also allows to move
 the cursor left or right, or erase the current line by emulating the
-corresponding keystrokes.
+corresponding keystrokes. While this packet does not show up
+in~\cite{Bantam}, it is present since AmigaDOS version~36, though did not
+work as intended before AmigaDOS version~47.
 \smallskip{}
 
 Note that the keyboard input buffer is different from the line output
 buffer; lines entering the console through {\tt ACTION\_FORCE}\key{ACTION\_FORCE} qualify as
-keyboard input\footnote{Even though the V40 CON-Handler\key{CON-Handler} already supported
+keyboard input\footnote{Even though the V36 CON-Handler\key{CON-Handler} already supported
 this packet, it is there implemented incorrectly and does not impact the
-keyboard buffer. This was fixed in V47.}. The main user of this packet is
-the Shell which injects TAB-expanded file names into the console. The
+keyboard buffer but the output buffer. This was fixed in V47.}. The main
+user of this packet is the Shell which injects TAB-expanded file names into the console. The
 {\tt ConClip} command also uses this packet to insert the paths of icons
 dropped on the console window.
 \medskip{}
@@ -22214,13 +22232,15 @@ have been injected into the output buffer and thus reverts any {\tt
 \tt dp\_Res2  & Error code\\ \hline
 \end{rkrmtable}
 
-This packet is not exposed by the \emph{dos.library}, it rather needs to be
+This packet is not exposed by the \emph{dos.library}, it rather must be
 issued through the packet interface, e.g.\ {\tt DoPkt()}\key{DoPkt()}. This packet removes
 any lines injected by {\tt ACTION\_STACK}\key{ACTION\_STACK} and {\tt ACTION\_QUEUE}\key{ACTION\_QUEUE} from
 the output buffer of the console and thus reverts their results.
 Keyboard inputs remain unaffected. Thus, this packet resets the line stack
 in the console. The intended purpose this packet is ARexx which,
-however, at the time of writing does not use it.
+however, at the time of writing does not use it. While this packet does not
+show up in~\cite{Bantam}, it is present since AmigaDOS version~36 and the
+integration of ARexx.
 \smallskip{}
 
 {\tt dp\_Arg1} is a copy of the {\tt fh\_Arg1} element of
@@ -22253,7 +22273,7 @@ associated to the console, should such a window exist, to foreground and activat
 it. If the console is a serial console or the console window is closed or
 iconified, no activity is performed and no error is reported. Unlike
 {\tt ACTION\_DISK\_INFO}\key{ACTION\_DISK\_INFO}, it will not force the window open if
-the window is currently closed.
+the window is currently closed. This packet was introduced in AmigaDOS version~47.
 \smallskip{}
 
 The primary user of this packet is the {\tt ConClip} tool
@@ -22286,7 +22306,8 @@ interface, e.g.\ {\tt DoPkt()}\key{DoPkt()}, is required to issue
 it. This packet defines one of the two ports to which break signals as
 generated by the {\tt Ctrl-C} to {\tt Cltr-F} key combinations are
 send. Actually, the port itself is not used as such, but only its
-{\tt mp\_Task} element providing the task to which signals are send.
+{\tt mp\_Task} element providing the task to which signals are send. This
+packet was introduced in AmigaDOS version~36.
 \smallskip{}
 
 The port set by this packet is implicitly overridden and replaced by
@@ -22312,7 +22333,7 @@ and ready tasks within {\tt ExecBase} for {\tt mp\_Task} and refuses to
 send a signal if the task is not found in one of the two lists.
 \smallskip{}
 
-This packet is, for example, used when a Shell is started in a console
+This packet is, for example, used when a shell is started in a console
 window, or a {\tt NewShell} command creates a shell in an already open
 console. In such a case, the {\tt System()}\key{System()} function as
 part of the \emph{dos.library} sends a {\tt ACTION\_CHANGE\_SIGNAL}\key{ACTION\_CHANGE\_SIGNAL} to the
@@ -22321,7 +22342,7 @@ started, and not the shell which is then running in the background
 \footnote{Unlike what~\cite{guru} claims, this packet is not send by {\tt CreateNewProc()}.}.
 This packet is \emph{not} send for executables started by the {\tt Run} command in the
 background. Even though {\tt Run} also goes through {\tt System()}\key{System()}, it uses
-different parameters that suppress its generation.
+different parameters that suppresses its generation.
 \medskip{}
 
 Arguments are populated as follows:
@@ -22347,8 +22368,8 @@ error code.
 
 \section{Packets Controlling the Handler in Total}
 
-The packets in this section impacts file systems and handlers at
-global. They do not apply to a particular volume.
+The packets in this section impacts file systems and handlers at a global
+level. They do not apply to a particular volume or file system object.
 
 \subsection{Adjusting the File System Cache} \label{sec:packetmorecache}
 
@@ -22363,15 +22384,16 @@ decreases the number of file system buffers.
 \tt dp\_Res2  & Error code\\ \hline
 \end{rkrmtable}
 
-This packet implements the {\tt AddBuffers()}\key{AddBuffers()}
-function of the \emph{dos.library} introduced in section~\ref{sec:addbuffers}.
-It increases or decreases the number of buffers the file system may use to cache data.
-How exactly a file system uses these buffers and how large these
-buffers are is specific to the file system implementation and its
+This packet implements the {\tt AddBuffers()}\key{AddBuffers()} function of
+the \emph{dos.library} introduced in section~\ref{sec:addbuffers}.  It
+increases or decreases the number of buffers the file system may use to
+cache data.  How exactly a file system uses these buffers and how large
+these buffers are is specific to the file system implementation and its
 configuration.
 \smallskip{}
 
-The FFS\key{Fast File System (FFS)} uses these buffers to temporary store administrative data such as
+The FFS\key{Fast File System (FFS)} uses these buffers to temporary store
+administration data such as
 blocks describing the directory structure or information which blocks a
 particular file occupies on disk. Providing additional buffers (within
 limits) can thus help to improve the performance of a file system by
@@ -22388,9 +22410,9 @@ system. File systems may clamp this value to guarantee that a minimum number
 of buffers are available, or limit the buffer count to a useful value
 \smallskip{}
 
-The FFS\key{Fast File System (FFS)} versions 34 and below did not
+The FFS\key{Fast File System (FFS)} versions~34 and below did not
 support reducing the number of buffers and neither accepted a value
-of~0 for the buffer increment. This was fixed in AmigaDOS~36.
+of~0 for the buffer increment. This was fixed in AmigaDOS version~36.
 \smallskip{}
 
 If this packet succeeds, the file system shall set {\tt dp\_Res1} to
@@ -22425,7 +22447,8 @@ This packet implements the {\tt Inhibit()}\key{Inhibit()} function of the
 \emph{dos.library}, see~\ref{sec:inhibit}. An inhibited file system is blocked from accessing its
 underlying medium for read and write access, with the exception of the
 {\tt ACTION\_FORMAT}\key{ACTION\_FORMAT} and {\tt ACTION\_SERIALIZE\_DISK}\key{ACTION\_SERIALIZE\_DISK}
-packets which remain operational, and even require the file system to be inhibited.
+packets which remain operational, and even require the file system to be
+inhibited.
 \smallskip{}
 
 An inhibited file system changes its disk type as reported by
@@ -22435,15 +22458,15 @@ in section~\ref{sec:info}.
 \smallskip{}
 
 Once the file system is uninhibited again, it shall perform a validation of
-the medium as if the medium has been re-inserted. This is necessary because
+the medium as if it has been re-inserted. This is necessary because
 an application bypassing the file system to access the medium directly could have
 changed the file system structure, the volume name or the date, or may have
-even written a completely new file system structure to it. This check thus
+even written a completely new file system structure on it. This check thus
 implies verifying the flavor of the file system, e.g.\ the {\tt DosType} for
 the FFS, and potentially creating and inserting a {\tt DosList} entry into
 the device list\key{Device List} representing the volume. Thus, first inhibiting and
 uninhibiting a file system is equivalent to simulating a medium change, which is
-also how the {\tt DiskChange} command implements a medium change.
+also how the {\tt DiskChange} command works.
 \smallskip{}
 
 {\tt id\_Arg1} is a boolean indicator that defines whether the file system
@@ -22454,10 +22477,13 @@ of {\tt ACTION\_FORMAT}\key{ACTION\_FORMAT} and {\tt ACTION\_SERIALIZE\_DISK}\ke
 should refrain from accessing the medium or partition.
 \smallskip{}
 
-Before replying this packet, {\tt dp\_Res1} shall be set to a boolean success
-indicator. On success, it shall be set to {\tt DOSTRUE} and {\tt dp\_Res2} shall
-be set to~0. On failure, {\tt dp\_Res1} shall be set to {\tt DOSFALSE} and
-{\tt dp\_Res2} to an error code.
+Before replying this packet, {\tt dp\_Res1} shall be set to a boolean
+success indicator. On success, it shall be set to {\tt DOSTRUE} and
+{\tt dp\_Res2} shall be set to~0. On failure, {\tt dp\_Res1} shall be set to
+{\tt DOSFALSE} and {\tt dp\_Res2} to an error code. A reason for failing to
+inhibit a volume is for example if any files are open for writing, and thus
+the bitmap is inconsistent. Inhibiting in such a case could damage the file
+system structure.
 
 \subsection{Check if a Handler is a File System}
 
@@ -22474,14 +22500,15 @@ a handler is a file system.
 This packet implements the {\tt IsFileSystem()}\key{IsFileSystem()}
 function of the \emph{dos.library} as introduced in
 section~\ref{sec:isfilesystem} and tests whether a particular handler
-provides sufficient services to operate as a file system.
+provides sufficient services to operate as a file system. This packet was
+introduced in AmigaDOS version~36.
 \smallskip{}
 
 A file system shall be able to access multiple separate files, shall
 be able to support locks\key{Lock} and shall also be able to examine
 directories such that commands like {\tt List} are able to show
 directory contents. A file system may be either a flat or a
-hierarchical file system, i.e.\ a file system is not required to
+hierarchical file system, i.e.\ file systems are not required to
 support multiple directories on a storage medium or partition.
 \smallskip{}
 
@@ -22499,7 +22526,7 @@ received by the {\tt IsFileSystem()} function, it falls back to a
 heuristic for determining whether a handler is a file system: it uses
 {\tt Lock(":",SHARED\_ACCESS)}\key{Lock()}, i.e.\ {\tt ACTION\_LOCATE\_OBJECT}\key{ACTION\_LOCATE\_OBJECT} to obtain
 a lock on the file system root. If successful, then the \emph{dos.library} assumes
-that the handler is, in fact, a file system.
+that the handler is actually a file system.
 
 \subsection{Write out all Pending Modifications}
 
@@ -22525,9 +22552,9 @@ This packet shall not be replied before all changes have been written back,
 the buffers at exec device level have been flushed to the physical
 layer, e.g.\ by a {\tt CMD\_UPDATE}, and if applicable, the drive
 motor has been turned off. However, FFS \key{Fast File System (FFS)}
-versions of~40 and before replied {\tt
-  ACTION\_FLUSH}\key{ACTION\_FLUSH} immediately and thus this packet
-only established a write barrier. This was fixed in~43.
+versions of~40 and before replied
+{\tt ACTION\_FLUSH}\key{ACTION\_FLUSH} immediately and thus this packet
+only established a write barrier. This was fixed in AmigaDOS version~43.
 \smallskip{}
 
 Even though it is unclear how clients could make use of the result code,
@@ -22551,28 +22578,24 @@ The packet {\tt ACTION\_DIE}\mkey{ACTION\_DIE} requests a file system unmount it
 \end{rkrmtable}
 
 This packet is not exposed through the \emph{dos.library}; rather, the
-packet needs to be send through the packet interface, i.e.\ through
+packet must be send through the packet interface, i.e.\ through
 {\tt DoPkt()}\key{DoPkt()}. This packet requests the file system to release all resources,
 set the {\tt dol\_Task}\key{dol\_Task} elements of the {\tt DosList}\key{DosList} structures in the
 device list\key{Device List} to {\tt NULL}, and then terminate the process.
 \smallskip{}
 
-A file system may not exit as long as client programs cache copies of
-its {\tt MsgPort}(s); this is typically the {\tt pr\_MsgPort} of the
-handler process which is released by AmigaDOS as soon as the process
-exits, and it will thus become unusable. At least all file
-handles\key{FileHandle}, locks\key{Lock} and {\tt
-  NotifyRequest}\key{NotifyRequest} need to indicate that the file
-system is no longer usable. Either, the file system may refuse to exit
-if some of these resources are still in use.  Alternatively, the file
-system may zero out the {\tt fh\_Type} element of all files open to
-it, thus essentially turning them into {\tt NIL:} file handles, also
-zero out the {\tt fl\_Task} elements of all active locks, and link
-them in {\tt dol\_LockList} of the {\tt DosList} of their
-corresponding volume as if the volume had been ejected, see also
-chapter~\ref{sec:devicelist}. There is unfortunately no easy way how
-to terminate a {\tt NotifyRequest}, and if some of them are still pending,
-the file system cannot quit and {\tt ACTION\_DIE} shall fail.
+A file system may not exit as long as client programs cache copies of its
+{\tt MsgPort}(s); this is typically the {\tt pr\_MsgPort} of the handler
+process which is released by AmigaDOS as soon as the process exits, and it
+will thus become unusable. At least all file handles\key{FileHandle},
+locks\key{Lock} and {\tt NotifyRequest}\key{NotifyRequest} need to indicate
+that the file system is no longer usable. Either, the file system may refuse
+to exit if some of these resources are still in use, or alternatively, the
+file system may zero out the {\tt fh\_Type} element of all files open to it,
+thus essentially turning them into {\tt NIL:} file handles. There is
+unfortunately no easy way how to terminate a lock or a {\tt NotifyRequest},
+and if some of them still exist, the file system cannot quit
+and {\tt ACTION\_DIE} shall fail.
 \smallskip{}
 
 As next step, references to the file system port(s) shall be removed from the
@@ -22587,14 +22610,13 @@ new file system from the {\tt dol\_SegList} segment\key{Segment} as soon as a cl
 requests to access it through its device name.
 \smallskip{}
 
-Unfortunately, even these precautions are not fully sufficient tor
-safely unmount a device because a client program can request a
-handler message port via {\tt GetDeviceProc()}\key{GetDeviceProc()} or
-{\tt DeviceProc()}\key{DeviceProc()} any time for direct communication
-and buffer the returned port beyond reach. Thus, a handler has no
-direct control of where cached copies of its port(s) are held, and
-thus whether it can safely terminate. This limits the utility of this
-packet to system debugging tools.
+Unfortunately, even these precautions are not fully sufficient to safely
+unmount a device because a client program can request a handler message port
+via {\tt GetDeviceProc()}\key{GetDeviceProc()} or
+{\tt DeviceProc()}\key{DeviceProc()} any time for direct communication and
+buffer the returned port. A handler has no direct control of where or whether
+cached copies of its port(s) are held, and thus whether it can safely
+terminate. This limits the utility of this packet to system debugging tools.
 \smallskip{}
 
 In case the file system can foresee that it cannot safely exit at the
@@ -22620,8 +22642,8 @@ Some handlers do not initialize the {\tt dol\_Task}\key{dol\_Task} element of it
 that are not file systems such as the CON-Handler\key{CON-Handler} are typical
 examples. Such handlers shall terminate themselves without requiring
 an {\tt ACTION\_DIE}\key{ACTION\_DIE} when the last resource opened
-had been shut down, i.e.\ all file handles\key{FileHandle} have been closed, all locks\key{Lock} (if
-they are supported at all) have been unlocked and all {\tt NotifyRequest}s
+had been shut down, i.e.\ all file handles\key{FileHandle} have been closed,
+all locks\key{Lock} (if they are supported at all) have been unlocked and all {\tt NotifyRequest}s
 (if supported) had been canceled.
 
 \subsection{Do Nothing}
@@ -22637,8 +22659,8 @@ The {\tt ACTION\_NIL}\mkey{ACTION\_NIL} packet performs no activity.
 
 This packet is not exposed by the \emph{dos.library}. It does not perform
 any activity. A handler or file system implementation should indicate
-success when replying this packet. Another reason why a seemingly {\tt
-  ACTION\_NIL}\key{ACTION\_NIL} packet can appear at a handler {\tt MsgPort} is because the
+success when replying this packet. Another reason why a seemingly
+{\tt ACTION\_NIL}\key{ACTION\_NIL} packet can appear at a handler {\tt MsgPort} is because the
 startup package has its {\tt dp\_Type} set to~0, too, and thus identifies itself
 also as {\tt ACTION\_NIL}. While {\tt ACTION\_NIL} does not provide
 any arguments, the startup package does, see
@@ -22653,7 +22675,7 @@ to~0. On an error {\tt dp\_Res2} shall be set to {\tt DOSFALSE} and
 
 \section{Handler Internal Packets}
 
-The packets in this section shall never be sent to a handler or filesystem
+The packets in this section shall never be sent to a handler or file system
 as part of an application request. Instead, these packets are only used
 internally within the handler, and are rather an implementation trick to
 uniform the handler event processing. While regular {\tt DosPackets}\key{DosPacket} are
@@ -22664,10 +22686,10 @@ replied {\tt IORequest}s and incoming packets as both appear as
 {\tt DosPackets}.
 \smallskip{}
 
-The {\tt io\_Message.mn\_Node.ln\_Name} points to the {\tt DosPacket}
+For such packets, the {\tt io\_Message.mn\_Node.ln\_Name} points to the {\tt DosPacket}
 structure, and its {\tt dp\_Link} elements points back to the
 {\tt IORequest}. Handlers dispatch these {\tt IORequest} to exec devices
-asynchronously with {\tt SendIO()}, and continue to process requests while
+asynchronously with {\tt SendIO()}, and continue processing requests while
 the exec device is busy with the requested input or output command. Due to
 its linkage to a {\tt DosPacket}\key{DosPacket}, a completed {\tt IORequest} is received by
 the packet interface of the handler as one of the packet types listed here.
