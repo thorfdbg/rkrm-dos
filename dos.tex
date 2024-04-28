@@ -23637,7 +23637,7 @@ initiated and configured, continues execution from
 More on Shell processing of scripts and its configuration through
 {\tt System()} is found in sections~\ref{sec:usershells} and \ref{sec:cliinitrun}.
 
-\section{Shell Process Control}
+\section{Creating and Controlling the Shell}
 
 The functions in this section create shell\key{Shell} processes and run commands within
 them, or overlay a shell process with a command. AmigaDOS also keeps a
@@ -23679,14 +23679,14 @@ D0              D1      D2
 
 LONG System(STRPTR, struct TagItem *)
 
-error = SystemTags(command, Tag1, ...)
+error = SystemTags(command, Tag1, ...) /* since V36 */
 
 LONG SystemTags(STRPTR, ULONG, ...)
 \end{verbatim}
 
 This function is the generic shell execution function that creates a shell
 in one or multiple modes, and executes the commands provided as first
-argument in that Shell. Hence, the first argument establishes a shell
+argument in that shell. Hence, the first argument establishes a shell
 script\key{Shell Script}, encoded as a string, that is interpreted by the
 shell. If the string depletes, the shell terminates without continuing to
 pull commands from its input stream; this is in contrast to the {\tt Execute()}
@@ -23766,19 +23766,21 @@ terminates, thus the caller needs to open a separate file handle as if
 used as argument to {\tt Open()}\key{Open()} to create a stream that will be
 used as input stream to the newly created shell\key{Shell}. This stream will always be
 closed when the created shell terminates, regardless of other tags. This tag is mutually exclusive
-to {\tt SYS\_Input}, it was introduced in AmigaDOS~47.
+to {\tt SYS\_Input}, it was introduced in AmigaDOS version~47.
 \smallskip{}
 
-{\tt SYS\_Output}\mkey{SYS\_Output} This tag defines a BPTR to a file handle\key{FileHandle} which will be
-used as output stream of the new shell\key{Shell}. This handle \emph{shall be
-different} from the handle provided by {\tt SYS\_Input}. If this tag is not
+{\tt SYS\_Output}\mkey{SYS\_Output} This tag defines a BPTR
+to a file handle\key{FileHandle} which will be
+used as output stream of the new shell\key{Shell}.
+This handle \emph{shall be different} from the handle
+provided by {\tt SYS\_Input}. If this tag is not
 present, the output stream of the calling process ({\tt pr\_COS})\key{pr\_COS} will be
 used for shell output. If in addition the {\tt command} is {\tt NULL} and
 {\tt SYS\_Asynch}\key{SYS\_Asynch} is not set, then {\tt SYS\_Output} is cloned by the
 mechanism of section~\ref{sec:clonehandle} if it is an interactive stream,
 or the console of the caller is used as an output stream. That is, even
 though {\tt System()} is in this case implicitly asynchronous, {\tt SYS\_Output} will \emph{not}
-be closed. If {\tt SYS\_Output} is explicitly set to {\tt ZERO}, then
+be closed and remains available to the caller. If {\tt SYS\_Output} is explicitly set to {\tt ZERO}, then
 AmigaDOS will attempt to create an output stream itself: If an input stream is present and interactive, and {\tt command} is
 non-{\tt NULL} or {\tt SYS\_Asynch}\key{SYS\_Asynch} is non-zero, then the
 input stream is cloned through the ``{\tt *}''\key{* (file name)} file name,
@@ -23796,7 +23798,8 @@ also be closed transparently upon termination of the shell.
 \emph{dos.library} and used as output stream for the newly created
 shell\key{Shell}. This file will always be closed when the shell
 terminates.
-This tag is mutually exclusive to {\tt SYS\_Output}, it was introduced in AmigaDOS~47.
+This tag is mutually exclusive to {\tt SYS\_Output}, it was introduced in
+AmigaDOS version~47.
 \smallskip{}
 
 {\tt SYS\_CmdStream}\mkey{SYS\_CmdStream} provides a BPTR to a file handle\key{FileHandle} from which commands
@@ -23810,22 +23813,25 @@ and once this stream reaches an EOF, it is closed and the shell\key{Shell} conti
 reading from {\tt SYS\_Input}\key{SYS\_Input} until this stream also reaches an EOF, or
 an {\tt EndCLI} command terminates the Shell. Thus, the configuration of providing a
 {\tt SYS\_CmdStream} and setting {\tt SYS\_Asynch} is equivalent to the {\tt NewShell} command.
-This tag was added in AmigaDOS~47.
+This tag was added in AmigaDOS version~47.
 \smallskip{}
 
-{\tt SYS\_CmdName}\mkey{SYS\_CmdName} provides a file name of a shell script\key{Shell Script} whose contents is
-interpreted. This tag is mutually exclusive to {\tt SYS\_CmdStream}\key{SYS\_CmdStream} and only
+{\tt SYS\_CmdName}\mkey{SYS\_CmdName} provides a file name
+of a shell script\key{Shell Script} whose contents is
+interpreted. This tag is mutually exclusive
+to {\tt SYS\_CmdStream}\key{SYS\_CmdStream} and only
 used if the {\tt command} argument is {\tt NULL}. This stream will always be
-closed on exit. This tag was added in AmigaDOS~47.
+closed on exit. This tag was added in AmigaDOS version~47.
 \smallskip{}
 
-{\tt SYS\_Asynch}\mkey{SYS\_Asynch} If the boolean argument to this tag is non-zero, the shell\key{Shell} is
-detached from the calling process and executes concurrently to the caller;
-setting this tag also implies that the streams provided by {\tt SYS\_Input}\key{SYS\_Input}
+{\tt SYS\_Asynch}\mkey{SYS\_Asynch} If the boolean argument to this tag
+is non-zero, the shell\key{Shell} is detached from the calling process
+and executes concurrently to the caller; setting this tag also implies
+that the streams provided by {\tt SYS\_Input}\key{SYS\_Input}
 and {\tt SYS\_Output}\key{SYS\_Output} are closed when the shell terminates. It is thus necessary
 to explicitly provide {\tt SYS\_Input} or {\tt SYS\_InName}\key{SYS\_InName}
-and {\tt SYS\_Output} or {\tt SYS\_OutName}\key{SYS\_OutName}, as otherwise the input or output
-streams of the calling process will be closed. For legacy reasons, setting
+and {\tt SYS\_Output} or {\tt SYS\_OutName}\key{SYS\_OutName}, as otherwise
+the input or output streams of the calling process will be closed. For legacy reasons, setting
 the {\tt command} argument to {\tt NULL} also enforces asynchronous
 execution, independent of the value of this tag, and thus the same
 precautions in preparing input and output streams should be taken\footnote{This inconsistency does not allow
@@ -23860,7 +23866,7 @@ bytes if the caller is not a shell process.
 \smallskip{}
 
 {\tt NP\_Name}\key{NP\_Name} is the name of the shell\key{Shell} process to be created. The default
-is ``{\tt Background CLI}''. AmigaDOS~45 and before did not honor this tag.
+is ``{\tt Background CLI}''. AmigaDOS version~45 and before did not honor this tag.
 \smallskip{}
 
 {\tt NP\_Priority}\key{NP\_Priority} is the priority of the shell\key{Shell}
@@ -23901,11 +23907,11 @@ section~\ref{sec:createnewproc}.
 \medskip{}
 
 The return code of the {\tt System()}\key{System()} function and all other
-functions in this section is~$-1$ in case creating the shell\key{Shell} failed. In such a case {\tt
-  IoErr()}\key{IoErr()} delivers an error code providing more details on the
-cause of the failure. Otherwise, if the commands were executed
-synchronously, the return code is the result code of the last command in the
-shell\key{Shell} executed, and {\tt IoErr()} is set to the error code set by the last
+functions in this section is~$-1$ in case creating the shell\key{Shell}
+failed. In such a case {\tt IoErr()}\key{IoErr()} delivers an error
+code providing more details on the cause of the failure. Otherwise,
+if the commands were executed synchronously, the return code is the result
+code of the last command in the shell\key{Shell} executed, and {\tt IoErr()} is set to the error code set by the last
 command executed. If an asynchronous shell was created, the result code is~0
 on success, and {\tt IoErr()} will be set to~0.
 \medskip{}
@@ -23915,13 +23921,13 @@ functionalities, and all Shell commands and system functions that create a
 shell go through this function. This includes the {\tt NewShell} and
 {\tt Run} shell\key{Shell} commands and the {\tt Shell} icon on the Workbench. The initial
 CLI interpreting {\tt S:Startup-Sequence} is also created through the
-{\tt System()}\key{System()} function from AmigaDOS~47 onward.
+{\tt System()}\key{System()} function from AmigaDOS version~47 onward.
 \smallskip{}
 
 The {\tt Run} command creates a new shell\key{Shell} process by the following:
 \begin{verbatim}
-System(NULL,SYS_Input,instream,SYS_Output,Output(),
-       SYS_UserShell,TRUE,TAG_DONE);
+SystemTags(NULL,SYS_Input,instream,SYS_Output,Output(),
+           SYS_UserShell,TRUE,TAG_DONE);
 \end{verbatim}
 where the input stream {\tt instream} is a string stream (see
 section~\ref{sec:stringstreams}) containing the commands to be executed;
@@ -23936,12 +23942,14 @@ function detaches the created shell\key{Shell} because its first argument is
 console in this particular case.
 \medskip{}
 
-The {\tt NewShell} command uses {\tt System()} as follows:
+The {\tt NewShell} command and also the {\tt Shell} program on
+the Workbench uses {\tt System()} as follows:
 \begin{verbatim}
-System(NULL,SYS_InName,window_arg,
-       SYS_CmdStream,Open(from_arg,MODE_OLDFILE),
-       SYS_Asynch,TRUE,SYS_UserShell,TRUE,
-       NP_Name,"Shell Process",TAG_DONE);
+SystemTags(NULL,SYS_InName,window_arg,
+           SYS_CmdStream,Open(from_arg,MODE_OLDFILE),
+           SYS_Output,ZERO,
+           SYS_Asynch,TRUE,SYS_UserShell,TRUE,
+           NP_Name,"Shell Process",TAG_DONE);
 \end{verbatim}
 where the {\tt window} argument and the {\tt from} argument are coming from
 the command line arguments of the {\tt NewShell} command. That is,
@@ -23949,7 +23957,7 @@ the command line arguments of the {\tt NewShell} command. That is,
 stream which is by default ``{\tt S:Shell-Startup}''. Setting
 {\tt SYS\_Asynch}\key{SYS\_Asynch} to {\tt TRUE} ensures that the shell\key{Shell} continues to read
 commands from its input file handle as soon as the command file depletes.
-AmigaDOS~45 and below used a custom mechanism for {\tt NewShell} that was
+AmigaDOS version~45 and below used a custom mechanism for {\tt NewShell} that was
 undocumented and is now deprecated. The Boot Shell is created likewise
 except that {\tt NP\_Name} is set to ``{\tt Initial CLI}''.
 \medskip{}
@@ -23957,9 +23965,9 @@ except that {\tt NP\_Name} is set to ``{\tt Initial CLI}''.
 The {\tt Execute()}\key{Execute()} function described in
 section~\ref{sec:execute} is approximately equivalent to
 \begin{verbatim}
-System(NULL,SYS_CmdStream,cmd,
-       SYS_Input,in,SYS_Output,out,SYS_UserShell,FALSE,
-       NP_Priority,0,TAG_DONE)?DOSTRUE:DOSFALSE;
+SystemTags(NULL,SYS_CmdStream,cmd,
+           SYS_Input,in,SYS_Output,out,SYS_UserShell,FALSE,
+           NP_Priority,0,TAG_DONE)?DOSTRUE:DOSFALSE;
 \end{verbatim}
 where {\tt cmd} is a string stream (see section~\ref{sec:stringstreams})
 containing the commands to be executed, constructed from the first argument
@@ -23970,9 +23978,20 @@ returned result, and that the above function returns immediately while
 until the Shell terminates.
 \smallskip{}
 
-Under AmigaDOS~45 and before, this function closed the stream provided by
-{\tt SYS\_Input} in case the new shell could not be created, even if
-synchronous execution is requested. This was fixed in AmigaDOS~47.
+Under AmigaDOS version~45 and before, this function closed the stream
+provided by {\tt SYS\_Input} in case the new shell could not be created,
+even if synchronous execution is requested. This was fixed in AmigaDOS
+version~47.
+
+\punchline{Your Resources, My Resources}{Beware how the {\tt System()}
+  function manages resources you pass in. In general, for synchronous
+  operations, resources such as streams are used, but not released. For
+  asynchronous operations, the streams you provide are in the responsibility
+  of the created shell and released when the shell terminates, even if they
+  were the resources of your process. The {\tt System()} function also
+  creates an asynchronous shell if the {\tt command} argument is {\tt NULL},
+  regardless of the {\tt SYS\_Asynch} tag. For details, please study this
+  section carefully.}
 
 \subsection{Execute Shell Scripts (Legacy)} \label{sec:execute}
 
@@ -24036,15 +24055,15 @@ user shell.
 
 Except for the similarity in name, the {\tt Execute()}\key{Execute()}
 function has nothing in common with the {\tt Execute} command described in
-section~\ref{sec:executecmd}. One does not depend on the other, i.e.\ {\tt
-  C:Execute} is not necessary for {\tt Execute()}, and {\tt Execute} does
+section~\ref{sec:executecmd}. One does not depend on the other, i.e.\
+{\tt C:Execute} is not necessary for {\tt Execute()}, and {\tt Execute} does
 not run into {\tt Execute()} either, but rather modifies the current input
-stream of the Shell. Under AmigaDOS version 34 and below, {\tt Execute()}
+stream of the Shell. Under AmigaDOS version~34 and below, {\tt Execute()}
 was based on the {\tt Run} command, but this dependency has been removed long
 since. Since AmigaDOS~36, {\tt Run} depends on the {\tt System()}\key{System()} function.
 \smallskip{}
 
-Under AmigaDOS~36 and up to AmigaDOS~45, this function closed the
+Under AmigaDOS version~36 and up to version~45, this function closed the
 {\tt input} stream in case it could not create a new Shell.
 
 \subsection{Run a Command Overloading the Calling Process} \label{sec:runcommand}
@@ -24078,7 +24097,12 @@ function does not attempt to identify the minimum stack size necessary.
 The Shell takes the stack size from {\tt cli\_DefaultStack}\key{cli\_DefaultStack}, see
 section~\ref{sec:clistruct}, and multiplies it by~4. It additionally
 searches the {\tt seglist} for the stack cookie, see
-section~\ref{sec:stackcookie}, and from that potentially increases the size.
+section~\ref{sec:stackcookie}, and from that potentially increases the
+size. The {\tt Task} structure of the caller, in particular its elements
+{\tt tc\_Upper} and {\tt tc\_Lower} are also updated to reflect the new
+position and size of the stack. Thus, programs can depend upon that their stack
+size is given by {\tt task->tc\_Upper} - {\tt task->tc\_Lower}, regardless whether they
+were started from the shell or the Workbench.
 \smallskip{}
 
 The {\tt argptr} and {\tt argsize} arguments provide command line arguments
@@ -24132,7 +24156,7 @@ script\key{Shell Script}, are set in the process of the caller.
 
 \begin{verbatim}
 signals = CheckSignal(mask) /* since V36 */
-D0                    D1
+D0                     D1
 
 ULONG CheckSignal(ULONG)
 \end{verbatim}
@@ -24243,7 +24267,7 @@ and it is for example used by the AmigaDOS argument parser,
 \smallskip{}
 
 If {\tt SHELL\_FGETS\_FULL}\mkey{SHELL\_FGETS\_FULL} is non-zero, then a full command line is
-requested from the shell\key{Shell}. This implies that the first argument of the input
+requested from the Shell\key{Shell}. This implies that the first argument of the input
 requested from the console is a command, and is thus located somewhere in
 the path\key{Path} of the caller. Thus, when performing TAB expansion within
 the first argument, the entire path is scanned, and not just the current
@@ -24255,7 +24279,7 @@ this string is kept within Shell internal buffers, the caller shall make a
 copy of the string before calling another method of the Shell.
 \medskip{}
 
-If {\tt DoShellMethod}\key{DoShellMethod()} is called from a process
+If {\tt DoShellMethod()}\key{DoShellMethod()} is called from a process
 that is not part of a shell\key{Shell}, it returns {\tt NULL} and
 sets {\tt IoErr()}\key{IoErr()} to {\tt ERROR\_OBJECT\_WRONG\_TYPE}\key{ERROR\_OBJECT\_WRONG\_TYPE}.
 
@@ -24283,8 +24307,7 @@ is stored in the {\tt pr\_TaskNum}\key{pr\_TaskNum} element of the process struc
 chapter~\ref{sec:process}.
 \smallskip{}
 
-This function returns a pointer to the process structure, see
-chapter~\ref{sec:process} whose task number is {\tt num}. If no such process
+This function returns a pointer to the process structure whose task number is {\tt num}. If no such process
 exists, this function returns {\tt NULL}. However, even if it returns a
 non-{\tt NULL} result code, it is possible that the process has already
 exited and no longer exists when the function returns or an attempt is made
