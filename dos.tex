@@ -22801,7 +22801,7 @@ The Shell reads commands along with its arguments line by line from
 the console or a script\key{Shell Script}. Each line consists of at
 least one command and its arguments, all separated by spaces or
 tabulators. Each argument is either a value, e.g.\ a file name, a string or a
-number, or a pair of a keyword and a value. The keyword may be either
+number --- or a pair of a keyword and a value. The keyword may be either
 separated by blank spaces or tabulators from its value, or by an equals sign
 (``{\tt =}''), without any spaces or tabulators in between. Many shell
 commands use the argument parser from section~\ref{sec:readargs} and thus
@@ -22809,11 +22809,12 @@ use the syntax implied by the {\tt ReadArgs()}\key{ReadArgs()} function
 described there.
 \smallskip{}
 
-The command refers to an executable file within the \emph{path}\key{Path},
-which is a list of directories containing commands that can be adjusted by
-the user. It always contains the current directory and the {\tt C} assign,
-though additional directories can be added or removed with the {\tt Path}
-command any time.
+The command refers to an alias, or a script or executable file within the
+\emph{path}\key{Path}. The path is a list of directories the Shell searches
+for scripts or executables; it always contains the current directory and the
+{\tt C} assign, though additional directories can be added or removed with
+the {\tt Path} command any time. Aliases are simple Shell macros that expand
+to other commands and perform simple argument injection and reordering.
 \smallskip{}
 
 The following sections describe the Shell syntax in detail. Even
@@ -22851,16 +22852,16 @@ operators\mkey{Redirection (Shell)}:
     created.
   \item[{\tt <{}<}{\it ind}] uses the current console or the shell
     script itself from which the command is run as input, line by line,
-    until a line starting with the same indicator {\tt ind} that also
+    until a line starting with the indicator {\tt ind} that
     follows the redirection operator is found. The indicator can be
     chosen arbitrarily. A typical choice is {\tt EOF}. This avoids
     creating temporary files for providing longer inputs. This
     operator was added in AmigaDOS version~45.
   \item[{\tt <>}{\it path}] redirects both the standard input and
-    the standard output of the command to a path. The file must exist
+    the standard output of the command to a file. The file must exist
     already, otherwise an error is indicated.
   \item[{\tt *>}{\it path}] redirects the error output of the command to the
-    given path. If this path identifies an interactive stream (see
+    given file. If the path identifies an interactive stream (see
     section~\ref{sec:isinteractive}), such as a console, then the console
     process of the command is also set to the handler of the stream.
     Changing the console process will also redirect output of commands that
@@ -22897,14 +22898,14 @@ shell\key{Shell Variable} variable {\tt oldredirect} is set to
 
 In cases described above, redirections placed at a later point of the command line
 will become part of the command line arguments. That is, for {\tt Run}, the
-command run in back will redirect its streams rather than the output of the
+command run in background will redirect its streams rather than the output of the
 {\tt Run} command, and for {\tt Alias}, the redirection will become part of
-the alias\key{Alias} and will become active when the alias is expanded. The
-{\tt oldredirect} variable will do likewise for all other commands which
-then need to parse redirection operators manually as they appear as part of
-their command line. Most executables are not prepared to interpret
-redirection operators, however, and it is thus recommended \emph{not to set}
-the {\tt oldredirect} variable.
+the alias\key{Alias} and will become active when the alias is
+expanded. Enabling the {\tt oldredirect} variable will do likewise for all
+other commands which then need to parse redirection operators manually as
+they appear as part of their command line. Most executables are not prepared
+to interpret redirection operators, however, and it is thus
+recommended \emph{not to set} the {\tt oldredirect} variable.
 
 \subsection{Compound Commands and Binary Operators} \label{sec:binaryops}
 
@@ -22912,10 +22913,9 @@ Starting with AmigaDOS version~45, the Shell allows combining multiple
 commands on the command line, then forming \emph{compound} commands. The
 following operators go \emph{between} commands such that the last argument
 of the first command is directly to the left of such an operator, and the
-next command follows immediately to the right of the operator. As for
-arguments, these operators need to be separated by blank spaces or
-tabulators from the surrounding commands or arguments:
-\mkey{Compound Command (Shell)}
+next command follows to the right of the operator. As for arguments, these
+operators need to be separated by blank spaces or tabulators from the
+surrounding commands or arguments: \mkey{Compound Command (Shell)}
 
 \begin{itemize}
   \item[{\tt |}] The vertical bar creates a pipe such that the standard
@@ -22934,7 +22934,7 @@ tabulators from the surrounding commands or arguments:
     output\footnote{This syntax is different from the {\tt bash} operator
     that looks similar.}.
   \item[{\tt \&\&}] Sequences two commands, first executes the one to the
-    left, and if its return value is below the {\tt FailAt} value, continues
+    left, and if its result code is below the {\tt FailAt} value, continues
     to execute the command to its right.
 \end{itemize}
 
@@ -23022,9 +23022,9 @@ in a more compact form, by the single line
 To allow spaces, tabulators, equals-signs and the above operators within
 command names and arguments, e.g.\ to handle file names containing such
 characters, the Shell offers quoting. Blank spaces, tabulators, semicola,
-the above operators and equals-signs within double quotes (``{\tt "}'')
-become part of the command or argument, and are not interpreted by
-the Shell\key{Shell}. A quote only starts a quoted argument
+the above operators and equals-signs become part of the command or argument
+and are not interpreted by the Shell\key{Shell} if they are enclosed in 
+double quotes (``{\tt "}''). A quote only starts a quoted argument
 or command and is thus a functional element of the Shell if it is at the
 start of the line or preceded by a blank space or a tabulator; quotes
 \emph{within} an otherwise unquoted argument are literals and stand for
@@ -23049,7 +23049,7 @@ Shell.
 \item[{\tt *E}] The ESC character, ASCII {\tt 0x1b}. There is no escape
   sequence for the CSI control character {\tt 0x9b}, but there is a 7-bit
   equivalent sequence all terminals support, namely {\tt *E[}. The Shell
-    does not establish this equivalence, but the console does.
+  does not establish this equivalence, but the console does.
 \item[{\tt *"}] The double quote; a double quote escaped as such does not
   terminate the quoted argument, but represents the quote itself as part of
   the argument.
@@ -23057,7 +23057,7 @@ Shell.
 \end{itemize}
 
 As the Shell does not perform substitutions for the above sequences, they
-can also appear within the command line of the executed program, which is
+appear within the command line as received by the executed program, which is
 then responsible to perform the above substitutions correctly itself. Thus, the command
 \begin{verbatim}
 Echo "Hello*NThere"
@@ -23065,7 +23065,8 @@ Echo "Hello*NThere"
 prints the word {\tt Hello} on one line, and {\tt There} on a new line
 below, though the {\tt Echo} command receives the command line {\tt "Hello*NThere"} including
 the quotes and the escape sequence. Replacement of ``{\tt *N}'' with the line feed happens inside of
-the {\tt Echo} command, or more precisely, within the {\tt ReadArgs()}\key{ReadArgs()} function.
+the {\tt Echo} command, or more precisely, within the
+{\tt ReadArgs()}\key{ReadArgs()} function called by it.
 \smallskip{}
 
 The above escape sequences are \emph{not} substituted outside of double
@@ -23143,11 +23144,14 @@ this range terminates the variable name. \mkey{Variable Substitution}
 An equivalent but more flexible way of referring to a variable is by
 enclosing the variable name after the ``{\tt \$}'' sign in braces,
 i.e.\ ``{\tt \$\{{\it name}\}}'' within which all other characters except
-the closing brace are allowed as components of the name as well.
+the closing brace are allowed as components of the name as well. In
+particular, variables can be grouped in a directory-like hierarchy where
+components are separated by forward-slashes (``{\tt /}'') as in paths. See
+section~\ref{sec:getvar} for additional information.
 \smallskip{}
 
 Local variables are represented as entries in the {\tt pr\_LocalVars}
-list that is part of the process structure that represents the Shell,
+list that is part of the process structure that executes the Shell,
 see chapter~\ref{sec:process} and section~\ref{sec:getvar}. When expanding
 variables, the Shell first checks there for a variable of a matching
 name. Only if that fails, the Shell tests for global variables. They
@@ -23157,17 +23161,23 @@ copying elements from the {\tt ENVARC} assign. That is, local
 variables take priority over global variables.
 \smallskip{}
 
-Variables\key{Shell Variable} are substituted by the Shell \emph{before} the resulting argument
-line is provided to the command, i.e.\ it is not necessary to expand
-variables within commands. The Shell does not attempt to generate pairs of
-double quotes to ensure that an expanded variable corresponds to a single
-argument. In fact, if a variable contains spaces, tabulators or equals-signs
-and it is not included in double quotes, it will appear in the expanded
-command line as multiple arguments. However, if a variable contains
-asterisks or double quotes, and the variable appears within double quotes,
-such asterisks or double quotes are escaped by the Shell with an
-(additional) asterisk as escape character to ensure the resulting argument is
-represented appropriately.
+Variables\key{Shell Variable} are substituted by the Shell \emph{before} the
+resulting argument line is provided to the command, i.e.\ it is not
+necessary to expand variables within commands. The Shell does not attempt to
+generate pairs of double quotes to ensure that an expanded variable
+corresponds to a single argument. In fact, if a variable contains spaces,
+tabulators or equals-signs and it is not included in double quotes, it will
+appear in the expanded command line as multiple arguments. However, if a
+variable contains asterisks or double quotes, and the variable appears
+within double quotes, such asterisks or double quotes are escaped by the
+Shell with an (additional) asterisk as escape character to ensure the
+resulting argument is represented appropriately.
+\smallskip{}
+
+If an attempt is made to expand a variable that is not defined, then the
+variable is not expanded at all. In such a case, the entire expression, including the
+``{\tt \$}'' sign and optional braces stand for themselves and
+become the argument. 
 \smallskip{}
 
 If the variable\key{Shell Variable} name is started with ``{\tt \$?}'' instead of ``{\tt \$}'',
@@ -23296,17 +23306,17 @@ After variable expansion, the Shell checks the command line for back-ticks,
 command itself that is executed \emph{before} interpretation of the
 containing command line continues, and the standard output of the enclosed
 commands is substituted for the command line within the back-ticks. As this
-output may include line feeds, these are furthermore substituted with blank
+output may include line feeds, these are furthermore substituted by blank
 spaces.\mkey{Back-tick Expansion}
 \smallskip{}
 
 Back-tick expansion was already available in AmigaDOS version~37, but was
-restricted to only a single pair of backticks on a command line. This
+restricted to only a single pair of backticks per command line. This
 restriction was lifted in AmigaDOS version~45.
 \smallskip{}
 
 Note that the result of the backtick expansion may even contain functional
-syntax elements of the Shell, e.g.\ angle brackets as output of the command
+syntax elements of the Shell, e.g.\ angle brackets in the output of a command
 in back-ticks will become shell\key{Shell} stream redirection operators
 which are then further interpreted by the shell. Needless to say, this can
 cause bad surprises.
@@ -23329,20 +23339,20 @@ substitution.
 
 The next step in Shell processing is alias\mkey{Alias} expansion. Aliases
 are simple macros that replace the alias with another command with the
-option of rearranging arguments. The leftmost element of each command,
-usually an executable in the path, can potentially also be an alias; its
-arguments following it do not go through alias expansion\mkey{Alias Substitution}.
+option of rearranging arguments. Before the Shell searches for a command in
+the path, it checks whether it constitutes an alias and then
+expands it\mkey{Alias Substitution}.
 \smallskip{}
 
 Aliases are always local to the executing Shell, AmigaDOS keeps them in the
-same list as local Shell variables\key{Shell Variable}. If the leftmost
-element of a command is an alias, this element is removed, and replaced by
+same list as local Shell variables\key{Shell Variable}. If the
+command name matches an alias, its name is removed, and replaced by
 the contents of the alias. If this contents contains a pair of opening and
 closing square brackets, that is the sequence ``{\tt {[}{]}}'', then the
 brackets are replaced by all remaining arguments of the command. The result
 of alias\key{Alias} expansion is another command that undergoes alias
-expansion again, except that the same alias cannot be used twice to avoid
-endless recursion.
+expansion again, except that the same alias cannot be used twice in the same
+command line to avoid endless recursion.
 \smallskip{}
 
 For example, given the following alias definition
@@ -23368,9 +23378,7 @@ processed.
 
 The purpose of the next step is to identify from a command name a
 segment\key{Segment} containing executable code which is executed to
-implement the function of the command. Command location iterates over
-compound commands left to right, taking the leftmost word of each component
-as command name.
+implement the function of the command.
 \smallskip{}
 
 If the command name is not quoted, the Shell first attempts to locate the
@@ -23393,8 +23401,8 @@ is represented internally.
 
 If nothing is found in the path, the Shell finally checks the {\tt C}
 assign. The directory --- or directories, in case it is a multi-assign ---
-the assign points to is also always implicitly in the path and, similar to
-the current directory, cannot be removed from it.
+the assign points to is also always implicitly contained in the path and,
+similar to the current directory, cannot be removed from it.
 \smallskip{}
 
 If neither a resident segment nor a file or directory could be found, the
@@ -23410,21 +23418,23 @@ resident segments.
 \smallskip{}
 
 If the result is a file, the Shell continues to check the protection bits of
-it, see section~\ref{sec:fib} for their definition. If the {\tt s}
+it, see section~\ref{sec:fib} for their value. If the {\tt s}
 protection bit is set, the Shell assumes that command is actually a
 script\key{Shell Script}. If this script starts with the magic character
 sequence ``{\tt /*}'', it is assumed to be a Rexx script and an implicit
-{\tt RX} command is prepended to the component, and command execution
+{\tt RX} command is prepended to the component, and command location
 starts again with the updated line. If the script starts with the
 two-character sequence ``{\tt \#!}'' or ``{\tt ;!}'', then the remaining
 first line of the script file contains the path of the command interpreter
 which is then also injected as command name, again restarting command
 location. If none of the two conditions hold, the Shell assumes this file
 is a Shell script\key{Shell Script}, prepends an {\tt Execute} command
-upfront the script name and again restarts command execution. Thus, with the
+upfront the script name and again restarts command location. Thus, with the
 {\tt s} bit set, either the Rexx interpreter, a custom interpreter or the
 Shell itself --- through the {\tt Execute} command --- runs the script.
-More on the latter command is in section~\ref{sec:executecmd}.
+More on the latter command is in section~\ref{sec:executecmd}. Implicit
+execution of ARexx scripts was added in AmigaDOS version~37, the option of
+having custom interpreters was added in version~45.
 \smallskip{}
 
 If the {\tt e} protection bit is set indicating an executable file, the
@@ -23443,14 +23453,15 @@ whether the system {\tt datatypes.library} is able to identify the contents
 of the file. If a suitable datatype exists, the Shell prepends the contents
 of this variable to the component and then restarts command location. By
 setting {\tt VIEWER} to the system program {\tt MultiView}, the Shell can
-therefore display any system-known datatype by typing its name.
+therefore display any system-known datatype by typing its name. This feature
+was added in AmigaDOS version~45.
 \smallskip{}
 
 If the above algorithm was able to come up with a segment, the Shell
 establishes its input, output and error stream, and potentially also updates
 its console process if the error output is interactive. The found segment is
 then --- depending on the context --- either started as a background
-process, or overlays the shell executable with the
+process, or overlays the Shell executable with the
 {\tt RunCommand()}\key{RunCommand()}, see section~\ref{sec:runcommand}. A
 background process is started for the component left of a pipe operator,
 i.e.\ to the left of the ``{\tt |}'' or ``{\tt ||}'' operators, or if the
@@ -23468,8 +23479,8 @@ Unlike what its name suggests, the {\tt Execute} command does not actually
 interpret Shell scripts\mkey{Shell Script}. Instead, it performs argument
 substitution within an existing Shell\key{Shell} script through a simple
 pattern matching process, and then leaves the execution of the resulting
-script to the Shell by adjusting its command input stream. Thus, {\tt
-  Execute} does not actually execute anything, it rather prepares a script
+script to the Shell by adjusting its command input stream. Thus,
+{\tt Execute} does not actually execute anything, it rather prepares a script
 for execution through the Shell.\mkey{Execute (command)}
 \smallskip{}
 
@@ -23506,16 +23517,17 @@ argument is a {\tt ReadArgs()}\key{ReadArgs()} type template, defining the
 type of the command line arguments of the script, and also the
 names of the formal parameters which will be substituted with the arguments
 provided during invocation of the script. Clearly, only a single {\tt .key}
-pseudo-command shall be present within a script. Such command templates are
-discussed in section~\ref{sec:readargs}.
+pseudo-command shall be present within a script. Such command templates and
+their syntax are discussed in section~\ref{sec:readargs} along with the
+{\tt ReadArgs()}\key{ReadArgs()} function which is also used by {\tt Execute}.
 \smallskip{}
 
 {\tt .default}\mkey{.DEFAULT} or {\tt .def}\mkey{.DEF} defines defaults for arguments that are not
 present on the command line that invoked the script\key{Shell Script}. It takes two arguments,
 first the key --- the formal name of the parameter for which a default is to
 be provided --- and the default value itself. Key and default value may be
-either separated by blank spaces, tabulators, or an equals-sign ``({\tt
-  =})''. If no default value is provided, an empty string is used. A single
+either separated by blank spaces, tabulators, or an equals-sign
+``({\tt =})''. If no default value is provided, an empty string is used. A single
 {\tt .default} pseudo-command can be provided per formal parameter. Another
 mechanism to provide default parameters is through the ``{\tt \$}''
 character, see below.
@@ -23538,9 +23550,9 @@ alternatives are curly or square brackets.
 that is to be substituted. This is by default the ``{\tt >}'' sign,
 i.e.\ formal parameters are enclosed in pairs of angle
 brackets. Unfortunately, this default is not a very wise choice as it makes
-output redirections in scripts\key{Shell Script} impossible. To override this default, {\tt
-  .ket} should be used. A suggested alternative is a closing curly or square
-bracket.
+output redirections in scripts\key{Shell Script} impossible. To override
+this default, {\tt .ket} should be used. A suggested alternative is a
+closing curly or square bracket.
 \smallskip{}
 
 {\tt .dollar}\mkey{.DOLLAR} or {\tt .dol}\mkey{.DOL} defines the character that defines an
@@ -23560,8 +23572,8 @@ Thus, an optional ``{\tt \$}'' sign, or its replacement defined through this
 pseudo-command, separates the formal parameter from its default value during
 substitution. The formal name, the ``{\tt \$}'' sign, and its default are
 all enclosed in this order in the angle brackets, as seen in the example
-above, or in whatever the angle brackets were replaced with by the {\tt
-  .bra} and {\tt .ket} commands.
+above, or in whatever the angle brackets were replaced with by the
+{\tt .bra} and {\tt .ket} commands.
 \smallskip{}
 
 Two ``{\tt \$}'' signs in angle brackets expand to the Shell number and may
@@ -23588,7 +23600,7 @@ substitution, and {\tt Execute} attempts to preserve the original command line
 arguments as good as possible. That is, if a formal parameter is enclosed
 within double quotes in the script\key{Shell Script}, asterisks and double quotes are escaped
 properly. If the formal parameter included spaces or tabulators and thus was
-quoted on the command line, {\tt Execute} generates suitable double quotes
+quoted on the command line, {\tt Execute} generates a pair of double quotes
 when substituting the formal parameter with its value, unless the formal
 parameter is already enclosed in double quotes. If a formal parameter takes
 multiple arguments, as indicated by a {\tt /M} modifier in its template (see
@@ -23597,10 +23609,10 @@ parameter in scripts.
 \medskip{}
 
 The generated script\key{Shell Script} after substitution of formal parameters is placed
-in the {\tt T:} directory, its name in {\tt cli\_CommandFile}\key{cli\_CommandFile} and the
+in the {\tt T:} directory, its name is filled into {\tt cli\_CommandFile}\key{cli\_CommandFile} and the
 command input of the invoking Shell, namely {\tt cli\_CurrentInput}\key{cli\_CurrentInput}
 (see section~\ref{sec:clistruct}), is redirected to a file
-handle\key{FileHandle} to this temporary script. Thus, the Shell\key{Shell} continues
+handle\key{FileHandle} opened on this temporary script. Thus, the Shell\key{Shell} continues
 execution of commands, but rather takes its input from the temporary
 file rather than its current input, e.g.\ the console. As this construction would forbid
 the recursive execution of another Shell script\key{Shell Script} within a Shell script,
@@ -23611,8 +23623,8 @@ environment that allows redirection of the command input through another
 nested instance of {\tt Execute}.
 \smallskip{}
 
-This is a major difference compared to AmigaDOS 40 and below which instead
-resolved this situation by appending recursively executed scripts to each
+This is a major difference compared to AmigaDOS version~40 and below which instead
+resolved this situation by concatenating recursively executed scripts to each
 other. This construction had a series of bad side effects, one being that a
 script could not skip backwards over an {\tt Execute} command.
 \smallskip{}
