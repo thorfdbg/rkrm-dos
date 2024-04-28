@@ -24884,11 +24884,11 @@ The {\tt name} argument is the name of the variable to retrieve; this name
 may contain one or multiple forward slashes (``({\tt /})'') which structure
 variables hierarchically similar to directories in file systems. It is not
 case-sensitive. For global variables, this hierarchy is mapped to
-sub-directories within the {\tt ENV} assign. There variables are represented
+directories within the {\tt ENV} assign. There variables are represented
 as files that may also be accessed through the file system functions of the
 \emph{dos.library}. Unless specified otherwise, this function first checks
-for local shell\key{Shell Variable} variables, but if no matching variable is found, it checks
-for a global variable of the provided name.
+for local shell\key{Shell Variable} variables first, but if no matching
+variable is found, it checks for a global variable of the provided name.
 \smallskip{}
 
 The {\tt buffer} and {\tt size} arguments specify a buffer and its length
@@ -24897,7 +24897,7 @@ advisable to store only printable characters in variables, in which case any
 {\tt NUL} or line feed character truncates the contents of the
 variable. However, variables may also contain binary data; such binary data
 is, however, only copied if it is requested explicitly. If a variable does
-not fit into the buffer, it is truncated without setting an error code, but
+not fit into the buffer, it is truncated without setting an error code, though
 non-binary variables are always {\tt NUL}-terminated. The {\tt size}
 argument includes the byte necessary for termination.
 \medskip{}
@@ -24908,10 +24908,10 @@ flags are defined in {\tt dos/var.h}:
 \smallskip{}
 
 The lowest 8 bits of {\tt flags} identify the nature of the
-variable\key{Shell Variable}. If set
-to {\tt LV\_VAR}\mkey{LV\_VAR}, this function reads variables, if set to {\tt LV\_ALIAS}\mkey{LV\_ALIAS},
-it reads aliases\key{Alias}. Aliases are always local to the shell\key{Shell} and cannot be
-global.
+variable\key{Shell Variable}. If set to {\tt LV\_VAR}\mkey{LV\_VAR}, this
+function reads variables, if set to {\tt LV\_ALIAS}\mkey{LV\_ALIAS}, it
+reads aliases\key{Alias}. Aliases are always local to the shell\key{Shell}
+and cannot be global.
 
 If the {\tt GVF\_GLOBAL\_ONLY}\mkey{GVF\_GLOBAL\_ONLY} flag is set, then this function only returns
 contents of global variables, and local variables are ignored. Aliases are
@@ -24923,16 +24923,16 @@ contents of local variables and ignores any global variables.
 \smallskip{}
 
 If the {\tt GVF\_BINARY\_VAR}\mkey{GVF\_BINARY\_VAR} flag is set, then copying the contents of
-variables\key{Shell Variable} into the supplied {\tt buffer} does not stop at newline ({\tt
-  0x0a}) or {\tt NUL} characters, but attempts to transfer the entire
-variable into the buffer, potentially truncating it if necessary. It is,
-however, {\tt NUL} terminated, unless {\tt GVF\_DONT\_NULL\_TERM}\key{GVF\_DONT\_NULL\_TERM} is set.
+variables\key{Shell Variable} into the supplied {\tt buffer} does not stop
+at newline ({\tt 0x0a}) or {\tt NUL} characters, but attempts to transfer the entire
+variable into the buffer, potentially truncating it if necessary.
 \smallskip{}
 
-If the {\tt GVF\_DONT\_NULL\_TERM}\mkey{GVF\_DONT\_NULL\_TERM} flag is set along with {\tt
-  GVF\_BINARY\_VAR}\key{GVF\_BINARY\_VAR}, then this function does not attempt to {\tt
-  NUL}-terminate the supplied buffer. Rather the entire variable, if
-possible, is copied into {\tt buffer}.
+If the {\tt GVF\_DONT\_NULL\_TERM}\mkey{GVF\_DONT\_NULL\_TERM} flag is set
+along with {\tt GVF\_BINARY\_VAR}\key{GVF\_BINARY\_VAR}, then this function
+does not attempt to {\tt NUL}-terminate the supplied buffer. Rather the entire variable, if
+possible, is copied into {\tt buffer}. Otherwise, even binary content is
+{\tt NUL}-terminated.
 \smallskip{}
 
 On success, this function returns the size of the supplied
@@ -24951,10 +24951,10 @@ other error code resulting from reading from {\tt ENV:} is also forwarded to
 the caller through {\tt IoErr()}\key{IoErr()}.
 \medskip{}
 
-AmigaDOS~36 returned the full size of the variable, not the number of
+AmigaDOS version~36 returned the full size of the variable, not the number of
 characters that could be read. This was changed in version~37 which also
 sets {\tt IoErr()}. The flag {\tt GVF\_DONT\_NULL\_TERM} only worked
-for local variables up to version~37. This was fixed in AmigaDOS~39.
+for local variables up to version~37. This was fixed in version~39.
 
 \subsection{Setting a Shell Variable} \label{sec:setvar}
 
@@ -24981,18 +24981,17 @@ slashes (``{\tt /}'') which corresponds to a hierarchy of variables that
 work similar to directories and paths on regular file systems; this
 hierarchy is represented by directories in {\tt ENV:} for global variables,
 but is also available for local variables. This function potentially creates
-levels in the hierarchy, i.e.\ sub-directories for global variables, if
-necessary.
+levels in the hierarchy, i.e.\ sub-directories, if necessary.
 \smallskip{}
 
 The {\tt buffer} and {\tt size} arguments are the contents of the
-variable\key{Shell Variable}
-and the size of the contents. It is generally advisable to only include
+variable\key{Shell Variable} and the size of the contents. It is generally
+advisable to only include
 printable characters in variables, even though they may include also binary
-data which can be retrieved by setting the {\tt GVF\_BINARY\_VAR}\key{GVF\_BINARY\_VAR} for {\tt
-  GetVar()}\key{GetVar()}. If {\tt size} is $-1$, then the {\tt buffer}
+data which can be retrieved by setting the {\tt GVF\_BINARY\_VAR}\key{GVF\_BINARY\_VAR}
+for {\tt GetVar()}\key{GetVar()}. If {\tt size} is $-1$, then the {\tt buffer}
 contains a {\tt NUL}-terminated string and this function determines the
-string size internally. The terminating {\tt NUL} of such a string
+string size itself. The terminating {\tt NUL} of such a string
 \emph{does not} become part of the variable value.
 \smallskip{}
 
@@ -25040,15 +25039,13 @@ This function returns a non-zero return value in case of success.
 {\tt IoErr()}\key{IoErr()} is then not set consistently. On error, this
 function returns {\tt DOSFALSE} and {\tt IoErr()}\key{IoErr()} is set to an
 error code. If a variable\key{Shell Variable} is to be deleted by setting
-{\tt buffer}
-to {\tt NULL}, and this variable does not exist, this function will set
+{\tt buffer} to {\tt NULL}, and this variable does not exist, this function will set
 {\tt IoErr()} to {\tt ERROR\_OBJECT\_NOT\_FOUND}\key{ERROR\_OBJECT\_NOT\_FOUND}.
 \smallskip{}
 
-Releases prior to AmigaDOS~47 did not clear the {\tt e} protection bit of
+Releases prior to AmigaDOS version~47 did not clear the {\tt e} protection bit of
 the file(s) created in {\tt ENV:} or {\tt ENVARC:}. If a variable name
-contained two slashes such as {\tt //}, releases prior to AmigaDOS~47 would
-have crashed.
+contained two slashes such as {\tt //}, releases prior to AmigaDOS version~47 crashed.
 \smallskip{}
 
 Furthermore, {\tt SetVar()} depends on the file system responsible to the
@@ -25063,11 +25060,11 @@ may not. In such a case, {\tt SetVar()} can fail silently when setting a
 global variable.
 \smallskip{}
 
-Additionally, {\tt SetVar()} has up to and including AmigaDOS~47 a potential
+Additionally, {\tt SetVar()} has up to and including AmigaDOS version~47 a potential
 race condition if two processes attempt to modify or read the same global variable
 concurrently. While the file system implementing {\tt ENV} should provide
-sufficient protection for writing data concurrently into a file, {\tt
-  SetVar()} uses a two-step process in which the data is written first, and
+sufficient protection for writing data concurrently into a file,
+{\tt SetVar()} uses a two-step process in which the data is written first, and
 then the variable is truncated to its target size which may happen
 concurrently with a second process either writing to, or reading from the
 same variable.
@@ -25124,7 +25121,7 @@ struct LocalVar {
 \end{verbatim}
 
 This structure shall never be allocated nor modified by the caller as it may grow in
-future releases. Instead, creation of variables\key{Shell Variable} shall only be created
+future releases. Instead, local variables\key{Shell Variable} shall only be created
 through {\tt SetVar()}\key{SetVar()}.
 \medskip{}
 
@@ -25135,7 +25132,7 @@ The elements of this structure are as follows:
 chains all local variables\key{Shell Variable} and aliases\key{Alias} of a
 process in the {\tt pr\_LocalVars}\key{pr\_LocalVars} element of the process
 structure, see chapter~\ref{sec:process}. The {\tt lv\_Node.ln\_Name} element is the
-full path to the variable, including all directory elements and its name,
+full path of the variable, including all directory elements and its name,
 separated by forward slashes (``{\tt /}''). The type of the node, namely
 {\tt lv\_Node.ln\_Type} identifies whether this structure describes a
 variable or an alias.
@@ -25172,15 +25169,16 @@ D0                   D1    D2
 BOOL DeleteVar(STRPTR, ULONG ) 
 \end{verbatim}
 
-This function removes a shell\key{Shell Variable} variable or alias\key{Alias} from the local or global
-pool of shell variables. This function is equivalent to {\tt
-  SetVar(name,NULL,0,flags)}\key{SetVar()} defined in section~\ref{sec:setvar}.
+This function removes a shell\key{Shell Variable} variable or
+alias\key{Alias} from the local or global pool of shell variables.
+This function is equivalent to {\tt SetVar(name,NULL,0,flags)}\key{SetVar()}
+defined in section~\ref{sec:setvar}.
 \smallskip{}
 
 The {\tt name} argument is the name of the variable or alias\key{Alias} to remove. It
 is not case-sensitive. This name may contain slashes (``{\tt /}'') that work
-similar to path separates. This allows variables to form a hierarchy similar
-to a file system. Without additional flags, this function first attempts to
+similar to path separators. This allows variables to form a hierarchy similar
+to files in a file system. Without additional flags, this function first attempts to
 find a local variable and then deletes it if it exists. If no such variable
 exists, the function attempts to find a global variable of the same name and
 attempts to delete it. It does not delete directories of variables.
@@ -25197,13 +25195,13 @@ alias\key{Alias} are to be deleted. The following flags are honored:
 mutually exclusive to the above.
 \smallskip{}
 
-If {\tt GVF\_GLOBAL\_ONLY}\key{GVF\_GLOBAL\_ONLY} is set, then only a global variable is to be
-deleted; the function then does not attempt to find a local variable of the
-given name.
+If {\tt GVF\_GLOBAL\_ONLY}\key{GVF\_GLOBAL\_ONLY} is set, then only a global
+variables is to be deleted; the function then does not attempt to find a
+local variable of the given name.
 \smallskip{}
 
-If {\tt GVF\_LOCAL\_ONLY}\key{GVF\_LOCAL\_ONLY} is set, then only a local variable is to be
-deleted.
+If {\tt GVF\_LOCAL\_ONLY}\key{GVF\_LOCAL\_ONLY} is set, then only a local
+variable is to be deleted.
 \smallskip{}
 
 If {\tt GVF\_SAVE\_VAR}\key{GVF\_SAVE\_VAR} is set, and a global variable is
