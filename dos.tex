@@ -23021,7 +23021,7 @@ in a more compact form, by the single line
 
 To allow spaces, tabulators, equals-signs and the above operators within
 command names and arguments, e.g.\ to handle file names containing such
-characters, the Shell offers quoting. Blank spaces, tabulators, semicola,
+characters, the Shell offers quoting. Blank spaces, tabulators, semicolons,
 the above operators and equals-signs become part of the command or argument
 and are not interpreted by the Shell\key{Shell} if they are enclosed in 
 double quotes (``{\tt "}''). A quote only starts a quoted argument
@@ -25206,7 +25206,7 @@ variable is to be deleted.
 
 If {\tt GVF\_SAVE\_VAR}\key{GVF\_SAVE\_VAR} is set, and a global variable is
 deleted, the change will be made permanent by also deleting the variable in the
-{\tt ENVARC:} directory.
+{\tt ENVARC:} assign.
 \medskip{}
 
 This function returns a non-zero return value in case of success.
@@ -25222,11 +25222,17 @@ The functions in this section support applications in parsing arguments
 from the command line. Because the entire command line except the command name is
 delivered literally to programs run from the shell, it is possible to use
 custom algorithms to extract arguments from it, e.g.\ in order to deliver
-them in the form of an {\tt argv[]} array to the {\tt main()} function of a C program.
+them in the form of an {\tt argv[]} array to the {\tt main()} function of a
+C program.
+\smallskip{}
+
 The functions in this section have the advantage that they are aware of the
-delicate syntax of the AmigaDOS Shell\key{Shell} and its quoting and escaping rules as
-laid out in section~\ref{sec:shellquotes}; they also integrate a simple help system
-for command line tools.
+delicate syntax of the AmigaDOS Shell\key{Shell} and its quoting and
+escaping rules as laid out in section~\ref{sec:shellquotes}; they also
+integrate a simple help system for command line tools. Because argument
+parsing is provided as a service of AmigaDOS, command line tools do often
+not need to be linked with startup code provided by C compilers,
+allowing such tools to remain small and memory efficient.
 
 \subsection{Parsing Command Line Arguments} \label{sec:readargs}
 
@@ -25248,15 +25254,15 @@ human-readable template supplied as first parameter, and parsed arguments
 are placed into {\tt array}. If {\tt rdargs} is {\tt NULL}, then
 {\tt ReadArgs()}\key{ReadArgs()} retrieves its input from the buffer of the
 standard input of the calling process. Other sources are possible, and the
-function is not restricted to the input streams. This function requires
+function is not restricted to the input stream. This function requires
 that the command line is terminated by a newline character ({\tt 0x0a}).
 \smallskip{}
 
 The {\tt template} parameter specifies the arguments the parser shall
 retrieve from its input. It describes their names by keywords, their type,
-whether they are optional or mandatory, and whether the keyword is required on
-the command line to fill the argument, or whether it can also be matched by
-position.
+whether they are optional or mandatory, and whether the keyword is required
+on the command line to fill the argument, or whether an argument can also be
+matched by position.
 \smallskip{}
 
 Each command line argument to be filled is represented by a keyword, and an optional
@@ -25274,14 +25280,17 @@ the command line, and the option the {\tt /S} indicates that it is a
 switch. The keywords are separated by commas (``{\tt ,}'') from each other.
 \smallskip{}
 
-{\tt ReadArgs()}\key{ReadArgs()} parses by matching keywords on the command line to
-keywords in the template; a keyword either stands for itself for boolean
-tags, or is followed by its value, either separated by spaces, tabulators or
-an equals-sign (``{\tt =}''), i.e.\ {\tt FROM=org} or {\tt FROM org} on the
-command line assigns to the keyword {\tt FROM} in the template the value
-{\tt org}. If no keyword is present, then remaining arguments that do not
-explicitly require keywords are filled left to right from the command
-line.
+{\tt ReadArgs()}\key{ReadArgs()} retrieves keywords and arguments one by one
+through the {\tt ReadItem()}\key{ReadItem()} function introduced in
+section~\ref{sec:readitem}, and through that function implements the quoting
+and escaping rules from section~\ref{sec:shellquotes}. It then matches
+keywords on the command line to keywords in the template; a keyword either
+stands for itself for boolean flags, or is followed by its value, either
+separated by spaces, tabulators or an equals-sign (``{\tt =}''), i.e.\
+{\tt FROM=org} or {\tt FROM org} on the command line assigns to the keyword
+{\tt FROM} in the template the value {\tt org}. If no keyword is present,
+then remaining arguments that do not explicitly require keywords are filled
+left to right from the command line.
 \smallskip{}
 
 Upon return, each argument is placed in one of the elements of the
@@ -25443,7 +25452,7 @@ again after reading the template and the extended help.
 
 The {\tt RDA\_Flags}\mkey{RDA\_Flags} element allows callers to further refine the
 functionality of {\tt ReadArgs()}\key{ReadArgs()}. The available flags are
-also defined in {\tt dos/readargs.h} and are as follows:
+defined in {\tt dos/readargs.h} and are as follows:
 \smallskip{}
 
 {\tt RDAF\_STDIN}\mkey{RDAF\_STDIN} is defined, but not in use.
@@ -25457,16 +25466,16 @@ overflows, parsing aborts and {\tt IoErr()} is set to {\tt ERROR\_NO\_FREE\_STOR
 
 {\tt RDAF\_NOPROMPT}\mkey{RDAF\_NOPROMPT} If this flag is set, the single question mark as
 request for help is not honored but taken as a literal argument on the
-command line, that is, command line help through the supplied {\tt template}x
+command line, that is, command line help through the supplied {\tt template}
 parameter or {\tt RDA\_ExtHelp} is not provided.
 \medskip{}
 
-On success, this function returns a {\tt RDArgs} structure, either the
+On success, {\tt ReadArgs()} returns a {\tt RDArgs} structure, either the
 same as passed in through {\tt rdargs}, or one that was created by
 this function; as this structure administrates the resources acquired
 during argument parsing, it shall be released by
 {\tt FreeArgs()}\key{FreeArgs()}, see section~\ref{sec:freeargs}, 
-once all arguments have been interpreted and worked on. It
+once all arguments have been interpreted and worked on. {\tt FreeArgs()}
 shall be called regardless whether the {\tt RDArgs} structure was
 implicitly allocated by the {\tt ReadArgs()}\key{ReadArgs()} call, or upfront
 through {\tt AllocDosObject()}\key{AllocDosObject()}. Note that the
@@ -25516,34 +25525,35 @@ void FreeArgs(struct RDArgs *)
 
 This function releases all resources acquired by the
 {\tt ReadArgs()}\key{ReadArgs()} argument parser.
-The {\tt rdargs} argument is the result of
-{\tt ReadArgs()}\key{ReadArgs()}, which is identical to
-the {\tt rdargs} structure provided as its third argument if it was not {\tt NULL}.
+The {\tt rdargs} argument shall be the return value of
+{\tt ReadArgs()}\key{ReadArgs()}.
 {\tt FreeArgs()} releases all temporary buffers associated to the
 {\tt rdargs} structure, and in case it was allocated by {\tt ReadArgs()}, also
 the structure itself. If a custom allocated {\tt RDArgs}
 structure was passed into {\tt ReadArgs()}\key{ReadArgs()}, then
-it shall be disposed manually by {\tt FreeDosObject()}\key{FreeDosObject()}
-(see~\ref{sec:freedosobject}).
+first {\tt FreeArgs()} shall be called to release the system-allocated
+resources, and then the structure itself shall be
+disposed by {\tt FreeDosObject()}\key{FreeDosObject()}
+(see section~\ref{sec:freedosobject}).
 \smallskip{}
 
 As {\tt FreeArgs()} potentially releases all elements of the {\tt array}
 argument of {\tt ReadArgs()}\key{ReadArgs()} as part of its resources, the
 contents of this array are no longer usable afterwards. If {\tt array}
-is supposed to be reused for another {\tt ReadArgs()}, all its elements
+is supposed to be reused for another {\tt ReadArgs()} call, all its elements
 shall be set to zero again.
 \smallskip{}
 
-From AmigaDOS~39 onward, this function clears the
+From AmigaDOS version~39 onward, this function clears the
 {\tt RDA\_Buffer}\key{RDA\_Buffer} element of {\tt rdargs} upfront, which can
 point to one of the resources that are about to be released.
 While this makes a {\tt rdargs} structure
 allocated through {\tt AllocDosObject()}\key{AllocDosObject()} safe to reuse
 for another {\tt ReadArgs()}\key{ReadArgs()} call, it also makes a custom
-buffer installed there unavailable. Thus, if such a custom
+allocated buffer installed there unavailable. Thus, if such a custom
 buffer is supposed to be reused, {\tt RDA\_Buffer} must be reinitialized\footnote{\cite{guru} recommends to
 zero {\tt RDA\_Buffer} manually. This is no longer necessary, though
-requires re-installing a custom buffer.}.
+re-installing a custom buffer is.}.
 
 \subsection{Reading a Single Argument from the Command Line} \label{sec:readitem}
 
@@ -25563,7 +25573,7 @@ supplied {\tt CSource}\key{CSource} structure. This structure is defined in {\tt
 specified in section~\ref{sec:readargs}.
 \smallskip{}
 
-An argument is delimited by spaces, tabulators, semicola (``{\tt ;}'') or
+An argument is delimited by spaces, tabulators, semicolons (``{\tt ;}'') or
 equals-signs (``{\tt =}''), unless they are enclosed in double quotes. A
 newline or EOF always terminates an argument, within or outside of quotes.
 Section~\ref{sec:shellsyntax} provides more details on the Shell syntax.
@@ -25586,7 +25596,7 @@ only a subset of the delimiters is unread.}.
 
 The {\tt buffer} argument provides a user-supplied buffer into which the
 parsed off argument is copied. This buffer has a capacity of
-{\tt maxchars}; if this buffer overflows, this function aborts parsing and
+{\tt maxchars}; if this buffer overflows, {\tt ReadItem()} aborts parsing and
 returns {\tt ITEM\_ERROR}. It does not attempt to allocate an extension
 buffer, unlike {\tt ReadArgs()}\key{ReadArgs()}.
 \smallskip{}
@@ -25600,12 +25610,14 @@ section~\ref{sec:readargs}.
 This function returns the following result codes defined in {\tt dos/dos.h}:
 \smallskip{}
 
-{\tt ITEM\_EQUAL}\mkey{ITEM\_EQUAL} an equals-sign (``{\tt =}'') was found as delimiter.
+{\tt ITEM\_EQUAL}\mkey{ITEM\_EQUAL} an equals-sign (``{\tt =}'') was found
+as delimiter. This may be used as an indication that the parsed string
+establishes a keyword, and not an argument.
 \smallskip{}
 
-{\tt ITEM\_ERROR}\mkey{ITEM\_ERROR} the supplied user buffer is too small or the source run
-out of data before matching a closing double quote was found for an opening double
-quote.
+{\tt ITEM\_ERROR}\mkey{ITEM\_ERROR} the supplied user buffer is too small or
+the source run out of data or run into a newline before a matching closing
+double quote was found for an opening double quote.
 \smallskip{}
 
 {\tt ITEM\_NOTHING}\mkey{ITEM\_NOTHING} no argument could be retrieved because the source run
@@ -25619,7 +25631,8 @@ command line.
 {\tt ITEM\_QUOTED}\mkey{ITEM\_QUOTED} a quoted item was found and retrieved.
 \medskip{}
 
-{\tt ReadItem()} does not set {\tt IoErr()}\key{IoErr()}.
+{\tt ReadItem()} does not set {\tt IoErr()}\key{IoErr()}, even if
+{\tt ITEM\_ERROR} is returned.
 
 \subsection{Find an Argument in a Template}
 
@@ -25633,8 +25646,8 @@ D0                D1        D2
 LONG FindArg(STRPTR, STRPTR)
 \end{verbatim}
 
-This function scans a template as those provided to {\tt
-  ReadArgs()}\key{ReadArgs()} for a specific keyword and returns the
+This function scans a template as provided to
+{\tt ReadArgs()}\key{ReadArgs()} for a specific keyword and returns the
 (zero-based) count of the keyword within the template. See
 section~\ref{sec:readargs} for how templates look like.
 \smallskip{}
@@ -25646,13 +25659,14 @@ section~\ref{sec:readargs}.
 
 The {\tt keyword} argument provides a keyword that is to be found within the
 template. It is provided as a pointer to a {\tt NUL}-terminated C
-string. Searching is case-insensitive.
+string. Matching the keyword to the template is case-insensitive.
 \smallskip{}
 
 This function returns a zero-based index which argument in the template
 matches the supplied keyword matches, i.e.\ 0 for the first keyword,~1~for
 the second and so on. It returns~$-1$ if no matching argument is found in
-the template. {\tt IoErr()}\key{IoErr()} remains unmodified.
+the template. {\tt IoErr()}\key{IoErr()} remains unmodified, even if no
+matching keyword is found in the template.
 
 \section{Resident Segments} \label{sec:resident}
 
