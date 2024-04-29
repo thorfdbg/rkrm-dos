@@ -25670,13 +25670,14 @@ matching keyword is found in the template.
 
 \section{Resident Segments} \label{sec:resident}
 
-AmigaDOS keeps a list of resident segments\key{Segment (resident)} that that are available
-immediately without requiring them to load from disk. This list of
-segments include resident commands, but also ROM-resident system segments
-that have been placed there during initialization of AmigaDOS.
+To ease access to often used program code, AmigaDOS administrates a list of
+resident segments\key{Segment (resident)}. This list includes resident
+commands, and thus allows the Shell to execute them quickly without
+requiring to load them from disk; but also ROM-resident system segments such
+as the Shell have been placed there during the initialization of AmigaDOS.
 \smallskip{}
 
-This list of resident segments should not be confused with the exec list of
+The list of resident segments should not be confused with the exec list of
 resident modules kept in {\tt SysBase->ResModules}, even though its purpose
 is quite similar\footnote{This duplication of structures is again a historic
 accident due to the origin of AmigaDOS.}.
@@ -25687,20 +25688,21 @@ protection bit (see section~\ref{sec:fib}) is set may be added to this list
 explicitly through the {\tt Resident} command. This bit indicates that the
 command is ``pure'', which means that it does not alter its code or data,
 and its code can be executed from several processes at once. Unfortunately,
-AmigaDOS makes no attempt to verify these requirements but only depends on
-this bit. The AmigaDOS Shell scans the list of resident commands, and if the
-requested command is found there, it uses the resident segment instead of
-loading the command from disk, see also~\ref{sec:cmdexecution}.
+AmigaDOS makes no attempt to verify these requirements and thus depends on
+the compiler or user to indicate such pure commands correctly. 
 \smallskip{}
 
 Second, if a command has the {\tt p} and {\tt h} protection bits set, it is
-automatically added to the list of resident segments. The {\tt h} stands for
-``hold'', meaning that a command will be held resident once used.
+automatically added to the list of resident segments at the first time such
+a command is executed. This allows users to indicate often used commands
+that then stay resident automatically. The {\tt h} stands for ``hold'', meaning that a
+command will be held resident once used.
 \smallskip{}
 
-Third, the AmigaDOS Shell adds its built-in commands during its
+Third, the AmigaDOS Shell adds its own built-in commands during 
 initialization to this list. This includes elementary commands such as
-{\tt CD} or {\tt Execute} that do not need to be loaded from disk.
+{\tt CD} or {\tt Execute} that are contained in the Kickstart and do not need
+to be loaded from disk.
 \smallskip{}
 
 Fourth, some non-command segments\key{Segment (resident)} are added to the list
@@ -25710,7 +25712,7 @@ RAM-Handler\key{RAM-Handler}, the FFS\key{Fast File System (FFS)} which is
 represented by a resident segment named ``{\tt FileHandler}'', and --- finally -- the Shell.
 \smallskip{}
 
-The Shell is even added three times to this list. First, as
+The latter is even added three times to this list. First, as
 ``{\tt shell}''\key{Shell (resident)}, which is the the shell that is used by
 default by the {\tt Shell} icon and the {\tt System()}\key{System()}
 function. A user shell\key{Shell} may replace this entry and thus become
@@ -25718,10 +25720,13 @@ accessible by the {\tt Shell} icon on the Workbench.
 Second, as ``{\tt BootShell}''\key{BootShell},
 which shall remain unchanged. It always refers to the shell that booted the
 system, and is also the shell that is used by the
-{\tt Execute()}\key{Execute()} function. Third, as ``{\tt CLI}''\key{CLI}, which is
+{\tt Execute()}\key{Execute()} function discussed in
+section~\ref{sec:executecmd}. Third, as ``{\tt CLI}''\key{CLI}, which is
 only present for legacy reasons and not used by the system at all, unless
 requested explicitly by the {\tt SYS\_CustomShell}\key{SYS\_CustomShell} tag
-of the {\tt System()}\key{System()} function, see section~\ref{sec:system}.
+of the {\tt System()}\key{System()} function, see
+section~\ref{sec:system}. Unlike the above two entries of the resident list,
+it uses BCPL binding and as introduced in section~\ref{sec:bcplbinding}.
 \medskip{}
 
 A resident segment is described by the {\tt Segment} structure defined in
@@ -25750,21 +25755,21 @@ resident segments form a singly linked list. This BPTR shall not be modified by 
 The {\tt seg\_UC}\mkey{seg\_UC} element is a use counter, or a type
 identifier. If the value is positive, the resident segment represents a
 disk-based command that had been added to the list either implicitly by the
-shell due to its {\tt h} bit, or had been made resident explicitly.
+shell due to a set {\tt h} bit, or had been made resident explicitly.
 \smallskip{}
 
-In such a case, {\tt seg\_UC} is incremented every time the
-segment is used, e.g.\ when the shell\key{Shell} locates the command in the resident
-segments, and decremented once the segment\key{Segment (resident)} is not used anymore, e.g.\ if
-the resident command terminates execution. It is confusingly initially~1
-(not 0) if the segment is unused. Resident commands with a {\tt seg\_UC}
-counter larger than~1 cannot be unloaded as they are currently in
-use\footnote{To add to the confusion, the {\tt Resident} command prints
-not {\tt seg\_UC}, but {\tt seg\_UC}-1.}.
+In such a case, {\tt seg\_UC} is incremented every time the segment is used,
+e.g.\ when the shell\key{Shell} locates the command on the resident segments
+and executes its code, and decremented once the
+segment\key{Segment (resident)} is not used anymore, e.g.\ if the resident command terminates
+execution. It is confusingly initially~1 (not 0) if the segment is
+unused. Resident commands with a {\tt seg\_UC} counter larger than~1 cannot
+be unloaded as they are currently in use\footnote{To add to the confusion,
+the {\tt Resident} command prints not {\tt seg\_UC}, but {\tt seg\_UC}-1.}.
 \smallskip{}
 
-Despite these regular entries used for disk-based commands that have been
-made resident, the following special values for {\tt seg\_UC} exist. They
+Despite these regular entries used for resident disk-based commands,
+the following special values for {\tt seg\_UC} exist; they
 are also defined in {\tt dos/dosextens.h}:
 \smallskip{}
 
@@ -25775,23 +25780,24 @@ commands to the resident list during its initialization.
 
 Segments indicated by the use counter set to {\tt CMD\_SYSTEM}\mkey{CMD\_SYSTEM} are not commands that could be
 executed, but rather segments of system components. The RAM-Handler\key{RAM-Handler}, the
-CON-Handler\key{CON-Handler} and the FFS\key{Fast File System (FFS)} aka ``{\tt FileHandler}''
+CON-Handler\key{CON-Handler} and the FFS\key{Fast File System (FFS)} there named ``{\tt FileHandler}''
 are indicated as system segments. These segments\key{Segment (resident)}
 cannot be executed and are not found by the Shell when scanning the resident list for commands.
 \smallskip{}
 
-Segments with a {\tt seg\_UC}\key{seg\_UC} smaller or equal than {\tt CMD\_DISABLED}\mkey{CMD\_DISABLED} are
-neither found by the Shell; they are rather temporarily
-disabled. This type is created if the {\tt Resident} command is used to
-remove a built-in command or a system segment.
+Segments with a {\tt seg\_UC}\key{seg\_UC} smaller or equal than
+{\tt CMD\_DISABLED}\mkey{CMD\_DISABLED} are neither found by the Shell; they
+are temporarily disabled. This type is created if the {\tt Resident} command
+is used to remove a built-in command or a system segment.
 \medskip{}
 
-The {\tt seg\_Seg}\mkey{seg\_Seg} element is a BPTR to the actual segment list\key{Segment}
+The {\tt seg\_Seg}\mkey{seg\_Seg} element is a BPTR to the segment list\key{Segment}
 corresponding to the loaded or resident command or system segment. It is a
-segment list as those loaded through {\tt LoadSeg()}\key{LoadSeg()}.
+segment list\key{SegmentList} as returned by {\tt LoadSeg()}\key{LoadSeg()}, see also
+chapter~\ref{sec:binary} and section~\ref{sec:loadseg}.
 \smallskip{}
 
-The {\tt seg\_Name}\mkey{seg\_Name} is, actually, not only 4 characters long as indicated,
+The {\tt seg\_Name}\mkey{seg\_Name} is not only 4 characters long as indicated,
 but a variable length field. It contains the name of the command or system
 segment as BSTR.
 
@@ -25831,7 +25837,7 @@ shall be done by the caller.
 This function neither increases the use counter of a found resident
 segment\key{Segment (resident)}
 and thus, it cannot guarantee that the segment will be unloaded by another
-process at the time the function returns. Thus, this function should be
+process at the time the function returns. Thus, this function shall be
 called while a {\tt Forbid()} is active, and the caller shall increment
 {\tt seg\_UC}\key{seg\_UC} for non-system segments it attempts to use them before calling
 {\tt Permit()}.
@@ -25842,7 +25848,7 @@ marked as {\tt CMD\_DISABLED}, and thus {\tt seg\_UC} need not to be altered
 by the caller.
 \smallskip{}
 
-This function does not alter {\tt IoErr()} on success, but it sets it to
+This function does not alter {\tt IoErr()} on success, and it sets it to
 {\tt ERROR\_OBJECT\_NOT\_FOUND}\key{ERROR\_OBJECT\_NOT\_FOUND} in case no matching segment could be found.
 
 \subsection{Adding a Resident Segment} \label{sec:addsegment}
@@ -25857,7 +25863,7 @@ D0                   D1     D2      D3
 BOOL AddSegment(STRPTR, BPTR, LONG)
 \end{verbatim}
 
-This function adds the segment {\tt seglist}, e.g.\ as returned by
+This function adds the segment list {\tt seglist}, e.g.\ as returned by
 {\tt LoadSeg()}\key{LoadSeg()}, under the given {\tt name} to the list of
 resident segments. The {\tt seg\_UC}\key{seg\_UC} type and use counter is initialized to
 the value {\tt type}.
@@ -25908,7 +25914,7 @@ BOOL RemSegment(struct Segment *)
 \end{verbatim}
 
 This function attempts to remove the resident segment provided as argument
-from the AmigaDOS list of resident commands. If an attempt is made to
+from the AmigaDOS list of resident segments. If an attempt is made to
 remove a system segment, an internal command or a regular resident command
 that is currently in use, {\tt DOSFALSE} is returned and the resident
 segment is left in the list. Otherwise, the segment is removed, and all its
@@ -25919,10 +25925,10 @@ resident segment which is purged through {\tt UnLoadSeg()}\key{UnLoadSeg()}.
 The resident segment to be removed is typically acquired by
 {\tt FindSegment()}\key{FindSegment()}. However, any other process can attempt
 to unload the same resident segment at the same time, causing a race
-condition. Therefore, a caller should stop multitasking with
+condition. Therefore, a caller shall stop multitasking with
 {\tt Forbid()}, then locate the segment with {\tt FindSegment()}\key{FindSegment()},
 and if this function succeeds, unload the found segment with {\tt RemSegment()}\key{FindSegment()}.
-Then, finally, {\tt Permit()} should be called to re-enable multitasking.
+Then, finally, {\tt Permit()} shall be called to re-enable multitasking.
 \smallskip{}
 
 If the segment passed in cannot be removed because it is in use or is a system
