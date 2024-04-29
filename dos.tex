@@ -25947,26 +25947,26 @@ RAM-Handler\key{RAM-Handler} on the same list. When launching a
 shell\key{Shell} with the {\tt System()}\key{System()} function, a custom
 shell\key{Shell} may be requested by providing the name of its resident
 segment to the {\tt SYS\_CustomShell} tag. A custom shell may even replace
-the AmigaDOS Shell it by making it resident under the name ``{\tt
-  shell}''.\mkey{Shell (resident)} On the AmigaDOS Shell, the following
+the AmigaDOS Shell it by making it resident under the name
+``{\tt shell}''.\mkey{Shell (resident)} On the AmigaDOS Shell, the following
 command will perform this step:
 
 \begin{verbatim}
 resident shell MyShell replace system
 \end{verbatim}
 
-where {\tt MyShell} is the file name of your shell\key{Shell}. However, a shell
+where {\tt MyShell} is the file name of the new shell\key{Shell}. However, a shell
 is not a regular program and requires to go through a custom startup mechanism.
 \smallskip{}
 
 First of all, AmigaDOS supports a BCPL shell\key{Shell} under the name
-``{\tt CLI}''\mkey{CLI} which will be initialized as BCPL programs using the BCPL
+``{\tt CLI}''\mkey{CLI} which will be initialized as BCPL program using the BCPL
 runtime binding protocol explained in section~\ref{sec:bcplbinding}.
 AmigaDOS also supports C and assembler
 based shells\key{Shell} under the names ``{\tt shell}'' and
 ``{\tt BootShell}''. A user shell replacing the ``{\tt shell}'' entry in
 the resident segment\key{Segment (resident)} list will
-thus follow C or assembler binding.
+thus follow the C/Assembler binding.
 \smallskip{}
 
 Regardless of whether the Shell is run as BCPL or C program, it receives a
@@ -25980,19 +25980,19 @@ function of the provided example.
 \medskip{}
 
 Even though there is no need to interpret the elements of the startup packet
-as of AmigaDOS~47 anymore, the following information is provided for the
-sake of completeness:
+as of AmigaDOS version~47 anymore, the following information is provided for
+the sake of completeness:
 \smallskip{}
 
 If {\tt dp\_Type} is non-zero, and {\tt dp\_Res1} and {\tt dp\_Res2}
 are both~0, this is a regular shell\key{Shell} startup, and this is the only
-startup that still exists in AmigaDOS~47, thus no particular test for
-{\tt dp\_Type} needs to be made for this version. Under AmigaDOS versions 36 to
+startup that still exists in AmigaDOS version~47, thus no particular test for
+{\tt dp\_Type} needs to be made for this version. Under AmigaDOS versions~36 to
 45, the following legacy startup types existed: if {\tt dp\_Type} was~0,
 then this used to indicate the creation of the ``Initial
 CLI'' booting the system, and if {\tt dp\_Res1} and {\tt dp\_Type} were non-zero,
 this used to indicate the creation of a shell\key{Shell} through the
-{\tt NewShell} command. Under AmigaDOS 34 and before, {\tt dp\_Type}
+{\tt NewShell} command. Under AmigaDOS version~34 and before, {\tt dp\_Type}
 was a pointer to a BCPL function that performed the initialization
 of the shell.
 \smallskip{}
@@ -26016,12 +26016,13 @@ requires, and if this step fails, the startup code shall set the
 origin and exit.
 \smallskip{}
 
-If this first initialization succeeds, the segment array of the
-calling process in {\tt pr\_SegList}\key{pr\_SegList} needs to be reorganized. The
-regular process startup code of AmigaDOS places the segment list of
-the process in index~3 of this array\key{Segment Array}, though commands executed by the
-shell\key{Shell} will require this entry themselves, and thus the shell shall
-move its own segment\key{Segment} from entry~3 to entry~4.
+If this first initialization succeeds, the segment array of the calling
+process in {\tt pr\_SegList}\key{pr\_SegList} needs to be reorganized, see
+also chapter~\ref{sec:process}. The regular process startup code of AmigaDOS
+places the segment list of the process in index~3 of this
+array\key{Segment Array}, though commands executed by the shell\key{Shell}
+will require this entry themselves, and thus the shell shall move its own
+segment\key{Segment} from entry~3 to entry~4.
 \smallskip{}
 
 Initialization continues with the \emph{dos.library} function
@@ -26085,7 +26086,6 @@ void __asm main(register __a0 struct DosPacket *pkt)
     msg = GetMsg(&proc->pr_MsgPort);
     pkt = (struct DosPacket *)(msg->mn_Node.ln_Name);
   }
-
   /* check the packet for validity */
   if (pkt->dp_Type == 0 || pkt->dp_Res2 || pkt->dp_Res1) {
       /* Some other form of startup, not from the Os */
@@ -26142,7 +26142,6 @@ void __asm main(register __a0 struct DosPacket *pkt)
      Close(cli->cli_StandardInput);
    if (fn & (1L << FN_RUNOUTPUT))
      Close(cli->cli_StandardOutput);
-
    /* if not yet replied, do finally now    */
    if (pkt)
      ReplyPkt(pkt,cli->cli_ReturnCode,cli->cli_Result2);
@@ -26205,8 +26204,8 @@ then initialization was successful. In such a case, the startup packet
 shall only be replied after the first command executed by the shell\key{Shell},
 leaving the {\tt dp\_Res1} and {\tt dp\_Res2} unaltered from the
 values left by {\tt CliInitRun()}\key{CliInitRun()}. When the shell\key{Shell}
-terminates, the shell shall close the {\tt cli\_StandardOutput}\key{cli\_StandardInput} and
-the {\tt cli\_StandardInput} file handles\key{FileHandle} of the
+terminates, the shell shall close the {\tt cli\_StandardOutput}\key{cli\_StandardOutput} and
+{\tt cli\_StandardInput}\key{cli\_StandardInput} file handles\key{FileHandle} of the
 {\tt CommandLineInterface}\key{CommandLineInterface} structure. This type of startup is
 used when the shell is instructed to execute commands in the
 background, e.g.\ by the {\tt Run} command, and if
@@ -26215,7 +26214,7 @@ called with {\tt NULL} as its first argument and
 {\tt SYS\_Asynch}\key{SYS\_Asynch} is not set, see section~\ref{sec:system}.
 \smallskip{}
 
-The reason for delaying the startup packet after execution of the
+The reason for delaying the startup packet until after execution of the
 first command is to avoid unnecessary head movements of floppies as
 otherwise two processes could attempt to access the disk
 simultaneously: the shell\key{Shell} starting a command with {\tt Run}, and the
@@ -26229,8 +26228,8 @@ unaltered from the values left by {\tt CliInitRun()}\key{CliInitRun()}.
 If {\tt FN\_VALID}\key{FN\_VALID} is set and {\tt FN\_ASYNC}\key{FN\_ASYNC}
 is not set, then the startup packet shall only be replied
 when the last command of the shell\key{Shell} returned. Then, {\tt dp\_Res1}
-shall be set to the return code of this command as found in {\tt
-  cli\_ReturnCode}, and {\tt dp\_Res2} shall be set to the error code
+shall be set to the return code of the last command as found in
+{\tt cli\_ReturnCode}, and {\tt dp\_Res2} shall be set to the error code
 the command left in {\tt cli\_Result2}. The {\tt FN\_ASYNC} bit
 reflects the value of {\tt SYS\_Asynch}\key{SYS\_Asynch} of the {\tt System()}\key{System()} call.
 \medskip{}
@@ -26241,15 +26240,18 @@ are set then the shell\key{Shell} shall terminate if the
 level script\key{Shell Script} to continue executing from. This
 corresponds to the case where the first argument of
 {\tt System()}\key{System()} is non-{\tt NULL}. In such a case, the
-commands from this string are executed from a string stream placed in
-{\tt cli\_CurrentInput}\key{cli\_CurrentInput}. Once done, the shell stops
-and returns. Shells created this way are never interactive, i.e.\
-{\tt cli\_Interactive} shall always be {\tt DOSFALSE}.
+commands from this string are executed, which is delivered through
+a string stream placed in {\tt cli\_CurrentInput}\key{cli\_CurrentInput}.
+Once done, the shell stops and returns. Shells created this way are never
+interactive, i.e.\ {\tt cli\_Interactive} shall always be {\tt DOSFALSE}.
 \smallskip{}
 
-If the {\tt FN\_VALID}\key{FN\_VALID} flag is set and {\tt FN\_SYSTEM}\key{FN\_SYSTEM} is reset, then
-the shell\key{Shell} continues to read commands from {\tt cli\_StandardInput}\key{cli\_StandardInput} once
-{\tt cli\_CurrentInput}\key{cli\_CurrentInput} depletes and there is no higher level script\key{Shell Script}
+If the {\tt FN\_VALID}\key{FN\_VALID} flag is set and
+{\tt FN\_SYSTEM}\key{FN\_SYSTEM} is reset, then
+the shell\key{Shell} continues to read commands from
+{\tt cli\_StandardInput}\key{cli\_StandardInput} once
+{\tt cli\_CurrentInput}\key{cli\_CurrentInput} depletes and there
+is no higher level script\key{Shell Script}
 to continue executing from. Only if the two input streams are equal
 and and EOF condition is detected, the shell terminates. This
 corresponds to the case where the the shell\key{Shell} was initiated through
@@ -26402,7 +26404,7 @@ struct DosPacket *ShellMain(struct DosPacket *pkt,LONG fn,
 \end{verbatim}
 
 Historically, two additional functions existed to initialize a
-shell\key{Shell} in AmigaDOS~36 to AmigaDOS~45.
+shell\key{Shell} in AmigaDOS version~36 to version~45.
 {\tt CliInit()}\key{CliInit()} had to be called by the
 {\tt Initial CLI} and not only initialized the shell to read from the
 {\tt S:Startup-Sequence}, it also initialized the \emph{dos.library}
