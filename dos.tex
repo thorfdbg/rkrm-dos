@@ -27200,17 +27200,17 @@ The {\tt di\_DevLock}\mkey{di\_DevLock}, {\tt di\_EntryLock}\mkey{di\_EntryLock}
 For starting the system, AmigaOs initializes the resident modules stored in
 {\tt SysBase->ResModules} in the order of decreasing priority. The last
 module that is initialized in this way is the {\tt strap} module. It locates
-the booting volume, and either performs boot-point or boot-block booting,
+the boot volume, and either performs boot-point or boot-block booting,
 see~\cite{rkrmdev} for more details. The boot code of the host adapter
 responsible for the boot volume, or the bootstrap code from the boot block
-either loads an alternative operating system or a self-booting program, or
+either loads an alternative operating system, a self-booting program, or
 starts AmigaDOS by initializing the resident module named {\tt dos.library}.
 \smallskip{}
 
 The boot code in the host adapter ROM or in the boot block therefore
 includes a {\tt InitResident()} call which starts the \emph{dos.library}. In
-AmigaDOS~36, this process was augmented by also setting a flag in the {\tt
-  expansion.library} that prevents opening the boot console immediately. The
+AmigaDOS version~36, this process was augmented by also setting a flag in
+the \emph{expansion.library} that prevents opening the boot console immediately. The
 standard boot block on floppies created by the {\tt Install} command, in
 fact, performs \emph{only} the above two steps. Even though 
 continuing AmigaDOS initialization from AmigaOs initialization is rather
@@ -27219,17 +27219,17 @@ initialization chain, even though it is represented as a resident modules.
 \smallskip{}
 
 The \emph{dos.library} then first builds a minimal instance of its library
-lacking lacking many resources. Under AmigaDOS~45 and before, initialization
+lacking lacking many resources. Under AmigaDOS version~45 and before, initialization
 is completed through the shell running the {\tt InitialCLI}. The shell
 startup code, see section~\ref{sec:usershells}, received a startup packet
 that requested the shell to call {\tt CliInit()}\key{CliInit()}. This function then
-completed the initialization of AmigaDOS, but also initialized the shell by
-opening a console window as standard output and the {\tt S:Startup-Sequence}
+completed the initialization of AmigaDOS, including opening
+a console window as standard output and the {\tt S:Startup-Sequence}
 script as input. The shell then starts the system by reading commands from
 this file.
 \smallskip{}
 
-This changed in AmigaDOS~47 which separated AmigaDOS initialization from the
+This changed in version~47 which separates AmigaDOS initialization from the
 initialization of the boot shell. There, instead, the \emph{dos.library}
 searches the list of resident modules for the {\tt System-Startup} module,
 and initializes a {\tt Process} from it whose purpose is to complete the
@@ -27248,7 +27248,7 @@ the \emph{dos.library}; this includes allocating the {\tt DosInfo} structure
 {\tt RootNode} structure described in section~\ref{sec:rootnode}.
 \smallskip{}
 
-Next, the {\tt DosList} structures created by autobooting devices stored in
+In the following step, the {\tt DosList} structures created by autobooting devices stored in
 the \emph{expansion.library} are carried over into the device
 list\key{Device List}, see chapter~\ref{sec:devicelist}. This mounts all
 devices that were recorded in expansion. The first one added to this list
@@ -27256,8 +27256,8 @@ will become the boot volume.
 \smallskip{}
 
 The {\tt System-Startup} process then locates the
-FFS\key{Fast File System (FFS)} in the list of resident modules. It is represented there
-as a resident module named ``{\tt filesystem}''. If an autobooting host
+FFS\key{Fast File System (FFS)} in the exec list of resident modules. It is represented there
+as a module named ``{\tt filesystem}''. If an autobooting host
 adapter loaded a newer version of the FFS from the Rigid Disk Block (RDB)\key{Rigid Disk Block (RDB)}, this
 version replaces the ROM version. It is then also used for the mount
 entries of all other devices using the FFS, for example the disk drive
@@ -27283,18 +27283,20 @@ devices become accessible as well.
 
 Next, another set of ROM-resident handlers are mounted, namely
 {\tt CON} and {\tt RAW}. The corresponding handler segment is taken from
-the ROM module ``{\tt con-handler}'', but as devices are already
+the exec resident module ``{\tt con-handler}'', but as devices are already
 running at this point, {\tt System-Startup} also looks into the {\tt L}
-directory of each running device to locate a newer version replacing the ROM version. Thus, the boot
-device can replace the ROM version of the handler, similar the FFS which can
-be updated from the RDB. The {\tt RAM} device is mounted next, whose
+directory of each running device to locate a newer version replacing the ROM
+version, unless ROM Updates are explicitly disabled in the boot menu. Thus, the boot
+device can replace the ROM version of the handler, similar to the FFS which can
+be updated from the RDB. The {\tt RAM} device is mounted next; its
 segment is also taken either from the ROM module ``{\tt ram-handler}'', or
-from the {\tt L:} directory of mounted devices if they contain a newer version of the handler.
+from the {\tt L:} directory of mounted devices if they contain a newer
+version of the handler and ROM Updates are permitted.
 \smallskip{}
 
-While the AmigaDOS Shell is not a handler, {\tt System-Startup} performs
-likewise, namely by locating it as ``{\tt shell}'' from the ROM modules, or
-from the {\tt L:} directories. However, due to AmigaDOS~34 legacies, this time
+Locating the boot shell is the next step, namely as ``{\tt shell}'' from the
+exec resident modules, or from the {\tt L:} directories if permissible.
+However, due to AmigaDOS version~34 legacies, this time
 the disk-based module is named ``{\tt Shell-Seg}''. This segment is placed
 in the elements {\tt rn\_ConsoleSegment} and {\tt rn\_ShellSegment} of the
 {\tt RootNode} structure, and the resident segments ``{\tt CLI}'', ``{\tt BootShell}'' and ``{\tt shell}''
@@ -27305,7 +27307,7 @@ Unless disabled in the boot menu, {\tt System-Startup} now checks for
 updates of ROM modules on mounted volumes. If a resident module is a
 library, the {\tt LIBS} directories are scanned, and for
 devices, the {\tt DEVS} directories are checked. Even the \emph{intuition.library}
-can be replaced by a disk based version, though the procedure is a bit more
+can be replaced by a disk based version, though the procedure is more
 involved because intuition is already working at this point. However,
 version~47 of intuition was extended by the ability to shut itself down for
 replacement. If a newer disk-based version is found, the ROM-based library
@@ -27317,9 +27319,9 @@ not buffer the intuition library base in its code, but rather open it only when 
 
 In the next step, AGA extensions are enabled if the boot menu was displayed
 in a 31kHz DblPPAL or DblNTSC mode. This step is would usually be performed
-by {\tt SetPatch}, though is already executed here as it allows users to
+by {\tt SetPatch}, though is already executed here; it allows users to
 show the boot console on a VGA monitor even without requiring to load
-SetPatch, allowing users to trace or debug the Startup-Sequence if the
+{\tt SetPatch} in order to trace or debug the Startup-Sequence if the
 native Amiga video cannot be displayed.
 \smallskip{}
 
@@ -27330,55 +27332,56 @@ from ROM, they could have been replaced by disk-based modules by the ROM update
 mechanism executed before.
 \smallskip{}
 
-The next step consists of loading the system
-preferences from {\tt DEVS:System-Configuration} and installing them into
-intuition. While this is a legacy mechanism that is overloaded by the
-{\tt IPrefs} program, it allows users to already customize the boot console to
-a limited degree. This boot console is then opened next, though the
-CON-Handler\key{CON-Handler} is opened in {\tt AUTO} mode, see
-section~\ref{sec:conwindowpath}, such that opening the intuition window and
-the boot screen is delayed to the point when something is printed into the
-console.
+The next step consists of loading the system preferences from
+{\tt DEVS:System-Configuration} and installing them into intuition. While this
+is a legacy mechanism that is overloaded by the {\tt IPrefs} program, it
+enables users to already customize the boot console to a limited degree, such
+as setting its colors and the shape of the mouse pointer. The boot console
+is opened next, using the {\tt AUTO} mode of the
+CON-Handler\key{CON-Handler}, see section~\ref{sec:conwindowpath}. This
+delays opening the console window, and by that also of the intuition screen
+it appears upon, until some program attempts to print text into it.
 \smallskip{}
 
 Unless booting from the {\tt S:Startup-Sequence} is disabled, this file is
-now opened. It will become the command stream of the Shell. Next, it is
+now opened to become the command stream of the Shell. Next, it is
 checked whether the boot code of the autobooting device or the code in the
-boot block of a floppy left an indication for an AmigaDOS~36 boot code. This
-is a private flag in the \emph{expansion.library} which instructs the startup
-code \emph{not} to open the console. If this flag is \emph{not} set, a
+boot block of a floppy indicated the AmigaDOS version~36 boot protocol by
+testing a private flag in the \emph{expansion.library}. If this flag is \emph{not} set, a
 legacy boot block is assumed and the console and boot screen is forced open
-by printing a carriage return ({\tt 0x0d}) character. Also, the current
-directory of the boot shell is changed to {\tt ZERO} if the flag is cleared
-as some legacy programs cannot handle a real lock. Otherwise, this lock is set to the root directory
-of the boot device, i.e.\ to {\tt SYS:}.
+by printing a carriage return ({\tt 0x0d}) character. For the legacy
+boot protocol, the current directory of the boot shell is changed to
+{\tt ZERO} as compatibility measure for old applications. Otherwise, this
+lock is set to the root directory of the boot device, i.e.\ to {\tt SYS:}.
 \smallskip{}
 
-As next step, {\tt System-Startup} checks whether logging was enabled in the
+In the following, {\tt System-Startup} checks whether logging was enabled in the
 boot menu. If so, the ``{\tt syslog}'' module is located either from the
-list of resident modules, or from the {\tt L:} directory if a newer version is located
-in any of the mounted volumes. If it is found and enabled, the ``{\tt debug}'' shell variable is set
-to ``{\tt on}'', and a the {\tt syslog} process is started. This process
-continuously monitors the {\tt exec} debug output function, namely
-{\tt RawPutChar()}, though which diagnostic information is written by multiple
-programs. Such diagnostic output is then redirected to the file
-{\tt RAM:syslog} where it can be inspected by the user. The ``{\tt debug}''
-variable is checked by the Shell which then echos all commands it executes
-through the {\tt exec} debug output, and hence, through {\tt syslog}.
+list of resident modules, or from the {\tt L:} directory if ROM Updates are
+permitted and a newer version is available there. If it is found and
+enabled, the ``{\tt debug}'' shell variable is set to ``{\tt on}'', and a
+the {\tt syslog} process is started. This process continuously monitors the
+{\tt exec} debug output function, namely {\tt RawPutChar()}, though which
+diagnostic information is written by many debugging tools. By that, diagnostic
+output is redirected to the file {\tt RAM:syslog} where it can be
+inspected by the user. One source of diagnostic output is the Shell itself
+which echos all commands it executes if the ``{\tt debug}'' variable is
+found enabled.
 \smallskip{}
 
-If tracing was enabled in the boot menu, now the shell variable
+If tracing was enabled in the boot menu, the shell variable
 ``{\tt interactive}'' is set to ``{\tt on}''. This variable is also tested
 by the AmigaDOS Shell; if it is set, the Shell requests confirmation for
 each single command it executes. This allows users to trace through the
-{\tt Startup-Sequence} and therefore identify problems easily.
+{\tt Startup-Sequence} and therefore identify problems more easily.
 \smallskip{}
 
-As final step, the {\tt InitialCLI} is launched through a
-{\tt System()}\key{System()} function call. This creates a regular Shell
-whose command input was, unless disabled, prepared to read from {\tt S:Startup-Sequence}. Once
+As final step, the {\tt InitialCLI}, that is, the boot Shell, is launched through a
+{\tt System()}\key{System()} function call. The command input,
+unless disabled, is prepared to read from {\tt S:Startup-Sequence}. Once
 this Shell is running, the {\tt System-Startup} process terminates and
-leaves it to the Shell to continue the boot process.
+leaves it to the Shell to continue the boot process and boot the system to
+the Workbench.
 
 % scan for updated modules is not yet right.
 % intuition V40 downgrade missing
