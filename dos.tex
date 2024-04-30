@@ -26429,30 +26429,30 @@ to get initialized by AmigaDOS.
 
 \chapter{Miscellaneous Functions}
 
-In this section, miscellaneous functions are specified that logically
-do not belong into any other section. These are constructor and
-destructor functions for AmigaDOS objects, checking for signals or
-retrieving error strings and generating error requesters.
+In this section, miscellaneous functions are specified that logically do not
+belong into any other section. These are constructor and destructor
+functions for AmigaDOS objects, or retrieving error strings and generating
+error requesters.
 
 \section{Object Constructors and Destructors}
 
-AmigaDOS objects should not be allocated manually through
-{\tt AllocMem()} or other generic memory allocation functions as they do
-not initialize the objects correctly nor are they aware of
-undocumented internal extensions to such objects. Thus, the
-{\tt sizeof} operator of the C language does not necessarily reflect the
-number of bytes to be allocated as AmigaDOS placed undocumented
-elements at the end of the officially documented structures.
+Some AmigaDOS objects shall not be allocated manually through
+{\tt AllocMem()} or other generic memory allocation functions.
+This is either because the generic functions do not initialize such objects
+fully, or because the objects contain internal elements beyond the end
+of their documented structure such that the {\tt sizeof} operator of the C
+language does not describe their true size. A paired destructor function
+destroys such objects and releases all resources associated to them.
 
 \subsection{Allocating a DOS Object} \label{sec:allocdosobject}
 
 The {\tt AllocDosObject()}\mkey{AllocDosObject()} function constructs
 instances of various objects used by the \emph{dos.library} and
-initializes its elements. The functions listed in this section all take a
+initializes their elements. The functions listed in this section all take a
 {\tt type} ID that describes the type of the object to be created, and
-additional arguments that are used to initialize this object. They all
+additional arguments that are used to initialize this object. The functions all
 correspond to the same entry in the \emph{dos.library} and only differ in
-the calling convention.
+their name and their calling conventions.
 \smallskip{}
 
 The {\tt AllocDosObject()}\key{AllocDosObject()} and
@@ -26478,7 +26478,7 @@ D0                           D1    D2
 
 void *AllocDosObjectTagList(ULONG, struct TagItem *)
 
-ptr = AllocDosObjectTags(type, Tag1, ...)
+ptr = AllocDosObjectTags(type, Tag1, ...) /* since V36 */
 
 void *AllocDosObjectTags(ULONG, ULONG, ...)
 \end{verbatim}
@@ -26501,7 +26501,7 @@ DOS\_RDARGS\key{DOS\_RDARGS} & construct a {\tt RDArgs} structure, as defined in
 The {\tt DOS\_FILEHANDLE}\mkey{DOS\_FILEHANDLE} type creates a {\tt FileHandle}\key{FileHandle}
 structure as introduced in section~\ref{sec:filehandle}.
 This structure describes an opened file and shall only be created
-through this function as it contains some hidden elements.
+through this function as it contains some hidden internal elements.
 Creating this structure is documented to take one parameter, namely {\tt ADO\_FH\_Mode}\mkey{ADO\_FH\_Mode}
 defined in {\tt dos/dostags.h}, which is the mode in which the file is
 to be opened. This tag takes an argument from
@@ -26545,16 +26545,16 @@ boundary and linked to a {\tt Message}, see section~\ref{sec:sendpkt}.
 The {\tt DOS\_CLI}\mkey{DOS\_CLI} type creates a
 {\tt CommandLineInterface}\key{CommandLineInterface}
 structure as defined in section~\ref{sec:getcli}. While it was
-possible to construct this structures manually previous versions
+possible to construct this structures manually in previous versions
 of AmigaDOS, this is no longer the case from AmigaDOS~47
-onward as it has been extended with private elements. A shell\key{Shell}
+onward as it has been extended by private elements. A shell\key{Shell}
 which is equipped with a manually constructed
 {\tt CommandLineInterface} structure will not offer the full
-functionality of a regular AmigaDOS Shell\key{Shell}.
+functionality of regular AmigaDOS Shells\key{Shell}.
 \smallskip{}
 
-While the size of various buffers of the created structure can be set by the
-following tags, they actually not particularly useful. Nothing in the CLI
+While the sizes of various buffers of the created structure can be set by the
+following tags, they are actually not particularly useful. Nothing in the CLI
 structure indicates the actual buffer sizes and the AmigaDOS Shell therefore
 uses hard-coded limits instead:
 
@@ -26599,7 +26599,8 @@ error, this function returns {\tt NULL} and sets
 \subsection{Releasing a DOS Object} \label{sec:freedosobject}
 
 The {\tt FreeDosObject()}\mkey{FreeDosObject()} function destroys an
-AmigaDOS object and releases the resources associated to it.
+AmigaDOS object created by {\tt AllocDosObject()}\key{AllocDosObject()}
+and releases the resources associated to it.
 
 \begin{verbatim}
 FreeDosObject(type, ptr) /* since V36 */
@@ -26608,19 +26609,19 @@ FreeDosObject(type, ptr) /* since V36 */
 void FreeDosObject(ULONG, void *)
 \end{verbatim}
 
-This function destroys an object created by {\tt
-  AllocDosObject()}\key{AllocDosObject()}. The {\tt type} argument is
+This function destroys an object created by
+{\tt AllocDosObject()}\key{AllocDosObject()}. The {\tt type} argument is
 one of the types from table~\ref{table:allocdosobject} in
 section~\ref{sec:allocdosobject}, and {\tt ptr} is a pointer to the
-object to be destroyed. In case type is {\tt DOS\_STDPKT}\key{DOS\_STDPKT}, the {\tt
-  ptr} argument is a pointer to the {\tt DosPacket}\key{DosPacket} element of the
+object to be destroyed. In case type is {\tt DOS\_STDPKT}\key{DOS\_STDPKT},
+the {\tt ptr} argument shall be a pointer to the {\tt DosPacket}\key{DosPacket} element of the
 {\tt StandardPacket}\key{StandardPacket} aggregate.
 \smallskip{}
 
-Before AmigaDOS~39, releasing a
+In AmigaDOS versions~37 and before, releasing a
 {\tt CommandLineInterface}\key{CommandLineInterface} structure did not
 free all buffers associated this structure and thus caused a memory
-leak. This was fixed in AmigaDOS~39.
+leak. This was fixed in version~39.
 \smallskip{}
 
 Passing {\tt NULL} as {\tt ptr} performs nothing, the function exits
@@ -26629,18 +26630,18 @@ set {\tt IoErr()}\key{IoErr()}.
 
 \section{Reporting Errors}
 
-While AmigaDOS identifies errors by a unique ID returned by {\tt
-  IoErr()}\key{IoErr()}, only printing a number as error report is not
+While AmigaDOS identifies errors by a unique ID returned by
+{\tt IoErr()}\key{IoErr()}, only printing a number as error report is not
 very helpful. The \emph{dos.library} provides multiple functions to
 generate human readable error messages, either for printing them on the
-console, or by creating a requester with a message on a screen.
+console, or by creating a requester with an error message on a screen.
   
 \subsection{Display an Error Requester} \label{sec:errorreport}
 
 The {\tt ErrorReport}\mkey{ErrorReport()} function creates an error
 requester based on an error code and a file system object such as a
-file handle\key{FileHandle} or a lock\key{Lock} and waits a the response of the user who may
-either abort or retry an activity.
+file handle\key{FileHandle} or a lock\key{Lock} and waits a the
+response of the user who may either abort or retry an activity.
 
 \begin{verbatim}
 status = ErrorReport(code, type, arg1, device) /* since V36 */
@@ -26650,8 +26651,9 @@ BOOL ErrorReport(LONG, LONG, ULONG, struct MsgPort *)
 \end{verbatim}
 
 This function creates an error requester either on the Workbench
-screen, or on the same screen as the window given by the {\tt pr\_WindowPtr}\key{pr\_WindowPtr} of the
-calling process. If {\tt pr\_WindowPtr} is~$-1$, then no requester is
+screen, or on the same screen as the window given by
+the {\tt pr\_WindowPtr}\key{pr\_WindowPtr} of the calling process.
+If {\tt pr\_WindowPtr} is~$-1$, then no requester is
 shown and the function returns immediately with a non-zero return
 code, indicating that cancellation of the activity is desired. This
 function is implicitly called by most functions of the \emph{dos.library} in
@@ -26670,13 +26672,30 @@ the error codes for which this function is able to create a requester:
 {\bf Error} & {\bf Description}\\ \hline \hline
 {\tt ERROR\_DISK\_NOT\_VALIDATED}\key{ERROR\_DISK\_NOT\_VALIDATED} & Reports that a disk is corrupt and not validated \\ \hline
 {\tt ERROR\_DISK\_WRITE\_PROTECTED}\key{ERROR\_DISK\_WRITE\_PROTECTED} & Reports that a disk is write protected \\ \hline
-{\tt ERROR\_DISK\_FULL}\key{ERROR\_DISK\_FULL} & Reports that a volume is full \\ \hline
+{\tt ERROR\_DISK\_FULL}\key{ERROR\_DISK\_FULL} & Reports that a volume is filled completely \\ \hline
 {\tt ERROR\_DEVICE\_NOT\_MOUNTED}\key{ERROR\_DEVICE\_NOT\_MOUNTED} & A particular handler or file system is not mounted \\ \hline
 {\tt ERROR\_NOT\_A\_DOS\_DISK}\key{ERROR\_NOT\_A\_DOS\_DISK} & A volume does not carry a valid file system \\ \hline
-{\tt ERROR\_NO\_DISK}\key{ERROR\_NO\_DISK} & No physical medium is inserted in a drive \\ \hline
+{\tt ERROR\_NO\_DISK}\key{ERROR\_NO\_DISK} & No physical medium is inserted in the drive \\ \hline
 {\tt ABORT\_DISK\_ERROR}\key{ABORT\_DISK\_ERROR} & Reports that a medium has a physical read/write error \\ \hline
-{\tt ABORT\_BUSY}\key{ABORT\_BUSY} & Requests to insert a particular medium into a drive \\ \hline
+{\tt ABORT\_BUSY}\key{ABORT\_BUSY} & Requests to insert a particular medium into the drive \\ \hline
 \end{rkrmtable}
+
+The error {\tt ABORT\_BUSY}\mkey{ABORT\_BUSY} is type is defined in
+{\tt dos/dosextens.h} and shows a requester that the user \emph{MUST} replace a
+particular volume of a drive. It is generated if a file system needs to write
+out its dirty buffers to a volume that is no longer inserted
+into the drive managed by it. This type of error and thus this
+error report is only generated by file systems and never forwarded to
+applications by means of {\tt IoErr()}\key{IoErr()}.
+\smallskip{}
+
+{\tt ABORT\_DISK\_ERROR}\mkey{ABORT\_DISK\_ERROR} is also never directly
+forwarded to user code and thus does neither appear as return value of
+{\tt IoErr()}\key{IoErr()}. It shows a requester that a particular volume
+has a read/write error which file systems generate if access to a medium
+fails on the physical level. Same as the above error, it is only intended to
+be used by file systems and not by application code.
+\smallskip{}
 
 The {\tt type} argument defines the type of the AmigaDOS object
 passed in as {\tt arg1}; it provides an additional source of
@@ -26690,37 +26709,41 @@ supported by this function:
 {\tt REPORT\_STREAM}\mkey{REPORT\_STREAM} & {\tt arg1} is a BPTR to a {\tt
   FileHandle} structure (section~\ref{sec:filehandle}) \\ \hline
 {\tt REPORT\_LOCK}\mkey{REPORT\_LOCK} & {\tt arg1} is a BPTR to a {\tt FileLock} structure (section~\ref{sec:filelock})\\ \hline
-{\tt REPORT\_VOLUME}\mkey{REPORT\_VOLUME} & {\tt arg1} is a BPTR\footnote{Unlike what the official documentation and \cite{Bantam,guru} say, this is a BPTR, not a regular pointer.} to a {\tt DosList} structure (chapter~\ref{sec:devicelist})\\ \hline
+{\tt REPORT\_VOLUME}\mkey{REPORT\_VOLUME} & {\tt arg1} is a BPTR\footnotemark to a {\tt DosList} structure (chapter~\ref{sec:devicelist})\\ \hline
 {\tt REPORT\_INSERT}\mkey{REPORT\_INSERT} & {\tt arg1} is a \emph{regular} pointer to a path separated at ``{\tt :}'' \\ \hline
 \end{rkrmtable}
+\footnotetext[\value{footnote}]{Unlike what the official documentation and
+  \cite{Bantam,guru} say, this is a BPTR, not a regular pointer.}
 
-The {\tt REPORT\_INSERT}\key{REPORT\_INSERT} type shall be a pointer to an absolute path
-name containing a colon (``{\tt :}'') from which a volume or device
-name is extracted. This type is used by the \emph{dos.library} when
-attempting to locate an entry on the device list\key{Device List} from an
-absolute path failed.
+If {\tt type} is {\tt REPORT\_INSERT}\key{REPORT\_INSERT}, then {\tt arg1}
+shall be a pointer to an absolute path name containing a colon (``{\tt :}'')
+from which a volume or device name is extracted. This type is used by the
+\emph{dos.library} when attempting to locate an entry on the device
+list\key{Device List} from an absolute path failed.
 \smallskip{}
 
 The {\tt device} argument is a (regular) pointer to a {\tt MsgPort}
 structure that is only used if {\tt type} is {\tt REPORT\_LOCK}\key{REPORT\_LOCK}
 and {\tt arg1} is {\tt ZERO} or the error indicates that the faulting volume
-is not accessible. This port is assumed to be a {\tt MsgPort} of a file
+is not accessible. This happens for the errors {\tt ERROR\_DEVICE\_NOT\_MOUNTED}
+in combination with the {\tt REPORT\_STREAM} type, and the {\tt ABORT\_BUSY}
+error. This port is assumed to be a {\tt MsgPort} of a file
 handler\key{FileHandle} that is contacted to learn about the name of the
 currently inserted volume. This is for example used when reporting errors
 through a {\tt DevProc}\key{DevProc} structure whose lock and port are
 passed into the error report, see section~\ref{sec:getdeviceproc}.
 \medskip{}
 
-This function returns a boolean indicator whether the currently ongoing
-operation shall be aborted or retried. If the result code is
-{\tt DOSFALSE}, the operation shall be retried. This result code is also
-implicitly generated if the user inserts a medium into a drive while the
-requester is shown. If the requester is suppressed because the
-{\tt pr\_WindowPtr} of the calling process is set to~$-1$, or the system run
-out of memory, or an error not listed in table~\ref{table:errorsource} is
-reported, then this function always returns {\tt DOSTRUE}, requesting to
-abort the operation.  On return, this function also sets {\tt IoErr()} to
-the error identifier in {\tt code}.
+The {\tt ErrorReport()}\key{ErrorReport()} function returns a boolean
+indicator whether the currently ongoing operation shall be aborted or
+retried. If the result code is {\tt DOSFALSE}, the operation shall be
+retried. This result code is also implicitly generated if the user inserts a
+medium into a drive while the requester is shown. If the requester is
+suppressed because the {\tt pr\_WindowPtr} of the calling process is set
+to~$-1$, or the system run out of memory, or an error not listed in
+table~\ref{table:errorsource} is reported, then this function always returns
+{\tt DOSTRUE}, requesting to abort the operation.  On return, this function
+also sets {\tt IoErr()} to the error identifier in {\tt code}.
 
 \subsection{Generating an Error Message} \label{sec:fault}
 
@@ -26749,11 +26772,11 @@ If no localized error message is available, the numeric
 value of the error is inserted instead.
 \smallskip{}
 
-The {\tt size} of {\tt buffer} shall not be~0. It includes the
-{\tt NUL} byte terminating the string created in {\tt buffer}.
+The {\tt size} of {\tt buffer} shall not be~0. The byte for the {\tt NUL}
+terminator of the string to be created shall be included in {\tt size}.
 \smallskip{}
 
-Due to a defect present even in AmigaDOS~47, the return value of this
+Due to a defect present even in AmigaDOS version~47, the return value of this
 function is unlike documented \emph{not} the number of characters inserted
 into the buffer and is thus not usable. As a workaround, to find the length
 of the inserted string, use {\tt strlen()} on the buffer if {\tt code} is
@@ -26789,7 +26812,7 @@ This function implements elementary error reporting by printing an error
 message over the error output {\tt pr\_CES}\key{pr\_CES} of the calling
 process, see chapter~\ref{sec:process}. If that stream does not exist, the
 error is reported over the standard output stream {\tt pr\_COS}\key{pr\_COS}
-of the caller. Under AmigaDOS~45 and before, this function always printed
+of the caller. Under AmigaDOS version~45 and before, this function always printed
 over the standard output.
 \smallskip{}
 
@@ -26807,7 +26830,7 @@ function sets {\tt IoErr()}\key{IoErr()} to {\tt code}.
 
 This function returns a boolean success code. If the error is zero, or a
 description of the error is available, this function returns a non-zero
-success code. Otherwise, this function returns~0.
+success code. Otherwise, this function returns~{\tt DOSFALSE}.
 
 \subsection{Printing a String to the Error Stream}
 
@@ -26824,7 +26847,7 @@ LONG PutErrStr(STRPTR)
 This function writes the {\tt NUL} terminated string {\tt str} over
 the error output {\tt pr\_CES}\key{pr\_CES} of the calling process. If this stream
 does not exist, this function writes the string over the standard
-output {\tt pr\_COS}\key{pr\_COS} of the caller.
+output {\tt pr\_COS}\key{pr\_COS}.
 \smallskip{}
 
 This function returns $0$ on success, or {\tt ENDSTREAMCH}\key{ENDSTREAMCH} on an
