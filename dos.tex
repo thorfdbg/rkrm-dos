@@ -439,8 +439,8 @@ multiplied by 4, or left-shifted by 2 bits.
   particular AmigaDOS object cannot be constructed by
   \key{AllocDosObject()}{\tt AllocDosObject()} (see
   section~\ref{sec:allocdosobject}), a safe strategy is use \emph{exec.library}
-  memory allocation functions such as \key{AllocMem()}{\tt AllocMem()} or
-  \key{AllocVec()}{\tt AllocVec()} to obtain memory for holding them. All
+  memory allocation functions such as {\tt AllocMem()} or
+  {\tt AllocVec()} to obtain memory for holding them. All
   three functions ensure proper alignment.}
 
 Indices to 32-bit memory cells in the BCPL abstraction of computer memory
@@ -849,7 +849,7 @@ and time. The {\tt timer.device} represents a date as the number of seconds
 and microseconds since January $1^{\mbox{\tiny st}}$ 1978. As AmigaDOS is
 based on Tripos as an independently developed operating system, the
 \emph{dos.library} uses a different representation as {\tt DateStamp}
-structure defined in {\tt dos/dos.h}: \mkey{DateStamp}
+structure defined in {\tt dos/dos.h}: \mkey{DateStamp (struct)}
 \begin{verbatim}
 struct DateStamp {
    LONG  ds_Days;
@@ -883,7 +883,7 @@ scale times appropriately such that the definition of the ``tick'' is
 independent of the clocking of the system or the monitor refresh frequency.}
 
 The system date, or rather the functions to convert between the Amiga
-{\tt timer.device} representation and the AmigaDOS {\tt DateStamp}
+{\tt timer.device} representation and the AmigaDOS {\tt DateStamp}\key{DateStamp (struct)}
 representation is currently limited to $31^{\mbox{\tiny th}}$ December
 2045. There is no function in AmigaDOS to set the date, this needs to be
 done through the {\tt timer.device} with the {\tt TR\_SETSYSTIME}
@@ -902,7 +902,7 @@ section~\ref{sec:rootblock} and adjusts the system time then through the
 
 The functions in this section obtain the current system time, compare two
 times, or delay the system for a given time. They represent times --- and
-dates if appropriate --- in the {\tt DateStamp} structure as a triple of
+dates if appropriate --- in the {\tt DateStamp}\key{DateStamp (struct)} structure as a triple of
 days, minutes and ticks.
 
 \subsection{Obtaining the Time and Date} \label{sec:datestamp}
@@ -918,7 +918,7 @@ struct DateStamp *DateStamp(struct DateStamp *)
 \end{verbatim}
 
 This function retrieves the current system time and fills it into a
-{\tt DateStamp}\key{DateStamp} structure pointed to by {\tt ds}. It also
+{\tt DateStamp}\key{DateStamp (struct)} structure pointed to by {\tt ds}. It also
 returns a pointer to the structure passed in. This function cannot fail.
 \smallskip{}
 
@@ -928,7 +928,7 @@ align {\tt ds} to a long-word boundary.
 \subsection{Comparing two Times and Dates}
 
 The {\tt CompareDates()}\mkey{CompareDates()} function compares two dates as
-given by {\tt DateStamp}\key{DateStamp} structures and returns an indicator
+given by {\tt DateStamp}\key{DateStamp (struct)} structures and returns an indicator
 which of the dates are earlier.
 
 \begin{verbatim}
@@ -977,8 +977,8 @@ appropriately, thus passing a~0 argument should be avoided.
 
 Functions in this section convert date and time in the (binary) AmigaDOS
 representation to human-readable strings, and in the reverse direction.
-Both the input and output of these functions are kept in the {\tt
-  DateTime} structure that is defined in {\tt dos/datetime.h}
+Both the input and output of these functions are kept in the
+{\tt DateTime} structure that is defined in {\tt dos/datetime.h}
 and reads as follows:
 \mkey{DateTime}
 \begin{verbatim}
@@ -992,8 +992,8 @@ struct DateTime {
 };
 \end{verbatim}
 
-{\tt dat\_Stamp}\mkey{dat\_Stamp} contains the input or output date represented as a {\tt
-  DateStamp} structure.
+{\tt dat\_Stamp}\mkey{dat\_Stamp} contains the input or output date
+represented as a {\tt DateStamp}\key{DateStamp (struct)} structure.
 \smallskip{}
 
 {\tt dat\_Format}\mkey{dat\_Format} defines the format of the date string to create, and the
@@ -1125,7 +1125,7 @@ representation of the year.
 
 The {\tt DateToStr()} function converts a date and time into a human
 readable string. The date and time, as well as formatting instructions are
-given by a {\tt DateTime}\key{DateTime} structure.
+given by a {\tt DateTime}\key{DateTime} structure.\mkey{DateToStr()}
 
 \begin{verbatim}
 success = DateToStr( datetime ) /* since V36 */
@@ -1202,12 +1202,12 @@ BOOL StrToDate( struct DateTime * )
 
 This function takes a {\tt DateTime}\key{DateTime} structure as defined in
 section~\ref{sec:dateconv} and converts the date and/or time strings in this
-structure to a {\tt DateStamp} structure in {\tt dat\_Stamp}. In particular,
-the elements of the {\tt DateTime}\key{DateTime} shall be initialized as
+structure to a {\tt DateStamp}\key{DateStamp (struct)} structure in {\tt dat\_Stamp}. In particular,
+the elements of the {\tt DateTime}\key{DateTime (struct)} shall be initialized as
 follows:
 \smallskip{}
 
-{\tt dat\_DateTime}\key{dat\_DateTime} provides a default time and date that
+{\tt dat\_DateTime}\mkey{dat\_DateTime} provides a default time and date that
 are partially or fully overwritten by output of the conversion process from
 {\tt dat\_StrDate} and {\tt dat\_StrTime}. In other words, this element
 provides the result of this function.
@@ -1695,7 +1695,7 @@ Otherwise, it uses the \emph{current directory} of the calling
 process\key{Process} to locate a handler responsible for the
 interpretation of the path name. If this current directory is
 {\tt ZERO} (see section~\ref{sec:bptrs}), it uses the
-\emph{default file system}\key{Default file system} of the process, which by itself,
+\emph{default file system} of the process, which by itself,
 defaults to the file system that booted the system.
 \smallskip{}
 
@@ -3806,7 +3806,7 @@ the parent that prevents to obtain a second shared lock on this directory.
 
 \subsection{Creating a Directory} \label{sec:createdir}
 
-The {\tt CreateDir()} object creates a new empty directory whose name is
+The {\tt CreateDir()}\mkey{CreateDir()} object creates a new empty directory whose name is
 given by the last component of the path passed in. It does not create any
 intermediate directories between the first component of the path and its
 last component, such directories need to be created iteratively by multiple
@@ -3862,7 +3862,7 @@ Once a lock\key{Lock} has been granted, it is possible to change the
 nature of the lock, either from
 {\tt EXCLUSIVE\_LOCK}\key{EXCLUSIVE\_LOCK} to
 {\tt SHARED\_LOCK}\key{SHARED\_LOCK}, or --- if this is the only lock on
-the file system object --- vice versa.
+the file system object --- vice versa.\mkey{ChangeMode()}
 
 \begin{verbatim}
 success = ChangeMode(type, object, newmode) /* since V36 */
@@ -4073,7 +4073,7 @@ The {\tt ParentOfFH()}\mkey{ParentOfFH()} function obtains a
 shared lock\key{Lock} on the parent directory of the file associated to
 the file handle\key{FileHandle} passed in. That is, this function it is roughly
 equivalent to first obtaining a lock on the file through
-{\tt DupLockFromFile()} \key{DupLockFromFile()}, and then calling
+{\tt DupLockFromFH()}\key{DupLockFromFH()}, and then calling
 {\tt ParentDir()}\key{ParentDir()} on it, except that it also
 succeeds on files opened in the {\tt MODE\_NEWFILE}\key{MODE\_NEWFILE}
 mode.
@@ -4617,7 +4617,7 @@ particular protection function is \emph{not} active.
 
 If the {\tt FIBB\_DELETE}\mkey{FIBB\_DELETE} is set, then the file or directory is delete
 protected. This not only prevents erasing a file completely through
-{\tt Delete()}\key{Delete()}, but also erasing it by creating a new file on
+{\tt DeleteFile()}\key{DeleteFile()}, but also erasing it by creating a new file on
 top through the {\tt Open()}\key{Open()} mode
 {\tt MODE\_NEWFILE}\key{MODE\_NEWFILE}. Attempting to delete a protected file system
 object creates the error code {\tt ERROR\_DELETE\_PROTECTED}\key{ERROR\_DELETE\_PROTECTED}.
@@ -4749,7 +4749,7 @@ files or directories within. For the Fast File
 System\key{Fast File System (FFS)} modification of file or directory metadata, such as file comments
 or protection bits are not reflected here. Which operations exactly trigger
 an update of the modification date of a directory is file system dependent. The
-{\tt DateStamp}\key{DateStamp} structure is specified in section~\ref{sec:datestamp}.
+{\tt DateStamp}\key{DateStamp (struct)} structure is specified in section~\ref{sec:datestamp}.
 \smallskip{}
 
 As for protection bits, the AmigaDOS ROM file systems (FFS and RAM)
@@ -5432,7 +5432,7 @@ BOOL SetFileDate(STRPTR, struct DateStamp *)
 
 This function adjusts the modification date of the file system
 object identified by the path as given by {\tt name} to {\tt date}. The
-{\tt DateStamp}\key{DateStamp} structure is specified in
+{\tt DateStamp}\key{DateStamp (struct)} structure is specified in
 section~\ref{sec:datestamp}.
 \smallskip{}
 
@@ -6747,7 +6747,7 @@ identifying this entry as belonging to a known specific data carrier.
 \smallskip{}
 
 {\tt dol\_VolumeDate}\mkey{dol\_VolumeDate} is the creation date of the volume. It is a
-{\tt DateStamp}\key{DateStamp} structure that is specified in
+{\tt DateStamp}\key{DateStamp (struct)} structure that is specified in
 section~\ref{sec:datestamp}. It is used to uniquely identify the volume,
 and to distinguish this volume from any other volume of the same name.
 \smallskip{}
@@ -6794,7 +6794,7 @@ on the first attempt to access the assign\key{Assign} at which
 {\tt FreeVec()} and set to {\tt NULL}.
 \smallskip{}
 
-{\tt dol\_List}\key{dol\_List} contains additional locks\key{Lock} for
+{\tt dol\_List}\mkey{dol\_List} contains additional locks\key{Lock} for
 multi-assigns\key{Multi-Assign} and is thus only used if
 {\tt dol\_Type}\key{dol\_Type} equals {\tt DLT\_DIRECTORY}\key{DLT\_DIRECTORY}.
 A regular assign\key{Assign} is a multi-assign\key{Multi-Assign} whose
@@ -7407,7 +7407,7 @@ argument and by that either sets or clears the
 {\tt ENVF\_SUPERFLOPPY}\mkey{ENVF\_SUPERFLOPPY} flag,
 defined in {\tt dos/filehandler.h}. This flag has been cut off (or reserved) from the
 otherwise deprecated and thus unused
-{\tt de\_Interleave}\key{de\_Interleaved} element in version 45 of AmigaDOS. It
+{\tt de\_Interleave}\key{de\_Interleave} element in version~45 of AmigaDOS. It
 is by default cleared.
 \smallskip{}
 
@@ -7572,7 +7572,7 @@ name as first and the return code of the current iteration as second
 argument.
 \smallskip{}
 
-{\tt dvp\_Lock} is a directory represented as a lock\key{Lock} relative to which the
+{\tt dvp\_Lock}\mkey{dvp\_Lock} is a directory represented as a lock\key{Lock} relative to which the
 path in {\tt name} could be resolved. If this lock is {\tt ZERO}, the path
 is relative to the root directory\key{Root Directory} of the file system that can be contacted
 through {\tt dvp\_Port}. Beware! In this case,
@@ -13288,7 +13288,7 @@ is fully under control of the application.
 
 As it would be bothersome to redesign an overlay manager for each
 application, compiler vendors equip their development kits with suitable
-implementations. The Amiga linker \emph{ALink}\mkey{BLink}, the Software
+implementations. The Amiga linker \emph{ALink}\mkey{ALink}, the Software
 Distillery linker \emph{BLink}\mkey{BLink} and the SAS/C linker
 \emph{SLink}\mkey{SLink} include a hierarchical overlay manager; except for
 minor details in the calling convention, their designs and data structures
@@ -14415,7 +14415,7 @@ in the \emph{dos.library}, see section~\ref{sec:resident}. The
 AmigaDOS shell\key{Shell}, even though it is build from the same
 source code and thus equivalent to the CLI, is represented by a
 different resident segment, namely {\tt shell}\key{Shell (resident)}
-and {\tt BootShell}, and uses the C/Assembler startup mechanism. More
+and {\tt BootShell}\mkey{BootShell (resident)}, and uses the C/Assembler startup mechanism. More
 details on this are in sections~\ref{sec:resident}
 and~\ref{sec:usershells}.
 \smallskip{}
@@ -15069,7 +15069,7 @@ become a permanent part of the generated executable.
 \smallskip{}
 
 The \emph{amiga.lib} is a typical example of a link library. It contains
-functions such as {\tt CreateExtIO()}\key{CreateExtIO()}. While newer versions of the
+functions such as {\tt CreateExtIO()}. While newer versions of the
 \emph{exec.library} contains with {\tt CreateIORequest()}\key{CreateIORequest()} a similar
 function, some manual work was required for creating an {\tt IORequest}
 structure in exec versions prior v37. To ease development, the former function was made
@@ -15747,13 +15747,13 @@ as shown in the following table:
 
 \begin{rkrmtable}{Primary Result Code for Unimplemented Packets} \label{table:unimp}
 {\bf \tt \bf dp\_Type} & {\bf \tt \bf dp\_Res1} \\ \hline \hline
-\tt ACTION\_READ  & -1 \\ \hline
-\tt ACTION\_WRITE & -1 \\ \hline
-\tt ACTION\_SEEK  & -1 \\ \hline
-\tt ACTION\_SET\_FILE\_SIZE & -1 \\ \hline
-\tt ACTION\_STACK & -1 \\ \hline
-\tt ACTION\_QUEUE & -1 \\ \hline
-\tt ACTION\_FORCE & -1 \\ \hline \hline
+\tt ACTION\_READ\key{ACTION\_READ}  & -1 \\ \hline
+\tt ACTION\_WRITE\key{ACTION\_WRITE} & -1 \\ \hline
+\tt ACTION\_SEEK\key{ACTION\_SEEK}  & -1 \\ \hline
+\tt ACTION\_SET\_FILE\_SIZE\key{ACTION\_SET\_FILE\_SIZE} & -1 \\ \hline
+\tt ACTION\_STACK\key{ACTION\_STACK} & -1 \\ \hline
+\tt ACTION\_QUEUE\key{ACTION\_QUEUE} & -1 \\ \hline
+\tt ACTION\_FORCE\key{ACTION\_FORCE} & -1 \\ \hline \hline
 all others & ~0 \\ \hline
 \end{rkrmtable}
 
@@ -16992,9 +16992,9 @@ void AdjustEnv(struct DosEnvec *env,
 All other entries of the environment vector remain untouched. The
 right-shift for the sector size is necessary because the environment vector
 measures it in long words rather than bytes as provided by the drive
-geometry, and {\tt dg\_Cylinders}\key{dg\_Cylinders} is a count, whereas
+geometry, and {\tt dg\_Cylinders}\mkey{dg\_Cylinders} is a count, whereas
 {\tt de\_HighCyl}\key{de\_HighCyl} is an inclusive upper bound. In
-particular, {\tt dg\_BufMemType}\key{dg\_BufMemType} is not copied over, and
+particular, {\tt dg\_BufMemType}\mkey{dg\_BufMemType} is not copied over, and
 therefore {\tt de\_BufMemType}\key{de\_BufMemType} shall be setup correctly by the
 mountlist\key{Mountlist} or the Rigid Disk Block\key{Rigid Disk Block (RDB)}. Ideally, of course, any
 memory type should be supported and this workaround should not be necessary.
@@ -17092,7 +17092,7 @@ The structure of the boot block is follows:
 \end{longtable}
 \end{rkrmtabular}
 
-{\tt DosType}\key{DosType (Boot Block)} contains the file system
+{\tt DosType}\mkey{DosType (Boot Block)} contains the file system
 identifier (or the flavor) of the FFS. It is one of the constants
 from table~\ref{table:ffsflavours} in section~\ref{sec:envec}, or the
 special value {\tt 'BOOT'} which also indicates a bootable (non-FFS) partition. All
@@ -17299,20 +17299,20 @@ is a variably sized number of long words large, it always extends over
 $L-56$ long words.
 \medskip{}
 
-The block type is indicated by {\tt Type}\mkey{Type (FFS)} and {\tt SecType}\mkey{SecType}. For the root
+The block type is indicated by {\tt Type}\mkey{Type (FFS)} and {\tt SecType}\mkey{SecType (FFS)}. For the root
 block, these elements are $2$ and $1$, respectively.
 \smallskip{}
 
-{\tt HTSize}\mkey{HTSize} is the number of hash keys stored in the root
+{\tt HTSize}\mkey{HTSize (FFS)} is the number of hash keys stored in the root
 block. The FFS\key{Fast File System (FFS)}
 stores in the root block $L-56$ hash keys, from offset $6$ to $L-51$.
 \smallskip{}
 
-{\tt Chksum}\mkey{Chksum} is a checksum over the block. Its value is computed such that the
+{\tt Chksum}\mkey{Chksum (FFS)} is a checksum over the block. Its value is computed such that the
 long word sum over all long words, including the checksum, is zero.
 \smallskip{}
 
-{\tt Hash}\mkey{Hash} stores the hash-chain of all objects in the root
+{\tt Hash}\mkey{Hash (FFS)} stores the hash-chain of all objects in the root
 directory. The FFS\key{Fast File System (FFS)} computes for each file system object a \emph{hash}\mkey{Hash (FFS)}
 that is derived from its name. As multiple objects can have the same hash
 and thus hash conflicts can arise, all objects of the same hash are kept in
@@ -17349,7 +17349,7 @@ ULONG ComputeHash(UBYTE *name)
 }
 \end{verbatim}
 
-In the above, {\tt HTSize}\key{HTSize} is the value of the field of the
+In the above, {\tt HTSize}\key{HTSize (FFS)} is the value of the field of the
 same name in the disk root block. As seen from the code, the
 non-international versions of the FFS\key{Fast File System (FFS)} only convert the ASCII characters
 between 'a' and 'z' to upper case, whereas the international version
@@ -17363,7 +17363,7 @@ of characters that are converted to upper case. The algorithm above therefore
 also works correctly for Latin-15.
 \medskip{}
 
-{\tt BMFlag}\mkey{BMFlag} is {\tt DOSTRUE} in case the bitmap is valid.  The
+{\tt BMFlag}\mkey{BMFlag (FFS)} is {\tt DOSTRUE} in case the bitmap is valid.  The
 bitmap keeps information on which blocks of the volume are allocated and
 which are free. More on this block is found in
 section~\ref{sec:bitmapblock}. If the quick validation on disk insertion
@@ -17373,18 +17373,18 @@ recursively locating all objects on disks and marking the blocks they reside
 in as occupied.
 \smallskip{}
 
-{\tt BMKeys}\mkey{BMKeys} is an array containing the keys of the
+{\tt BMKeys}\mkey{BMKeys (FFS)} is an array containing the keys of the
 bitmap blocks. How many bitmap blocks are required to represent the
 bitmap depends on the size of the volume and the size of a bitmap
 block. Unused keys are~0. 
 \smallskip{}
 
-{\tt BMExt}\mkey{BMExt} is the key of a bitmap extension block if the above
+{\tt BMExt}\mkey{BMExt (FFS)} is the key of a bitmap extension block if the above
 bitmap array is not sufficient to represent all blocks of the volume. This block is
 described in section~\ref{sec:bmextblock}.
 \smallskip{}
 
-The fields at offsets $L-23$ to $L-21$ form a {\tt DateStamp}\key{DateStamp} structure as
+The fields at offsets $L-23$ to $L-21$ form a {\tt DateStamp}\key{DateStamp (struct)} structure as
 specified in chapter~\ref{sec:dates}. The date and time there indicate the
 last change within the root directory.
 \smallskip{}
@@ -17405,7 +17405,7 @@ packet {\tt ACTION\_SERIALIZE\_DISK} updates this date, too, but it remains
 otherwise unchanged even if objects in the root directory change.
 \smallskip{}
 
-{\tt DCache}\mkey{DCache} is the key of the directory cache list of
+{\tt DCache}\mkey{DCache (FFS)} is the key of the directory cache list of
 blocks. It is only used for the flavors of the FFS\key{Fast File System (FFS)} that utilize such a cache.
 This block is described in section~\ref{sec:dircacheblock}.
 \smallskip{}
@@ -17465,25 +17465,25 @@ L-1        & \tt SecType & shall be 2, this is the BCPL constant {\tt ST.USERDIR
 BCPL constant {\tt T.SHORT}
 \smallskip{}
 
-{\tt OwnKey}\mkey{OwnKey} is the key of this object, i.e.\ it is the key of the
+{\tt OwnKey}\mkey{OwnKey (FFS)} is the key of this object, i.e.\ it is the key of the
 block itself.
 \smallskip{}
 
-{\tt Chksum}\key{Chksum} is the checksum over the entire block. It is chosen such that
+{\tt Chksum}\key{Chksum (FFS)} is the checksum over the entire block. It is chosen such that
 the long word sum over the entire block, including this field, is zero.
 \smallskip{}
 
-{\tt Hash}\key{Hash} contains for user directories all the hashes\key{Hash (FFS)} of the file
+{\tt Hash}\key{Hash (FFS)} contains for user directories all the hashes\key{Hash (FFS)} of the file
 system objects contained within.
 \smallskip{}
 
-{\tt OwnerID}\key{OwnerID} is reserved for the owner ID of this directory that can be set
+{\tt OwnerID}\key{OwnerID (FFS)} is reserved for the owner ID of this directory that can be set
 with {\tt SetOwner()}\key{SetOwner()}, see section~\ref{sec:setowner}.
 As the FFS\key{Fast File System (FFS)} has no means to validate the directory owner,
 this field does not bear any practical meaning.
 \smallskip{}
 
-{\tt PrtBits}\mkey{PrtBits} are the protection bits of this directory. The
+{\tt PrtBits}\mkey{PrtBits (FFS)} are the protection bits of this directory. The
 FFS\key{Fast File System (FFS)} actually ignores the protection bits on directories, but stores the
 value here anyhow. The protection bits are explained in section~\ref{sec:fib}.
 \smallskip{}
@@ -17494,7 +17494,7 @@ the first character. There is room for 80 bytes, i.e.\ the maximum comment
 size is 79 characters.
 \smallskip{}
 
-The fields at offset $L-23$ to $L-21$ form a {\tt DateStamp}\key{DateStamp} structure,
+The fields at offset $L-23$ to $L-21$ form a {\tt DateStamp}\key{DateStamp (struct)} structure,
 see chapter~\ref{sec:dates}, that identifies the timestamp of the last change of this directory.
 \smallskip{}
 
@@ -17503,7 +17503,7 @@ length in the first byte; even though~32 bytes are available, the FFS\key{Fast F
 reserves one character, thus limiting the maximal directory name size to~30.
 \smallskip{}
 
-{\tt NameX1}\mkey{NameX1} and {\tt NameX2}\mkey{NameX2} are name extensions that are used by the {\tt
+{\tt NameX1}\mkey{NameX1 (FFS)} and {\tt NameX2}\mkey{NameX2 (FFS)} are name extensions that are used by the {\tt
   DOS\textbackslash{}08} flavor of the FFS. They add additional~24 bytes of
 storage for the directory name. Again, one character is reserved, limiting
 the maximum directory name size in this variant to~54. The directory name
@@ -17511,12 +17511,12 @@ extends from {\tt Name}, then overflows into {\tt NameX1} and from there to
 {\tt NameX2}.
 \smallskip{}
 
-{\tt BckLink}\mkey{BckLink} is the key of the first hard link\key{Hard Link} to this
+{\tt BckLink}\mkey{BckLink (FFS)} is the key of the first hard link\key{Hard Link} to this
 directory. The link of this key replaces the original directory header block
 in case the directory itself is deleted, and the link is converted to a directory.
 \smallskip{}
 
-{\tt NxtHash}\mkey{NxtHash} is the key of the next object using the same
+{\tt NxtHash}\mkey{NxtHash (FFS)} is the key of the next object using the same
 hash\key{Hash (FFS)} as this directory itself.
 \smallskip{}
 
@@ -17529,7 +17529,7 @@ key is only used for FFS\key{Fast File System (FFS)} flavors with directory cach
 it stays~0.
 \smallskip{}
 
-{\tt SecType}\key{SecType} along with {\tt Type} identifies the type of this block. The
+{\tt SecType}\key{SecType (FFS)} along with {\tt Type}\key{Type (FFS)} identifies the type of this block. The
 value of this field shall be~2, identifying this as a user directory
 block.
 \medskip{}
@@ -17583,7 +17583,7 @@ As this flavor of the flavor of the FFS does not offer a directory change,
 the field at $L-2$ remains unused.
 \smallskip{}
 
-{\tt NaC}\mkey{NaC} contains both the file name and file comment as two BSTRs,
+{\tt NaC}\mkey{NaC (FFS)} contains both the file name and file comment as two BSTRs,
 directly placed next to each other. The file name comes first, followed by
 the comment. This field is capable of storing 112 bytes, but the FFS\key{Fast File System (FFS)}
 reserves one byte making in total 110 bytes available. In case the comment
@@ -17592,7 +17592,7 @@ block is created keeping only the comment, and this field then only keeps
 the file name. 
 \smallskip{}
 
-{\tt CmtBlk}\mkey{CmtBlk} is the key of the comment block, keeping the file comment if
+{\tt CmtBlk}\mkey{CmtBlk (FFS)} is the key of the comment block, keeping the file comment if
 the {\tt NaC} field is too short. If no comment block is needed, this
 field is~0. The comment block\key{Comment Block} is described in section~\ref{sec:commentblock}.
 
@@ -17641,30 +17641,30 @@ L-1        & \tt SecType & shall be -3, this is the BCPL constant {\tt ST.FILE}\
 \end{longtable}
 \end{rkrmtabular}
 
-{\tt Type} is the primary type of this block. It is always~2, which is the
+{\tt Type}\key{Type (FFS)} is the primary type of this block. It is always~2, which is the
 BCPL constant {\tt T.SHORT}
 \smallskip{}
 
-{\tt OwnKey} is the key of this object, i.e.\ it is the key of this
+{\tt OwnKey}\key{OwnKey (FFS)} is the key of this object, i.e.\ it is the key of this
 block itself.
 \smallskip{}
 
-{\tt BlkCnt} is the number of occupied data block keys included in this block. Due to
+{\tt BlkCnt}\mkey{BlkCnt (FFS)} is the number of occupied data block keys included in this block. Due to
 the limited number of slots, this number is smaller or equal than $L-56$.
 \smallskip{}
 
-{\tt Data1st} is the key of the first data block of the file. This data
+{\tt Data1st}\key{Data1st (FFS)} is the key of the first data block of the file. This data
 block is actually made available twice, once here, and once again at offset
 $L-51$. Probably the key at this offset was historically used for sequential
 access into the file, whereas the block list at offset~$L-6$ following were
 used for random access.
 \smallskip{}
 
-{\tt Chksum} is the checksum over the entire block. It is chosen such that
+{\tt Chksum}\key{Chksum (FFS)} is the checksum over the entire block. It is chosen such that
 the long word sum over the entire block, including this field, is zero.
 \smallskip{}
 
-{\tt DataBlk} is an array containing the first $L-56$ data blocks of the
+{\tt DataBlk}\key{DataBlk (FFS)} is an array containing the first $L-56$ data blocks of the
 file. The array is filled from its bottom-end, i.e.\ $L-51$ contains the
 key of first data block, $L-52$ the second key and so on. If this array
 overflows, additional blocks are in one or more file extension blocks
@@ -17672,13 +17672,13 @@ chained at $L-2$. This block type is defined in
 section~\ref{sec:fileextensionblock}.
 \smallskip{}
 
-{\tt OwnerID} is reserved for the owner ID of this file that can be
+{\tt OwnerID}\key{OwnerID (FFS)} is reserved for the owner ID of this file that can be
 set with {\tt SetOwner()}\key{SetOwner()}, see section~\ref{sec:setowner}.
 As the FFS\key{Fast File System (FFS)} has no means to validate the file owner, this field does not bear any
 practical meaning.
 \smallskip{}
 
-{\tt PrtBits} are the protection bits of the file, encoded as in
+{\tt PrtBits}\key{PrtBits (FFS)} are the protection bits of the file, encoded as in
 section~\ref{sec:fib}. The four least-significant bits corresponding to the
 readable, writable, executable and deletable features are stored inverted,
 i.e.\ a bit being~0 indicates that the corresponding feature is
@@ -17686,7 +17686,7 @@ available. This is the same encoding as in the {\tt FileInfoBlock}\key{FileInfoB
 structure.
 \smallskip{}
 
-{\tt Comment} contains a potential comment for this file. The comment
+{\tt Comment}\key{Comment (FFS)} contains a potential comment for this file. The comment
 is represented as a BSTR with the comment length in the first
 character. There is room for 80 bytes, i.e.\ the maximum comment size is
 79 characters.
@@ -17696,42 +17696,43 @@ The fields at offset $L-23$ to $L-21$ form a {\tt DateStamp} structure
 that identifies the timestamp of the last change of this file.
 \smallskip{}
 
-{\tt Name} is the name of this file encoded as BSTR with the name length in
+{\tt Name}\key{Name (FFS)} is the name of this file encoded as BSTR with the name length in
 the first byte; even though~32 bytes are available here, the FFS\key{Fast File System (FFS)} reserves
 one character, thus limiting the maximal file name size to~30 characters.
 \smallskip{}
 
-{\tt NameX1} and {\tt NameX2} are name extensions that are used by the {\tt
-  DOS\textbackslash{}08} flavor of the FFS. They add additional~24 bytes of
+{\tt NameX1}\key{NameX1 (FFS)} and {\tt NameX2}\key{NameX2 (FFS)} are name
+extensions that are used by the {\tt DOS\textbackslash{}08} flavor of the
+FFS. They add additional~24 bytes of
 storage for the file name. Again, one character is reserved, limiting
 the maximum file name size for this variant to~54. The file name
 extends from {\tt Name}, then overflows into {\tt NameX1} and from there to
 {\tt NameX2}.
 \smallskip{}
 
-{\tt BckLink} is the key of the first hard link\key{Hard Link} to this file. The link
+{\tt BckLink}\key{BckLink (FFS)} is the key of the first hard link\key{Hard Link} to this file. The link
 of this key replaces the original directory header block in case the
 file itself is deleted, and then is converted from a link to a file.
 \smallskip{}
 
-{\tt NxtHash} is the key of the next object using the same hash\key{Hash (FFS)} as this
+{\tt NxtHash}\key{NxtHash (FFS)} is the key of the next object using the same hash\key{Hash (FFS)} as this
 file.
 \smallskip{}
 
-{\tt Parent} is the key of the directory containing this file, or the key of
+{\tt Parent}\key{Parent (FFS)} is the key of the directory containing this file, or the key of
 the root block in case this file is located in the volume root.
 \smallskip{}
 
-{\tt FileExt} is the key of the first file extension block. This key is only
+{\tt FileExt}\key{FileExt (FFS)} is the key of the first file extension block. This key is only
 used if the file requires more than $L-56$ blocks. Otherwise, it stays~0.
 \smallskip{}
 
-{\tt SecType} along with {\tt Type} identifies the type of this block. The
+{\tt SecType}\key{SecType (FFS)} along with {\tt Type}\key{Type (FFS)} identifies the type of this block. The
 value of this field shall be~-3, identifying this as file header block.
 \medskip{}
 
-For the long file name enabled flavors of the FFS, namely {\tt
-  DOS\textbackslash{}06} and {\tt DOS\textbackslash{}07}, this block looks
+For the long file name enabled flavors of the FFS, namely
+{\tt DOS\textbackslash{}06} and {\tt DOS\textbackslash{}07}, this block looks
 somewhat different:
 
 \begin{rkrmtabular}{Long-Filename FFS File Header Block} \label{table:longfileheaderblock}
@@ -17774,7 +17775,7 @@ modification date is relocated to offsets $L-15$ and following, and the name
 and comment fields are replaced by a new field at offset $L-46$.
 \smallskip{}
 
-{\tt NaC} contains both the file name and file comment as two BSTRs,
+{\tt NaC}\key{NaC (FFS)} contains both the file name and file comment as two BSTRs,
 directly placed next to each other. The file name comes first, followed by
 the comment. This field is capable of storing 112 bytes, but the FFS\key{Fast File System (FFS)}
 reserves one byte making in total 110 bytes available. In case the comment
@@ -17783,7 +17784,7 @@ block is created keeping only the comment, and this field then only keeps
 the file name.
 \smallskip{}
 
-{\tt CmtBlk} is the key of the comment block\key{Comment Block}, keeping the file comment if
+{\tt CmtBlk}\key{CmtBlk (FFS)} is the key of the comment block\key{Comment Block}, keeping the file comment if
 the {\tt NaC} field is too short. If no comment block is needed, this
 field is~0. The comment block\key{Comment Block} is described in section~\ref{sec:commentblock}.
 
@@ -17836,15 +17837,15 @@ L-1        & \tt SecType & identifies the type of the link \\ \hline
 BCPL constant {\tt T.SHORT}
 \smallskip{}
 
-{\tt OwnKey}\key{OwnKey} is the key of this object, i.e.\ it is the key of this
+{\tt OwnKey}\key{OwnKey (FFS)} is the key of this object, i.e.\ it is the key of this
 block itself.
 \smallskip{}
 
-{\tt Chksum}\key{Chksum} is the checksum over the entire block. It is chosen such that
+{\tt Chksum}\key{Chksum (FFS)} is the checksum over the entire block. It is chosen such that
 the long word sum over the entire block, including this field, is zero.
 \smallskip{}
 
-{\tt Target}\key{Target} is the path of the link target for soft links. This is stored
+{\tt Target}\key{Target (FFS)} is the path of the link target for soft links. This is stored
 as {\tt NUL}-terminated C-string, not as BSTR\footnote{The information
 in~\cite{Bantam} that this is a BSTR is incorrect}. The maximum path name
 that can be stored here is $(L-56)\times 4 - 1$ characters
@@ -17854,14 +17855,14 @@ long, though for a default floppy with 512 bytes per sector, this field
 leaves room for paths up to 287 characters.
 \smallskip{}
 
-{\tt OwnerID}\key{OwnerID} is reserved for the owner ID of this link
+{\tt OwnerID}\key{OwnerID (FFS)} is reserved for the owner ID of this link
 that can be set with {\tt SetOwner()}\key{SetOwner()}, see
 section~\ref{sec:setowner}. As the FFS\key{Fast File System (FFS)} has
 no means to validate the link owner, this field does not bear any
 practical meaning.
 \smallskip{}
 
-{\tt PrtBits}\key{PrtBits} are the protection bits of the link, encoded as in
+{\tt PrtBits}\key{PrtBits (FFS)} are the protection bits of the link, encoded as in
 section~\ref{sec:fib}. However, the practical value of these protection bits
 is close to zero as locking a link provides a lock to the linked object, and thus the
 protection bits stored here are not actually checked and neither accessible,
@@ -17898,7 +17899,7 @@ length in the first byte; even though~32 bytes are available here, the FFS\key{F
 reserves one character, thus limiting the maximal size to 30 characters.
 \smallskip{}
 
-{\tt NameX1}\key{NameX1} and {\tt NameX2}\key{NameX2} are name extensions
+{\tt NameX1}\key{NameX1 (FFS)} and {\tt NameX2}\key{NameX2 (FFS)} are name extensions
 that are used by the {\tt DOS\textbackslash{}08} flavor of the FFS. They add additional~24 bytes of
 storage for the directory name. Again, one character is reserved, limiting
 the maximum size for this variant to~54. The link name
@@ -17911,12 +17912,12 @@ directory key for hard links, that is, the key of the link target. For soft
 links, this field is not used and set to~0.
 \smallskip{}
 
-{\tt BckLink}\key{BckLink} is the key to the next hard link to the same link target, or~0
+{\tt BckLink}\key{BckLink (FFS)} is the key to the next hard link to the same link target, or~0
 if there is no further hard link to the same target. Thus, all links to the
 same target are chained through {\tt BckLink}.
 \smallskip{}
 
-{\tt NxtHash}\key{NxtHash} is the key of the next object using the same hash as this
+{\tt NxtHash}\key{NxtHash (FFS)} is the key of the next object using the same hash as this
 directory entry.
 \smallskip{}
 
@@ -17924,7 +17925,7 @@ directory entry.
 the root block in case this link is directly in the volume root.
 \smallskip{}
 
-{\tt SecType}\key{SecType} along with {\tt Type} identifies the type of this block. It
+{\tt SecType}\key{SecType (FFS)} along with {\tt Type}\key{Type (FFS)} identifies the type of this block. It
 can be either~$-4$, that is {\tt ST.LINKFILE}\mkey{ST.LINKFILE} for a hard link\key{Hard Link} to a
 file, or~$4$, which is {\tt ST.LINKDIR}\mkey{ST.LINKDIR}, for a hard link to
 a directory. This field is~3, corresponding to {\tt ST.SOFTLINK}\mkey{ST.SOFTLINK}, for soft links\key{Soft Link}.
@@ -17974,7 +17975,7 @@ date is relocated to offsets $L-15$ and following, and the name and comment
 fields are replaced by a new field at offset $L-46$.
 \smallskip{}
 
-{\tt NaC}\key{NaC} contains both the link name and comment as two BSTRs,
+{\tt NaC}\key{NaC (FFS)} contains both the link name and comment as two BSTRs,
 directly placed next to each other. The link name comes first, followed by
 the comment. This field is capable of storing 112 bytes, but the FFS\key{Fast File System (FFS)}
 reserves one byte making in total 110 bytes available. In case the comment
@@ -17983,7 +17984,7 @@ block is created keeping only the comment, and this field then only keeps
 the file name.
 \smallskip{}
 
-{\tt CmtBlk}\key{CmtBlk} is the key of the comment block\key{Comment Block}, keeping the file comment if
+{\tt CmtBlk}\key{CmtBlk (FFS)} is the key of the comment block\key{Comment Block}, keeping the file comment if
 the {\tt NaC} field is too short. If no comment block is needed, this
 field is~0. The comment block\key{Comment Block} is described in section~\ref{sec:commentblock}.
 
@@ -18016,18 +18017,18 @@ L-1        & \tt SecType & shall be -3, this is the BCPL constant {\tt ST.FILE}\
 BCPL constant {\tt T.LIST}
 \smallskip{}
 
-{\tt OwnKey}\key{OwnKey} is the key of this block itself.
+{\tt OwnKey}\key{OwnKey (FFS)} is the key of this block itself.
 \smallskip{}
 
-{\tt BlkCnt}\key{BlkCnt} is the number of data block keys included in this block. Due to
+{\tt BlkCnt}\key{BlkCnt (FFS)} is the number of data block keys included in this block. Due to
 the limited number of slots, this number is smaller or equal than $L-56$.
 \smallskip{}
 
-{\tt Chksum}\key{Chksum} is the checksum over the entire block. It is chosen such that
+{\tt Chksum}\key{Chksum (FFS)} is the checksum over the entire block. It is chosen such that
 the long-word sum over the entire block, including this field, is zero.
 \smallskip{}
 
-{\tt DataBlk}\key{DataBlk} is an array containing the next $L-56$ data blocks of the
+{\tt DataBlk}\key{DataBlk (FFS)} is an array containing the next $L-56$ data blocks of the
 file. The array is filled from its bottom end, i.e.\ $L-51$ contains the key
 of first data block referenced in this extension block, $L-52$ the second
 key and so on. If this array overflows, additional blocks are provided in another
@@ -18038,12 +18039,12 @@ file extension block whose key is provided at offset $L-2$.
 block keys are extended by this block.
 \smallskip{}
 
-{\tt NextExt}\key{NextExt} is the key of the next file extension block if this block is
+{\tt NextExt}\key{NextExt (FFS)} is the key of the next file extension block if this block is
 not sufficient to keep all data block keys. Otherwise, if this list the last file extension
 block, it is~0.
 \smallskip{}
 
-{\tt SecType}\key{SecType} along with {\tt Type} identifies the type of this
+{\tt SecType}\key{SecType (FFS)} along with {\tt Type}\key{Type (FFS)} identifies the type of this
 block. The value of this field shall be~-3, that is {\tt ST.FILE}\key{ST.FILE},
 identifying this block as belonging to a file.
 
@@ -18074,7 +18075,7 @@ does not provide sufficient room to keep both the file name and the comment.
 be~64, corresponding to the constant {\tt T.COMMENT}\key{T.COMMENT}.
 \smallskip{}
 
-{\tt OwnKey}\key{OwnKey} is the key of this block itself.
+{\tt OwnKey}\key{OwnKey (FFS)} is the key of this block itself.
 \smallskip{}
 
 {\tt Parent}\key{Parent (FFS)} is the key of the file header\key{File Header Block},
@@ -18082,7 +18083,7 @@ user directory\key{User Directory Block} or link block\key{Link Block} to which 
 in this block applies and which is extended by this block.
 \smallskip{}
 
-{\tt Chksum}\key{Chksum} is the checksum over the entire block. It is chosen such that
+{\tt Chksum}\key{Chksum (FFS)} is the checksum over the entire block. It is chosen such that
 the long-word sum over the entire block, including this field, is zero.
 \smallskip{}
 
@@ -18120,7 +18121,7 @@ actually {\tt T.DIRLIST\_KEY} = 32\mkey{T.DIRLIST\_KEY} or'd with the version of
 cache data, which is currently~1.
 \smallskip{}
 
-{\tt OwnKey}\key{OwnKey} is the key of this block itself.
+{\tt OwnKey}\key{OwnKey (FFS)} is the key of this block itself.
 \smallskip{}
 
 {\tt Parent}\key{Parent (FFS)} is the key of the directory header block of the user
@@ -18128,7 +18129,7 @@ directory\key{User Directory Block} cached here, or the key of the root block\ke
 this is the cache of the volume root directory.
 \smallskip{}
 
-{\tt NumNtry}\key{NumNtry} is the number of directory entries cached in this block. Each
+{\tt NumNtry}\key{NumNtry (FFS)} is the number of directory entries cached in this block. Each
 entry has a structure as indicated in table~\ref{table:dircachenetry}. Such
 entries cannot extend over block boundaries; if a new entry does not fit
 entirely into a block, another directory cache block is allocated. A
@@ -18137,11 +18138,11 @@ released. Thus, directory caches can grow very large, and they are only
 rebuild when the disk requires full validation, i.e.\ its bitmap becomes invalid.
 \smallskip{}
 
-{\tt NextBlk}\key{NextBlk} is the key of the next directory cache block for the same
+{\tt NextBlk}\key{NextBlk (FFS)} is the key of the next directory cache block for the same
 directory, or~0 in case this is the last block.
 \smallskip{}
 
-{\tt Chksum}\key{Chksum} is the checksum over the entire block. It is chosen such that
+{\tt Chksum}\key{Chksum (FFS)} is the checksum over the entire block. It is chosen such that
 the long word sum over the entire block, including this field, is zero.
 \smallskip{}
 
@@ -18168,7 +18169,7 @@ pad(16)    & \tt padding & padding to 16-bit boundary \\ \hline
 The fields of this structure are as follows:
 \smallskip{}
 
-{\tt Key}\key{Key} is the key of the file header block\key{File Header
+{\tt Key}\key{Key (FFS)} is the key of the file header block\key{File Header
   Block}, the user directory block\key{User Directory Block} or the
 link block\key{Link Block} of this directory entry, depending on the type of the file system object stored here.
 \smallskip{}
@@ -18176,11 +18177,11 @@ link block\key{Link Block} of this directory entry, depending on the type of the
 {\tt Size}\key{Size (FFS)} is the byte size of the object, or~0 for links and directories.
 \smallskip{}
 
-{\tt PrtBits}\key{PrtBits} are the protection bits as represented in the
+{\tt PrtBits}\key{PrtBits (FFS)} are the protection bits as represented in the
 {\tt FileInfoBlock}\key{FileInfoBlock} structure.
 \smallskip{}
 
-{\tt OwnerID}\key{OwnerID} is reserved for a 32-bit group and owner ID that can be set by
+{\tt OwnerID}\key{OwnerID (FFS)} is reserved for a 32-bit group and owner ID that can be set by
 the {\tt SetOwner()}\key{SetOwner()} function (see~\ref{sec:setowner}).
 However, as the FFS\key{Fast File System (FFS)} has no means to verify access rights
 to an object, this field bears no practical meaning.
@@ -18189,12 +18190,12 @@ to an object, this field bears no practical meaning.
 {\tt Days}, {\tt Mins} and {\tt Ticks} are the timestamp of the last time
 the corresponding object was modified and a copy from the corresponding
 header block provided by {\tt Key}. However, unlike there, only 16 bits are
-available for each field. This is sufficient if the {\tt DateStamp()}
+available for each field. This is sufficient if the {\tt DateStamp}\key{DateStamp (struct)}
 structure is normalized, i.e.\ each field is as small as possible.
 \smallskip{}
 
-{\tt SecType}\key{SecType} is a copy from the {\tt SecType} field of the
-file, user directory or link block indexed by {\tt Key}. All possible values
+{\tt SecType}\key{SecType (FFS)} is a copy from the {\tt SecType} field of the
+file, user directory or link block indexed by {\tt Key}\key{Key (FFS)}. All possible values
 can be represented by a signed byte and are thus abbreviated here in an
 8-bit field.
 \smallskip{}
@@ -18206,7 +18207,7 @@ is its length, i.e.\ it is a BSTR without {\tt NUL}-termination.
 \smallskip{}
 
 {\tt Comment}\key{Comment (FFS)} follows directly after the last byte of
-{\tt Name} and is a copy of the {\tt Comment} field of the file, user
+{\tt Name} and is a copy of the {\tt Comment}\key{Comment (FFS)} field of the file, user
 directory or link block; again, only the minimal amount of bytes are copied
 to the directory cache, i.e.\ the length byte and the comment itself. This
 forms again a BSTR without any {\tt NUL} termination, and not a C string.
@@ -18223,7 +18224,7 @@ is gained from the regular directory structure.
 \smallskip{}
 
 Within a directory cache block, zero or more directory cache entries follow
-each other; their count is provided by the {\tt NumNtry} field in the
+each other; their count is provided by the {\tt NumNtry}\key{NumNtry (FFS)} field in the
 directory cache block. If the FFS\key{Fast File System (FFS)} has to delete entries from the directory,
 it moves entries within the current block upwards over the released
 entry. In worst case, no entries remain in a directory cache block. Such
@@ -18240,10 +18241,10 @@ decreases. Usage of the directory cache is therefore discouraged.
 
 \subsection{The Data Block} \label{sec:datablock}
 
-Data blocks\key{Data Block} contain the payload data of files. It comes in two variants: The
-OFS flavors of the FFS, namely {\tt DOS\textbackslash{}00}, {\tt
-  DOS\textbackslash{}02}, {\tt DOS\textbackslash{}04} and {\tt
-  DOS\textbackslash{}06} keep redundant information in the data
+Data blocks\mkey{Data Block} contain the payload data of files. It comes in two variants: The
+OFS flavors of the FFS, namely {\tt DOS\textbackslash{}00},
+{\tt DOS\textbackslash{}02}, {\tt DOS\textbackslash{}04} and
+{\tt DOS\textbackslash{}06} keep redundant information in the data
 block that makes the file system structure very robust against media
 corruption; however, as this information needs to be stripped off before the
 payload data is delivered to FFS\key{Fast File System (FFS)} clients, and thus the block
@@ -18277,15 +18278,15 @@ The following table describes the structure of an OFS data block:
 \end{longtable}
 \end{rkrmtabular}
 
-{\tt Type} is the primary type of this block. It is always~8, which is the
+{\tt Type}\key{Type (FFS)} is the primary type of this block. It is always~8, which is the
 constant {\tt T.DATA}\key{T.DATA}
 \smallskip{}
 
-{\tt Header}\key{Header} is the key of the file header block\key{File Header Block} this file
+{\tt Header}\key{Header (FFS)} is the key of the file header block\key{File Header Block} this file
 belongs to.
 \smallskip{}
 
-{\tt SeqNum}\key{SeqNum} is the sequential number of this block within the file. The
+{\tt SeqNum}\key{SeqNum (FFS)} is the sequential number of this block within the file. The
 first data block of the file has the sequential number~1, the next one~2 and
 so on.
 \smallskip{}
@@ -18294,11 +18295,11 @@ so on.
 does not necessarily extend to the end of the block.
 \smallskip{}
 
-{\tt Chksum}\key{Chksum} is the checksum over the entire block. It is chosen such that
+{\tt Chksum}\key{Chksum (FFS)} is the checksum over the entire block. It is chosen such that
 the long word sum over the entire block, including this field, is zero.
 \smallskip{}
 
-{\tt Data}\key{Data (FFS)} is the actual payload data of the block. It
+{\tt Data}\mkey{Data (FFS)} is the actual payload data of the block. It
 consists of {\tt Size} bytes forming the contents of the file.
 \medskip{}
 
@@ -18313,7 +18314,7 @@ allocated for a file.
 
 \subsection{The Bitmap Block} \label{sec:bitmapblock}
 
-Bitmap blocks\key{Bitmap Block} keep a bitmap --- one bit per key ---
+Bitmap blocks\mkey{Bitmap Block} keep a bitmap --- one bit per key ---
 describing which keys are already occupied for administration or
 payload data, and which keys are still available. Depending on the
 size of the volume, one or many bitmap blocks exist. If the 25 keys
@@ -18332,12 +18333,12 @@ The structure of a bitmap block is as follows:
 \end{longtable}
 \end{rkrmtabular}
 
-{\tt Chksum}\key{Chksum} is the checksum over the entire block. It is chosen
+{\tt Chksum}\key{Chksum (FFS)} is the checksum over the entire block. It is chosen
 such that the long word sum over the entire block, including this field,
 is zero.
 \smallskip{}
 
-{\tt Bitmap}\mkey{Bitmap} holds for every available key administrated by
+{\tt Bitmap}\mkey{Bitmap (FFS)} holds for every available key administrated by
 this bitmap a bit that indicates whether that key is available or not. If
 the bit is~1, the key is free, and if~0, the key is released.
 \smallskip{}
@@ -18454,12 +18455,12 @@ because bitmaps are disposable and can be recreated by a validation
 process if the FFS needs them.
 \smallskip{}
 
-{\tt BMKeys}\key{BMKeys} is an array of $L-1$ keys, each of contains a
+{\tt BMKeys}\key{BMKeys (FFS)} is an array of $L-1$ keys, each of contains a
 bitmap for the subsequent part of the volume. The slots in this block are
 allocated top to bottom, with non-used entries set to~0.
 \smallskip{}
 
-{\tt BMNext}\mkey{BMNext} is the key of another extension block if this extension block is
+{\tt BMNext}\mkey{BMNext (FFS)} is the key of another extension block if this extension block is
 not sufficient. It is~0 in case this is the last bitmap extension block.
 
 \subsection{The Deleted Block}
@@ -18895,7 +18896,7 @@ do in such a situation except retrying the request to close the file later.
 
 \subsection{Reading from a File} \label{sec:action_read}
 
-The packet {\tt ACTION\_READ}\mkey{ACTION\_KEY} reads data from a \emph{file
+The packet {\tt ACTION\_READ}\mkey{ACTION\_READ} reads data from a \emph{file
 system} or handler and advances the file pointer accordingly.
 
 \begin{rkrmtable}{\tt ACTION\_READ} \label{table:actionread}
@@ -20999,7 +21000,7 @@ changed. This path shall be interpreted relative to {\tt dp\_Arg2}, and its
 last component is the object whose creation date shall be changed.
 \smallskip{}
 
-{\tt dp\_Arg4} is a BPTR to a {\tt DateStamp} structure as specified in
+{\tt dp\_Arg4} is a BPTR to a {\tt DateStamp}\key{DateStamp (struct)} structure as specified in
 section~\ref{sec:dates} and defines the target date to install for the
 object.
 \smallskip{}
@@ -21196,7 +21197,7 @@ closing it. \\ \hline
 \tt ACTION\_DELETE\_OBJECT\key{ACTION\_DELETE\_OBJECT} & Immediately \\ \hline
 \tt ACTION\_RENAME\_OBJECT\key{ACTION\_RENAME\_OBJECT} & Immediately \\ \hline
 \tt ACTION\_SET\_DATE\key{ACTION\_SET\_DATE} & Immediately \\ \hline
-\tt ACTION\_CREATEDIR\key{ACTION\_CREATEDIR} & Immediately, when monitoring directories \\ \hline
+\tt ACTION\_CREATE\_DIR\key{ACTION\_CREATE\_DIR} & Immediately, when monitoring directories \\ \hline
 \tt ACTION\_MAKE\_LINK\key{ACTION\_MAKE\_LINK} & Immediately, for links created in monitored directories \\ \hline \hline
 \tt ACTION\_SET\_COMMENT\key{ACTION\_SET\_COMMENT} & Optionally \\ \hline
 \tt ACTION\_SET\_PROTECT\key{ACTION\_SET\_PROTECT} & Optionally \\ \hline
@@ -22323,7 +22324,7 @@ The console takes a couple of precautions to avoid trashing memory by
 attempting to send signals to processes that no longer exist: the
 console implicitly disables the port set by {\tt ACTION\_CHANGE\_SIGNAL}
 and {\tt ACTION\_READ} or the port set by {\tt ACTION\_WRITE} whenever
-an {\tt ACTION\_CLOSE}\key{ACTION\_CLOSE} is received from a process
+an {\tt ACTION\_END}\key{ACTION\_END} is received from a process
 to which the corresponding port belongs. That is, processes that are
 closing a stream to the console are removed as candidates for
 receiving break signals. In addition, before sending a signal, the
@@ -23742,7 +23743,8 @@ directory to ``{\tt SYS:}''.
 \smallskip{}
 
 By default, the executing shell\key{Shell} will be the system Shell whose segment is
-available as a system segment\key{Segment (resident)} of the name ``{\tt BootShell}''\key{BootShell} in the
+available as a system segment\key{Segment (resident)} of the name
+``{\tt BootShell}''\key{BootShell (resident)} in the
 list of resident modules, see section~\ref{sec:resident}. Other shells can
 be provided by specifying their names which are then located on the list of
 resident segments. Section~\ref{sec:usershells} provides more information on
@@ -23843,7 +23845,7 @@ probably a defect.} for a {\tt NULL} command as well.
 shell'' is launched. This corresponds to the segment ``{\tt Shell}''\key{Shell (resident)} on the
 resident list of AmigaDOS. The default of this tag is {\tt DOSFALSE},
 indicating that the Boot Shell\key{Boot Shell} is to be used which corresponds to the
-``{\tt BootShell}''\key{BootShell} segment on the resident list. Upon system startup, and in all
+``{\tt BootShell}''\key{BootShell (resident)} segment on the resident list. Upon system startup, and in all
 typical configurations of AmigaDOS, both correspond to the AmigaDOS Shell.
 Users can, however, replace both shells with custom segments\key{Segment (resident)}, see
 section~\ref{sec:usershells}.
@@ -25379,7 +25381,7 @@ calling process, i.e.\ {\tt pr\_CIS} (see chapter~\ref{sec:process}).
 
 To customize command line parsing, an
 {\tt RDArgs} structure as documented in {\tt dos/rdargs.h} shall be
-allocated through {\tt AllocDosObject()}\key{AllocDosObject}, see section~\ref{sec:allocdosobject}, and
+allocated through {\tt AllocDosObject()}\key{AllocDosObject()}, see section~\ref{sec:allocdosobject}, and
 shall be initialized as specified below. This structure reads as follows:
 
 \mkey{RDArgs}
@@ -25717,7 +25719,7 @@ The latter is even added three times to this list. First, as
 default by the {\tt Shell} icon and the {\tt System()}\key{System()}
 function. A user shell\key{Shell} may replace this entry and thus become
 accessible by the {\tt Shell} icon on the Workbench.
-Second, as ``{\tt BootShell}''\key{BootShell},
+Second, as ``{\tt BootShell}''\key{BootShell (resident)},
 which shall remain unchanged. It always refers to the shell that booted the
 system, and is also the shell that is used by the
 {\tt Execute()}\key{Execute()} function discussed in
@@ -25964,7 +25966,7 @@ First of all, AmigaDOS supports a BCPL shell\key{Shell} under the name
 runtime binding protocol explained in section~\ref{sec:bcplbinding}.
 AmigaDOS also supports C and assembler
 based shells\key{Shell} under the names ``{\tt shell}'' and
-``{\tt BootShell}''. A user shell replacing the ``{\tt shell}'' entry in
+``{\tt BootShell}''\key{BootShell (resident)}. A user shell replacing the ``{\tt shell}'' entry in
 the resident segment\key{Segment (resident)} list will
 thus follow the C/Assembler binding.
 \smallskip{}
@@ -26405,7 +26407,7 @@ struct DosPacket *ShellMain(struct DosPacket *pkt,LONG fn,
 
 Historically, two additional functions existed to initialize a
 shell\key{Shell} in AmigaDOS version~36 to version~45.
-{\tt CliInit()}\key{CliInit()} had to be called by the
+{\tt CliInit()}\mkey{CliInit()} had to be called by the
 {\tt Initial CLI} and not only initialized the shell to read from the
 {\tt S:Startup-Sequence}, it also initialized the \emph{dos.library}
 and mounted all ROM-resident handlers. These tasks are now taken over
@@ -26416,7 +26418,7 @@ provides more details on this module.
 \smallskip{}
 
 The second function to initialize a shell\key{Shell} was
-{\tt CliInitNewShell()}\key{CliInitNewShell()} which was
+{\tt CliInitNewShell()}\mkey{CliInitNewShell()} which was
 exclusively used by a shell\key{Shell} created by the {\tt NewShell}
 command. In the latest version of AmigaDOS, {\tt NewShell}
 also calls through {\tt System()}\key{System()} and
@@ -26514,7 +26516,7 @@ sound useful, nothing in the initialization of the handle currently
 depends on its value.
 \smallskip{}
 
-The {\tt DOS\_EXALLCONTROL}\key{DOS\_EXALLCONTROL} type
+The {\tt DOS\_EXALLCONTROL}\mkey{DOS\_EXALLCONTROL} type
 creates an {\tt ExAllControl}\key{ExAllControl}
 structure used to iterate over directory contents, see
 section~\ref{sec:exall}; no additional tags are required.
@@ -27123,7 +27125,7 @@ creates, and thus the file system responsible for the {\tt ZERO} lock\key{ZERO l
 The {\tt rn\_ShellSegment}\mkey{rn\_ShellSegment} is a pointer to the C segment of the
 shell\key{Shell}. This pointer is also not used anymore, but still initialized. It
 corresponds to the resident segments ``{\tt shell}''\key{Shell (resident)}
-and ``{\tt BootShell}''\key{BootShell}, where the former may be replaced
+and ``{\tt BootShell}''\key{BootShell (resident)}, where the former may be replaced
 by a custom user-provided shell and the latter is always the shell that
 booted the system. In AmigaDOS version~47, the shell segment is
 located via {\tt FindSegment()}\key{FindSegment()} instead.
@@ -27299,7 +27301,8 @@ exec resident modules, or from the {\tt L:} directories if permissible.
 However, due to AmigaDOS version~34 legacies, this time
 the disk-based module is named ``{\tt Shell-Seg}''. This segment is placed
 in the elements {\tt rn\_ConsoleSegment} and {\tt rn\_ShellSegment} of the
-{\tt RootNode} structure, and the resident segments ``{\tt CLI}'', ``{\tt BootShell}'' and ``{\tt shell}''
+{\tt RootNode} structure, and the resident segments ``{\tt CLI}'',
+``{\tt BootShell}''\key{BootShell (resident)} and ``{\tt shell}''
 are created from it.
 \smallskip{}
 
