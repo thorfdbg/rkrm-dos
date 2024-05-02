@@ -14483,12 +14483,12 @@ through the BCPL ``return from function'' call.
 
 G_GLOBMAX       EQU     150             ; size of GV
 G_START         EQU     1               ; BCPL START functions
-G_CLISTART      EQU     133             ; CLI START
 
 CodeHeader:     DC.L    (CodeEnd-CodeHeader)/4 
 
 *               C Startup function, called for GlobVec=-1 or -2
 *               see text below why this works
+
 CStart:         sub.l   a0,a0           ; no startup message
                 bsr.w   _main           ; need to GetMsg() in main
                 rts
@@ -14497,6 +14497,8 @@ CStart:         sub.l   a0,a0           ; no startup message
                 CNOP    0,4
 
 *               BCPL startup function, called for GlobVec=0 or -3
+*               and also for the CLI (but not the Shell)
+
 BCPLStart:      movem.l a0-a6,-(a7)     ; save for BCPL use
                 lsl.l   #2,d1           ; get startup packet
                 move.l  d1,a0           ; move to a0
@@ -14508,7 +14510,6 @@ BCPLStart:      movem.l a0-a6,-(a7)     ; save for BCPL use
                 CNOP    0,4
 BCPLTable:      
                 DC.L    0               ; End of global list
-                DC.L    G_CLISTART,BCPLStart-CodeHeader ;for the shell
                 DC.L    G_START,BCPLStart-CodeHeader
                 DC.L    G_GLOBMAX       ; max global used (default)
 CodeEnd:
@@ -14552,14 +14553,10 @@ process instead. A corresponding handler main program for this startup code
 is provided as example in section~\ref{sec:handlerstartup}.
 \smallskip{}
 
-For the CLI, in particular, a second entry in the Global Vector
-shall be populated, namely the entry {\tt G\_CLISTART} {\tt \#133}. It
-may point to the same entry code, more on this in
-section~\ref{sec:usershells}. As this entry is not used for handler
-startup, it does not hurt to include it in the GlobVec initializer
-list as well. Thus, the above code may be used as universal ``BCPL
-kludge'' for both the CLI and handlers that depend on the legacy BCPL
-binding and startup mechanisms.
+The Shell --- or rather its BPCL incarnation as {\tt CLI} --- is also started
+through the {\tt G\_START} entry of the Global Vector\key{Global Vector} and thus the above
+code may be used as universal ``BCPL kludge'' for both the CLI and handlers
+that depend on the legacy BCPL binding and startup mechanisms.
 
 \section{Object File Format} \label{sec:objfile}
 
