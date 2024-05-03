@@ -71,8 +71,12 @@ print	:	$(MAIN).ps
 pdf	:	$(MAIN).pdf
 	@ $(ACROREAD) $(MAIN).pdf
 
+final	:	$(MAIN).pdf
+	@ pdftops $(MAIN).pdf
+	@ $(PSTOPDF) -dPDFSETTINGS=/prepress $(MAIN).ps
+
 clean	:
-	@ rm -f *.ps *.dvi *.ftg *.txi *.pst *.pspdf *.log *.ind *.idx *.toc *.aux *~ *.bak *.pdf *.lot *.lof core
+	@ rm -f *.ps *.dvi *.ftg *.txi *.pst *.pspdf *.log *.ind *.idx *.toc *.aux *~ *.bak $(MAIN).pdf *.lot *.lof core
 
 #
 #
@@ -90,9 +94,6 @@ clean	:
 	@ $(PDFLATEX) $*.tex
 	@ grep -c '^LaTeX Warning: Label(s) may have changed. Rerun to get cross-references right' $*.log > /dev/null 2>&1 && $(TEX) $*.tex || :
 	@ $(MAKEINDEX) -c $*
-	@ mv dos.pdf tmp.pdf && pdfunite front-page.pdf tmp.pdf back-page.pdf dos.pdf
-	@ pdftops $*.pdf
-	@ $(PSTOPDF) -dPDFSETTINGS=/prepress $*.ps
 
 %.ind	:	%.idx
 	@ $(MAKEINDEX) -c $*
