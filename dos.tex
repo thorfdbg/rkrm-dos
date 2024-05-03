@@ -15492,6 +15492,7 @@ handler startup, its elements are populated as follows:
 \tt dp\_Arg3 & BPTR to {\tt DosList} \\ \hline \hline
 \tt dp\_Res1 & Success indicator \\ \hline
 \tt dp\_Res2 & 0 or error code\\ \hline
+\tt dp\_Arg4 & APTR to {\tt MsgPort} or {\tt NULL} \\ \hline
 \end{rkrmtable}
 
 {\tt dp\_Type} is set to {\tt ACTION\_STARTUP}\mkey{ACTION\_STARTUP},
@@ -15535,13 +15536,25 @@ the handler was identified and which the handler may modify according
 to its needs.
 \medskip{}
 
+{\tt dp\_Arg4} may be set by the handler when replying to the startup
+packet; it is initialized to {\tt NULL} by the \emph{dos.library}. If it
+remains {\tt NULL}, then {\tt GetDeviceProc()}\key{GetDeviceProc()} delivers
+in {\tt dvp\_Port} the process port {\tt pr\_MsgPort}\key{pr\_MsgPort} of
+the handler as destination port for packets, see
+section~\ref{sec:getdeviceproc}. A handler may instruct the
+\emph{dos.library}, however, to send packets to an alternative port by
+providing its pointer in {\tt dp\_Arg4}, which is then copied into
+{\tt dvp\_Port} instead. Thus, this argument is used as an optional
+\emph{output value} rather than an input argument.
+\medskip{}
+
 During startup, the handler may or may not initialize {\tt dol\_Task}.
 {\tt GetDeviceProc()}\key{GetDeviceProc()} \emph{does not} initialize it and
 leaves at {\tt NULL}. A file system process would typically handle multiple
 files by the same process. To ensure that the \emph{dos.library} sends all
 requests to the process just started, the file system places a pointer to a
 {\tt MsgPort} in {\tt dol\_Task} of the {\tt DosList} structure received in
-{\tt dp\_Art3}. This is typically, but not necessarily, the
+{\tt dp\_Arg3}. This is typically, but not necessarily, the
 {\tt pr\_MsgPort} of the handler process. The Fast File
 System\key{Fast File System (FFS)} and file systems in general proceed in
 this way.
@@ -15655,9 +15668,7 @@ LONG __asm __saveds main(register __a0 struct DosPacket *pkt)
     ** the packet manually 
     */    
     if (pkt == NULL) {
-      /* 
-      ** Wait and retrieve the startup message
-      */
+      /* Wait and retrieve the startup message */
       WaitPort(&proc->pr_MsgPort);
       msg = GetMsg(&proc->pr_MsgPort);
       pkt = (struct DosPacket *)msg->mn_Node.ln_Name;
@@ -15671,11 +15682,7 @@ LONG __asm __saveds main(register __a0 struct DosPacket *pkt)
       error = ERROR_INVALID_RESIDENT_LIBRARY;
 
     if (error) {
-      /*
-      ** Reply packet manually with 
-      ** an error - the dos.library did
-      ** not open.
-      */
+      /* Reply packet manually - dos did not open */
       pkt->dp_Res1 = DOSFALSE;
       pkt->dp_Res2 = error;
       PutMsg(pkt->dp_Port,pkt->dp_Link);
@@ -18661,7 +18668,7 @@ Because the CON-Handler does not initialize {\tt dol\_Task}\key{dol\_Task}
 of the {\tt DosList}\key{DosList} structure, each attempt to open
 a file through its device name, i.e.\ ``{\tt CON:}'', ``{\tt RAW:}'' or ``{\tt AUX:}'', will
 request a new handler process; attempting to re-open the console
-by ``{\tt *}'' or relative to ``{\tt CONSOLE:}'' will re-use an already running handler.
+by ``{\tt *}'' or relative to ``{\tt CONSOLE:}'' will instead re-use an already running handler.
 \smallskip{}
 
 This is different for file systems which do initialize {\tt dol\_Task}
