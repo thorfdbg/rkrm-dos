@@ -1782,7 +1782,10 @@ systems are case-insensitive, and use the ISO-Latin character set. Thus,
 what a file system considers an identical file name can, actually, be
 something different from what the \emph{dos.library} considers a matching
 name. Code points from the control set of ISO-Latin, i.e.\ codes between
-{\tt 0x01} to {\tt 0x1f} or {\tt 0x7f} to {\tt 0x9f} should be avoided, and
+{\tt 0x01} to {\tt 0x1f} or {\tt 0x7f} to {\tt 0x9f} should be avoided
+\footnote{Unfortunately, the file systems in the Amiga Kickstart are currently inconsistent on which
+characters they accept. The FFS does not accept any control characters,
+the RAM-Handler (probably erraneously) accepts characters in the C1 control set from {\tt 0x80} to {\tt 0x9f}.}, and
 the code point {\tt 0x00} ASCII {\tt NUL} shall not be used at all as it terminates
 C strings and therefore cannot be part of a file name anyhow\footnote{To be very
 precise, it actually \emph{could} be as this character does not have a
@@ -10314,7 +10317,7 @@ section~\ref{sec:getfilesystask}, and access through this function should be pre
 \key{CommandLineInterface} structure containing information on the shell\key{Shell}
 this process is running in. If this process is not part of a shell, this
 element is {\tt ZERO}. This is for example the case for programs started from
-the Workbench, or handler or file system. This structure is specified in
+the Workbench, or handlers and file systems. This structure is specified in
 in section~\ref{sec:getcli}, and it should preferably be obtained
 through the {\tt Cli()}\key{Cli()} function of the same section.
 There is no corresponding setter function, indicating that this
@@ -10452,9 +10455,9 @@ section~\ref{sec:createnewproc}.
 
 The {\tt PRF\_FREECURRDIR}\mkey{PRF\_FREECURRDIR} flag
 releases {\tt pr\_CurrentDir} via {\tt UnLock()}\key{UnLock()} upon
-termination of the process. This flag is implied when creating processes by
-{\tt CreateNewProc()}\key{CreateNewProc()} and a non-{\tt ZERO} lock is made
-the current directory of the created process. The only way how to clear this
+termination of the process. This flag is set when creating processes by
+{\tt CreateNewProc()}\key{CreateNewProc()} and a non-{\tt ZERO} lock is installed
+as current directory. The only way how to clear this
 flag is to install a {\tt ZERO} lock by the {\tt NP\_CurrentDir} tag, see
 also section~\ref{sec:createnewproc} and the description of this tag.
 \smallskip{}
@@ -10526,7 +10529,7 @@ process if it executes a command started from the shell\key{Shell}. It is a
 {\tt NUL} terminated string \emph{not} including the command name
 itself. The latter can be retrieved from {\tt cli\_CommandName}, see
 section~\ref{sec:getcli}. The argument string can also be found in
-register {\tt A0}, or in the buffer of
+register {\tt A0}, or in the buffer of the
 {\tt pr\_CIS} file handle\key{FileHandle}. The {\tt ReadArgs()}\key{ReadArgs()} function takes it from
 the latter source, and not from {\tt pr\_Arguments}\key{pr\_Arguments}. If
 the process does not execute a command from the shell, this element
@@ -10547,7 +10550,7 @@ The structure of a node in this list is specified in
 section~\ref{sec:findvar} and defined in {\tt dos/var.h}. Access to this
 list is not protected by a semaphore, and thus, it shall not be accessed
 from any other process but the one represented by the containing
-{\tt Process} structure. Even more, the list and its contents should not be
+{\tt Process} structure. Even more so, the list and its contents should not be
 accessed directly at all, but through the accessor functions listed in
 section~\ref{sec:shellvariables}.
 \smallskip{}
@@ -10692,7 +10695,7 @@ will be closed when the process terminates. If non-zero, the input file handle\k
 will be closed, otherwise it remains opened. The default is to close the
 input file handle, no matter which handle the process left in
 {\tt pr\_CIS} when terminating. If creating the process failed, a handle
-provided by {\tt NP\_INPUT} remains available to the caller and will not be
+provided by {\tt NP\_Input} remains available to the caller and will not be
 closed. The handle to {\tt NIL:} that is used as default will, however, be
 cleaned up on error.
 \smallskip{}
@@ -10939,7 +10942,7 @@ the running code can be safely released again. The Workbench startup protocol
 described in~\cite{rkrmlib} may be used as a blue-print for a similar
 mechanism, though {\tt CreateNewProc()}\key{CreateNewProc()} offers a more
 practical solution by the {\tt NP\_FreeSeglist} tag and should be preferred,
-unless compatibility to AmigaDOS 34 and below is required,
+unless compatibility to AmigaDOS 34 and below is required.
 \medskip{}
 
 If {\tt CreateProc()}\key{CreateProc()} succeeds, the returned value
@@ -11164,7 +11167,7 @@ terminating a running program.
 
 The {\tt GetCurrentDir()}\mkey{GetCurrentDir()} function returns the current
 directory of the calling process, represented by a lock\key{Lock}. This
-lock\key{Lock}, and the file system that created the lock are used to
+lock\key{Lock}, and the file system that manages the lock are used to
 resolve relative paths, see also section~\ref{sec:paths}.
 
 \begin{verbatim}
@@ -11259,10 +11262,10 @@ device driver directly to the caller, and thus, for example, the errors from
 {\tt devices/trackdisk.h} can also appear as {\tt IoErr()} return
 codes. This design is probably not ideal as a caller has in general no idea
 which underlying device is used by a handler or file system, and thus lacks
-the proper interpretation of such codes. Instead, and handlers and file systems
+the proper interpretation of such codes. Instead, handlers and file systems
 should rather attempt to restrict the delivered error codes to those defined
 in the above two files and potentially translate errors from a lower level
-to those defined within AmigaDOS, i.e.\ should use codes from the list below.
+to those defined within AmigaDOS, i.e.\ should only report codes from the list below.
 \smallskip{}
 
 Generally, handlers and file systems can select error codes as they seem
@@ -11301,7 +11304,7 @@ described in section~\ref{sec:bcplbinding}.
 
 {\tt ERROR\_BAD\_TEMPLATE}\mkey{ERROR\_BAD\_TEMPLATE}: This error code
 indicates that the argument template for {\tt ReadArgs()}\key{ReadArgs()}
-is syntactical incorrect, see section~\ref{sec:readargs}. It is also set
+is syntactically incorrect, see section~\ref{sec:readargs}. It is also set
 by the pattern matcher in case the pattern is syntactically
 incorrect, see~\ref{sec:stringpat}.
 \smallskip{}
@@ -11441,7 +11444,7 @@ path as separator between the device name and the path components, a
 colon within a component is therefore a syntactical error; also, the forwards
 slash (``{\tt /}'') shall not appear in a volume name. All Amiga
 ROM file systems do not accept code points below {\tt 0x20} in file names, i.e.\ ASCII
-control characters, or from the extended ISO-Latin control sequence region
+control characters, or characters from the extended ISO-Latin control sequence region
 between {\tt 0x80} to {\tt 0x9f}. It is also generated if the temporary
 buffer used by the \emph{dos.library} to resolve a soft link\key{Soft Link}
 is too small to keep the link target.
