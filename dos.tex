@@ -9364,7 +9364,7 @@ AmigaDOS recognizes the following wild cards, defined in {\tt dos/dosasl.h}:
   operating systems, the asterisk (``{\tt *}'') has a (two) other meanings
   under AmigaDOS. It rather refers to the current console as file name\key{*
     (file name)}, or is the escape character for quotation and control
-  sequences of the Shell; those are properties AmigaDOS inherits from the BCPL syntax and
+  sequences of the Shell; those are properties AmigaDOS inherited from the BCPL syntax and
   Tripos. While there is a flag in the \emph{dos.library} that makes the
   asterisk \emph{also} available as a wildcard, such usage is discouraged
   because it can lead to situations where the the asterisk would be
@@ -9397,8 +9397,10 @@ The prime purpose of the pattern matcher is to scan a directory, identifying
 all file system objects such as files, links or directories that match a
 given pattern. The pattern matcher can even descend recursively into
 sub-directories if instructed to do so. This service is used by many
-shell\key{Shell} commands stored in the {\tt C} assign. Scanning a
-directory requires the following steps:
+shell\key{Shell} commands stored in the {\tt C} assign.
+\medskip{}
+
+Scanning a directory requires the following steps:
 \smallskip{}
 
 First, the user shall initialize an {\tt AnchorPath}\key{AnchorPath}
@@ -9446,9 +9448,10 @@ had been noticed.
 The above iterative procedure of {\tt MatchNext()}\key{MatchNext()}
 may continue, either until the user or the running program requests
 termination, or until {\tt MatchNext()}\key{MatchNext()} returns an
-error. Then, finally, the scan is aborted and all resources but the
-{\tt AnchorPath}\key{AnchorPath} structure shall be released by calling
-{\tt MatchEnd()}\key{MatchEnd()} described in section~\ref{sec:matchend}.
+error. Then, finally, the scan is aborted and all resources shall be
+released by calling {\tt MatchEnd()}\key{MatchEnd()} described in
+section~\ref{sec:matchend}. The {\tt AnchorPath}\key{AnchorPath}
+structure is \emph{not} released by this function, but must be disposed manually, e.g.\ by {\tt FreeMem()}.
 \medskip{}
 
 The {\tt AnchorPath} structure is defined in {\tt dos/dosasl.h} and looks as
@@ -9471,7 +9474,7 @@ struct AnchorPath {
 };
 \end{verbatim}
 
-The semantic of the elements of this structure are as follows:
+The semantics of the elements of this structure are as follows:
 \smallskip{}
 
 {\tt ap\_Base}\mkey{ap\_Base} and {\tt ap\_Last}\mkey{ap\_Last} are
@@ -9514,7 +9517,7 @@ they are not unlocked manually.
 \smallskip{}
 
 {\tt an\_Info}\mkey{an\_Info} is only used internally and is the
-{\tt FileInfoBlock}\key{FileInfoBlock} of the directory being describes by the
+{\tt FileInfoBlock}\key{FileInfoBlock} of the directory described by the
 {\tt AChain}\key{AChain} structure, see section~\ref{sec:fib} for its definition.
 \smallskip{}
 
@@ -9598,7 +9601,7 @@ Soft links\key{Soft Link} to directories are never entered, this this cannot
 be enforced by any flag. A potential danger of links is that they can cause
 endless recursion if a link within a directory points to a parent
 directory. Thus, callers should be aware of such situations and store
-directories that have already been analyzed. Otherwise, it is safer to keep
+directories that have already been analyzed. It is safer to keep
 the {\tt APF\_FollowHLinks} flag cleared.
 \medskip{}
 
@@ -9610,7 +9613,7 @@ terminating {\tt NUL} byte of a string. If the complete path of the match
 does not fit into this buffer, it is truncated \emph{without} proper
 string termination and the error
 code {\tt ERROR\_BUFFER\_OVERFLOW}\key{ERROR\_BUFFER\_OVERFLOW} is
-returned. If the complete path is not required, this element shall be set
+reported. If, however, the complete path is not required, this element shall be set
 to~$0$.
 \smallskip{}
 
