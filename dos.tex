@@ -6417,29 +6417,38 @@ notification request.
 
 \chapter{Administration of Volumes, Devices and Assigns} \label{sec:devicelist}
 
-To the \emph{dos.library}, a handler or a file system is represented by an
-exec {\tt MsgPort} (or short ``port'') to which it sends requests to the
-handler, e.g.\ to read bytes from a file or to iterate through a directory
-(see also chapter~\ref{sec:directpkts} and section~\ref{sec:dospacket}). The
-library, however, also needs to obtain these ports somehow from a device
-name as included in absolute paths. For example, if the file
-``{\tt S:Startup-Sequence}'' is to be opened, the relation between the
-``{\tt S}'' assign and the handler responsible for implementing opening and
-reading from this file must be established.
+To the \emph{dos.library}, a handler or a file system is represented
+by an exec {\tt MsgPort} (or short ``port'') to which it sends
+requests to the handler, e.g.\ to read bytes from a file or to iterate
+through a directory (see also chapter~\ref{sec:directpkts} and
+section~\ref{sec:dospacket}). The library, however, also needs to
+obtain these ports for a given path somehow, which is the responsibility of the
+{\tt GetDeviceProc()}\key{GetDeviceProc()} function discussed in
+section~\ref{sec:getdeviceproc}.
 \smallskip{}
 
-Each volume, assign, handler or file system is therefore represented by a
-{\tt DosList}\key{DosList} structure which provides both the name as used in
-an absolute path, e.g.\ {\tt S}, and the {\tt MsgPort} responsible for
-it. All {\tt DosList} structures are queued in a global list within the
-\emph{dos.library} (see also section~\ref{sec:dosinfo}) named the
-\emph{device list}\mkey{Device List}. If the library requires to contact a handler through its
-device name, it calls internally the
-{\tt GetDeviceProc()}\key{GetDeviceProc()} function
-(see~\ref{sec:getdeviceproc}) which searches this list
-for a matching name and provides a suitable port for the caller. Thus, the
-relation between a name and a port is established through this function and
-the global device list.
+For relative paths, the lock representing the current directory, or
+the default file system of the process if this lock is
+{\tt ZERO}\key{ZERO lock} is used as source, see section~\ref{sec:filelock},
+and chapter~\ref{sec:process} for details.
+For absolute paths, the source is the device, volume or assign name
+upfront the colon in the path. For example, if the file
+``{\tt S:Startup-Sequence}'' is to be opened, the relation between the
+``{\tt S}'' assign and the handler responsible for implementing
+opening and reading from files within this directory must be established.
+\smallskip{}
+
+Each volume, assign, handler or file system is therefore represented
+by a {\tt DosList}\key{DosList} structure which provides both the name
+as used in an absolute path, e.g.\ {\tt S}, and the {\tt MsgPort}
+responsible for it. All {\tt DosList} structures are queued in a
+global list within the \emph{dos.library} (see also
+section~\ref{sec:dosinfo}) named the \emph{device list}\mkey{Device List}.
+The {\tt GetDeviceProc()}\key{GetDeviceProc()} function, when
+called with an absolute path, searches this list for a matching
+name and provides a suitable port for the caller. Thus, the relation
+between a name and a port is established through this function and the
+\emph{Device List}.
 \medskip{}
 
 Entries on the device list are created in multiple ways: The {\tt Mount}\key{Mount (command)}
@@ -6488,9 +6497,9 @@ device is not representable as a handler at all.
 \smallskip{}
 
 Thus, in short, the {\tt DosList} structure is central to the
-\emph{dos.library} and establishes the link between the device name as it
+\emph{dos.library} and establishes the link between the assign, volume or device name as it
 appears on an absolute path upfront the colon (``{\tt :}'') and the port
-behind it responsible for implementing functions on such a device. This
+behind it responsible for implementing functions for such a path. This
 structure, defined in {\tt dos/dosextens.h}, reads as follows:
 
 \mkey{DosList}
@@ -6546,8 +6555,9 @@ in {\tt dos/dosextens.h}.
 Finally, {\tt dos/filehandler.h} contains a third structure, named
 {\tt DeviceNode}\mkey{DeviceNode}, which is a fourth representation of a
 {\tt DosList}, and only to be used for file systems, and thus equivalent to
-a {\tt DevInfo}. For example, {\tt dn\_Handler} and {\tt dvi\_Handler} are
-equivalent elements, just available under different names.
+a {\tt DevInfo} structure as well.
+For example, {\tt dn\_Handler} and {\tt dvi\_Handler} are equivalent
+elements, just available under different names.
 \smallskip{}
 
 In the following, these alternative structures will not be discussed as they
@@ -6557,7 +6567,7 @@ the {\tt DosList} structure. If necessary, pointers to these structures can
 be casted to each other without loss of information\footnote{The reason for
 this confusion lies likely again in the history of AmigaDOS actually being a
 port of Tripos, written in BCPL. This language represent structures through
-long word indices relative to a base index in manifests, and thus does not
+long word offsets relative to a base index in manifests, and thus does not
 offer structures as known from C.}.
 \medskip{}
 
@@ -6571,7 +6581,7 @@ The order of the entries has no particular meaning. The head of this list
 is in the {\tt DosInfo}\key{DosInfo} structure specified in
 section~\ref{sec:dosinfo}. However, this list should not be walked manually,
 but instead {\tt FindDosEntry()}\key{FindDosEntry()}
-(see~\ref{sec:finddosentry} should be used for iterating through this list.
+(see~\ref{sec:finddosentry}) should be used for iterating through this list.
 \smallskip{}
 
 {\tt dol\_Type}\mkey{dol\_Type} identifies the type of the entry, and by that also the
@@ -6590,21 +6600,24 @@ assign\key{Non-binding Assign}, see~\ref{sec:assignlist}\\ \hline
 \end{rkrmtable}
 
 {\tt dol\_Task}\mkey{dol\_Task} is the {\tt MsgPort} of the handler to
-contact for the particular handler, assign\key{Assign} or volume. If the
-{\tt DosList} represents a handler or file system, this element can be
-{\tt NULL} if the handler is not running, and a new handler process is
-supposed to be started. It depends on the handler whether this element will
-ever be populated. The CON-Handler\key{CON-Handler} leaves this element at
-{\tt NULL} as it requires a new process for each window it handles, but file
-systems such as the FFS\key{Fast File System (FFS)} deposit here its
-{\tt MsgPort} as all activities on the same medium or partition go through
-a single process.
+contact for the particular device, assign\key{Assign} or volume name. If
+the {\tt DosList} represents a handler or file system, this
+element can be {\tt NULL} if the handler is
+not running. A new handler process will
+be started if a port is needed, and it depends on the handler whether this element will ever be
+populated. The CON-Handler\key{CON-Handler} leaves this element at
+{\tt NULL} as it requires a new process for each window it manages,
+but file systems such as the FFS\key{Fast File System (FFS)} deposit
+here its {\tt MsgPort} as all activities on the same medium or
+partition go through the same single process.
 \smallskip{}
 
-Volumes keep here the {\tt MsgPort} of the file system that operates the
-volume, but set it to {\tt NULL} in case the volume goes away, e.g.\ is ejected,
-but locks on the volume remained and thus the volume itself remains known
-to AmigaDOS.
+Volumes keep here the {\tt MsgPort} of the file system that operates
+the volume, but set it to {\tt NULL} in case the volume goes away,
+e.g.\ is ejected, but locks or file handles on the volume are still
+active and thus the volume itself remains known to AmigaDOS. As a
+result, the Workbench keeps showing the icon representing such volumes
+on the desktop.
 \smallskip{}
 
 For regular assigns\key{Assign}, {\tt dol\_Task}\key{dol\_Task} is also the
@@ -6613,7 +6626,7 @@ assign is a multi-assign\key{Multi-Assign}, this is the port of the first
 target directory. All additional ports can be reached through the locks
 that are are part of the {\tt dol\_List}\key{dol\_List} discussed below. For
 late binding assigns\key{Late Binding Assign} this element is initially
-{\tt NULL}, but will be filled in as soon as the assign in bound to a
+{\tt NULL}, but will be filled in as soon as the assign is bound to a
 particular directory, and then becomes the pointer to the port of the
 handler managing the volume the assign is located on. Finally, for
 non-binding assigns\key{Non-binding Assign} this element always stays
@@ -6716,7 +6729,7 @@ and are provided in section~\ref{sec:handlerstartup}.
 as AmigaDOS (still) supports BCPL and C/assembler handlers; this element also defines how
 access to the device list\key{Device List} is secured during handler loading and startup.
 BCPL handlers use a somewhat more complex loading and linking mechanism as
-their BCPL-specific \emph{global vector}\key{Global Vector} needs to be populated. This is
+their BCPL-specific \emph{Global Vector}\key{Global Vector} needs to be populated. This is
 not required for C or assembler handlers where a simpler mechanism is
 sufficient, more on this in sections~\ref{sec:handlerstartup} and
 \ref{sec:bcplbinding}. Another aspect of the startup process is how the
@@ -6760,7 +6773,7 @@ should not be used anymore.
 
 Elements of the {\tt dol\_volume}\mkey{dol\_volume} structure are used if
 {\tt dol\_Type}\key{dol\_Type} is {\tt DLT\_VOLUME}\key{DLT\_VOLUME},
-identifying this entry as belonging to a known specific data carrier.
+identifying this entry as belonging to a known specific medium or partition.
 \smallskip{}
 
 {\tt dol\_VolumeDate}\mkey{dol\_VolumeDate} is the creation date of the volume. It is a
@@ -6794,7 +6807,7 @@ such that it remains~0, though other file systems leave their traces here to
 identify their own volumes. Note that the value placed here is \emph{not}
 the identifier found in {\tt id\_DiskType} of the {\tt InfoData} structure
 as the latter rather identifies the availability of a file system but not
-its type\footnote{This is not accurately stated in~\cite{guru}.}, see section~\ref{sec:info}.
+its type, see section~\ref{sec:info}.
 \medskip{}
 
 Elements of the {\tt dol\_assign}\mkey{dol\_assign} structure are used for
