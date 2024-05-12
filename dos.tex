@@ -11413,9 +11413,9 @@ moved or deleted.
 
 {\tt ERROR\_BAD\_STREAM\_NAME}\mkey{ERROR\_BAD\_STREAM\_NAME}: This
 error code is currently not in use by AmigaDOS ROM
-components. AmigaDOS versions~45 and before generated if an attempt
+components. AmigaDOS versions~45 and before generated it if an attempt
 was made to provide a non-interactive input file to the {\tt NewShell}
-command. The Console Handler version~34 and below also used this error
+command. The CON-Handler\key{CON-Handler} version~34 and below also used this error
 code if it could not parse the path.
 \smallskip{}
 
@@ -11444,8 +11444,7 @@ path as separator between the device name and the path components, a
 colon within a component is therefore a syntactical error; also, the forwards
 slash (``{\tt /}'') shall not appear in a volume name. All Amiga
 ROM file systems do not accept code points below {\tt 0x20} in file names, i.e.\ ASCII
-control characters, or characters from the extended ISO-Latin control sequence region
-between {\tt 0x80} to {\tt 0x9f}. It is also generated if the temporary
+control characters. It is also generated if the temporary
 buffer used by the \emph{dos.library} to resolve a soft link\key{Soft Link}
 is too small to keep the link target.
 \smallskip{}
@@ -11480,7 +11479,8 @@ later may solve the problem.
 {\tt ERROR\_DISK\_WRITE\_PROTECTED}\mkey{ERROR\_DISK\_WRITE\_PROTECTED}: This
 indicates that an attempt was made to write to a medium, e.g.\ a disk,
 that is write-protected, or that cannot be written to, such as an
-attempt to write to a CD-ROM.
+attempt to write to a CD-ROM. It is also generated if the medium is write protected
+by software, e.g.\ through the {\tt Lock} command, see section~\ref{sec:packetlock}.
 \smallskip{}
 
 {\tt ERROR\_RENAME\_ACROSS\_DEVICES}\mkey{ERROR\_RENAME\_ACROSS\_DEVICES}:
@@ -11510,8 +11510,10 @@ directories are nested too deeply and the function runs out of stack space.
 
 {\tt ERROR\_DEVICE\_NOT\_MOUNTED}\mkey{ERROR\_DEVICE\_NOT\_MOUNTED}:
 This error indicates that an access was attempted to either a handler,
-file system or assign\key{Assign} that is not known to the system, or to an
-unknown volume that is currently not available in any mounted drive.
+file system or assign\key{Assign} that is not known to the system, or to 
+a volume that is currently not available in any mounted drive. If, however, a known drive
+is accessed through an absolute path name but no medium is inserted, then the error
+{\tt ERROR\_NO\_DISK}\key{ERROR\_NO\_DISK} is generated instead.
 \smallskip{}
 
 {\tt ERROR\_SEEK\_ERROR}\mkey{ERROR\_SEEK\_ERROR}: This error is
@@ -11520,8 +11522,8 @@ either negative, or behind the end of the file. It is also signaled
 if the mode of {\tt Seek()}\key{Seek()} or
 {\tt SetFileSize()}\key{SetFileSize()} is none of the modes indicated in
 table~\ref{table:seekmode} of section~\ref{sec:seek}. The FFS\key{Fast File System (FFS)}
-also sets this mode if it cannot read one of its administration blocks and
-thus is unable to find the data blocks that represent the file.
+also sets this error if it cannot read one of its administration blocks and
+thus is unable to find the data blocks of a file.
 \smallskip{}
 
 {\tt ERROR\_COMMENT\_TOO\_BIG}\mkey{ERROR\_COMMENT\_TOO\_BIG}: This
@@ -11546,10 +11548,9 @@ section~\ref{sec:fib}.
 
 {\tt ERROR\_WRITE\_PROTECTED}\mkey{ERROR\_WRITE\_PROTECTED}: This error is
 raised by file systems if a write is attempted to a file that is write
-protected, i.e.\ whose {\tt FIBB\_WRITE} bit is set. This error is also
-generated if an attempt is made to write to a medium that is write
-protected, either by hardware protection or protected by software, e.g.\ through the
-{\tt Lock} command, see section~\ref{sec:packetlock}.
+protected, i.e.\ whose {\tt FIBB\_WRITE} bit is set. Physical or software
+write protection through {\tt Lock} is, however, indicated by the error
+code {\tt ERROR\_DISK\_WRITE\_PROTECTED}\key{ERROR\_DISK\_WRITE\_PROTECTED}.
 \smallskip{}
 
 {\tt ERROR\_READ\_PROTECTED}\mkey{ERROR\_READ\_PROTECTED}: This error
@@ -11696,7 +11697,7 @@ line tools to set the error code the {\tt Why} command will report on.
 
 The {\tt SetConsoleTask()}\mkey{SetConsoleTask()} function selects the
 handler responsible for the ``{\tt *}''\key{* (file name)} file name
-and {\tt CONSOLE} pseudo-device.
+and the {\tt CONSOLE} pseudo-device.
 
 \begin{verbatim}
 oldport = SetConsoleTask(port) /* since V36 */
