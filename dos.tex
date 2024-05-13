@@ -6422,23 +6422,23 @@ by an exec {\tt MsgPort} (or short ``port'') to which it sends
 requests to the handler, e.g.\ to read bytes from a file or to iterate
 through a directory (see also chapter~\ref{sec:directpkts} and
 section~\ref{sec:dospacket}). The library, however, also needs to
-obtain these ports for a given path somehow, which is the responsibility of the
+obtain these ports for a given path somehow; this is the responsibility of the
 {\tt GetDeviceProc()}\key{GetDeviceProc()} function discussed in
 section~\ref{sec:getdeviceproc}.
 \smallskip{}
 
 For relative paths, the lock representing the current directory, or
 the default file system of the process if this lock is
-{\tt ZERO}\key{ZERO lock} is used as source, see section~\ref{sec:filelock},
-and chapter~\ref{sec:process} for details.
+{\tt ZERO}\key{ZERO lock}, is used as source for such a port, see
+section~\ref{sec:filelock}, and chapter~\ref{sec:process} for details.
 For absolute paths, the source is the device, volume or assign name
 upfront the colon in the path. For example, if the file
-``{\tt S:Startup-Sequence}'' is to be opened, the relation between the
-``{\tt S}'' assign and the handler responsible for implementing
-opening and reading from files within this directory must be established.
+``{\tt S:Startup-Sequence}'' is to be opened, {\tt GetDeviceProc()} needs to
+determine from the name ``{\tt S}'' of the assign the port of the handler
+that is responsible for the target directory of the assign.
 \smallskip{}
 
-Each volume, assign, handler or file system is therefore represented
+To this end, each volume, assign, handler or file system is represented
 by a {\tt DosList}\key{DosList} structure which provides both the name
 as used in an absolute path, e.g.\ {\tt S}, and the {\tt MsgPort}
 responsible for it. All {\tt DosList} structures are queued in a
@@ -6457,9 +6457,9 @@ stored typically in {\tt DEVS:DosDrivers}, see
 section~\ref{sec:mountlist}. Any non-ROM resident handler, such as for
 example {\tt CD0} for the ISO Rock Ridge\key{Rock Ridge File System} file system is announced to AmigaDOS
 in this way. Some devices, such as {\tt DF0} for the first floppy
-drive are created by the ROM itself through the ``System-Startup'' process
+drive are created by the ROM itself through the System-Startup process
 as explained in section~\ref{sec:sysstartupdetails},
-or --- in AmigaDOS versions 45 and before --- through the ``Initial CLI''
+or --- in AmigaDOS versions 45 and before --- through the Initial CLI
 and the \emph{dos.library}.
 \smallskip{}
 
@@ -6484,7 +6484,7 @@ here through the \emph{expansion.library} and its {\tt MakeDosNode()}\key{MakeDo
 The System-Startup process picks them up from
 the \emph{expansion.library} and adds them to \emph{dos.library} when
 booting the system. This mechanism is explained in more detail
-in~\cite{rkrmdev}, and details on the boot process are found in
+in~\cite{rkrmdev}, and AmigaDOS specific details on the boot process are found in
 section~\ref{sec:sysstartup}.
 \smallskip{}
 
@@ -6498,8 +6498,8 @@ device is not representable as a handler at all.
 
 Thus, in short, the {\tt DosList} structure is central to the
 \emph{dos.library} and establishes the link between the assign, volume or device name as it
-appears on an absolute path upfront the colon (``{\tt :}'') and the port
-behind it responsible for implementing functions for such a path. This
+appears on an absolute path upfront the colon (``{\tt :}'') and the {\tt MsgPort} of
+the handler or file system implementing AmigaDOS functions on such a path. This
 structure, defined in {\tt dos/dosextens.h}, reads as follows:
 
 \mkey{DosList}
@@ -6547,7 +6547,7 @@ interchangeably for volumes.
 
 The {\tt DevInfo}\mkey{DevInfo} structure is another incarnation of a
 {\tt DosList} that is only able to represent handlers; e.g\ {\tt dvi\_Handler}
-and {\tt dol\_handler.dol\_Handler} access the same elements.
+and {\tt dol\_handler.dol\_Handler} access the same element.
 The {\tt DevInfo} and the {\tt DeviceList} structures are defined
 in {\tt dos/dosextens.h}.
 \smallskip{}
@@ -6613,7 +6613,7 @@ partition go through the same single process.
 \smallskip{}
 
 Volumes keep here the {\tt MsgPort} of the file system that operates
-the volume, but set it to {\tt NULL} in case the volume goes away,
+the volume, but set it to {\tt NULL} in case the medium goes away,
 e.g.\ is ejected, but locks or file handles on the volume are still
 active and thus the volume itself remains known to AmigaDOS. As a
 result, the Workbench keeps showing the icon representing such volumes
@@ -6627,7 +6627,7 @@ target directory. All additional ports can be reached through the locks
 that are are part of the {\tt dol\_List}\key{dol\_List} discussed below. For
 late binding assigns\key{Late Binding Assign} this element is initially
 {\tt NULL}, but will be filled in as soon as the assign is bound to a
-particular directory, and then becomes the pointer to the port of the
+particular directory; it then becomes the pointer to the port of the
 handler managing the volume the assign is located on. Finally, for
 non-binding assigns\key{Non-binding Assign} this element always stays
 {\tt NULL}.
@@ -6643,7 +6643,7 @@ for late binding assigns\key{Late Binding Assign}.
 For all other types, this element stays {\tt ZERO}.
 \smallskip{}
 
-{\tt dol\_Name}\mkey{dol\_Name} is a BPTR to a BSTR is the name under which
+{\tt dol\_Name}\mkey{dol\_Name} is a BPTR to a BSTR of the name under which
 the handler, volume or assign is accessed. That is, this string corresponds
 to the path component upfront the colon. In particular, it \emph{does not
 include} the colon. As a courtesy to C and assembler functions, AmigaDOS
@@ -6654,7 +6654,7 @@ ensures that this string is also {\tt NUL} terminated, i.e.\
 
 The elements within {\tt dol\_handler}\mkey{dol\_handler} are used by
 handlers and file systems, that is if {\tt dol\_Type}\key{dol\_Type} equals
-{\tt DLT\_DEVICE}\key{DLT\_DEVICE}.
+{\tt DLT\_DEVICE}\key{DLT\_DEVICE}:
 \smallskip{}
 
 {\tt dol\_Handler}\mkey{dol\_Handler} is a BPTR to a BSTR containing the
@@ -6701,8 +6701,8 @@ BSTR, or a small integer.
 Section~\ref{sec:handlerstartup} provides more details on mounting handlers
 and how the startup mechanism works. Unfortunately, it is hard to
 interpret {\tt dol\_Startup} correctly as its interpretation is dependent
-on the file system, though section~\ref{sec:accessfssm} provides
-additional hints and a recommended algorithm for interpreting this element.
+on the specific handler, though section~\ref{sec:accessfssm} provides
+additional hints and a recommended algorithm for guessing the type of this element.
 One way to set it is through the {\tt STARTUP}\key{STARTUP} keyword in the
 mountlist\key{Mountlist}, see~\ref{sec:filesysstartup} for details.
 \smallskip{}
@@ -6718,28 +6718,33 @@ attempts to load a binary from the path stored in
 {\tt dol\_Handler}\key{dol\_Handler}. Upon success, its segment is stored
 here. If the {\tt FORCELOAD}\key{FORCELOAD} entry of the mountlist\key{Mountlist} is
 non-zero, the {\tt Mount}\key{Mount (command)} command already attempts to load the handler or
-file system from disk; otherwise, it attempts to reuse an existing file
+file system from disk and thus populates this element; otherwise, that is, without {\tt FORCELOAD},
+{\tt Mount} attempts to reuse an existing file
 system by first scanning the \emph{FileSystem.resource} for an entry whose {\tt DOSTYPE}\key{DOSTYPE}
 matches. If nothing is found there, loading the handler remains to the first
-process requiring it. Details depend on nature of the handler or file system
-and are provided in section~\ref{sec:handlerstartup}.
+process requiring it. Additional details depend on nature of the handler or file system
+and are discussed in section~\ref{sec:handlerstartup}.
 \smallskip{}
 
-{\tt dol\_GlobVec}\mkey{dol\_GlobVec} identifies the nature of the handler
-as AmigaDOS (still) supports BCPL and C/assembler handlers; this element also defines how
-access to the device list\key{Device List} is secured during handler loading and startup.
-BCPL handlers use a somewhat more complex loading and linking mechanism as
+{\tt dol\_GlobVec}\mkey{dol\_GlobVec} identifies the nature of the
+handler as AmigaDOS (still) supports BCPL and C/assembler
+handlers. BCPL handlers use a somewhat more complex loading and linking mechanism as
 their BCPL-specific \emph{Global Vector}\key{Global Vector} needs to be populated. This is
 not required for C or assembler handlers where a simpler mechanism is
 sufficient, more on this in sections~\ref{sec:handlerstartup} and
-\ref{sec:bcplbinding}. Another aspect of the startup process is how the
-device list is protected from conflicting accesses through multiple
-processes. Two types of access protection are possible: Exclusive access to
+\ref{sec:bcplbinding}. While at this point the Port-Handler and the FFS as only exceptions still
+support the legacy BCPL binding despite not being implemented in BCPL anymore,
+it is likely that support for BCPL handlers will be phased out in the future.
+\smallskip{}
+
+The {\tt dol\_GlobVec} element also defines how
+access to the device list\key{Device List} is secured during handler loading and startup.
+Two types of access protection are possible: Exclusive access to
 the list, or shared access to the list. Exclusive access protects the device
-list from any changes while the handler is loaded and until handler startup
-completed. This prevents any other modification to the list, but also from read
-access through any other process to the list. Shared access allows read
-accesses to the list while preventing exclusive access to it.
+list from any type of access while the handler is loaded and until handler startup
+completed. This prevents any other modification to the list, but also read
+access through any other process of the list. Shared access allows read
+accesses to the list while preventing modifications.
 \smallskip{}
 
 The value in {\tt dol\_GlobVec}\key{dol\_GlobVec} corresponds to the {\tt GLOBVEC} entry
@@ -6757,17 +6762,16 @@ table~\ref{table:gvvalues}:
 
 The values $0$, $-3$ and $>0$ all setup a BCPL handler, but differ in
 the access type to the device list\key{Device List} and how the BCPL
-global vector\key{Global Vector} is populated. This vector contains all global
-objects and all globally reachable functions of a BCPL program,
-including functions of the \emph{dos.library}. The values~$0$ and~$-3$
-fill this vector with the system functions first, and then use the
-BCPL binding mechanism to extend or override entries in this vector
-with the values found in the loaded code, see
-section~\ref{sec:bcplbinding} for further details. Any values $>0$ require a
-BPTR to a custom vector which is used instead for initializing
-the handler. This startup mechanism has never been used in AmigaDOS
-and is not quite practical as this vector needs to be communicated into
-the \emph{dos.library} somehow. For new code, BCPL linkage and binding
+Global Vector\key{Global Vector} is populated. The values~$0$
+and~$-3$ fill this vector with the system functions first, and then
+use the BCPL binding mechanism to extend or override entries in this
+vector with the values found in the loaded code, see
+section~\ref{sec:bcplbinding} for further details. Any values $>0$
+require a BPTR to a custom vector which is used instead for
+initializing the handler. This startup mechanism is only used for
+creating device list entries within the Kickstart and it is not quite
+practical otherwise as this vector needs to be communicated into the
+\emph{dos.library} somehow. For new code, BCPL linkage and binding
 should not be used anymore.
 \medskip{}
 
@@ -6832,7 +6836,7 @@ A regular assign\key{Assign} is a multi-assign\key{Multi-Assign} whose
 For multi-assigns, {\tt dol\_Lock}\key{dol\_Lock} is the lock to the first
 directory of the multi-assign\key{Multi-Assign}, while {\tt dol\_List}
 is a regular C pointer to a singly-linked list of the locks of all subsequent
-directories, represented as a {\tt AssignList} structures, defined in~{\tt dos/dosextens.h}:
+directories, represented as an {\tt AssignList} structures, defined in~{\tt dos/dosextens.h}:
 
 \mkey{AssignList}
 \begin{verbatim}
