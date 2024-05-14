@@ -6720,7 +6720,8 @@ here. If the {\tt FORCELOAD}\key{FORCELOAD} entry of the mountlist\key{Mountlist
 non-zero, the {\tt Mount}\key{Mount (command)} command already attempts to load the handler or
 file system from disk and thus populates this element; otherwise, that is, without {\tt FORCELOAD},
 {\tt Mount} attempts to reuse an existing file
-system by first scanning the \emph{FileSystem.resource} for an entry whose {\tt DOSTYPE}\key{DOSTYPE}
+system by first scanning the \emph{FileSystem.resource}\mkey{FileSystem.resource}
+for an entry whose {\tt DOSTYPE}\key{DOSTYPE}
 matches. If nothing is found there, loading the handler remains to the first
 process requiring it. Additional details depend on nature of the handler or file system
 and are discussed in section~\ref{sec:handlerstartup}.
@@ -6864,7 +6865,7 @@ and~\ref{sec:remassignlist}.
 \section{The Device List and the Mountlist} \label{sec:mountlist}
 
 One way to create entries of the type {\tt DLT\_DEVICE}\key{DLT\_DEVICE} on
-the device list\key{Device List} is through a {\tt mountlist}\mkey{Mountlist} and the
+the device list\key{Device List} is through a mountlist\mkey{Mountlist} and the
 {\tt Mount}\mkey{Mount (command)} command. Many keywords in the mountlist map directly to
 entries in the {\tt DosList}\key{DosList} structure, others to entries in
 the {\tt FileSysStartupMsg}\key{FileSysStartupMsg} and the
@@ -6888,13 +6889,13 @@ the {\tt dol\_Startup}\key{dol\_Startup} entry.
 
 The {\tt STACKSIZE}\mkey{STACKSIZE} keyword sets
 {\tt dol\_StackSize}\key{dol\_StackSize} element. This is in bytes for C and
-assembler handlers, and in long-words for BCPL handlers. The type of the
+assembler handlers, and in long words for BCPL handlers. The type of the
 handler is determined by {\tt GLOBVEC}\key{GLOBVEC}.
 \smallskip{}
 
 The {\tt PRIORITY}\mkey{PRIORITY} keyword sets
 {\tt dol\_Priority}\key{dol\_Priority} and with that the priority of the
-process running the handler. Useful values are between~0 and~19.
+process running the handler or file system. Useful values are between~0 and~19.
 \smallskip{}
 
 The {\tt GLOBVEC}\mkey{GLOBVEC} keyword sets
@@ -6969,11 +6970,11 @@ structure explained in section~\ref{sec:envec}.
 
 \subsection{Keywords controlling the Environment Vector} \label{sec:envec}
 
-The {\tt fssm\_Environ}\mkey{fssm\_Environ} element of the {\tt
-  FileSysStartupMsg}\key{FileSysStartupMsg} is a BPTR to another structure
-that describes, amongst others, the layout (or ``geometry'') of a file
-system on a disk; beyond file systems, extended handlers mounted by the {\tt
-  EHANDLER}\key{EHANDLER} keyword also make use of it.
+The {\tt fssm\_Environ}\mkey{fssm\_Environ} element of the
+{\tt FileSysStartupMsg}\key{FileSysStartupMsg} is a BPTR to another structure
+that describes, among other things, the layout (or ``geometry'') of a file
+system, that is, the partition; beyond file systems, extended handlers mounted
+by the {\tt EHANDLER}\key{EHANDLER} keyword also make use of it.
 \smallskip{}
 
 This structure is also defined in {\tt dos/filehandler.h} and looks as
@@ -7019,8 +7020,8 @@ least~11. AmigaDOS version~33 added {\tt de\_BufMemType}, and AmigaDOS version 3
 elements. 
 \smallskip{}
 
-The keyword {\tt SECTORSIZE}\mkey{SECTORSIZE} and
-{\tt BLOCKSIZE}\mkey{BLOCKSIZE} set both {\tt de\_SizeBlock}\mkey{de\_SizeBlock}.
+The keywords {\tt SECTORSIZE}\mkey{SECTORSIZE} and
+{\tt BLOCKSIZE}\mkey{BLOCKSIZE} in the mountlist set both {\tt de\_SizeBlock}\mkey{de\_SizeBlock}.
 While the mountlist\key{Mountlist} keywords take a byte count, this
 byte count is divided by 4 to form a long-word count that is inserted into
 {\tt de\_SizeBlock}. As the name suggests, it defines the size of a storage
@@ -7043,41 +7044,40 @@ for magnetic storage media does not access media on such a low level and
 instead expects byte counts to address sectors, file systems
 use this value along with {\tt de\_BlocksPerTrack}\key{de\_BlocksPerTrack}
 and the number of cylinders computed from {\tt de\_LowCyl}
-and {\tt de\_HighCyl} to determine the capacity of the medium they operate on.
+and {\tt de\_HighCyl} to determine the capacity of the medium or partition they operate on.
 \smallskip{}
 
 The {\tt SECTORSPERBLOCK}\mkey{SECTORSPERBLOCK} keyword
 sets the {\tt de\_SectorsPerBlock}\mkey{de\_SectorsPerBlock}, and
 thus the number of physical sectors on a disk the file system
 combines to one logical storage block. Not all file systems support
-values different from~1 here and most restrict this value to powers of 2,
+values different from~1 here and most restrict this element to powers of 2,
 including the FFS\key{Fast File System (FFS)}. File systems
-read and write data in units of {\tt de\_SectorsPerBlock} times {\tt de\_SizeBlock} of
+read and write data in units of {\tt de\_SectorsPerBlock} times {\tt de\_SizeBlock}
 long words. For the exec {\tt trackdisk} interface, only this product
 matters; however, the ``direct SCSI'' transfer the FFS\key{Fast File System (FFS)}
 version~45 and above offer addressing the disk in terms of physical sectors, and then
 {\tt de\_SizeBlock}\key{de\_SizeBlock} defines the size of a sector in long words as accessed
 by SCSI commands, whereas {\tt de\_SectorsPerBlock}\key{de\_SectorsPerBlock} is the number of
-physical sectors the FFS\key{Fast File System (FFS)} reads for one logical
-block. For many purposes, only the product of the sector size as defined by {\tt de\_SizeBlock}
-and the block size in sectors defined by this keyword matters, though both
-enter in different places when relating the block, i.e.\ the
-so-called \emph{key}\key{Key (FFS)} the FFS uses for administration, to the byte offset on the
-medium where information is found. Section~\ref{sec:key} provides the
-details. In general, {\tt de\_BlocksPerTrack} is measured in physical
-sectors (despite its confusing name) as defined by {\tt de\_SizeBlock}, and
-not in logical blocks as computed from {\tt de\_SectorsPerBlock}.
+physical sectors the FFS\key{Fast File System (FFS)} reads per logical
+block. Internally, the FFS administrates partitions and mediums in terms of
+so-called \emph{keys}\key{Key (FFS)} where each key addresses one logical block,
+see section~\ref{sec:key} for the details.
+Both the sector size as defined by {\tt de\_SizeBlock}
+and the block size in sectors defined by this keyword are required to compute
+from the key the byte or sector offset the exec device layer requires.
 \smallskip{}
 
 The {\tt SECTORSPERTRACK}\mkey{SECTORSPERTRACK} and {\tt BLOCKSPERTRACK}\mkey{BLOCKSPERTRACK} keywords set both the
 {\tt de\_BlocksPerTrack}\mkey{de\_BlocksPerTrack} element of the {\tt DosEnvec}\key{DosEnvec} structure. The first
 name is actually more appropriate as this element defines the number of
 physical sectors --- and not the number of logical blocks --- a track of a disk
-contains. Thus, the naming is a historical accident. As for the {\tt SURFACES}\key{SURFACES}
+contains. Thus, the naming is a historic accident. As for the {\tt SURFACES}\key{SURFACES}
 keyword, the number of sectors per track is only in so far relevant as it
 defines along with the first and last cylinder the storage capacity of the
-medium or partition, and the location where the root block\key{Root Block} of an FFS\key{Fast File System (FFS)}
-partition is located, see section~\ref{sec:rootblock}. The values never
+medium or partition; for FFS\key{Fast File System (FFS)} partitions, it also
+defines location of the root block\key{Root Block}, see section~\ref{sec:rootblock}. This block represents
+the root directory of a medium or partition. Otherwise, the track size as defined by this values never
 enter the exec device layer directly.
 \smallskip{}
 
@@ -7085,13 +7085,13 @@ The {\tt RESERVED}\mkey{RESERVED} keyword sets the
 {\tt de\_Reserved}\mkey{de\_Reserved} element of {\tt DosEnvec}\key{DosEnvec}
 and defines the number of (logical) blocks not used by the file system at
 the start of the disk or partition. For floppies, these reserved blocks hold
-a (minimal) boot procedure that initializes the \emph{dos.library},
-see section~\ref{sec:bootblock}. As the FFS\key{Fast File System (FFS)}
-reserves the block number~0 (actually, the
-key~0, see~\ref{sec:key}) to indicate a free or non-existing linkage, the
-very first block of a partition cannot be made use of anyhow, and thus a
-positive number is required here. By convention, the value is~2, which is
-the number of boot blocks on a floppy.
+a (minimal) boot procedure that initializes the \emph{dos.library}; the boot block
+is described in more detail in section~\ref{sec:bootblock}. As the FFS\key{Fast File System (FFS)}
+reserves the block number~0 --- or rather the
+key~0 (see~\ref{sec:key}) --- to indicate an unused or non-existing linkage, the
+very first block of a partition cannot be made use of anyhow; all
+occupied blocks are identified by a positive key. The default is to reserve 2 blocks,
+which is also the number of boot blocks on a floppy.
 \smallskip{}
 
 The {\tt PREALLOC}\mkey{PREALLOC} keyword installs the
@@ -7108,27 +7108,30 @@ repositioning the drive head. Thus, this value was~11 for
 the (ROM-created) mountlist\key{Mountlist} of the floppy as a track
 there consists of~11 (physical) sectors and these~11 sectors are in the
 internal buffer of the \emph{trackdisk.device} anyhow. At present, one can
-only recommend to leave this value alone as its interpretation seem to have
-changed over time.
+only recommend to leave this element alone as its interpretation seem to have
+changed over time; it could be assigned a different meaning in the future, or could
+be used by other (non-native) file systems for unknown purposes.
 \smallskip{}
 
-The {\tt INTERLEAVE}\mkey{INTERLEAVE} keyword defines the lower 16 bits of
-the {\tt de\_Interleave}\mkey{de\_Interleave} element. Tripos and AmigaDOS
-versions prior version 45 reserved the entire long word to define the
-interleave factor of the disk, which is the difference between two sector
-addresses the file system is supposed to use for subsequent
-storage. This interleave factor historically helped to speed up data rates
-of slow harddisk interfaces; as data is transferred, sectors on the rotating
-disk passed under read head and the harddisk controller would have to wait
-for almost an entire disk rotation for the numerically next sector to
-reappear. Setting an interleave factor larger than~1 helped in such cases.
-However, neither the original BCPL implementation of the OFS nor the latest
-FFS\key{Fast File System (FFS)} make use of this mechanism and allocate
-sectors contiguously, i.e.\ with an interleave of~1, regardless of what is
-set here. The upper 16 bits of {\tt de\_Interleave}\key{de\_Interleave} suit
-now a different purpose and are set by separate keywords in the mountlist\key{Mountlist}.
-Thus, for all practical purposes, this keyword serves no purpose,
-and even the legacy BCPL implementation ignored it.
+The {\tt INTERLEAVE}\mkey{INTERLEAVE} keyword defines the lower 16
+bits of the {\tt de\_Interleave}\mkey{de\_Interleave} element. Tripos
+and AmigaDOS versions prior version 45 reserved the entire long word
+to define the interleave factor of the disk, which is the difference
+between two sector numbers the file system is supposed to allocate for
+storing contiguous data.  This interleave factor historically helped
+to speed up data rates of slow harddisk interfaces; as data is
+transferred, the following sectors on the rotating disk passed under
+read head and the harddisk controller would have to wait for almost an
+entire disk rotation for the numerically next sector to become accessible again.
+Setting an interleave factor larger than~1 would have helped
+in such cases. However, neither the original BCPL implementation of
+the OFS nor the latest FFS\key{Fast File System (FFS)} make use of
+this mechanism and allocate sectors contiguously, i.e.\ with an
+interleave of~1, regardless of what is set here. The upper 16 bits of
+{\tt de\_Interleave}\key{de\_Interleave} suit now a different purpose
+and are controlled by a separate set of keywords in the mountlist\key{Mountlist}
+Thus, for all practical purposes, this keyword serves no purpose, and
+even the legacy BCPL implementation ignored it.
 \smallskip{}
 
 The {\tt LOWCYL}\mkey{LOWCYL} keyword initializes the {\tt de\_LowCyl}\mkey{de\_LowCyl} element of the
@@ -7136,7 +7139,10 @@ The {\tt LOWCYL}\mkey{LOWCYL} keyword initializes the {\tt de\_LowCyl}\mkey{de\_
 storage medium, i.e.\ {\tt de\_LowCyl} $\times$ {\tt de\_Surfaces} $\times$
 {\tt de\_BlocksPerTrack} + {\tt de\_Reserved}
 $\times$ {\tt de\_SectorsPerBlock}\key{de\_SectorsPerBlock} is the first physical sector number on a disk that
-can carry payload data of the file system.
+can carry payload data of the file system. Again, while this element seems to imply that
+a disk consists of equally sized cylinders, each containing {\tt de\_Surfaces} tracks, this
+does not need to be the case and the underlying exec device addresses media through a byte
+or sector offset instead.
 \smallskip{}
 
 The {\tt HIGHCYL}\mkey{HIGHCYL} keyword sets the {\tt de\_HighCyl}\mkey{de\_HighCyl} element;
@@ -7158,7 +7164,7 @@ buffers are reserved for the floppies, and while a larger number of buffers
 generally help, especially when seeking in large files, the overhead of
 administrating the cache has a negative impact from a certain amount of
 buffers onward. For the FFS, larger blocks (rather than a larger number of
-buffers) are recommended as more data and administration overhead can be
+buffers) are recommended as more payload and administration data can be
 stored per block. That is, the block size even enters inversely quadratic
 into the FFS overhead.
 \smallskip{}
@@ -7167,14 +7173,14 @@ The {\tt BUFMEMTYPE}\mkey{BUFMEMTYPE} defines the
 {\tt de\_BufMemType}\mkey{de\_BufMemType} element. It defines the memory type,
 i.e.\ the second argument of {\tt AllocMem()}, for allocating memory keeping
 the file system buffers. It cannot, of course, control the memory type into
-which users require the file system to read data. While exec device
-drivers should be able read from and write data to any memory type, several
-legacy drivers are not able reach every memory type; this is often due to
-limitations of the hardware such that Zorro-II hardware cannot reach 32-bit
-memory on CPU expansion boards. Depending on limitations of the
+which users require the file system to read data or from which data is to be written.
+While exec device drivers should be able read from and write data to any memory type, several
+legacy drivers are not able reach all memory areas; this is often due to
+limitations of the hardware, for example Zorro-II hardware cannot reach 32-bit
+memory on CPU expansion boards by means of DMA. Depending on limitations of the
 {\tt fssm\_Device}\key{fssm\_Device}, it is unfortunately up to the user to
 provide a suitable {\tt BUFMEMTYPE}\key{BUFMEMTYPE}. While it seems
-plausible to provide here a memory type of the memory that sits ``closer''
+plausible to provide here a memory type of the RAM that sits ``closer''
 to the physical interface in order to improve transfer speed, this is not
 necessarily the case as the CPU still has to access this data anyhow, in
 worst case over the slow Zorro-II bus. Thus, only insignificant performance
@@ -7193,15 +7199,15 @@ value of~1 (=~{\tt MEMF\_PUBLIC}) here.
   {\tt BUFMEMTYPE} the memory type from which such buffers are taken. If the
   latter does not fit the former, the file system would attempt to perform
   single block I/O into memory it cannot reach, or restrict I/O into
-  single-block I/O for memory it would be able to reach. Thus, the two
+  single-block I/O for memory it would be able to reach --- thus, the two
   should match. A mask of {\tt 0x001fffff} fits to a {\tt MEMF\_CHIP}
   buffer, i.e. a value of~3 for the {\tt BUFMEMTYPE}, and a mask of
   {\tt 0x00ffffff} to Zorro-II memory, namely a value of~513 of the
   {\tt BUFMEMTYPE}. FFS 47 onward aligns buffers it allocates to
   multiples of~16 bytes, suitable for a mask whose last digit
   is~0. Requiring even more least significant bits to~0 thus makes no
-  sense. FFS versions 45 and below could only ensure that the last two
-  significant bits of its own buffer memory are~0.}
+  sense. FFS versions 45 and below could only ensure that the least 
+  significant two bits of its own buffer memory were~0.}
 
 The {\tt MASK}\mkey{MASK} keyword defines the {\tt de\_Mask}\mkey{de\_Mask}
 element of the {\tt DosEnvec}\key{DosEnvec} structure. It is a
@@ -7214,7 +7220,7 @@ input or output indirectly through its buffers, allocated from
 to or from the target memory address. Historically,
 the~\emph{trackdisk.device} required here a mask value restricting access to
 chip memory, though this requirement has been removed in AmigaOs~36. The
-{\tt Mount}\key{Mount (command)} command enforces that bit~0 is always~0, i.e. enforces that
+{\tt Mount}\key{Mount (command)} command enforces that bit~0 is always~0, i.e.\ that
 direct transfers are only possible to word-aligned buffers; the default
 value is~{\tt 0xfffffffe}, which unfortunately does not fit to the default
 buffer memory type. Thus, users should probably provide more useful values
@@ -7265,12 +7271,12 @@ partition. If the {\tt FILESYSTEM}\key{FILESYSTEM} keyword is present, but
 the {\tt FORCELOAD}\key{FORCELOAD} is either not present or set to 0,
 then the {\tt Mount}\key{Mount (command)} command first attempts to find a
 suitable file system in the
-{\tt FileSystem.resource} whose {\tt fse\_DosType} matches {\tt de\_DosType}\key{de\_DosType},
+\emph{FileSystem.resource}\key{FileSystem.resource} whose {\tt fse\_DosType} matches {\tt de\_DosType}\key{de\_DosType},
 avoiding to load the same file system again. If a match is found, the
 {\tt FileSysEntry} of the resource is used to initialize the {\tt DosEnvec}\key{DosEnvec}, in
-particular {\tt dol\_SegList}\key{dol\_SegList} from {\tt fse\_SegList}. The {\tt Format} command
+particular {\tt dol\_SegList}\key{dol\_SegList} is filled from {\tt fse\_SegList}. The {\tt Format} command
 uses the value deposited here to initialize a partition for a mounted file
-system, whereas the file system determines its type from the boot block,
+system, whereas the FFS\key{Fast File System (FFS)} determines its type from the boot block,
 i.e. the first block of a partition, see section~\ref{sec:bootblock}. Table~\ref{table:ffsflavours}
 lists some AmigaDOS file systems:
 \smallskip{}
@@ -7309,12 +7315,12 @@ FFS\key{Fast File System (FFS)}.
 The OFS variants embed additional administration information (see
 section~\ref{sec:datablock}) into the data blocks and thus carry less
 payload data per block. For that, they are are more robust, but slower as
-the data cannot be transmitted by DMA into the host memory but requires an
+the data cannot be transmitted by DMA into the host memory but require an
 additional copy. The FFS\key{Fast File System (FFS)} variant immediately
 below addressed this issue; due to its re-implementation in assembler, it
 also provided significantly faster disk access. Both first types use,
 however, a non-suitable algorithm for case-insensitive comparison of file
-names and thus do not interpret character in the extended ISO-Latin-1 set
+names and thus do not interpret characters in the extended ISO-Latin-1 set
 (i.e.\ printable characters outside the ASCII range) correctly (see also
 section~\ref{sec:rootblock} for details on the hashing algorithm). Thus, the
 first two types should not be used anymore.
@@ -7328,7 +7334,7 @@ algorithm to compare file names.
 \smallskip{}
 
 The next two versions administrate an additional directory cache;
-while this cache typically speeds up listing the directory, it also
+while this cache typically speeds up listing directories, it also
 requires additional update steps when adding or renaming files, making
 such operations slower and more error prone. These variants
 unfortunately also lack a good algorithm to clean up the cache if
@@ -7348,7 +7354,7 @@ long comment. This block is specified in section~\ref{sec:commentblock}.
 \smallskip{}
 
 The last variant offers longer file names in a way that is backwards
-compatible to earlier versions of the FFS, i.e. no reformatting is necessary
+compatible to earlier versions of the FFS, i.e.\ no reformatting is necessary
 as all block types, except for those holding longer names, remain
 unchanged. The file name length limit is here 54 characters, though older
 versions of the FFS\key{Fast File System (FFS)} can still read the disk
@@ -7365,7 +7371,7 @@ floppy disks. They are unsuitable for harddisk and thumb-drive partitions
 as both typically include a MBR.
 \smallskip{}
 
-The second type indicates a FAT system on a Master Boot Record (MBR) partition as
+The {\tt MSH\textbackslash0} type indicates a FAT system on a Master Boot Record (MBR) partition as
 used on (legacy) PC hardware. As AmigaDOS does not natively support the MBR,
 the file system here (as an architectural tweak) interprets the partition
 table. Which partition is used depends on the last character of
@@ -7376,8 +7382,8 @@ FAT is native, the second partition is indicated by the last character of
 \smallskip{}
 
 The {\tt FAT\textbackslash0} type indicates a file system either on a floppy
-or the first partition of a MBR-formatted disk, depending on the {\tt
-  SUPERFLOPPY}\key{SUPERFLOPPY} keyword, see below.
+or the first partition of a MBR-formatted disk, depending on the
+{\tt SUPERFLOPPY}\key{SUPERFLOPPY} keyword, see below.
 \smallskip{}
 
 The next group of file system types indicates various versions of the CD-Rom
@@ -7391,8 +7397,8 @@ identical.
 The last group indicates various file systems for Amiga Unix installations
 that are not found in mount\-lists, but in the RDB of the booting
 harddisk. These file systems do not run under AmigaDOS but rather under Unix
-variants, and thus do not appear in AmigaDOS mountlists\key{Mountlist}. A {\tt
-  UNI\textbackslash1} partition appears as an entry in the boot menu,
+variants, and thus do not appear in AmigaDOS installations. A
+{\tt UNI\textbackslash1} partition appears as an entry in the boot menu,
 booting an Amiga Unix installation.
 \medskip{}
 
@@ -7409,14 +7415,15 @@ The {\tt CONTROL}\mkey{CONTROL} keyword sets the {\tt de\_Control}\mkey{de\_Cont
 element of the {\tt DosList} structure. Even though this element is
 here indicated as an {\tt ULONG}, it
 can be either an integer or a string, optionally enclosed in double quotes,
-similar to {\tt dol\_Startup}. It is encoded alike either as integer or
+similar to {\tt dol\_Startup}. It is encoded either as an integer or as
 a {\tt NUL} terminated BSTR. It is up to the user to learn from the handler
 documentation what the handler expects here as the
 {\tt Mount}\key{Mount (command)} command has no means of
 checking the correctness of the value. The Port-Handler\key{Port-Handler},
 see section~\ref{sec:portstartup}, and AUX-Handler\key{AUX-Handler}
 (see section~\ref{sec:constartup}) interpret this entry as the
-definition of the serial connection parameters.
+definition of the serial connection parameters, both requiring quoted
+strings.
 \smallskip{}
 
 The {\tt BOOTBLOCKS}\mkey{BOOTBLOCKS} keyword initializes the {\tt
@@ -7429,7 +7436,7 @@ the boot-block, thus implements boot-block booting similar to booting from
 the \emph{trackdisk.device}, and by that replaces boot-point booting
 performed otherwise on auto-booting devices. For
 details, see~\cite{rkrmdev}. The implied value for the floppies is thus~2,
-and zero for partitions that follow the boot-point protocol. This value has,
+and 0 for partitions that follow the boot-point protocol. This value has,
 in particular, no impact on the disk layout, though the number of bootblocks
 shall be smaller or equal than the number of reserved blocks indicated by
 {\tt de\_Reserved}\key{de\_Reserved} as otherwise the file system could
@@ -7473,7 +7480,7 @@ dos type is set to {\tt 'FAT\textbackslash0'}. If {\tt SUPERFLOPPY} is set
 to 1, a FAT file system mounted with the dos type {\tt 'FAT\textbackslash0'}
 receives the partition size from the physical layer
 and ignores the MBR, whereas if this this keyword is set to 0, the MBR is
-interpreted. All other dos types of the FAT system ignore this keyword.
+used as source of the geometry information. All other dos types of the FAT system ignore this keyword.
 \medskip{}
 
 The {\tt SCSIDIRECT}\mkey{SCSIDIRECT} keyword is also a Boolean indicator
@@ -7533,11 +7540,11 @@ affect the {\tt DosEnvec} structure.
 
 The {\tt FORCELOAD}\mkey{FORCELOAD} keyword of the mountlist\key{Mountlist} is
 also a Boolean flag, that, if set to 1, indicates to the
-{\tt Mount}\key{Mount (command)} command not to scan the {\tt FileSystem.resource} for a
+{\tt Mount}\key{Mount (command)} command not to scan the \emph{FileSystem.resource}\key{FileSystem.resource} for a
 fitting dos type but rather forcibly load the file system from
 the path indicated by the {\tt FILESYSTEM}\key{FILESYSTEM}
-keyword. This option is also useful for testing, namely to enforce that a
-particular version of the file system is loaded from disk. This keyword does
+keyword. This option is also useful for testing, namely to prevent that
+an already resident file system version is reused. This keyword does
 neither impact the {\tt DosEnvec} structure.
 
 \section{Finding Handler or File System Ports}
@@ -27144,7 +27151,7 @@ function {\tt AddDosNode()} function still accesses this element, but it should 
 considered obsolete and private. It is populated by the resident segment\key{Segment (resident)}
 ``{\tt FileHandler}'', and is even updated if a newer version of the FFS\key{Fast File System (FFS)} is
 found in the RDB of the booting disk. From AmigaDOS version~34 onward, file systems
-should be found through the {\tt FileSystem.resource} and not through this BPTR which only
+should be found through the \emph{FileSystem.resource}\key{FileSystem.resource} and not through this BPTR which only
 provides the FFS.
 \smallskip{}
 
