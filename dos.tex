@@ -7549,19 +7549,22 @@ neither impact the {\tt DosEnvec} structure.
 
 \section{Finding Handler or File System Ports}
 
-The following functions find the {\tt MsgPort} of a handler
-or file system that is responsible for a given path. The
-functions search the device list\key{Device List}, check whether the handler is
-already loaded or load it if necessary, then check whether the handler
-is already running, and if not, launch an instance of it. If
-multi-assigns\key{Multi-Assign} are involved, it can become necessary to contact
-multiple file systems to resolve the path and thus to iterate
-through multiple potential file systems to find the right one.
+The following functions find the {\tt MsgPort} of a handler or file
+system that is responsible for a given path. The path can be either a
+relative path, in which case they deliver the port of the file system
+handling the current directory, or an absolute path. In the latter
+case, they search the device list\key{Device List}, check whether the
+handler is already loaded or load it if necessary, then check whether
+the handler is already running, and if not, launch an instance of
+it. If multi-assigns\key{Multi-Assign} are involved, it can become
+necessary to contact multiple file systems to resolve the path and
+thus reiterate the call if a requested file or directory object cannot
+be found immediately.
 
 \subsection{Iterate through Devices Matching a Path} \label{sec:getdeviceproc}
 
-The {\tt GetDeviceProc()}\mkey{GetDeviceProc()} finds a handler, or the
-next handler responsible for a given path. Once the handler has been
+The {\tt GetDeviceProc()}\mkey{GetDeviceProc()} finds a handler, or a subsequent
+handler responsible for a given path. Once the handler has been
 identified, or iteration through matching handlers is to be aborted,
 {\tt FreeDeviceProc()} shall be called to release temporary resources.
 
@@ -7580,14 +7583,14 @@ possible directories of a multi-assign\key{Multi-Assign} have been
 visited. It is not necessary that the path given by {\tt name} is an
 absolute path containing a colon (``{\tt :}''), this function will also
 operate properly for relative paths and then identifies the file system and
-lock responsible for it.
+lock responsible for the current directory.
 
 \punchline{Give back what you got}{To release all temporary resources,
   the {\tt DevProc} structure returned by {\tt GetDeviceProc()} shall be
   either be released through {\tt FreeDeviceProc()}, then aborting the scan,
   or used as second argument for a subsequent {\tt GetDeviceProc()} call.
   In case of failure, this function will return {\tt NULL} and then
-  also release all resources, including the {\tt DevProc} structure provided
+  also releases all resources, including the {\tt DevProc} structure provided
   as second argument.}
 \smallskip{}
 
@@ -7605,20 +7608,23 @@ struct DevProc {
 \end{verbatim}
 
 {\tt dvp\_Port}\mkey{dvp\_Port} is a pointer to a candidate {\tt MsgPort} of
-a handler or file system that is potentially responsible for the path in
-{\tt name}. If the file system object in {\tt name} cannot be reached through this file
-system relative to {\tt dvp\_Lock}, iteration over possible candidate file
+a handler or file system. The substring of {\tt name} behind the colon (``{\tt :}''), or the
+entire string if {\tt name} does not contain a colon, forms a path relative
+to {\tt dvp\_Lock} on the file system listening on the found port. If
+this path does not resolve to an existing file system object,
+iteration over possible candidate file
 systems should continue and {\tt GetDeviceProc()} called again with the same
-name as first and the return code of the current iteration as second
-argument.
+name as first, and the return code of the current iteration as second
+argument. This iteration is necessary to find files or directories in multi-assigns.
 \smallskip{}
 
-{\tt dvp\_Lock}\mkey{dvp\_Lock} is a directory represented as a lock\key{Lock} relative to which the
-path in {\tt name} could be resolved. If this lock is {\tt ZERO}, the path
+{\tt dvp\_Lock}\mkey{dvp\_Lock} is a directory represented as a lock\key{Lock} relative to which
+{\tt name} could be resolved. If this lock is {\tt ZERO}, the path
 is relative to the root directory\key{Root Directory} of the file system that can be contacted
 through {\tt dvp\_Port}. Beware! In this case,
 a {\tt ZERO} lock\key{ZERO lock} does not identify the root
-directory of the boot volume, but the root directory of the file system in {\tt dvp\_Port}. 
+directory of the boot volume, but the root directory of the file system to be contacted through
+{\tt dvp\_Port}. 
 \smallskip{}
 
 The lock, if non-{\tt ZERO}, is owned by the \emph{dos.library} and shall
@@ -7631,7 +7637,7 @@ section~\ref{sec:fib}.
 {\tt dvp\_Flags}\mkey{dvp\_Flags} identifies properties of the found port
 and lock, though there is typically no need to test them.
 The flags are defined in the include file {\tt dos/dosextens.h}. The
-currently defined flags are also listed in table~\ref{table:devprocflags}:
+currently defined flags are listed in table~\ref{table:devprocflags} for completeness:
   
 \begin{rkrmtable}{GetDeviceProc Flags} \label{table:devprocflags}
 {\tt Flags} & {\bf Description}\\ \hline \hline
@@ -7641,8 +7647,8 @@ currently defined flags are also listed in table~\ref{table:devprocflags}:
 
 If the bit {\tt DVPB\_ASSIGN} is set, i.e {\tt dvp\_Flags \& DVPF\_ASSIGN} is
 non-zero, then the found port and lock are part of a
-multi-assign\key{Multi-Assign}. The pair returned does not necessarily
-contain the (or an) object identified by the {\tt name}; if it does not,
+multi-assign\key{Multi-Assign}. The port/lock pair returned does not necessarily
+contain the (or an) object identified by {\tt name}; if it does not,
 another iteration through {\tt GetDeviceProc()}\key{GetDeviceProc()} is
 necessary. From this one can conclude that an object in a directory scanned
 earlier will hide an object of the same name in a directory of a
@@ -7737,7 +7743,7 @@ mostly affects handlers such as the CON-Handler\key{CON-Handler} which leave
 configure itself. The CON-Handler versions 37 and before already opened the
 window from this path without ever (or before) receiving a packet requesting
 a file (see sections~\ref{sec:actionfindinput} and following), causing the side
-effect of creating a stray window or even an error on an invalid window
+effect of creating a stray window or even an error claiming an invalid window
 specification. This was fixed in version 39. Still, without sending any
 further packet to the handler, its process remains active.
 \smallskip{}
@@ -7746,8 +7752,9 @@ Thus, as a fairly general recommendation, {\tt GetDeviceProc()} should only
 be called to find the target {\tt MsgPort} for a subsequent packet
 transmission, see also chapter~\ref{sec:handlers}. Handlers such as the
 CON-Handler\key{CON-Handler} will process this packet, and if after
-processing this packet, no file handle is open, will terminate itself again,
-see also section~\ref{sec:handlerstartup}.
+processing this packet, no file handle is open, will terminate, avoiding a
+useless idle process. Section~\ref{sec:handlermain} provides in source code form an
+example.
 \medskip{}
 
 If {\tt GetDeviceProc()}\key{GetDeviceProc()} returns {\tt NULL}, then {\tt IoErr()}\key{IoErr()}
@@ -7769,28 +7776,28 @@ advisable to clear it upfront.
 The function also returns {\tt NULL} if {\tt name} corresponds to the
 {\tt NIL} pseudo-device and then sets {\tt IoErr()} to
 {\tt ERROR\_DEVICE\_NOT\_MOUNTED}\key{ERROR\_DEVICE\_NOT\_MOUNTED}.
-This error code is not fully correct, and callers need to be aware of this defect.
+This error code is not fully correct, and callers should be aware of this and filter the
+{\tt NIL:} path out beforehand.
 \smallskip{}
 
 If the path starts with {\tt CONSOLE:}, then this function reports the port
 of the current console, see~\ref{sec:getconsoletask}, and a {\tt ZERO} lock,
 but sets {\tt IoErr()} (incorrectly) to an error code even if process is
-equipped with a console. The same happens for paths relative to
+equipped with a console. {\tt IOErr()} is also set incorrectly for paths relative to
 {\tt PROGDIR:}, the home directory of the calling process. Thus, {\tt IoErr()}
-shall not be interpreted in case of success. In case the calling process
+shall not be interpreted in case of success. If the calling process
 does not have a home directory, probably because it is executing a resident
-command, see section~\ref{sec:resident}, then {\tt GetDeviceProc()}
+command (see~\ref{sec:resident}), then {\tt GetDeviceProc()}
 erroneously shows a requester asking the user to insert a volume of the name
-{\tt PROGDIR} instead of indicating failure, unless requesters are
-disabled by setting  {\tt pr\_WindowPtr}\key{pr\_WindowPtr} to $-1$, see
-also chapter~\ref{sec:process}. This defect persists in even the latest
+{\tt PROGDIR} instead of indicating failure --- unless requesters are
+disabled of course. This defect persists in even the latest
 version of AmigaDOS.
 \smallskip{}
 
 Also, {\tt GetDeviceProc()} does not handle the path ``{\tt *}''\key{* (file name)} at all,
-even though this path corresponds to the current console and the
+even though it corresponds to the current console and the
 CON-Handler\key{CON-Handler} is responsible for it. This case also needs to
-be detected by the caller, and in such a case, the port of the console
+be filtered out by the caller upfront, and the port of the console
 should be obtained through {\tt GetConsoleTask()}\key{GetConsoleTask()}
 specified in section~\ref{sec:getconsoletask}.
 
@@ -7825,7 +7832,7 @@ further details.
 The {\tt FreeDeviceProc()}\mkey{FreeDeviceProc()} function releases a
 {\tt DevProc}\key{DevProc} structure acquired by {\tt
   GetDeviceProc()}\key{GetDeviceProc()} and releases all temporary
-resources allocated by this function. It shall be called as soon as
+resources allocated by the latter function. It shall be called as soon as
 the {\tt DevProc} structure is no longer needed.
 
 \begin{verbatim}
@@ -7841,8 +7848,8 @@ resources from an iteration through one or multiple {\tt
 abort an iteration over devices, not within each iteration, see
 section~\ref{sec:getdeviceproc} for an example. In particular, if calling
 {\tt GetDeviceProc()} had returned {\tt NULL} it released such
-resources itself already and {\tt FreeDeviceProc()} need not
-to be called.
+resources itself already and {\tt FreeDeviceProc()} shall not
+be called.
 \smallskip{}
 
 The {\tt dvp\_Port}\key{dvp\_Port} or {\tt dvp\_Lock}\key{dvp\_Lock} within the {\tt DevProc}
@@ -7879,17 +7886,17 @@ process = DeviceProc( name )
 struct MsgPort *DeviceProc(STRPTR)
 \end{verbatim}
 
-This function returns a pointer to a port of a handler responsible for
+This function returns a pointer to a port of the handler (or \emph{a} handler) responsible for
 the path {\tt name}. It returns {\tt NULL} on error in which case it sets
 {\tt IoErr()}\key{IoErr()}.
 \smallskip{}
 
-If the passed in {\tt name} indicates an assign\key{Assign}, the handler
-port responsible for the directory the assign binds to is returned, and {\tt
-  IoErr()}\key{IoErr()} is set to the lock\key{Lock} of the assign. Similar
+If the passed in {\tt name} is a relative path or indicates an assign\key{Assign}, the handler
+port responsible for the current directory or the directory the assign binds to is returned,
+and {\tt IoErr()}\key{IoErr()} is set to the lock\key{Lock} of this directory. Similar
 to {\tt GetDeviceProc()}\key{GetDeviceProc()}, this lock is owned by the
 \emph{dos.library} and shall be duplicated before it is used to iterate over
-a directory.
+a directory with {\tt Examine()}\key{Examine()} or {\tt ExAll()}\key{ExAll()}.
 
 \punchline{Obsolete and not fully functional}{The {\tt DeviceProc()} function
   does not operate properly on multi-assigns\key{Multi-Assign} where it only provides
@@ -7936,7 +7943,7 @@ handler, i.e.\ is a relative path.
 
 The default file system is typically the boot file system, or
 the file system of the {\tt SYS} assign\key{Assign}, though it can be
-changed with {\tt SetFileSysTask()} at any point.
+changed with {\tt SetFileSysTask()} at any point, see~\ref{sec:setfilesystask}.
 
 \begin{verbatim}
 port = GetFileSysTask() /* since V36 */
@@ -7952,7 +7959,7 @@ require resolution through this function, though the default
 file system and the file system handling {\tt SYS:} are
 typically identical. However, as the former is returned by
 {\tt GetFileSysTask()}\key{GetFileSysTask()} and the latter is part
-of the device list\key{Device List} assign\key{Assign}, they can be different.
+of the device list\key{Device List}, they can be different.
 
 \section{Iterating and Accessing the Device List} \label{sec:devlistaccess}
 
