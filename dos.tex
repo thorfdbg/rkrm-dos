@@ -7964,7 +7964,7 @@ of the device list\key{Device List}, they can be different.
 \section{Iterating and Accessing the Device List} \label{sec:devlistaccess}
 
 While {\tt GetDeviceProc()}\key{GetDeviceProc()} uses the device
-  list\key{Device List} to locate a particular {\tt MsgPort} and lock\key{Lock}, all
+list\key{Device List} to locate a particular {\tt MsgPort} and lock\key{Lock}, all
 other elements of the {\tt DosList}\key{DosList} structure remain unavailable. For
 them, the device list\key{Device List} containing these structures need to be
 scanned manually. The \emph{dos.library} provides functions to grant
@@ -7976,7 +7976,7 @@ The {\tt LockDosList()}\mkey{LockDosList()} function requests shared
 or exclusive access to a subset of entries of the device list\key{Device List}
 containing all handlers, volumes and assigns\key{Assign} and
 blocks until access is granted. It requires as input flags that define
-which parts of the list are requested:
+access to which parts of the list are requested:
 
 \begin{verbatim}
 dlist = LockDosList(flags) /* since V36 */
@@ -8002,8 +8002,8 @@ defined in {\tt dos/dosextens.h}:
 {\tt LDF\_VOLUMES}\mkey{LDF\_VOLUMES} & Access volumes, see~\ref{sec:volumelist} \\ \hline
 {\tt LDF\_ASSIGNS}\mkey{LDF\_ASSIGNS} & Access assigns\key{Assign}, see~\ref{sec:assignlist} \\ \hline
 {\tt LDF\_ALL}\mkey{LDF\_ALL} & Combination of all of the above \\ \hline \hline
-{\tt LDF\_ENTRY}\mkey{LDF\_ENTRY}  & Handler startup access the device list\key{Device List} \\ \hline
-{\tt LDF\_DELETE}\mkey{LDF\_DELETE} & Lock device list\key{Device List} for deletion \\ \hline \hline
+{\tt LDF\_ENTRY}\mkey{LDF\_ENTRY}  & Access to the device list during handler startup\key{Device List} \\ \hline
+{\tt LDF\_DELETE}\mkey{LDF\_DELETE} & Lock device list\key{Device List} for deletion of entries \\ \hline \hline
 {\tt LDF\_READ}\mkey{LDF\_READ} & Shared access to the device list\key{Device List} \\ \hline
 {\tt LDF\_WRITE}\mkey{LDF\_WRITE} & Exclusive access to the device list\key{Device List} \\ \hline
 \end{rkrmtable}
@@ -8011,19 +8011,23 @@ defined in {\tt dos/dosextens.h}:
 At least {\tt LDF\_READ}\key{LDF\_READ} or {\tt LDF\_WRITE}\key{LDF\_WRITE} shall be included in the
 flags, they shall not be set both. For example, {\tt GetDeviceProc()}\key{GetDeviceProc()} performs a read
 access on the list while looking for a particular device, while adding
-assigns through {\tt AssignLock()}\key{AssignLock()} (see
-section~\ref{sec:assignlock}) requires
-write access with {\tt LDF\_ASSIGNS}. The three first flags may also be
+assigns through {\tt AssignLock()}\key{AssignLock()} (see section~\ref{sec:assignlock})
+requires write access with {\tt LDF\_ASSIGNS}. The three first flags may also be
 combined to access multiple types, e.g. as {\tt LDF\_ALL} to request all entries.
 \smallskip{}
 
-{\tt LDF\_ENTRY}\key{LDF\_ENTRY} and {\tt LDF\_DELETE}\key{LDF\_DELETE} are
-additional flags that moderate access to entries of the device
-list\key{Device List}.
-{\tt LDF\_ENTRY} locks the list while loading and starting new
-handlers and file systems. If {\tt LDF\_DELETE} is set, then access is
-granted for removing entries.  Both flags are only set internally by the
-\emph{dos.library} and shall not be used by applications, handlers or file
+{\tt LDF\_ENTRY}\key{LDF\_ENTRY} and {\tt
+  LDF\_DELETE}\key{LDF\_DELETE} are additional flags that moderate
+access to entries of the device list\key{Device List}.
+{\tt LDF\_ENTRY} locks the list while loading and starting new handlers
+and file systems. If {\tt dol\_GlobVec} requires exclusive access, see
+table~\ref{table:gvvalues} in chapter~\ref{sec:devicelist}, then an
+exclusive lock of this type is requested during handler startup.
+If {\tt LDF\_DELETE} is set, then access is
+granted for removing entries. If shared access is requested for handler startup,
+then only a shared lock of this type is requested to prevent that the handler being started
+is removed during its startup process. Both flags are only used internally by the
+\emph{dos.library} and \emph{shall not be set} by applications, handlers or file
 systems.
 \medskip{}
 
@@ -8045,7 +8049,7 @@ within {\tt GetDeviceProc()}\key{GetDeviceProc()} itself also locks the list
 when attempting to load a handler or file system,
 potentially from the same handler that requires to modify the list at the same
 moment. If the handler requests access using {\tt LockDosList()},
-this can result in a deadlock, as the \emph{dos.library} waits for
+this can result in a deadlock, as for example the \emph{dos.library} waits for
 the handler to open the file, and the handler waits for the lock to become
 available to add or remove a volume. To avoid this problem, handler and file
 system implementations should rather call
@@ -8060,7 +8064,7 @@ successfully locked.
   should not request blocking access to the device list as this
   can deadlock the system. Instead, {\tt AttemptLockDosList()} should be
   used to request access to the list, while continuing to serve incoming
-  packets other processes depend upon before they can release the lock.}
+  packets until the lock can be granted.}
 
 For backwards compatibility to AmigaDOS versions 34 and earlier, this
 function also calls {\tt Forbid()}, implementing the access protocol of such
@@ -8069,7 +8073,7 @@ earlier versions.
 
 This function does not alter {\tt IoErr()}\key{IoErr()}.
 
-\subsection{Requesting Access to the Device List} \label{sec:attemptlockdoslist}
+\subsection{Attempting Access to the Device List} \label{sec:attemptlockdoslist}
 
 The {\tt AttemptLockDosList()}\mkey{AttemptLockDosList()} requests
 access to the device list or a subset of its entries, and, in
@@ -8112,7 +8116,7 @@ Up to AmigaDOS versions~39, this function could return either {\tt NULL} or
 {\tt (struct DosList *)1} on failure\footnote{That is, the numerical value 1
 casted to a {\tt DosList} pointer.}, and thus --- if compatibility to such versions is
 intended --- both return codes would need to be checked. This was fixed in
-release 40.
+version~40.
 \smallskip{}
 
 This function does not alter {\tt IoErr()}\key{IoErr()}.
@@ -8163,7 +8167,7 @@ call, or the handle returned by {\tt LockDosEntry()} or {\tt AttemptLockDosList(
 
 {\tt flags} shall be a subset of the flags requested from
 {\tt LockDosList()} or {\tt AttemptLockDosList()} and specifies the type of
-{\tt DosList} structures that shall be iterated over. Only the first~3 elements
+{\tt DosList} structures that shall be iterated over. Only the first~3 rows
 of table~\ref{table:lockdoslistflags} are relevant here, all other flags are
 ignored but may be included.
 \smallskip{}
@@ -8192,7 +8196,7 @@ void IterateDosList(void)
 Note that the {\tt name} is stored as a BSTR that is, conveniently,
 always {\tt NUL} terminated. The {\tt name} \emph{cannot} be safely printed
 in the loop as printing implies the transfer of a packet to the console while
-the device list\key{Device List} is at this point locked, see also the notes in
+the device list\key{Device List} is locked, see also the notes in
 section~\ref{sec:lockdoslist}. If the names are required, they shall be
 copied within the loop and then printed later.
 
@@ -8233,7 +8237,7 @@ the remaining components of a path, see section~\ref{sec:paths}. It may be
 
 Note that it is possible that more than one entry on the device list matches
 a given name. Duplicate entries of the same name on the device list
-\emph{are} possible as AmigaDOS does supports identically named volumes; they
+\emph{are} possible as AmigaDOS does support identically named volumes; they
 are distinguished by their creation date. This is not possible for handlers
 or assigns, their names are unique.
 \smallskip{}
