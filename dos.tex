@@ -8455,7 +8455,7 @@ the \emph{dos.library}, and an attempt to lock it within the file system
 would deadlock as well as the library can only unlock the list after loading
 completed.
 
-\punchline{Locking the device list in file systems}{Handlers shall not
+\punchline{Locking the device list deadlocks the system}{Handlers shall not
   attempt to lock the device list\key{Device List} through
   {\tt LockDosList()}\key{LockDosList()} as this function may block and cause a
   deadlock if the \emph{dos.library} or an application program is accessing
@@ -8546,7 +8546,7 @@ This function attempts to find the {\tt DosList}\key{DosList} structure pointed 
 by {\tt dlist} in the device list\key{Device List} and, if present, removes
 it. The device list shall be locked upfront depending on the type of the entry that
 is to be removed, e.g.\ if the entry is a volume, an
-{\tt LDF\_VOLUMES|LDF\_DELETE|LDF\_ENTRY|LDF\_WRITE} lock on the device list is required,
+{\tt LDF\_VOLUMES|LDF\_WRITE} lock on the device list is required,
 either through {\tt LockDosList()} or through {\tt AttemptLockDosList()},
 see also the example below.
 \smallskip{}
@@ -8577,9 +8577,9 @@ check upfront whether the device list\key{Device List} is available for
 modifications by {\tt AttemptLockDosList()}\key{AttemptLockDosList()}, e.g.\
 
 \begin{verbatim}
-if (AttemptLockDosList(LDF_VOLUMES|LDF_DELETE|LDF_ENTRY|LDF_WRITE)) {
+if (AttemptLockDosList(LDF_VOLUMES|LDF_WRITE)) {
   rc = RemDosEntry(volumenode);
-  UnLockDosList(LDF_VOLUMES|LDF_DELETE|LDF_ENTRY|LDF_WRITE);
+  UnLockDosList(LDF_VOLUMES|LDF_WRITE);
 }
 \end{verbatim}
 when removing a {\tt DosList}\key{DosList} entry. If attempting to get write access
@@ -8595,7 +8595,7 @@ device list\key{Device List}. This function does not touch {\tt IoErr()}\key{IoE
 \punchline{Locking protocol differs}{While {\tt AddDosEntry()}\key{AddDosEntry()} 
 locks the device list itself, this is \emph{not} the case for
 {\tt RemDosEntry()}\key{RemDosEntry()} which requires the caller to obtain a
-{\tt LDF\_WRITE|LDF\_DELETE|LDF\_ENTRY} lock combined with the flags
+{\tt LDF\_WRITE} lock combined with the flags
 corresponding to the type of the entry to be removed, see
 table~\ref{table:lockdoslistflags} for the flags corresponding to volumes,
 devices or assigns.}
@@ -8615,7 +8615,7 @@ file systems, the \emph{expansion.library} function
 Releasing {\tt DosList}s along with all its resources is unfortunately much
 harder. For assigns\key{Assign}, regardless of their type,
 {\tt AssignLock()}\key{AssignLock()} from section~\ref{sec:assignlock} with a
-{\tt ZERO} lock is a better solution.
+{\tt ZERO} lock is the best solution.
 \smallskip{}
 
 {\tt DosList} structures representing volumes are build and released by
@@ -8745,7 +8745,7 @@ While {\tt MakeDosEntry()}\key{MakeDosEntry()} creates a {\tt DosList}\key{DosLi
 entry for the device list\key{Device List}, it only performs minimal
 initialization of the structure. For assigns\key{Assign}, specifically, the
 \emph{dos.library} provides specialized functions that allocate,
-initialize and enqueue and remove {\tt DosList}\key{DosList} structures representing assigns
+initialize, enqueue and remove {\tt DosList}\key{DosList} structures representing assigns
 in a single call and are thus easier to use. They also lock and unlock the
 device list appropriately, and thus {\tt LockDosList()}\key{LockDosList()}
 does not need to be called.
@@ -8757,7 +8757,7 @@ directories) of an assign. As locks representing such directories are passed out
 {\tt GetDeviceProc()}\key{GetDeviceProc()} (see section~\ref{sec:getdeviceproc})
 or {\tt DeviceProc()}\key{DeviceProc()} without any internal reference counting, it can happen
 that they are still in use when they are released by canceling,
-updating or converting an assign to another type.
+updating or converting an assign.
 \smallskip{}
 
 Multi-Assigns\key{Multi-Assign} are created by starting from a regular assign
@@ -8793,7 +8793,7 @@ that points to the target directory given by {\tt lock}.
 \smallskip{}
 
 If an assign {\tt name} already exist and {\tt lock} is not {\tt ZERO}, then
-the assign, regardless of its type, is converted into a regular assign
+the assign, regardless of its type, is converted to a regular assign
 pointing to the target directory given by {\tt lock}. Any resources
 associated to multi-assigns\key{Multi-Assign} or late-\key{Late Binding
   Assign} or non-binding\key{Non-binding Assign} assigns are released.
@@ -8830,7 +8830,7 @@ same name already exists, the error code is
 
 \subsection{Create or Update a Non-Binding Assign}
 
-The {\tt AssignPath()}\mkey{AssignPath()} function creates or updates a
+The {\tt AssignPath()}\mkey{AssignPath()} function creates or converts an assign to a
 non-binding assign\key{Non-binding Assign} and adds it to the device
 list\key{Device List} if it is not yet present. This type of
 assign\key{Assign} binds to a path independent of the volume the path is
@@ -9104,7 +9104,7 @@ not matter and does not even need to exist.
 
 Beware, multiple volumes of the same name, but differing creation dates,
 can be known to the system. In case a volume name is
-provided, this function (and in general, {\tt GetDeviceProc()} on which this
+provided as first argument, this function (and in general, {\tt GetDeviceProc()} on which this
 function is based) affects the \emph{first} volume of the given name on the
 device list\key{Device List}. Thus, in case of doubt, a path based on a
 file system or handler name (e.g. ``{\tt DF0:}'') should be preferred.
@@ -9152,7 +9152,7 @@ responsible for the current directory.
 
 Beware, multiple volumes of the same name, but differing creation dates, can
 be known to the system. In case a volume name is
-provided, this function (and in general, {\tt GetDeviceProc()} on which this
+provided as first argument, this function (and in general, {\tt GetDeviceProc()} on which this
 function is based) affects the \emph{first} volume of the given name on the
 device list\key{Device List}. Thus, in case of doubt, a path based on a
 file system or handler name (e.g. ``{\tt DF0:}'') should be preferred.
@@ -9161,10 +9161,7 @@ file system or handler name (e.g. ``{\tt DF0:}'') should be preferred.
 To block processes from accessing information on the file system while
 it is initializing, it shall be inhibited upfront, e.g by
 {\tt Inhibit(filesystem,DOSTRUE)} or by lower level packet communication to
-the handler, see section~\ref{sec:packetinhibit}. Initializing
-and serializing the disk, i.e.\ making it unique, by the packet defined in
-section~\ref{sec:actionserializedisk} are the only operations file
-systems are able to perform while being inhibited.
+the handler, see section~\ref{sec:packetinhibit}.
 \smallskip{}
 
 The {\tt Format()}\key{Format()} function \emph{does not} attempt a low-level
@@ -9187,10 +9184,10 @@ ignored.
 
 The {\tt dostype} defines the flavor of file system created on the device
 if the file system allows multiple variations. The flavors the Fast File
-System\key{Fast File System (FFS)} supports along with other file systems are listed in
-table~\ref{table:ffsflavours} in section~\ref{sec:envec}. This corresponds
+System\key{Fast File System (FFS)} supports along with other dos types are listed in
+table~\ref{table:ffsflavours} in section~\ref{sec:envec}. This argument corresponds
 to the {\tt DOSTYPE} in the mountlist\key{Mountlist}. File systems may also
-ignore this argument if they only support a single flavor.
+ignore it if they only support a single flavor.
 \smallskip{}
 
 Unfortunately, AmigaDOS does not provide an easy way to access the flavors
@@ -9311,7 +9308,7 @@ is about to ask for, without a trailing colon (``{\tt :}''). If this
 function returns {\tt DOSTRUE}, then the \emph{dos.library} progresses
 to show a requester to ask the user to insert {\tt volume}. If this
 function returns {\tt DOSFALSE}, the requester is suppressed as if the
-user pressed ``Cancel'' on it, thus refusing to insert the volume.
+user pressed ``Cancel'' on it, thus refused to insert the volume.
 \smallskip{}
 
 The purpose of this function is to provide assign-wedge functionality that
