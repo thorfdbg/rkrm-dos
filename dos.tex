@@ -12859,7 +12859,7 @@ defect of the loader that has currently not yet fixed. If more relocation
 entries are needed, they shall be split into multiple chunks.
 \smallskip{}
 
-Due to another defect in AmigaDOS 39 onward, all elements of this hunk, namely $c$, $r_o$, $j$ and
+Due to another defect in AmigaDOS 39 onward, all elements of this hunk, namely $c$, $j$ and
 $r_o$ are only read as 16 bit wide elements, even though they should be (as
 documented) 32 bits wide, which limits the usefulness of this hunk. It is
 therefore recommended not to depend on this hunk type at all and avoid
@@ -13679,7 +13679,7 @@ for the loader that the end of a node has been reached.
 \begin{rkrmtabular}{Hunk Break Syntax} \label{table:hunk_break}
 \begin{tabular}{|l|p{7.4cm}|p{5.5cm}|} \hline
 {\bf Size} & {\bf Code} & {\bf Syntax} \\ \hline \hline
-  & \tt HUNK\_BREAK [0x3f6] & Terminate a segment\\ \hline
+  & \tt HUNK\_BREAK [0x3f6] & Terminate an overlay node \\ \hline
 \end{tabular}
 \end{rkrmtabular}
 
@@ -13691,13 +13691,13 @@ loading an overlay node and all segments within it. For that, the
 file pointer shall first be placed by {\tt Seek()}\key{Seek()} to
 the file offset of the {\tt HUNK\_HEADER}\key{HUNK\_HEADER} of the node to
 load. For the hierarchical overlay manager, this file offset should be taken
-from the {\tt ot\_FilePosition}\key{ot\_FilePosition} of the overlay table, 
+from the {\tt ot\_FilePosition}\key{ot\_FilePosition} of the overlay table.
 
 \begin{verbatim}
-seglist = LoadSeg( name ,table, fh)
+seglist = LoadSeg( name, table, fh)
 D0                 D1    D2     D3
 
-BPTR LoadSeg(STRPTR ,BPTR, BPTR)
+BPTR LoadSeg(STRPTR, BPTR, BPTR)
 \end{verbatim}
 For overlaid node loading, the first argument {\tt name} shall be
 {\tt NULL}, which is used as an indicator to this function to
@@ -13747,11 +13747,10 @@ in the official AmigaDOS include files do not expose the additional arguments.
   section~\ref{sec:hunk_overlay} for the hierarchical overlay manager, and section~\ref{sec:manxovl}
   for the MANX overlay manager.}
   
-As for the regular {\tt LoadSeg()} call, this function returns the
-BPTR to the first segment\key{Segment} loaded on success, links all loaded
-segments together, populates the segment table. On error, it returns {\tt ZERO} and
-installs an error code in {\tt IoErr()}\key{IoErr()}. On success,
-{\tt IoErr()} is undefined.
+As for the regular {\tt LoadSeg()} call, this function links all loaded
+segments together, populates the segment table and returns the
+BPTR to the first segment\key{Segment} loaded on success. On error, it returns {\tt ZERO} and
+installs an error code in {\tt IoErr()}\key{IoErr()}. On success, {\tt IoErr()} is undefined.
 
 \subsection{Loading an Overlay Node through Call-Back Functions} \label{sec:ovlinternalls}
 
@@ -13760,7 +13759,7 @@ an overlay node, its usage for overlay managers is discouraged. Generally,
 overlays should load code through standard file handles\key{FileHandle} and
 not through an abstract object as {\tt UnLoadSeg()}\key{UnLoadSeg()} will
 call {\tt Close()}\key{Close()} on the stream used for overlay loading,
-regardless whether it was a file handle or not.
+regardless whether it is a file handle or not.
 
 \begin{verbatim}
 seglist = InternalLoadSeg(fh,table,funcs)
@@ -13775,8 +13774,7 @@ corresponding file pointer shall first be placed to the file offset of
 the {\tt HUNK\_HEADER} of the overlaid node, e.g.\ by a functionality
 similar to {\tt Seek()}\key{Seek()} for regular
 file handles. This file offset should, for the standard
-hierarchical overlay manager, be taken from the {\tt ot\_FilePosition}\key{ot\_FilePosition}
-within the overlay table.
+hierarchical overlay manager, be taken from {\tt ot\_FilePosition}\key{ot\_FilePosition}.
 \smallskip{}
 
 The {\tt table} shall be the BPTR to the segment\key{Segment} table; this
@@ -13811,7 +13809,7 @@ Unloading overlay nodes --- and \emph{not} the root node\key{Root Node} ---
 of an overlaid binary requires some manipulation of the segment table as the
 \emph{dos.library} does not provide a function for such operation. This
 algorithm is part of the overlay manager and thus depends on its structure;
-the implementation within the hierarchical overlay manager documented here
+the implementation within the hierarchical overlay manager is documented here
 for completeness. Other overlay managers would need to perform different
 algorithms, as for example the flat overlay manager presented in
 section~\ref{sec:manxovl}.
@@ -13839,8 +13837,8 @@ void UnloadOverlayNode(struct OverlayHeader *oh,ULONG i)
   BPTR *segment = (BPTR *)BADDR(segtbl[i - 1]); 
   BPTR  next;
 
-  /* Release the linkage from the last loaded to
-  ** the first segment to release */
+  /* Release the linkage to the
+  ** first segment to release */
   *segment = NULL;
 
   while (segment = (BPTR *)BADDR(segtbl[i++])) {
@@ -13866,8 +13864,8 @@ overlays is discouraged.
 To unload the root node\key{Root Node}, and thus unload the entire program including
 all overlay nodes, {\tt UnLoadSeg()}\key{UnLoadSeg()} on the first
 segment of the root node is sufficient if neither custom I/O nor a
-custom memory allocator has been used to load the binary, independent
-on which overlay manager has been used. {\tt UnLoadSeg()} will detect
+custom memory allocator has been used to load the binary. The overlay
+manager used does not matter. {\tt UnLoadSeg()} will detect
 overlaid executables from the magic value in {\tt oh\_Magic} in the first
 segment passed, and will
 then not only release the segments, but also close the overlay file
@@ -14154,7 +14152,7 @@ DOSName:        dc.b "dos.library",0
 The Aztec C compiler from MANX offers an alternative overlay manager that is
 related to the Resource Manager present in the early 68K versions of
 MacOs. It does not organize overlay nodes in a hierarchy, but implements a
-flat organization nodes --- or \emph{resources} as they would be called
+flat organization of nodes --- or \emph{resources} as they would be called
 under MacOs. All nodes of the single level can be loaded independently of
 each other, either on demand through the function
 {\tt segload()}\mkey{segload() (MANX)} in the MANX C library, or whenever a function
@@ -14403,7 +14401,7 @@ the {\tt FULL} command line argument.
 
 \subsection{The Stack Cookie} \label{sec:stackcookie}
 
-The Workbench, the shell\key{Shell}, and also\mkey{Stack Cookie}
+The Workbench, the Shell\key{Shell}, and also\mkey{Stack Cookie}
 {\tt GetDeviceProc()}\key{GetDeviceProc()} when loading handlers,
 scan the loaded binary for the string sequence {\tt \$STACK:}. If this
 string sequence is found, AmigaDOS attempts to read a following
