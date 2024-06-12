@@ -13429,10 +13429,111 @@ follows:
 \end{longtable}
 \end{rkrmtabular}
 
+The AmigaDOS loader injects overlay-specific data into the first
+segment\key{Segment} loaded from disk, that is, into the root-node. The data
+placed there is used to locate symbols in overlay nodes, load the segments,
+but is also required to release resources associated to loaded overlays and is
+therefore expected there by {\tt UnLoadSeg()}\key{UnLoadSeg()} and
+{\tt InternalUnLoadSeg()}\key{InternalUnLoadSeg()}.
+\smallskip{}
+
+The first bytes of the first {\tt HUNK\_CODE}\key{HUNK\_CODE} in the root node\key{Root Node} shall
+form the following structure:
+\mkey{OverlayHeader}
+\begin{verbatim}
+struct OverlayHeader {
+    UWORD         oh_Jump[2];   /* Forms a branch to the startup code */
+    LONG          oh_Magic;     /* Shall be 0x0000abcd                */
+    BPTR          oh_FileHandle;/* Filled by the loader with the fh   */
+    struct OVTab *oh_OVTab;     /* Overlay table from HUNK_OVERLAY    */
+    BPTR          oh_Segments;  /* Array of segment BPTRs             */
+    BPTR          oh_GV;        /* standard Global Vector             */
+};
+\end{verbatim}
+The elements {\tt oh\_FileHandle}\key{oh\_FileHandle} to {\tt oh\_GV}\key{oh\_GV} are
+filled in by the AmigaDOS loader, i.e.\ {\tt LoadSeg()}\key{LoadSeg()} and
+related functions; {\tt oh\_Jump} and {\tt oh\_Magic}
+shall be part of the segment\key{Segment} itself and shall be included as
+first two long words in the hunk. Note that the first segment(s) contains the overlay manager,
+and thus are typically contributed by the linker and not by the application programmer.
+\smallskip{}
+
+{\tt oh\_Jump}\mkey{oh\_Jump} forms a valid {\tt 68K} opcode, and shall
+contain a jump or branch branch around this structure. This is because
+loaded binaries are executed from the first byte of the first segment
+loaded, and the CPU would run into the data of the structure otherwise,
+likely crashing on illegal opcodes. This first long word is not interpreted
+by the AmigaDOS loader, it just expects it to be present. 
+\smallskip{}
+
+{\tt oh\_Magic}\mkey{oh\_Magic} shall contain the ``magic'' long-word
+{\tt 0xabcd}. This value is neither filled or interpreted by the loader,
+but shall nevertheless be present. It is, however, checked by
+{\tt UnLoadSeg()}\key{UnLoadSeg()} and used there as an identifier for
+the {\tt OverlayHeader} structure. If this identifier is not present,
+{\tt UnLoadSeg()} will not be able to release resources associated to
+overlays\footnote{From this follows
+that \emph{flat} (non-overlaid) AmigaDOS binary shall not contain this magic
+long word at this position as otherwise attempting to unload such a binary will
+cause mischief.}.
+\smallskip{}
+
+{\tt oh\_FileHandle}\mkey{oh\_FileHandle} will be filled by the AmigaDOS loader with a
+BPTR to the file handle\key{FileHandle} from which the root node\key{Root Node} has been
+loaded, or with the first argument of {\tt InternalLoadSeg()}\key{InternalLoadSeg()}.
+This handle is used by the overload manager to load all subsequent overlay
+nodes. Also, {\tt UnLoadSeg()}\key{UnLoadSeg()} and related functions call
+{\tt Close()}\key{Close()} on the handle stored here. This handle needs to
+stay open for the life time of the program as overlay nodes are
+loaded as they are required by the executing code.
+\smallskip{}
+
+{\tt oh\_OVTab}\mkey{oh\_OVTab} is filled by the AmigaDOS loader to a pointer to the
+payload data of {\tt HUNK\_OVERLAY}\key{HUNK\_OVERLAY}, i.e. the data stored
+in the hunk following the length indicator~$l$ in
+table~\ref{table:hunk_overlay}.
+\smallskip{}
+
+{\tt oh\_Segments}\mkey{oh\_Segments} in the
+{\tt OverlayHeader}\key{OverlayHeader} structure is filled by the AmigaDOS
+loader with a BPTR to the segment table of the loaded binary, represented
+as an array of BPTRs. The size of this array is taken from $t_{\mbox{\tiny size}}$ in the
+{\tt HUNK\_HEADER}\key{HUNK\_HEADER} of the root node\key{Root Node}, see
+table~\ref{table:hunk_header} in section~\ref{sec:hunk_header}. Each element
+in the segment table contains a BPTR to a segment\key{Segment} of the loaded
+binary, and it is indexed by the segment number, counting from~$0$ for the
+first segment of the root node\key{Root Node}, i.e. the overlay manager
+itself. Thus, the segments of the loaded executable form a singly linked
+list whose nodes are in addition directly accessibly through the table
+pointed to by {\tt oh\_Segments}.
+\smallskip{}
+
+When parsing a {\tt HUNK\_HEADER}\key{HUNK\_HEADER}, the table entries
+$t_{\mbox{\tiny num}}$ to $t_{\mbox{\tiny max}}$ will be populated by the BPTRs to the
+segments\key{Segment} allocated within this hunk, and when unloading an
+overlay node, the corresponding segments will be unlinked, released and
+their corresponding entries in this table set to {\tt ZERO} again. This
+table is therefore essentially the $m_a$ array of
+table~\ref{table:hunk_header}, except that its entries are BPTRs, not
+regular pointers --- of course another Tripos legacy. Note that the segment
+table contains segments and is indexed by the segment number counting
+from~0, whereas the entries of the {\tt OVTab}\key{OVTab} array are ordinate
+numbers of loaded overlay nodes, where each node typically consists of
+\emph{multiple} segments. The first entry in the latter array is the first
+\emph{overlaid} node, the root node is not represented there.
+\medskip{}
+
+{\tt oh\_GV}\mkey{oh\_GV} is, finally, filled with the public Global
+Vector\key{Global Vector} of the \emph{dos.library} containing all regular
+functions in the library, as required by BCPL code. Overlay managers
+implemented in C or assembler will not make use of it and instead call
+vectors of the \emph{dos.library} through the base address loaded in
+register {\tt a6}.
+
 \subsection{The Hierarchical Overlay Manager} \label{sec:alinkmgr}
 
 The overlay manager that comes with the standard Amiga linkers
-\emph{ALink}\key{ALink}, \emph{BLink}\key{BLink} and \emph{SLink}\key{SLink} structures overlay nodes
+{\tt ALink}\key{ALink}, {\tt BLink}\key{BLink} and {\tt SLink}\key{SLink} structures overlay nodes
 into a tree such as the following:
 
 \begin{center}
@@ -13494,7 +13595,7 @@ contents of the hunk is identical. The format of their
 {\bf Size} & {\bf Code} & {\bf Syntax} \\ \hline \hline
    & \tt HUNK\_OVERLAY [0x3f5] & Overlay table definition\\ \hline
 32 & \tt $l$ & Size of the overlay table, it is $l+1$ long-words large. \\ \hline
-\multicolumn{3}{|l|}{Format for the standard overlay manager, $l+1$ long-words in total} \\ \hline
+\multicolumn{3}{|l|}{Format for the hierarchical overlay manager, $l+1$ long-words in total} \\ \hline
 32 & \tt $o_d$ & Number of levels in the overlay tree, including the root node. \\ \hline
    & \tt for($i$ = 1;$i$ < $o_d$;$i$++) \{ & For all nodes, excluding the root node \\ \hline
 32 & \tt $\quad$ $0$ & Will become the currently loaded ordinate once
@@ -13532,74 +13633,16 @@ payload, excluding the length field. The length is always indicated in this
 (unorthogonal) way, regardless of the overlay manager used.
 \medskip{}
 
-The AmigaDOS loader injects overlay-specific data into the first
-segment\key{Segment} loaded from disk, that is, into the root-node. The data
-placed there is used to locate symbols in overlay nodes, load the segments,
-but is also required to release resources associated to loaded overlays and is
-therefore expected there by {\tt UnLoadSeg()}\key{UnLoadSeg()} and {\tt
-  InternalUnLoadSeg()}\key{InternalUnLoadSeg()}.
-\smallskip{}
+As for all overlay managers, the {\tt oh\_OVTab} pointer in the
+{\tt OverlayHeader} structure introduced in~\ref{sec:overlayfmt} points
+to the memory representation of the overlay hunk and consists initially
+of the contents of table~\ref{table:hunk_overlay} starting from element the
+element $o_d$. They can also be described by the following structures which
+store for each tree level the ordinate of the currently loaded
+overlay node, and for every externally referenced symbol in an overlaid
+executable the position of the symbol within the overlay tree, along with
+the segments to be loaded:
 
-The first bytes of the first {\tt HUNK\_CODE}\key{HUNK\_CODE} in the root node\key{Root Node} shall
-form the following structure:
-\mkey{OverlayHeader}
-\begin{verbatim}
-struct OverlayHeader {
-    UWORD         oh_Jump[2];   /* Forms a branch to the startup code */
-    LONG          oh_Magic;     /* Shall be 0x0000abcd                */
-    BPTR          oh_FileHandle;/* Filled by the loader with the fh   */
-    struct OVTab *oh_OVTab;     /* Overlay table from HUNK_OVERLAY    */
-    BPTR          oh_Segments;  /* Array of segment BPTRs             */
-    BPTR          oh_GV;        /* standard Global Vector             */
-};
-\end{verbatim}
-The elements {\tt oh\_FileHandle}\key{oh\_FileHandle} to {\tt oh\_GV}\key{oh\_GV} are
-filled in by the AmigaDOS loader, i.e.\ {\tt LoadSeg()}\key{LoadSeg()} and
-related functions; {\tt oh\_Jump} and {\tt oh\_Magic}
-shall be part of the segment\key{Segment} itself and shall be included as
-first two long words in the hunk. Note that the first segment(s) contains the overlay manager,
-and thus are typically contributed by the linker and not by the application programmer.
-\smallskip{}
-
-{\tt oh\_Jump}\mkey{oh\_Jump} forms a valid {\tt 68K} opcode, and shall
-contain a jump or branch branch around this structure. This is because
-loaded binaries are executed from the first byte of the first segment
-loaded, and the CPU would run into the data of the structure otherwise,
-likely crashing on illegal opcodes. This first long word is not interpreted
-by the AmigaDOS loader, it just expects it to be present. 
-\smallskip{}
-
-{\tt oh\_Magic}\mkey{oh\_Magic} shall contain the ``magic'' long-word {\tt
-  0xabcd}. This value is neither filled or interpreted by the loader,
-but shall nevertheless be present. It is, however, checked by {\tt
-  UnLoadSeg()}\key{UnLoadSeg()} and used there as an identifier for
-the {\tt OverlayHeader} structure. If this identifier is not present,
-{\tt UnLoadSeg()} will not be able to release resources associated to
-overlays\footnote{From this follows
-that \emph{flat} (non-overlaid) AmigaDOS binary shall not contain this magic
-long word at this position as otherwise attempting to unload such a binary will
-cause mischief.}.
-\smallskip{}
-
-{\tt oh\_FileHandle}\mkey{oh\_FileHandle} will be filled by the AmigaDOS loader with a
-BPTR to the file handle\key{FileHandle} from which the root node\key{Root Node} has been
-loaded, or with the first argument of {\tt
-  InternalLoadSeg()}\key{InternalLoadSeg()}. This handle is used by
-the overload manager to load all subsequent overlay nodes. Also, {\tt
-  UnLoadSeg()}\key{UnLoadSeg()} and related functions call {\tt
-  Close()}\key{Close()} on the handle stored here. This handle needs to
-stay open for the life time of the program as overlay nodes are
-loaded as they are required by the executing code.
-\smallskip{}
-
-{\tt oh\_OVTab}\mkey{oh\_OVTab} is filled by the AmigaDOS loader to a pointer to the
-payload data of {\tt HUNK\_OVERLAY}\key{HUNK\_OVERLAY}, i.e. the data stored
-in the hunk following the length indicator~$l$ in
-table~\ref{table:hunk_overlay}. The hierarchical overlay manager
-stores here for each tree level the ordinate of the
-currently loaded overlay node, and for every externally referenced symbol in
-an overlaid executable the position of the symbol within the overlay tree,
-along with the hunks to be loaded:
 \mkey{OVTab}\mkey{SymTab}
 \begin{verbatim}
 struct OVTab {
@@ -13628,45 +13671,7 @@ node in the overlay tree.
 The ordinate table is followed by the symbol table. The purpose of this
 structure is to allow the overlay manager to find and load an overlay node
 given a reference to an external symbol. How exactly it does so is explained
-in more detail in section~\ref{sec:stdoverlay}. The elements of this
-structure were already briefly introduced in table~\ref{table:hunk_overlay} above.
-\smallskip{}
-
-{\tt oh\_Segments}\mkey{oh\_Segments} in the
-{\tt OverlayHeader}\key{OverlayHeader} structure is filled by the AmigaDOS
-loader with a BPTR to the segment table of the loaded binary, represented
-as an array of BPTRs. The size of this array is taken from $t_{\mbox{\tiny size}}$ in the
-{\tt HUNK\_HEADER}\key{HUNK\_HEADER} of the root node\key{Root Node}, see
-table~\ref{table:hunk_header} in section~\ref{sec:hunk_header}. Each element
-in the segment table contains a BPTR to a segment\key{Segment} of the loaded
-binary, and it is indexed by the segment number, counting from~$0$ for the
-first segment of the root node\key{Root Node}, i.e. the overlay manager
-itself. Thus, the segments of the loaded executable form a singly linked
-list whose nodes are in addition directly accessibly through the table
-pointed to by {\tt oh\_Segments}.
-\smallskip{}
-
-When parsing a {\tt HUNK\_HEADER}\key{HUNK\_HEADER}, the table entries
-$t_{\mbox{\tiny num}}$ to $t_{\mbox{\tiny max}}$ will be populated by the BPTRs to the
-segments\key{Segment} allocated within this hunk, and when unloading an
-overlay node, the corresponding segments will be unlinked, released and
-their corresponding entries in this table set to {\tt ZERO} again. This
-table is therefore essentially the $m_a$ array of
-table~\ref{table:hunk_header}, except that its entries are BPTRs, not
-regular pointers --- of course another Tripos legacy. Note that the segment
-table contains segments and is indexed by the segment number counting
-from~0, whereas the entries of the {\tt OVTab}\key{OVTab} array are ordinate
-numbers of loaded overlay nodes, where each node typically consists of
-\emph{multiple} segments. The first entry in the latter array is the first
-\emph{overlaid} node, the root node is not represented there.
-\medskip{}
-
-{\tt oh\_GV}\mkey{oh\_GV} is, finally, filled with the public Global
-Vector\key{Global Vector} of the \emph{dos.library} containing all regular
-functions in the library, as required by BCPL code. Overlay managers
-implemented in C or assembler will not make use of it and instead call
-vectors of the \emph{dos.library} through the base address loaded in
-register {\tt a6}.
+in more detail in section~\ref{sec:stdoverlay}. 
 
 \subsection{HUNK\_BREAK} \label{sec:hunk_break}
 
@@ -13743,7 +13748,7 @@ in the official AmigaDOS include files do not expose the additional arguments.
   is \emph{undefined} after returning from {\tt LoadSeg()}\key{LoadSeg()}.
   You therefore shall {\tt Seek()}\key{Seek()} to the start of the overlaid node
   before calling {\tt LoadSeg()}\key{LoadSeg()}, i.e. the byte offset of a {\tt HUNK\_HEADER}
-  defining this node. How to obtain the file position of an overlaid node depends on the overlay
+  defining the node to be loaded. How to obtain the file position of an overlaid node depends on the overlay
   manager in use, but they are typically included in the overlay hunk, see
   section~\ref{sec:hunk_overlay} for the hierarchical overlay manager, and section~\ref{sec:manxovl}
   for the MANX overlay manager.}
@@ -13838,8 +13843,7 @@ void UnloadOverlayNode(struct OverlayHeader *oh,ULONG i)
   BPTR *segment = (BPTR *)BADDR(segtbl[i - 1]); 
   BPTR  next;
 
-  /* Release the linkage to the
-  ** first segment to release */
+  /* Unlink the first segment to release */
   *segment = NULL;
 
   while (segment = (BPTR *)BADDR(segtbl[i++])) {
@@ -13914,7 +13918,7 @@ mechanism of the Hunk\key{Hunk} format.
 
 References to symbols within children nodes require another treatment as their
 segment is not necessarily in memory yet. Instead, the linker
-assigns to each such symbols a unique integer identifier, and creates an
+assigns to each such symbols a unique integer identifier and creates an
 entry in the symbol table. Each instance of the {\tt SymTab}\key{SymTab}
 structure that is part of the {\tt HUNK\_OVERLAY}\key{HUNK\_OVERLAY}
 (section~\ref{sec:hunk_overlay}) represents such a (forward) reference to a
@@ -13955,6 +13959,7 @@ children nodes that return pointers to the requested data.
 
 The following code provides a general overlay manager for register-based or stack-based
 function calls:
+
 \begin{verbatim}
         xdef    @ovlyMgr
 ;*************************************************
