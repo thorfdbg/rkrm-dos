@@ -14616,7 +14616,7 @@ with parameters signaling C startup.
 
 In such a case, i.e. if {\tt GLOBVEC=-1} or {\tt GLOBVEC=-2} is indicated in
 the mountlist\key{Mountlist}, the code \emph{is} started from the first byte
-of the first segment, which is in this case actually the long-word offset to
+of the first segment\key{Segment}, which is in this case actually the long-word offset to
 the BCPL initializer list. This still works because the offset represents
 the 68K opcode of a harmless {\tt ORI} instruction as long as it is small
 enough, i.e.\ below 64K. To signal the C startup mechanism, the
@@ -14653,8 +14653,8 @@ The overall structure of an object file is depicted in table~\ref{table:objfile}
 {\bf Size} & {\bf Code} & {\bf Syntax} \\ \hline \hline
 ?  & \tt HUNK\_UNIT\key{HUNK\_UNIT} & Defines the start of a translation unit, see~\ref{sec:hunk_unit} \\ \hline
    & \tt do \{ & Multiple segments follow \\ \hline
-?  & \tt $\quad$ HUNK\_NAME\key{HUNK\_NAME} & Name of the hunk, defines hunks to merge, see~\ref{sec:hunk_name} \\ \hline
-2  & \tt $\quad$ $m_t$ & Read the memory type of the next hunk \\ \hline
+?  & \tt $\quad$ HUNK\_NAME\key{HUNK\_NAME} & Name of the segment, defines segments to merge, see~\ref{sec:hunk_name} \\ \hline
+2  & \tt $\quad$ $m_t$ & Read the memory type of the next segment \\ \hline
 30 & \tt $\quad$ $h$ & Read the next hunk type \\ \hline
    & \tt $\quad$ if ($h$ == HUNK\_CODE)\key{HUNK\_CODE} \par \quad \qquad parse\_CODE & Code and constant data, see~\ref{sec:hunk_code} \\ \hline
    & \tt $\quad$ else if ($h$ == HUNK\_DATA)\key{HUNK\_DATA} \par \quad \qquad parse\_DATA & Data, see~\ref{sec:hunk_data} \\ \hline
@@ -14681,7 +14681,7 @@ The overall structure of an object file is depicted in table~\ref{table:objfile}
 \end{rkrmtabular}
 
 Since there is no {\tt HUNK\_HEADER}\key{HUNK\_HEADER} in object
-files, the memory attributes for the hunk\key{Hunk} are instead stored
+files, the memory attributes for the segment\key{Segment} are instead stored
 in the topmost two bits of the hunk type itself. The memory type is
 then derived from $m_t$ as in {\tt HUNK\_HEADER}, see
 table~\ref{table:hunk_header} in section~\ref{sec:hunk_header}:
@@ -14703,7 +14703,7 @@ This hunk\key{Hunk}\mkey{HUNK\_UNIT} identifies a translation unit and
 assigns a name to it. This hunk shall be the first hunk of an
 object file. A translation unit typically refers to one source code
 file that has been processed by the compiler or assembler, and it is
-an indivisible unit of the object file as references between segments
+an indivisible unit of the object file as references between segments\key{Segment}
 of a unit are usually already resolved. That is, upon linking, entire
 units are pulled into the final executable file. Typically, the name
 of the unit is ignored by linkers, and unless the name is defined by
@@ -14731,77 +14731,77 @@ number of long words already, it is \emph{not} zero-terminated.
 While the {\tt HUNK\_NAME}\key{HUNK\_NAME} hunk is already specified in
 section~\ref{sec:hunk_name}, it does not have a particular meaning in
 executable files. In object files and libraries, however, the name of
-the hunk determines which hunks of the input files are merged together
-by the linker: if the names of two hunks in two object files are
-identical, they will be merged to a single hunk.
+the segment determines which segments of the input files are merged together
+by the linker: if the names of two segments in two object files are
+identical, they will be merged to a single segment by the linker.
 \medskip{}
 
-By convention, some hunk names also have a special meaning:
+By convention, some segment\key{Segment} names also have a special meaning:
 \smallskip{}
 
-Hunks named {\tt \_\_MERGED}\mkey{\_\_MERGED Hunk} contain data or
+Segments named {\tt \_\_MERGED}\mkey{\_\_MERGED Hunk} contain data or
 blank space (BSS) that is addressed relative to a base
 register. Typically, the startup code of the compiler loads one
 address register, usually {\tt a4}, with the address of the
-segment to which the {\tt \_\_MERGED} hunk has been loaded, or with
+load address of the merged segment, or with
 an address 32K into the segment. The code then addresses all data
-within this hunk relative to the base register. Offsets
+within this segment relative to the base register. Offsets
 relative to this base register are relocated by {\tt HUNK\_DRELOC32},
 {\tt HUNK\_DRELOC16} and {\tt HUNK\_DRELOC8}, see
 sections~\ref{sec:hunk_dreloc32} and following. A 32K offset is added
 to the data register if the total size of the base-register addressed data
 exceeds 32K; this makes both positive and negative offsets relative to the
 base register available, and thus allows to address 64K of data in total.
-Hunks of this type are typically created by compilers in
+Segments of this type are typically created by compilers in
 the \emph{small data model}\mkey{Small Data Model}. The name stems for
-the limitation to 64K of data as the 68000 processor allows only 16-bit for
+the limitation to 64K as the 68000 processor allows only 16-bit for
 base-relative addressing.
 \smallskip{}
 
-Hunks named {\tt \_NOMERGE}\mkey{\_NOMERGE Hunk} are never merged to
-any other hunk, under no circumstances, even in the small
+Segments\key{Segment} named {\tt \_NOMERGE}\mkey{\_NOMERGE Hunk} are never merged to
+any other segment, under no circumstances, even in the small
 code\mkey{Small Code Model} or small data model\key{Small Data Model}.
 \smallskip{}
 
-The hunk named {\tt NTRYHUNK}\mkey{NTRYHUNK Hunk} always becomes the
-first hunk of the created executable and thus should be the name of a
-code hunk. This, for example, can be used to ensure that the overlay
+The segment named {\tt NTRYHUNK}\mkey{NTRYHUNK Hunk} always becomes the
+first segment of the created executable and thus should be the name of a
+code segment. This, for example, can be used to ensure that the overlay
 manager (see section~\ref{sec:stdoverlay}) is always placed at the
 beginning of the executable file, regardless of the link order.
 \smallskip{}
 
-Executable code and constant data typically ends up in hunks named
+Executable code and constant data typically ends up in segments named
 {\tt text}. This name has, however, no further implications to the
 linking process.
 \smallskip{}
 
 Non-constant data in the \emph{large data model}\mkey{Large Data
-  Model} typically ends up in hunks of the name {\tt data}. In this
+  Model} typically ends up in segments of the name {\tt data}. In this
 model, data is addressed using absolute addressing, without a base
 register. Similar to the above, the name has no further implications
 on linking.
 \smallskip{}
 
 Uninitialized data in the \emph{large data model}\key{Large Data Model},
-that is, BSS segments, end up in hunks named
+that is, BSS segments, end up in segments named
 {\tt udata}. The name has no further implications on the linking process.
 \smallskip{}
 
 Data that is placed in {\tt MEMF\_CHIP} memory typically ends up in
-data hunks of the name {\tt chip}. The name itself does not instruct
+data segments of the name {\tt chip}. The name itself does not instruct
 the linker to request any special memory type, however, only the
 memory type $m_t$ of the hunk does, see table~\ref{table:objfile} in
 section~\ref{sec:objfile}. The name is only a convention.
 \smallskip{}
 
-In assembler, the hunk name can be set by the {\tt section}
+In assembler, the segment name can be set by the {\tt section}
 directive\key{Section (Assembler Directive)}, compilers sometimes offer
-command line options to set the hunk name, or select it according to
+command line options to set the segment name, or select it according to
 their configuration.
 
 \subsection{HUNK\_RELOC16} \label{sec:hunk_reloc16}
 
-This hunk\key{Hunk} defines relocation information of one hunk into another hunk, and
+This hunk\key{Hunk} defines relocation information of one segment\key{Segment} into another segment, and
 its format is identical to {\tt HUNK\_RELRELOC32}\key{HUNK\_RELRELOC32}, see
 section~\ref{sec:hunk_relreloc32} and
 table~\ref{table:hunk_relreloc32}\mkey{HUNK\_RELOC16}. Relocation offsets
@@ -14817,18 +14817,18 @@ addressing modes, including PC-relative 16-bit wide branches.
 \end{tabular}
 \end{rkrmtabular}
 
-This restricts possible displacements to 16 bits As the loading
+This restricts possible displacements to 16 bits. As the loading
 address of hunks is not under control of the linker, the only way how
 to ensure that the branch distance is within bounds is to merge the
-referencing hunk and the target hunk of the reference together. In
+referencing segment\key{Segment} and the target segment of the reference together. In
 the notation of table~\ref{table:hunk_relreloc32}, the hunks
 representing segments $i$ and $j$ must be merged. To ensure that
 this happens, their names as provided by {\tt HUNK\_NAME}\key{HUNK\_NAME} shall be identical.
 \smallskip{}
 
-However, even if target and referencing hunk are merged, it may still
-happen that the joined hunk\key{Hunk} generated by merging two or more
-hunks together is too long to allow 16-bit displacements. In such a
+However, even if target and referencing segments are merged, it may still
+happen that the joined segment generated by merging two or more
+segments together is too long to allow 16-bit displacements. In such a
 case, the relocation cannot be performed. Then linkers either
 abort with a failure, or generate an
 \emph{automatic link vector}\mkey{Automatic Link Vector (ALV)}. The
@@ -14853,7 +14853,7 @@ should also generate a warning when creating \emph{ALV}s.
 
 \subsection{HUNK\_RELOC8} \label{sec:hunk_reloc8}
 
-This hunk\key{Hunk} defines relocation information of one hunk into another hunk, and
+This hunk\key{Hunk} defines relocation information of one segment into another segment, and
 its format is identical to {\tt HUNK\_RELRELOC32}\key{HUNK\_RELRELOC32}, see
 section~\ref{sec:hunk_relreloc32} and
 table~\ref{table:hunk_relreloc32}\mkey{HUNK\_RELOC8}. Relocation offsets are
@@ -14863,10 +14863,10 @@ branches.
 \smallskip{}
 
 The same restrictions as for {\tt HUNK\_RELOC16} applies, i.e.\ the
-hunk within which the relocation offset is to be adjusted and the
-target hunk shall be merged to a single hunk as the AmigaDOS loader
+segment within which the relocation offset is to be adjusted and the
+target segment shall be merged to a single segment as the AmigaDOS loader
 cannot resolve 8-bit relocations. This can be arranged by
-giving the two hunks the same name.
+giving the two segments the same name.
 \smallskip{}
 
 \begin{rkrmtabular}{Hunk Reloc8 Syntax} \label{table:hunk_reloc8}
@@ -14892,9 +14892,9 @@ avoided as proper linkage cannot be ensured.
 
 \subsection{HUNK\_DRELOC32} \label{sec:hunk_dreloc32}
 
-This hunk\key{Hunk} defines relocation of 32-bit data elements within a hunk that is
-addressed relative to a base register. The name of the data containing hunk shall be
-{\tt \_\_MERGED}. Such hunks contain data and zero-initialized
+This hunk\key{Hunk} defines relocation of 32-bit data elements within a segment that is
+addressed relative to a base register. The name of such a segment\key{Segment} shall be
+{\tt \_\_MERGED}. Such segments contain data and zero-initialized
 elements in the \emph{small data model}\key{Small Data Model}, see also
 section~\ref{sec:hunk_namelink}.
 \smallskip{}
@@ -14904,10 +14904,10 @@ The format of the {\tt HUNK\_DRELOC32}\mkey{HUNK\_DRELOC32} hunk is identical to
 section~\ref{sec:hunk_reloc32} and table~\ref{table:hunk_reloc32},
 where each 32-bit wide relocation offset $r_o$ points to a long-word
 within the preceding code hunk. The long word at this offset is
-then adjusted by the position of the first byte of this hunk relative
-to the start of the {\tt \_\_MERGED} hunk in the final executable into
-which it is merged. In case the target hunk becomes larger than 32K,
-the base register points 32K into the hunk, and then linkers need to
+then adjusted by the position of the first byte of this segment relative
+to the start of the {\tt \_\_MERGED} segment\key{Segment} in the final executable into
+which it is merged. In case the target segment becomes larger than 32K,
+the base register points 32K into the segment, and then linkers need to
 subtract the additional 32K displacement from the $r_o$ offsets when
 performing relocation.
 
@@ -14922,7 +14922,7 @@ performing relocation.
 \subsection{HUNK\_DRELOC16} \label{sec:hunk_dreloc16}
 
 This hunk\key{Hunk}\mkey{HUNK\_DRELOC16} defines relocation of 16-bit data
-elements within a hunk that is addressed relative to a base
+elements within a segment\key{Segment} that is addressed relative to a base
 register, i.e.\ {\tt \_\_MERGED} hunks in the \emph{small data} memory model.
 \smallskip{}
 
@@ -14931,8 +14931,8 @@ identical to the {\tt HUNK\_RELOC32}\key{HUNK\_RELOC32} hunk, see
 section~\ref{sec:hunk_reloc32} and table~\ref{table:hunk_reloc32},
 where each 32-bit wide relocation offset $r_o$ points to a signed 16-bit word
 within the preceding code hunk\key{Hunk}. The word at this offset is then
-adjusted by the position of the first byte of this hunk relative to the
-start of the {\tt \_\_MERGED} hunk in the final executable into which it is merged. 
+adjusted by the position of the first byte of this segment\key{Segment} relative to the
+start of the {\tt \_\_MERGED} segment\key{Segment} in the final executable into which it is merged. 
 
 \begin{rkrmtabular}{Hunk DReloc16 Syntax} \label{table:hunk_dreloc16}
 \begin{tabular}{|l|p{7.4cm}|p{5.5cm}|} \hline
@@ -14946,15 +14946,15 @@ Similar to the comments made in section~\ref{sec:hunk_dreloc32}, this hunk
 is typically used to resolve symbols that are reached relative through a
 base register, e.g {\tt a4}. As base-relative addressing is restricted to
 16-bit displacements for the 68000, linkers typically adjust the base
-register to point 32K into the {\_\_MERGED} hunk\key{Hunk} if the total
+register to point 32K into the {\_\_MERGED} segment\key{Segment} if the total
 amount of base-relative addressed data exceeds 32K in size. In such a case,
-they need to include an additional negative offset of -32K in $r_0$ when
+they need to include an additional (negative) offset of -32K in $r_0$ when
 performing relocation.
 
 \subsection{HUNK\_DRELOC8} \label{sec:hunk_dreloc8}
 
-This hunk\key{Hunk} defines relocation of 8-bit data elements within a hunk that is
-addressed relative to a base register, i.e.\ {\tt \_\_MERGED} hunks in the
+This hunk\key{Hunk} defines relocation of 8-bit data elements within a segment\key{Segment} that is
+addressed relative to a base register, i.e.\ {\tt \_\_MERGED} segments in the
 \emph{small data} memory model.
 \smallskip{}
 
@@ -14963,8 +14963,8 @@ to the {\tt HUNK\_RELOC32}\key{HUNK\_RELOC32} hunk, see
 section~\ref{sec:hunk_reloc32} and table~\ref{table:hunk_reloc32},
 where each 32-bit wide relocation offset $r_o$ points to a byte within
 the preceding code hunk. The byte at this offset is then
-adjusted by the position of the first byte of this hunk relative to
-the start of the {\tt \_\_MERGED} hunk in the final executable.
+adjusted by the position of the first byte of this segment relative to
+the start of the {\tt \_\_MERGED} segment in the final executable.
 
 \begin{rkrmtabular}{Hunk DReloc8 Syntax} \label{table:hunk_dreloc8}
 \begin{tabular}{|l|p{7.4cm}|p{5.5cm}|} \hline
@@ -15032,7 +15032,7 @@ creation of an automatic link vector\key{Automatic Link Vector (ALV)}.
 \smallskip{}
 
 In the following table $m_a[i]$ is the address of the first data byte
-of the segment that corresponds to the current hunk once loaded,
+of the segment\key{Segment} that corresponds to the current segment once loaded,
 i.e.\ {\tt \&Data[0]} of the {\tt SegmentList}\key{SegmentList} structure (see
 chapter~\ref{sec:binary} and table~\ref{table:hunk_header}
 in section~\ref{sec:hunk_header}):
@@ -15043,7 +15043,7 @@ in section~\ref{sec:hunk_header}):
 This type only exists in {\tt HUNK\_SYMBOL}\key{HUNK\_SYMBOL} hunks. \\ \hline
 \tt EXT\_DEF\mkey{EXT\_DEF} &\tt [0x01] & Relocation definition, $s_v + m_a[i]$ is the
 address of the symbol. References to this symbol are converted into a
-relocation information to the offset $s_v$ in hunk $i$. \\ \hline
+relocation information to the offset $s_v$ in segment $i$. \\ \hline
 \tt EXT\_ABS\mkey{EXT\_ABS} &\tt [0x02] & Absolute value, $s_v$ is the value of the
 symbol which is substituted into the executable by the linker when it is referenced.
 No relocation information is created, the absolute value is only substituted. \\ \hline
@@ -15055,26 +15055,26 @@ by a corresponding {\tt EXT\_ABS} definition to an absolute value or by an {\tt 
 to relocation information. \\ \hline
 \tt EXT\_COMMON\mkey{EXT\_COMMON} &\tt [0x82] & Reference to a 32-bit symbol that may be
 resolved by a {\tt EXT\_ABS} or {\tt EXT\_DEF} definition, but if no
-such definition is found, a BSS hunk\key{Hunk} of the maximal size of all
+such definition is found, an object in a BSS hunk\key{Hunk} of the maximal size of all
 references to the symbol is created by the linker. Thus, this reference
 generates a zero-initialized object if no definition is found. Not all linkers support this type. \\ \hline
 \tt EXT\_REF16\mkey{EXT\_REF16} &\tt [0x83] & Reference to a 16-bit PC relative offset, requiring
-that the defining and referencing hunks are merged together. \\ \hline
+that the defining and referencing segments are merged together. \\ \hline
 \tt EXT\_REF8\mkey{EXT\_REF8} &\tt [0x84] & Reference to a 8-bit PC relative offset within
 the same segment. \\ \hline
 \tt EXT\_DREF32\mkey{EXT\_DREF32} &\tt [0x85] & Reference to a 32-bit offset relative to a base register
-(typically {\tt a4}), resolved by a {\tt EXT\_DEF} definition in a {\tt \_\_MERGED} hunk.
+(typically {\tt a4}), resolved by a {\tt EXT\_DEF} definition in a {\tt \_\_MERGED} segment.
 This and the next two types are not supported by all linkers. \\ \hline 
 \tt EXT\_DREF16\mkey{EXT\_DREF16} &\tt [0x86] & Reference to a 16-bit offset relative to a base register,
-resolved by a definition in a {\tt \_\_MERGED} hunk.\\ \hline
+resolved by a definition in a {\tt \_\_MERGED} segment.\\ \hline
 \tt EXT\_DREF8\mkey{EXT\_DREF8} &\tt [0x87] & Reference to an 8-bit offset relative to a base register.\\ \hline
 \tt EXT\_RELREF32\mkey{EXT\_RELREF32} &\tt [0x88] & 32-bit PC-relative reference for 32-bit
 address, this is resolved by an {\tt EXT\_DEF} definition into an
-entry into a {\tt HUNK\_RELRELOC32} hunk by the linker. Likely not supported by all linkers. \\ \hline
+entry into a {\tt HUNK\_RELRELOC32} hunk by the linker. Not supported by all linkers. \\ \hline
 \tt EXT\_RELCOMMON\mkey{EXT\_RELCOMMON} &\tt [0x89] & 32-bit PC relative common reference for a
 32-bit address. Similar to a {\tt EXT\_COMMON} definition, this will
 be resolved into an {\tt HUNK\_RELRELOC32} entry where
-space for the symbol will be allocated in a BSS segment if no
+space for the object will be allocated in a BSS segment if no
 corresponding definition is found.\\ \hline
 \tt EXT\_ABSREF16\mkey{EXT\_ABSREF16} &\tt [0x8a] & 16-bit absolute reference, resolved by
 the linker to a 16-bit absolute value by an {\tt EXT\_ABS} definition. \\ \hline
@@ -15091,12 +15091,12 @@ the symbol definition will be resolved during linking.
 
 {\tt EXT\_DREF32}\key{EXT\_DREF32}, {\tt EXT\_DREF16}\key{EXT\_DREF16}
 and {\tt EXT\_DREF8}\key{EXT\_DREF8} are references to symbols 
-in a {\tt \_\_MERGED} hunk defined somewhere outside of the current {\tt
+in a {\tt \_\_MERGED} segment defined somewhere outside of the current {\tt
   HUNK\_UNIT}\key{HUNK\_UNIT} by an {\tt EXT\_DEF} entry there. Thus,
 in the C language, they represent objects declared through {\tt
   extern}, but defined in another translation unit. Upon linking, they
 become 32, 16 or 8 bit offsets relative to a compiler-specific base
-register pointing to or into the {\tt \_\_MERGED} hunk. The offset to
+register pointing to or into the {\tt \_\_MERGED} segment. The offset to
 the symbols is computed by the linker and written to the byte offsets
 defined by the $s_o[]$ array.
 \smallskip{}
@@ -15104,18 +15104,18 @@ defined by the $s_o[]$ array.
 This is quite similar to the {\tt HUNK\_DRELOC32}\key{HUNK\_DRELOC32},
 {\tt HUNK\_DRELOC16}\key{HUNK\_DRELOC16} and
 {\tt HUNK\_DRELOC8}\key{HUNK\_DRELOC8} hunks, except that the latter define
-base-register relative references into the {\tt \_\_MERGED} hunk that
+base-register relative references into the {\tt \_\_MERGED} segment that
 is part of the same {\tt HUNK\_UNIT}\key{HUNK\_UNIT}, and thus correspond in the C
 language to symbols defined in the same translation unit. Yet, as all
-{\tt \_\_MERGED} hunks of all translation units are joined into one
-common hunk, offsets into this hunk need to be adjusted upon linking; the
+{\tt \_\_MERGED} segments of all translation units are joined into one
+common segment, offsets into this segment need to be adjusted upon linking; the
 positions that require adjustment are provided by the {\tt HUNK\_DRELOC} hunks.
 \smallskip{}
 
 Typically, only 16-bit wide offsets are used, i.e.\ the {\tt EXT\_DREF16}\key{EXT\_DREF16} references
 and {\tt HUNK\_DRELOC16}\key{HUNK\_DRELOC16} hunks for external or
 internal symbols. This is due to the 16-bit wide base-relative
-addressing mode of the 68000 processor limiting the size of the {\tt \_\_MERGED} hunk to 64K.
+addressing mode of the 68000 processor limiting the size of the {\tt \_\_MERGED} segment to 64K.
 While 32-bit wide relative offsets would be possible on later members
 of the 68K processor family, the author is not aware of a compiler
 that makes use of this possibility. 8-bit references, even though
@@ -15123,19 +15123,19 @@ representable as references or hunks, are too limited to be of
 practical value.
 \smallskip{}
 
-Common symbols are symbols that are referenced in multiple translation
-units but potentially nowhere defined. The size of the referenced
-common block is given by~$s_c$. If no corresponding symbol definition
-is found, the linker allocates space of a size that is determined by
-the maximum of all~$s_c$ values referencing the same symbol. Space for
-the symbol is then allocated within a BSS hunk\key{Hunk} by the linker
-without requiring an explicit symbol definition, and thus creates an
-object that is zero-initialized by the AmigaDOS loader. This mechanism
-is mostly required by FORTRAN and is therefore rarely used, and not
-all linkers support this mechanism. However, the SAS/C compiler can
-also be configured to emit such common symbols to resolve multiply
-defined objects, e.g.\ objects defined in header files without {\tt extern}
-included in multiple translation units.
+Common symbols are symbols that are referenced in multiple translation units
+but potentially nowhere defined. The size of the referenced object is given
+by~$s_c$. If no corresponding symbol definition is found, the linker
+allocates space of a size that is determined by the maximum of all~$s_c$
+values referencing the same symbol. Space for the object is then allocated
+within a BSS hunk\key{Hunk} by the linker without requiring an explicit
+symbol definition, and thus creates an object that is zero-initialized by
+the AmigaDOS loader. This mechanism is mostly required by FORTRAN and is
+therefore rarely used, and not all linkers support this mechanism. However,
+the SAS/C compiler can also be configured to emit such common symbols to
+resolve zero-initialized objects defined (i.e.\ without an {\tt extern}
+keyword) in a header file included from multiple translation units. This
+would otherwise generate multiple conflicting symbols of the same name.
 
 \section{Link Library File Format} \label{sec:linkfmt}
 
@@ -15147,8 +15147,8 @@ become a permanent part of the generated executable.
 \smallskip{}
 
 The \emph{amiga.lib} is a typical example of a link library. It contains
-functions such as {\tt CreateExtIO()}. While newer versions of the
-\emph{exec.library} contains with {\tt CreateIORequest()}\key{CreateIORequest()} a similar
+small frequently used service functions such as {\tt CreateExtIO()}. While newer versions of the
+\emph{exec.library} include with {\tt CreateIORequest()}\key{CreateIORequest()} a similar
 function, some manual work was required for creating an {\tt IORequest}
 structure in exec versions prior~36. To ease development, the former function was made
 available in a (static) library whose functions are merged with the compiled
@@ -15316,7 +15316,7 @@ provides the name of a unit that would be contained in the stripped
 {\tt HUNK\_UNIT}\key{HUNK\_UNIT} hunk, though as byte offset from the
 start of the string table. The element $h_o$ is the number of
 long words from the start of the {\tt HUNK\_LIB}\key{HUNK\_LIB} hunk
-to the $h$ element of the first hunk of the translation unit whose
+to the $m_t$ element in table~\ref{table:hunk_lib} of the first hunk of the translation unit whose
 name is provided through~$u_0$. The number of hunks in this unit is
 given by~$h_c$. The subsequent loop iterates over all hunks in this
 unit.
@@ -15337,7 +15337,7 @@ stored. Otherwise, $\hat{h}$ shall be identical to~$h$.
 The first part of the subsequent data defines references, that is,
 symbols that are used but not defined within the hunk. The number of
 references is provided by~$x_c$. The~$x_n$ values define the names of
-these symbols as offsets from the start of the string table. The
+these symbols as byte offsets from the start of the string table. The
 reference type~$s_t$, see table~\ref{table:extsymboltypes}, section~\ref{sec:hunk_ext}, of the
 symbols is then found in an {\tt HUNK\_EXT}\key{HUNK\_EXT} hunk as
 part of the preceding {\tt HUNK\_LIB}\key{HUNK\_LIB}
@@ -15348,15 +15348,15 @@ Symbol definitions follow; unlike references, they are represented
 completely in the {\tt HUNK\_INDEX}\key{HUNK\_INDEX} hunk and stripped
 from the~{\tt HUNK\_LIB}\key{HUNK\_LIB} hunk. The~$d_c$ element
 provides their number and the $d_n$~values identify the names of the
-symbols as offset into the string table.  The $\hat{s}_v$ values are
+symbols as byte offset into the string table.  The $\hat{s}_v$ values are
 the 16~least significant bits of the full symbol value~$s_v$ otherwise
 contained in the {\tt HUNK\_EXT}\key{HUNK\_EXT} hunk, see
 table~\ref{table:hunk_ext} in section~\ref{sec:hunk_ext}. The
 abbreviated symbol type~$\hat{s}_t$ contains the 6 least significant
 bits of the full symbol type~$s_t$ defined in
 table~\ref{table:extsymboltypes}. Bits~6 and~7 of~$s_t$ are not
-represented and are always~0 as this part of the hunk only contains
-definitions.
+represented and are always inferred to be~0 as this part of
+{\tt HUNK\_INDEX} only contains symbol definitions.
 \smallskip{}
 
 In case~$\hat{s}_t$ indicates a symbol of type {\tt EXT\_ABS}\key{EXT\_ABS}, the
