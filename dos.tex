@@ -12353,7 +12353,7 @@ struct SegmentList {
 The {\tt LoadSeg()}\key{LoadSeg()} function returns a BPTR to the first node
 of this list. While the entire list is called the \emph{segment list} in the
 following, each of its nodes will be called a \emph{segment}\mkey{Segment}.
-The long word immediately preceeding the {\tt NextSegment} element contains
+The long word immediately preceding the {\tt NextSegment} element contains
 the byte size of the allocated memory block including overhead, i.e.\
 compatible to {\tt AllocVec()} and {\tt FreeVec()} --- which is sometimes helpful to
 derive the size of the segment.
@@ -12613,7 +12613,7 @@ executable with dynamic libraries. While first versions of AmigaDOS
 inherited this mechanism from Tripos, it was not particularly useful
 as the calling conventions for such libraries did not follow the usual
 conventions of AmigaDOS, i.e.\ requiring the library base in register
-{\tt A6}. Later versions of AmigaDOS, in particular its re-implementation
+{\tt a6}. Later versions of AmigaDOS, in particular its re-implementation
 as of Kickstart v36, removed support for such libraries. As this
 mechanism is no longer supported, it is not documented here. More
 information is found in~\cite{guru}.
@@ -13063,8 +13063,8 @@ the file in the {\tt MODE\_OLDFILE} (shared) mode, and follows the
 conventions of this function for locating the file.
 \smallskip{}
 
-When done, the segment\key{Segment} list shall be released from memory via {\tt
-  UnLoadSeg()}\key{UnLoadSeg()}, see section~\ref{sec:unloadseg}.
+When done, the segment\key{Segment} list shall be released from memory via
+{\tt UnLoadSeg()}\key{UnLoadSeg()}, see section~\ref{sec:unloadseg}.
 \smallskip{}
 
 Unfortunately, this function has a series of defects: For AmigaDOS 34 and
@@ -13090,8 +13090,8 @@ relocation entries are rare, authors of linker tools should break such
 relocation lists up into multiple arrays, all going to the same
 hunk. While {\tt HUNK\_RELOC32SHORT} is more efficient, it shall not be used
 for executables that are supposed to execute under AmigaDOS 34 and below,
-and for better compatibility, the (albeit incorrect) hunk type {\tt
-  HUNK\_DRELOC32} {\tt [0x3f7]} should be preferred as such binaries also
+and for better compatibility, the (albeit incorrect) hunk type
+{\tt HUNK\_DRELOC32} {\tt [0x3f7]} should be preferred as such binaries also
 load under AmigaDOS 36, including the fixed version~39. The new 32-bit relative
 relocation by {\tt HUNK\_RELRELOC32} should be avoided altogether.
 \medskip{}
@@ -13212,8 +13212,8 @@ are encoded as flags from {\tt exec/memory.h} such as {\tt MEMF\_CHIP}
 to request chip memory or {\tt MEMF\_FAST} for fast memory. This
 function shall return a pointer to the allocated memory in register
 {\tt d0}, or {\tt NULL} in case of failure. Register {\tt a6} is
-loaded with a pointer to the \emph{exec.library}. The {\tt
-  AllocMem()} function is suitable for this interface.
+loaded with a pointer to the \emph{exec.library}. The
+{\tt AllocMem()} function is suitable for this interface.
 \smallskip{}
 
 The {\tt FreeFunc()}\mkey{FreeFunc()} function releases a block of {\tt d0} bytes
@@ -13260,8 +13260,8 @@ D0                     D1
 
 BOOL UnLoadSeg(BPTR)
 \end{verbatim}
-This function releases all segments\key{Segment} chained together by {\tt
-  LoadSeg()}\key{LoadSeg()} and {\tt NewLoadSeg()}\key{NewLoadSeg()} and returns their memory back into
+This function releases all segments\key{Segment} chained together by
+{\tt LoadSeg()}\key{LoadSeg()} and {\tt NewLoadSeg()}\key{NewLoadSeg()} and returns their memory back into
 the system pool. This function \emph{also} accepts overlaid segments,
 see section~\ref{sec:overlays}, and releases additional resources
 acquired for them. Clearly, the segments shall be no longer in use,
@@ -13272,10 +13272,10 @@ function in section~\ref{sec:createproc} and the {\tt NP\_FreeSeglist}\key{NP\_F
 {\tt CreateNewProc()}\key{CreateNewProc()} function in section~\ref{sec:createnewproc}.
 \smallskip{}
 
-Segment lists loaded through {\tt
-  InternalLoadSeg()}\key{InternalLoadSeg()} require in general a more
-generic unloader. They shall be be released through {\tt
-  InternalUnLoadSeg()}\key{InternalUnLoadSeg()} instead,
+Segment lists loaded through
+{\tt InternalLoadSeg()}\key{InternalLoadSeg()} require in general a more
+generic unloader. They shall be be released through
+{\tt InternalUnLoadSeg()}\key{InternalUnLoadSeg()} instead,
 see~\ref{sec:internalunloadseg}.
 \smallskip{}
 
@@ -13302,8 +13302,8 @@ BOOL InternalUnLoadSeg(BPTR,
                                       register __a6 struct ExecBase 
                                                     *SysBase))
 \end{verbatim}
-This function releases a segment\key{Segment} list created by {\tt
-  InternalLoadSeg()} passed in as {\tt seglist}. To release memory, it
+This function releases a segment\key{Segment} list created by
+{\tt InternalLoadSeg()} passed in as {\tt seglist}. To release memory, it
 uses a function pointed to by {\tt a1}. This function expects the
 memory block to release in register {\tt a1} and its size in register
 {\tt d0}. Additionally, register {\tt a6} will be populated by a
@@ -13311,10 +13311,11 @@ pointer to the \emph{exec.library}.
 \smallskip{}
 
 The pointer in {\tt a1} should be identical to the {\tt FreeFunc()}
-function pointer in the {\tt LoadSegFuncs}\key{LoadSegFuncs} structure provided to {\tt
-  InternalLoadSeg()}\key{InternalLoadSeg()}, or at least shall be able to release memory
-allocated by the {\tt AllocFunc()} function pointer in the same structure.
-Note that the {\tt InternalLoadSeg()}\key{InternalLoadSeg()} stores the sizes of the
+function pointer in the {\tt LoadSegFuncs}\key{LoadSegFuncs} structure
+provided to {\tt InternalLoadSeg()}\key{InternalLoadSeg()}, or at
+least shall be able to release memory allocated by the {\tt AllocFunc()}
+function pointer in the same structure. Note that the
+{\tt InternalLoadSeg()}\key{InternalLoadSeg()} stores the sizes of the
 allocated memory blocks itself and the memory release function does not need
 to retrieve them.
 \smallskip{}
@@ -13323,9 +13324,9 @@ This function is also able to release overlaid binaries, but then
 closes the file stored in the root node\key{Root Node} of the overlay tree (see
 section~\ref{sec:overlays}) through the {\tt Close()}\key{Close()} function of the
 \emph{dos.library}. It therefore can only release overlaid files that
-were loaded from regular file handles\key{FileHandle} obtained through {\tt
-  Open()}\key{Open()}\footnote{Loading overlays through {\tt
-  InternalLoadSeg()} is probably a bad idea anyhow.}.
+were loaded from regular file handles\key{FileHandle} obtained through
+{\tt Open()}\key{Open()}\footnote{Loading overlays through
+{\tt InternalLoadSeg()} is probably a bad idea anyhow.}.
 \smallskip{}
 
 This function returns a non-negative result code in case of success,
