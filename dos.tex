@@ -11893,7 +11893,7 @@ way before a loaded program starts up.
 \chapter{Direct Packet Communication} \label{sec:directpkts}
 
 The \emph{dos.library} communicates with handlers or file systems via
-DosPackets\key{DosPacket} --- more on this structure in
+\emph{DosPackets} or short \emph{Packets}\key{DosPacket} --- more on this structure in
 section~\ref{sec:dospacket} --- which ride on top of
 exec messages. The message-based inter-process communication system of the
 exec kernel is described in more detail in~\cite{rkrmlib}.
@@ -11902,7 +11902,7 @@ such as to open a file or read data. The
 port is typically the process port {\tt pr\_MsgPort} of the handler
 process. Chapter~\ref{sec:process} provides more details on processes
 and the {\tt Process} structure containing this port. Once the handler has
-performed the requested action, it replies to the packet and delivers
+performed the requested action, it replies the packet and delivers
 through it also a primary and a secondary result code. The primary result
 code in the packet is typically delivered as result code of a corresponding
 function of the \emph{dos.library}, whereas the secondary result code is
@@ -11925,10 +11925,10 @@ section.
 \smallskip{}
 
 While most functions of the \emph{dos.library} are synchronous, i.e.\ wait
-for the handler to perform the requested action, the direct packet interface
+for the handler to complete the requested action, the direct packet interface
 also allows asynchronous input and output. This keeps the process initiating
 an operation running while the handler is working on the requested operation
-in parallel. The result of the operation is delivered to a
+in parallel. The result of the operation is then delivered to a
 {\tt MsgPort} of the originating process at a later time.
 
 \section{Request an Action from a Handler and Wait for Reply} \label{sec:dopkt}
@@ -11949,7 +11949,7 @@ LONG DoPkt(struct MsgPort *,LONG,LONG,LONG,LONG,LONG,LONG)
 \end{verbatim}
 
 This function performs low-level communication to a target message
-port representing a handler. The {\tt port} is the {\tt MsgPort} of
+port. The {\tt port} is the {\tt MsgPort} of
 the handler to contact. Depending on the context, this port should be
 taken from various sources. If low-level file I/O is to be performed,
 the best source for the port is the {\tt fh\_Type}\key{fh\_Type}
@@ -11958,7 +11958,7 @@ communication is related to a lock\key{Lock}, the
 {\tt fl\_Task}\key{fl\_Task} element of the {\tt FileLock}\key{FileLock}
 is the recommended source. For activities unrelated to locks or files,
 the {\tt dol\_Task}\key{dol\_Task} element of the {\tt DosList}
-structure is another source. To obtain such a structure from a path,
+structure is yet another source. To obtain such a structure from a path,
 use the {\tt GetDeviceProc()}\key{GetDeviceProc()} function, see
 section~\ref{sec:getdeviceproc}.
 \smallskip{}
@@ -11970,7 +11970,7 @@ relate to the functions of the \emph{dos.library}.
 
 {\tt arg1} through {\tt arg5} are arguments to the handler. Even
 though the packet interface supports up to 7 arguments, only up to~5
-can be provided by this function. If more arguments become necessary,
+can be provided through this function. If more arguments become necessary,
 the packet interface needs to be used manually, see
 section~\ref{sec:dospacket} for the raw packet interface.
 \medskip{}
@@ -11986,7 +11986,7 @@ If the caller is a process and the {\tt pr\_PktWait}\key{pr\_PktWait}
 pointer in the {\tt Process}\key{Process} structure is set,
 {\tt DoPkt()}\key{DoPkt()} calls through it to wait for the
 packet (or rather the message carrying it) to return, see
-chapter~\ref{sec:process}.
+chapter~\ref{sec:process} for its prototype.
 Otherwise, {\tt DoPkt()} waits on {\tt pr\_MsgPort}\key{pr\_MsgPort}
 with {\tt WaitPort()} and removes the message through {\tt GetMsg()}.
 If the caller is a task, the function builds an exec {\tt MsgPort}
@@ -12001,7 +12001,7 @@ type {\tt AN\_QPktFail}\mkey{AN\_QPktFail}, defined in {\tt exec/alerts.h}. Note
 quite different from exec style communications with (exec) devices through
 {\tt DoIO()}; the latter function is able to extract the send {\tt IORequest} from
 the port without creating a conflict if another message is still pending in
-the port. This problem of packet communication manifests itself, for example,
+the port. This problem of packet communication manifests, for example,
 when attempting to perform I/O operations through the \emph{dos.library}
 while the Workbench startup message is still queued in the process message
 port.
@@ -12096,7 +12096,7 @@ initialized to point back to the {\tt DosPacket}.
 {\tt dp\_Port}\mkey{dp\_Port} shall point to the {\tt MsgPort}
 structure to which the packet shall be send back after the handler has
 completed the requested activity. This is typically, but not necessary
-{\tt pr\_MsgPort} of the process sending the packet. See
+the {\tt pr\_MsgPort} of the process sending the packet. See
 chapter~\ref{sec:process} for the definition of the
 {\tt Process}\key{Process} structure. {\tt DoPkt()}\key{DoPkt()} uses
 the process message port of the caller as reply port for the
@@ -12132,7 +12132,7 @@ arguments to the handler. They shall be filled by the issuer of a
 packet; which and how many arguments are required depends on the packet
 type encoded by {\tt dp\_Type}. Most packet types do not
 require all 7 possible arguments; in such a case, only the necessary
-arguments may be initialized. The first~5 arguments correspond
+arguments need to be initialized. The first~5 arguments correspond
 to {\tt arg1} to {\tt arg5} of the {\tt DoPkt()} function.
 
 \subsection{Send a Packet to a Handler Asynchronously} \label{sec:sendpkt}
@@ -12242,11 +12242,11 @@ vector. This is probably a defect.}.
 If the {\tt pr\_PktWait}\key{pr\_PktWait} pointer in the {\tt Process}\key{Process}
 structure is set, {\tt WaitPkt()} calls through this function to wait for the arrival of a
 message, see chapter~\ref{sec:process} for details. Otherwise, the {\tt WaitPkt()} function
-calls {\tt WaitPort()} to wait for a
+calls {\tt WaitPort()} to wait for the
 arrival of a message on {\tt pr\_MsgPort}\key{pr\_MsgPort} of the calling process, and then
 calls {\tt GetMsg()} to remove it from the port. The function then returns
 {\tt mn\_Node.ln\_Name} of the received message, i.e.\ the packet
-corresponding to the message.
+linked to the message.
 \smallskip{}
 
 This function does not test whether the received message does,
@@ -12296,7 +12296,7 @@ This function fills {\tt dp\_Res1}\key{dp\_Res1} and {\tt dp\_Res2}\key{dp\_Res2
 with {\tt result1} and {\tt result2}, and sends the packet back to the port
 pointed to by the {\tt dp\_Port} element of the packet, i.e.\ the initiating port.
 Note that {\tt mn\_ReplyPort} of the message pointed to by {\tt dp\_Link} is
-ignored, i.e.\ packets do \emph{not} follow the exec protocol for replying messages.
+ignored, i.e.\ packet communication does \emph{not} follow the exec protocol for replying messages.
 \smallskip{}
 
 The {\tt pkt} argument may be {\tt NULL} in which case this function does nothing.
@@ -12305,7 +12305,7 @@ The {\tt pkt} argument may be {\tt NULL} in which case this function does nothin
 The {\tt result1} argument is the primary result code and identical to the
 return code of many \emph{dos.library} functions. {\tt dp\_Res2} is the
 secondary result code and typically accessible through {\tt IoErr()}\mkey{IoErr()}
-if the packet is received in {\tt DoPkt()}\key{DoPkt()}, see section~\ref{sec:dopkt}.
+if the packet is received by {\tt DoPkt()}\key{DoPkt()}, see section~\ref{sec:dopkt}.
 
 \chapter{Binary File Structure} \label{sec:binary}
 
