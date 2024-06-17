@@ -4518,13 +4518,13 @@ advanced interface that allows to read multiple directory entries at once,
 potentially filter them, and thus minimize the call overhead.
 
 \punchline{May go away while you look!}{As AmigaDOS is a multitasking
-  operating system, the contents may change anytime while scanning a
-  directory; in particular, entries received through the above functions may
+  operating system, directory contents may change anytime while scanning.
+  In particular, entries received through the above functions may
   not be up to date, may have been deleted already when the above functions
   return, or new entries may have been added the current scan will not
-  reach. While a lock\key{Lock} on a directory prevents that this directory
-  goes away, it does \emph{not} prevent other processes to add or remove
-  objects to this directory, so beware.}
+  reach. While a lock\key{Lock} on a directory prevents that the locked directory
+  goes away, it does \emph{not} prevent other processes from adding or removing
+  objects, so beware.}
 
 While {\tt ExAll()} seems to provide an advantage by reading multiple
 directory entries in one go, the AmigaOs ROM file system --- the
@@ -4568,7 +4568,7 @@ assumptions on its meaning. The Fast File System\key{Fast File System (FFS)}
 stores here the disk key\key{Key (FFS)}, see section~\ref{sec:key},
 administrating the object. Note that this key need not to be identical
 to the {\tt fl\_Key} element of the {\tt FileLock} structure, for example
-if the directory entry is a link which will be transparently resolved
+if the directory entry is a link as it will be transparently resolved
 by {\tt Lock()}\key{Lock()}. The RAM-Handler\key{RAM-Handler} stores here
 a pointer to a structure administrating the object. Some file
 systems do not even fill this element at all, and thus, it cannot be
@@ -4590,9 +4590,9 @@ Note that {\tt Lock()}\key{Lock()} resolves soft and hard links
 transparently, and thus, {\tt Examine()}\key{Examine()} will never identify
 such types, only {\tt ExNext()}\key{ExNext()} specified in section
 \ref{sec:exnext} and {\tt ExAll()}\key{ExAll()} of section~\ref{sec:exall}
-can, when iterating over the contents of a directory. While the
+can when iterating over the contents of a directory. While the
 FFS\key{Fast File System (FFS)} implements hard links\key{Hard Link} through
-separate types, other file systems cannot identify hard links at all as they
+separate types, other file systems cannot identify them at all as hard links
 are implemented as duplicate directory entries pointing to the same file
 system object; hard links then only appear as regular directory entries. This
 applies for example to all variants of the Linux {\tt ext} file
@@ -4602,7 +4602,7 @@ RAM-Handler\key{RAM-Handler} can neither be identified by the
 {\tt fib\_DirEntryType} and they also appear as regular files or directories.
 \smallskip{}
 
-All other types larger than zero indicate directories, and all other types
+All other values larger than zero indicate directories, and all other values
 smaller than zero indicate files. Section~\ref{sec:links} provides more
 details on all types of links\key{Hard Link}.
 \smallskip{}
@@ -4643,7 +4643,7 @@ object creates the error code {\tt ERROR\_DELETE\_PROTECTED}\key{ERROR\_DELETE\_
 
 The {\tt FIBB\_EXECUTE}\mkey{FIBB\_EXECUTE} flag is only interpreted by the
 Shell\key{Shell} (see chapter~\ref{sec:shell}). If the bit is set, the Shell
-refuses to load the file as command. This bit is respected by Shell versions
+refuses to load the file as a command. This bit is respected by Shell versions
 34 and up. It is ignored for directories and by the Workbench.
 \smallskip{}
 
@@ -4672,7 +4672,7 @@ learn which files had been altered since the last backup. While this flag is
 also cleared for directories whenever one of the files contained in is
 modified, modifications in any of its sub-directories are \emph{not}
 reflected in the parent directory. In other words, this bit is not
-recursively updated. As a result, archival software still needs to work through
+updated recursively. As a result, archival software still needs to work through
 directories whose {\tt FIBB\_ARCHIVE} is set because some of its (indirect)
 children could have been modified.
 \smallskip{}
@@ -4687,30 +4687,30 @@ compilers will, however, place objects with external linkage in {\tt DATA}
 or {\tt BSS} sections and will thus cause the compiled executable to modify
 its own segments, such code is typically \emph{not pure}. Some compilers
 provide, however, options where such objects are manually allocated through
-the compiler startup code, and thus allow to generate pure code.
+the compiler startup code, and thus the generated code will be pure.
 \smallskip{}
 
 The Shell\key{Shell} command {\tt Resident} loads pure binaries into RAM for
-future usage and thus reduces loading time, see
+future usage and thus reduces loading times, see
 sections~\ref{sec:cmdexecution} and~\ref{sec:resident}. Unfortunately,
-nothing in the shell\key{Shell} actually \emph{checks} whether a binary is,
-actually pure, and its segment have potentially been modified. Thus, the
+nothing in the Shell\key{Shell} actually \emph{checks} whether a binary is
+actually pure, or whether its segments have been modified. Thus, the
 AmigaDOS Shell depends on the user setting this flag properly. This flag is
 supported and recognized from version 34 of the AmigaDOS Shell\key{Shell}
 and up.
 \smallskip{}
 
-The {\tt FIBB\_SCRIPT}\mkey{FIBB\_SCRIPT} flag indicates whether a file is a Shell\key{Shell Script}
-or an ARexx script. If this flag is set, and the script is
-given as command to the Shell, it will forward this file to a
+The {\tt FIBB\_SCRIPT}\mkey{FIBB\_SCRIPT} flag indicates whether a file is a
+Shell\key{Shell Script}, ARexx or any other kind of script. If this flag is
+set, and the script is used as command, the Shell will forward this file to a
 suitable script interpreter, such as ARexx or {\tt Execute}. AmigaDOS
 versions 45 and up also allow additional script interpreters, to be indicated in
 the first line of a script, see section~\ref{sec:cmdexecution} for the details.
 \smallskip{}
 
 The {\tt FIBB\_HOLD}\mkey{FIBB\_HOLD} flag indicates whether a command 
-is made resident upon loading it the first time. If the flag is set, and the
-shell\key{Shell} loads the file as executable binary, and the
+is made resident upon loading it the first time. If the flag is set, the
+Shell\key{Shell} loads the file as executable binary, and the
 {\tt FIBB\_PURE} bit is also set, the file is kept in RAM and stays there for
 future execution. This bit was introduced in version~36 of AmigaDOS, but
 stripped again from the sources in release~40 due to ROM space
@@ -4740,7 +4740,7 @@ documented and it therefore should be left alone.
 \smallskip{}
 
 The {\tt fib\_Size}\mkey{fib\_Size} element indicates the size of the file in
-bytes. It should have probably be defined as an unsigned type, and it is
+bytes. It should have probably been defined as an unsigned type, and it is
 unclear how files larger than 2GB (or 4GB) could be represented. Its value
 is undefined for directories, hard links\key{Hard Link} to directories or
 soft links\key{Soft Link}.
@@ -4761,13 +4761,13 @@ not to be consistent even for identical file contents.
 \smallskip{}
 
 The {\tt fib\_Date}\mkey{fib\_Date} element indicates when the file was
-changed last; depending on the file system, the date may also indicate when
+changed last; it is a {\tt DateStamp}\key{DateStamp (struct)} structure as
+specified in section~\ref{sec:datestamp}. Depending on the file system, the date may also indicate when
 the last modification was made for a directory, such as creating or deleting
 files or directories within. For the Fast File
-System\key{Fast File System (FFS)} modification of file or directory metadata, such as file comments
+System\key{Fast File System (FFS)} modifications of file or directory metadata, such as file comments
 or protection bits are not reflected here. Which operations exactly trigger
-an update of the modification date of a directory is file system dependent. The
-{\tt DateStamp}\key{DateStamp (struct)} structure is specified in section~\ref{sec:datestamp}.
+an update of the modification date of a directory is file system dependent.
 \smallskip{}
 
 As for protection bits, the AmigaDOS ROM file systems (FFS and RAM)
@@ -4902,8 +4902,8 @@ the root directory of a volume is typically \emph{not sufficient} here.
 \smallskip{}
 
 Unlike {\tt Examine()}\key{Examine()} and {\tt ExamineFH()}\key{ExamineFH()},
-this function is, depending on the file
-system, able to identify soft-\key{Soft Link} and hard links\key{Hard Link}
+this function can be able, depending on the file
+system, to identify soft-\key{Soft Link} and hard links\key{Hard Link}
 and does not attempt to resolve them. Whether file systems are actually able
 to distinguish between a link and its target is another matter, see also
 section~\ref{sec:fib} for more information.
@@ -4917,7 +4917,7 @@ error code otherwise.
 \smallskip{}
 
 At the end of the directory, {\tt ExNext()}\key{ExNext()} returns
-{\tt DOSFALSE}, and error code returned by {\tt IoErr()} is set to
+{\tt DOSFALSE}, and error code returned by {\tt IoErr()} will be
 {\tt ERROR\_NO\_MORE\_ENTRIES}\key{ERROR\_NO\_MORE\_ENTRIES}.
 
 \punchline{Same Lock, Same FIB}{To iterate through a directory, a lock
@@ -4928,22 +4928,22 @@ At the end of the directory, {\tt ExNext()}\key{ExNext()} returns
   {\tt FileInfoBlock}, {\tt UnLock()}ing the original lock and
   obtaining a new lock on the same directory looses this
   information; using a different {\tt FileInfoBlock} also looses this
-  state information, requiring the file system to rebuild this
-  state information, which is not only complex, but also slows down
-  scanning the directory. In particular, you shall \emph{not} use the
+  state information, requiring the file system to rebuild it, which is not only complex, but also slows
+  scanning the directory down. In particular, you shall \emph{not} use the
   same {\tt FileInfoBlock} you used for scanning one directory for
   scanning a second, different directory as this can confuse the
   file system. Also, as for {\tt Examine()}\key{Examine()}, the
   {\tt FileInfoBlock}\key{FileInfoBlock} shall be aligned to a long-word
   boundary. Similarly, the same lock should not be used by more than one
   directory scan at the same time. This is particularly important for locks
-  returned by {\tt GetDeviceProc()}\key{GetDeviceProc()} for
+  {\tt GetDeviceProc()}\key{GetDeviceProc()} returns for
   assigns\key{Assign}. As the same lock will be provided to each caller, the
-  returned lock should be duplicated first by {\tt DupLock()}\key{DupLock()}
+  returned lock shall be duplicated first by {\tt DupLock()}\key{DupLock()}
   before initiating a directory scan on the assign target.}
 
-The following example code lists the contents of the directory represented
-by a lock on the console. It uses the {\tt D\_S}\key{D\_S() macro} macro of
+The following example code lists the contents of the directory on the
+console, where the directory to list is represented by a lock.
+It uses the {\tt D\_S}\key{D\_S() macro} macro of
 section~\ref{sec:bptrs} to allocate a temporary {\tt FileInfoBlock}
 structure on the stack, and returns a Boolean success indicator.
 \begin{verbatim}
@@ -5108,7 +5108,7 @@ Section~\ref{sec:setfiledate} defines these elements more rigorously.
 file system element and therefore corresponds to {\tt fib\_Comment}\key{fib\_Comment}.
 \smallskip{}
 
-{\tt ed\_ed\_OwnerUID} and {\tt ed\_OwnerGID} contain potential user
+{\tt ed\_OwnerUID} and {\tt ed\_OwnerGID} contain potential user
 and group IDs if the file system is able to provide such
 information. The FFS~\key{Fast File System (FFS)} stores such information
 on disk, but does not check it or makes any other use of it.
@@ -5170,9 +5170,9 @@ case, the \emph{dos.library} provides a fall-back implementation
 keeping {\tt ExAll()} workable regardless of the target file system.
 \smallskip{}
 
-The following example code lists the directory contents through {\tt
-  ExAll()}\key{ExAll()}; for demonstration, the matcher here removes all
-soft links\key{Soft Link} from the listing.
+The following example code lists the directory contents through
+{\tt ExAll()}\key{ExAll()}; for the purpose of demonstrating filtering,
+the matcher here removes all soft links\key{Soft Link} from the listing.
 \begin{verbatim}
 ULONG __asm Matcher(register __a0 struct Hook *h,
                     register __a2 LONG *type,
@@ -5246,7 +5246,7 @@ including the patch included in {\tt SetPatch}.
 \smallskip{}
 
 Of all the AmigaDOS file systems, only the directory-cache enabled flavors
-of the FFS\key{Fast File System (FFS)}, see Table~\ref{table:ffsflavours} in
+of the FFS\key{Fast File System (FFS)}, see table~\ref{table:ffsflavours} in
 section~\ref{sec:envec}, and the RAM-Handler\key{RAM-Handler} profit
 noticeably from this function. Thus, despite the well-motivated attempt to provide a
 better design for a directory scanner, {\tt ExAll()}\key{ExAll()} should probably be
@@ -5268,7 +5268,7 @@ void ExAllEnd(BPTR,STRPTR,LONG,LONG,struct ExAllControl *)
 \end{verbatim}
 
 This function aborts an {\tt ExAll()} driven directory scan before it
-terminates due to an error or due to the end of the directory. That is,
+terminated due to an error or due to reaching the end of the directory. That is,
 {\tt ExAllEnd()} shall be called whenever a scan is to be aborted even though
 {\tt ExAll()} returned a non-zero result code.
 \smallskip{}
@@ -5289,14 +5289,14 @@ implementation. Unfortunately, even the most recent implementation of this
 fall-back function is corrupt and not reliable in all situations.
 \smallskip{}
 
-This function will modify {\tt IoErr()}\key{IoErr()} and set it to an
+This function will modify {\tt IoErr()}\key{IoErr()} and sets it to an
 undefined value.
 
 \section{Modifying Directory Entries}
 
 While the functions in section~\ref{sec:fib} read directory entries,
 the functions listed in this section modify the directory and its entries,
-that is, they delete entries, or adjust metadata of directory entries.
+that is, they delete entries, or adjust metadata of file system objects.
 
 \subsection{Delete Objects on the File System} \label{sec:deletefile}
 
@@ -5307,7 +5307,7 @@ its protection bits (see section~\ref{sec:fib}), and the object must not be
 locked (see section~\ref{sec:locks}) or accessed through a file
 handle\key{FileHandle}\footnote{This typically implies that a file system
 internal lock is held on the object, thus is equivalent to the first condition.}. To
-be able to delete a directory, it also needs to be empty.
+be able to delete a directory, the directory also needs to be empty.
 
 \begin{verbatim}
 success = DeleteFile( name )
@@ -5356,7 +5356,7 @@ is set, to an error code on failure or to an undefined value otherwise.
 
 Versions 34 and below of the OFS allowed to rename directories into itself,
 and thus made them vanish completely without, actually, deleting them. This
-was fixed in at least version 36.
+was fixed in version 36.
 \smallskip{}
 
 All versions of AmigaDOS up to version~47 cannot handle soft
@@ -5402,7 +5402,7 @@ directory.
 
 \begin{verbatim}
 success = SetProtection( name, mask )
-D0                         D1    D2
+D0                        D1    D2
 
 BOOL SetProtection(STRPTR, LONG)
 \end{verbatim}
@@ -5450,8 +5450,8 @@ BOOL SetFileDate(STRPTR, struct DateStamp *)
 
 This function adjusts the modification date of the file system
 object identified by the path as given by {\tt name} to {\tt date}. The
-{\tt DateStamp}\key{DateStamp (struct)} structure is specified in
-section~\ref{sec:datestamp}.
+{\tt DateStamp}\key{DateStamp (struct)} structure in which the date is
+encoded is specified in section~\ref{sec:datestamp}.
 \smallskip{}
 
 For links, it is file system dependent whether a link carries a modification
@@ -5473,11 +5473,11 @@ or to an error code otherwise.
 
 Note that not all file systems may be able to set the date precisely
 to ticks, e.g.\ {\tt FAT} has only a precision of 2 seconds. Some file
-systems can refuse to set the modification date if an object is
+systems refuse to set the modification date if an object is
 exclusively locked, this is unfortunately not handled consistently.
 \smallskip{}
 
-Even though even AmigaDOS releases 34 and earlier supported setting the
+Even though AmigaDOS releases 34 and earlier supported setting the
 modification date of file system objects through the packet interface, see
 section~\ref{sec:packetsetdate}, a convenient interface on the level of the
 \emph{dos.library} did not exist.
@@ -5487,7 +5487,7 @@ section~\ref{sec:packetsetdate}, a convenient interface on the level of the
 The {\tt SetOwner()}\mkey{SetOwner()} function sets the user and group
 ID of an object within a file system. Both are concatenated to
 a 32-bit ID value. While this function seems to imply that the file
-system or AmigaDOS seems to offer some multi-user capability, this is
+system or AmigaDOS offer some multi-user capability, this is
 not the case. User and group ID are pure metadata that are returned
 by the functions discussed in section~\ref{sec:fib}. AmigaDOS has
 no concept of the current user of a file system and thus cannot
@@ -5586,11 +5586,11 @@ BOOL NameFromFH(BPTR, STRPTR, LONG)
 This function takes a file handle\key{FileHandle} in {\tt fh} and from that
 constructs an absolute path of the file corresponding to {\tt fh} in the
 supplied {\tt buffer} capable of storing {\tt len} bytes, including a
-terminating {\tt NUL} byte. This even works if the file has been opened for
-exclusive access.
+terminating {\tt NUL} byte. This function is also able to construct a path
+if the file is opened for exclusive access.
 \smallskip{}
 
-The returned path is not necessarily identical to the path through which the file
+The constructed path is not necessarily identical to the path through which the file
 was opened; first, the created path is always absolute, and second, if links
 were involved in the original path, the created path refers to the link
 target(s) and not the link itself.
@@ -5601,7 +5601,7 @@ On success, the function returns a non-zero return code and sets
 {\tt IoErr()} to an error code. In particular, if the supplied buffer
 is not large enough, it is set to {\tt ERROR\_LINE\_TOO\_LONG}\key{ERROR\_LINE\_TOO\_LONG}.
 Even in the latter case, the created path is {\tt NUL} terminated, though
-not useful.
+is not useful.
 
 \subsection{Append a Component to a Path} \label{sec:addpart}
 
@@ -5610,7 +5610,7 @@ to an existing path; the resulting path is constructed as if the input
 path is a directory, and the attached (second) path identifies an object
 relative to this given directory. The function handles special cases
 such as the colon (``{\tt :}'') and one or multiple leading slashes
-(``{\tt /}'') correctly and interprets according to the rules
+(``{\tt /}'') correctly and interprets them according to the rules
 explained in section~\ref{sec:paths}; the colon identifies the root of
 the volume\key{Root Directory}, and a leading slash the parent directory
 which removes the trailing component of the directory path.
@@ -5671,7 +5671,7 @@ This function cannot fail, and does not touch {\tt IoErr()}.
 The {\tt PathPart()}\mkey{PathPart()} identifies the end of the next-to-last
 component in a path. That is, if a {\tt NUL} is injected at the pointer
 returned by this function, the resulting string starting at the passed in
-buffer forms a path that corresponds to the directory containing the last
+forms a path that corresponds to the directory containing the last
 component of the original path. If the passed in path consists only of a
 single component, the returned pointer is identical to the pointer passed
 in.
@@ -5703,8 +5703,8 @@ The {\tt SplitName()}\mkey{SplitName()} function extracts a component
 starting at a given offset from a path and delivers the component in a
 buffer. It also returns a new position at which to continue parsing the path
 for the next component. By iteratively calling {\tt SplitName()}, a path can
-be resolved directory by directory, walking the file system tree from top to
-bottom.
+be resolved directory by directory, walking the file system tree from the
+root to the leaves.
 
 \begin{verbatim}
 newpos = SplitName(name, separator, buf, oldpos, size) /* since V36 */
@@ -5730,14 +5730,14 @@ the found component was too large to fit into {\tt buf} and had to be
 truncated.
 \smallskip{}
 
-This function does not provide error codes, even in case {\tt buf} was too
+This function does not set {\tt IoErr()}, even in case {\tt buf} was too
 small.
 \smallskip{}
 
 The intended purpose of this function is to walk a path component by
-component, extracting the components as scanning progresses. That is, if
+component, extracting the components as scanning proceeds. That is, if
 result code {\tt newpos} is not negative, it should be passed back into this
-function as {\tt oldpos} for a subsequent scan which then extracts the next
+function as {\tt oldpos} for a follow-up scan which then extracts the next
 component of the path. Typical users of this function are file systems
 that locate objects in the file system tree. For most (if not all)
 AmigaDOS file systems the separator is therefore the forwards slash
@@ -5755,13 +5755,13 @@ separator rather than behind it. This was fixed in release~39.
 \emph{Links}\mkey{Link (see also Soft Link, Hard Link, External Link)}
 escape the tree-like hierarchy of directories, sub-directories
 and files. A \emph{link} mirrors an object of a file system to another
-location such that if the object is changed using the path of one location,
+location such that if the object is modified through the path of one location,
 the changes are reflected in another location. Put differently, creating a
 link is like copying an object except that copy and original remain always
 identical. The storage for the file (or directory) content is only required
 once, the link just points to the same data as the original directory entry. The same
 goes for links between directories: Whenever a new entry is made in the
-directory, the change also appears in the link and vice versa.
+link target, the change also appears in the link and vice versa.
 \smallskip{}
 
 AmigaDOS supports two (or, actually, three) types of links:
@@ -5920,7 +5920,7 @@ by any particular value of the {\tt fib\_DirEntryType}\key{fib\_DirEntryType}.
 
 Table~\ref{table:direntrytypes} also provides the
 {\tt fib\_DirEntryType}\key{fib\_DirEntryType} for soft links, namely
-{\tt ST\_SOFTLINK}. As the target of a soft link may not under control of the
+{\tt ST\_SOFTLINK}. As the target of a soft link may not be under control of the
 file system containing the link, it cannot know whether the link target is a
 file or a directory (or maybe another link), and therefore a single type is
 sufficient to identify them.
@@ -5953,8 +5953,8 @@ created. It shall be taken from table~\ref{table:linktypes}, defined in
 \tt LINK\_SOFT & Soft link\key{Soft Link} \\ \hline
 \end{rkrmtable}
 
-If {\tt soft} is {\tt LINK\_HARD}\mkey{LINK\_HARD}, {\tt dest} is a lock
-represented by {\tt BPTR}. For most file systems, {\tt dest} shall be on the
+If {\tt soft} is {\tt LINK\_HARD}\mkey{LINK\_HARD}, {\tt dest} is a
+{\tt BPTR} to a {\tt FileLock}, i.e.\ a lock. For most file systems, {\tt dest} shall be on the
 same volume as the one identified by the path in {\tt name}. The only
 exception is currently the RAM-Handler\key{RAM-Handler} for which the
 destination lock\key{Lock} may be on a different volume. In such a case, an
@@ -5962,8 +5962,8 @@ external link\key{External Link} is created. While the file system object repres
 the external link will be created immediately, it may look initially like an
 empty file or an empty directory, depending on the type of the link
 destination. Its contents is copied, potentially creating intermediate
-directories, on attempts accessing the link contents. Thus, the link becomes a mirror
-of the link destination whenever an object within the link or the link
+directories, on attempts to access the link contents. Thus, the link becomes a mirror
+of the link target whenever an object within the link or the link
 itself is accessed. From that point on, the copied object is detached from
 its original, and may be overwritten without affecting the link
 target. External links were added to AmigaDOS in version~47.
@@ -5971,8 +5971,8 @@ target. External links were added to AmigaDOS in version~47.
 
 If {\tt soft} is {\tt LINK\_SOFT}\mkey{LINK\_SOFT}, {\tt dest} is a {\tt const UBYTE *}~that
 shall be casted to a {\tt LONG}. Then, this function creates a
-\emph{soft link} that is relative to the path of the link, i.e.\  {\tt
-  name}. For details on soft link resolution, see
+\emph{soft link} that is relative to the path of the link,
+i.e.\ {\tt name}. For details on soft link resolution, see
 section~\ref{sec:readlink}. In case of soft links, the target does not even
 need to exist. Soft links did not work reliable prior to version 45 of AmigaDOS.
 \medskip{}
@@ -5995,9 +5995,10 @@ If, however, a \emph{dos.library} function or a packet in direct
 communication with a handler (see chapter~\ref{sec:handlers}) returns 
 the error {\tt ERROR\_IS\_SOFT\_LINK}\key{ERROR\_IS\_SOFT\_LINK}, then this
 function helps to resolve a soft link within the path. The access is then
-typically retried with an updated path constructed by this function. Note well the
+typically retried with an updated path constructed by this function. Note
+well that the
 updated path can contain yet another soft link, requiring recursive
-resolution of the link. To avoid endless recursion, this loop should be
+resolution of the link. To avoid endless recursion, resolving links should be
 aborted after a maximum number of attempts, and should then generate the error
 {\tt ERROR\_TOO\_MANY\_LEVELS}\key{ERROR\_TOO\_MANY\_LEVELS}. A suggested
 maximum level of nested soft links, also used by the \emph{dos.library}, is
@@ -6165,7 +6166,7 @@ to a specific task or port. Notification requests were added in version 36
 of AmigaDOS, and while the RAM-Handler\key{RAM-Handler} supported it right
 from the start, the Fast File System\key{Fast File System (FFS)} included
 support for it from version 37 onward. However, be aware that not
-all file systems are able to support this mechanism; network file systems,
+all file systems implement this mechanism; network file systems,
 for example, need to operate on the basis of existing protocols that do not
 provide a mechanism to monitor file or directory changes on the server
 side.
@@ -6185,7 +6186,7 @@ cases. The most recent version of AmigaDOS will consider them sufficient to
 trigger a notification.
 \smallskip{}
 
-A typical application of notification requests is the {\tt IPrefs} program
+A typical user of notification requests is the {\tt IPrefs} program
 which uses them to monitor changes of the preferences files. If it detects
 a changed preferences definition, it reloads the contents of the affected
 settings file and re-installs the preferences into the components it serves,
@@ -6265,8 +6266,8 @@ issued in parallel. This is most useful for {NRF\_SEND\_MESSAGE} requests as
 the {\tt NotifyMessage} structure contains a pointer back to the request.
 \smallskip{}
 
-{\tt nr\_Flags}\mkey{nr\_Flags} identifies the activity that is performed when a
-change on the monitored object has been detected by a file system. Currently, the
+{\tt nr\_Flags}\mkey{nr\_Flags} defines how and when the issuer of a notification
+request shall be be informed by the monitoring file system. Currently, the
 following flags are defined in {\tt dos/notify.h}:
 
 \begin{rkrmtable}{Notification Flags} \label{table:notifyflags}
@@ -6301,7 +6302,8 @@ trigger a \emph{single} subsequent request for the file system object monitored.
 notification message or signal immediately after the request has been
 issued. This allows applications to roll both the initial action and
 the response of the notification into a single function --- for
-example, for loading an initial version or re-reading a preferences file.
+example, for reading an initial version of a file or update from a modified
+version of it.
 \medskip{}
 
 {\tt nr\_Port}\mkey{nr\_Port} is only used if the {\tt NRF\_SEND\_MESSAGE}\mkey{NRF\_SEND\_MESSAGE} flag is
@@ -6312,7 +6314,7 @@ detected. This structure is specified at the end of this section.
 
 {\tt nr\_Task}\mkey{nr\_Task} and {\tt nr\_SignalNum}\mkey{nr\_SignalNum}
 are only used if the {\tt NRF\_SEND\_SIGNAL} flag is set in {\tt nr\_Flags}.
-{\tt nr\_Task} is a pointer to the {\tt Task} that will be informed, and
+{\tt nr\_Task} is a pointer to the {\tt Task} that will be signaled, and
 {\tt nr\_SignalNum} the bit number of the signal that is set. It is not a
 bit mask. Clearly, {\tt NRF\_WAIT\_REPLY}\key{NRF\_WAIT\_REPLY} does not work in combination
 with signal bits.
@@ -6359,11 +6361,11 @@ struct NotifyMessage {
 \smallskip{}
 
 {\tt nm\_Class}\mkey{nm\_Class} is always set to {\tt NOTIFY\_CLASS}\mkey{NOTIFY\_CLASS}, also defined in
-{\tt dos/notify.h}, to identify this message as a notification.
+{\tt dos/notify.h}, to identify this message as a notification message.
 \smallskip{}
 
 {\tt nm\_Code}\mkey{nm\_Code} is always set to {\tt NOTIFY\_CODE}\mkey{NOTIFY\_CODE}, again defined in
-{\tt dos/notify.h}. It may be used to identify a notification message.
+{\tt dos/notify.h}. It may also be used to identify a notification message.
 \smallskip{}
 
 {\tt nm\_NReq}\mkey{nm\_NReq} is a pointer to the {\tt NotifyRequest}\key{NotifyRequest} through which
@@ -6373,13 +6375,14 @@ the request and by that the object that has been changed.
 
 {\tt nm\_DoNotTouch}\mkey{nm\_DoNotTouch} and {\tt nm\_DoNotTouch2}\mkey{nm\_DoNotTouch2} are strictly for use by
 the file system and shall not be touched nor interpreted by the
-caller or the client.
+issuer of the request.
 \smallskip{}
 
 By design, the {\tt NotifyMessage} reassembles the layout of an
 {\tt IntuiMessage} and thus allows reusing an IDCMP port (see~\cite{rkrmlib})
 of an intuition window for receiving messages --- as long as it can be
-ensured that the port remains available until the notification request is canceled.
+ensured that the port remains available as least as long as notification
+request remains active.
 \medskip{}
 
 {\tt StartNotify()} returns a Boolean success indicator. It returns a
@@ -6399,13 +6402,13 @@ EndNotify(notifystructure) /* since V36 */
 void EndNotify(struct NotifyRequest *)
 \end{verbatim}
 
-This function cancels the notification request identified by {\tt
-  notifystructure}. This function shall only be called on notification
-requests that have been successfully issued by {\tt
-  StartNotify()}\footnote{The information in~\cite{Bantam} on this is
+This function cancels the notification request identified by
+{\tt notifystructure}. This function shall only be called on notification
+requests that have been successfully issued by
+{\tt StartNotify()}\footnote{The information in~\cite{Bantam} on this is
 incorrect, {\tt EndNotify()} is \emph{not} safe to call on requests that
-failed to start.}. If the issuer of a request did not yet reply all {\tt
-  NotifyMessage}\key{NotifyMessage} messages and some are still piled up in
+failed to start.}. If the issuer of a request did not yet reply all
+{\tt NotifyMessage}\key{NotifyMessage} messages and some are still piled up in
 the {\tt nr\_Port}\key{nr\_Port}, the file system will manually dequeue them
 from {\tt nr\_Port}. However, callers should make sure that they have
 replied all {\tt NotifyMessage}s they already dequeued from their port
