@@ -288,7 +288,7 @@ typedef unsigned char UBYTE; /* an 8-bit unsigned integer */
 typedef long LONG;           /* a 32-bit integer          */
 \end{verbatim}
 
-\chapter{Elementary Data Types}
+\chapter{Elementary Concepts}
 \section{Purpose of the dos.library}
 \emph{AmigaDOS} is part of the \emph{Amiga Operating System} or short
 \emph{AmigaOs}. The \emph{dos.library} provides the application interface to
@@ -781,6 +781,16 @@ represents files through \emph{file handles}\key{FileHandle} in the form of
 a BPTR to a \emph{FileHandle}\mkey{FileHandle} structure, though most of the
 time, the elements of the structure are not needed and it is sufficient to
 pass the BPTRs around.
+
+\section{Directories}
+\emph{Directories}\key{Directory} are collections of files logically grouped
+together. They correspond to drawers on the workbench. Each medium such as a
+floppy disk, each medium and each partition on a harddisk has at least one top-most directory;
+it contains all the objects that are immediately visible if the icon
+representing the medium is double-clicked on the Workbench. This top-most
+directory is also called the \emph{root directory} of the disk, partition or
+medium. Often, directories such as the root directory can also contain other
+directories as \emph{sub-directories}.
 
 \section{Locks}
 Locks\key{Lock} are access rights to a particular object on a file system,
@@ -1278,7 +1288,7 @@ available.
 \chapter{Files} \label{sec:file}
 
 \section{What are Files?}
-\emph{Files}\mkey{File} are streams of sequences of bytes that can be read
+\emph{Files}\mkey{File} are streams or sequences of bytes that can be read
 from and written to, along with a file pointer that points to the next byte
 to be read, or the next byte to be written or overwritten. Files can run
 into an \emph{end of file condition} upon reaching it no further data can be
@@ -1317,14 +1327,14 @@ Examples for non-interactive files are data on a disk, such as on a floppy
 or a harddisk. Such files have a name, possibly a path within a hierarchical
 file system, possibly a creation date, a file comment and multiple
 protection flags that define which type of actions can be applied to a file;
-such flags define whether the file can be read from, written to, deleted,
+such flags define whether the file can be read from, written to, deleted or
 executed; this so-called \emph{meta-information} is discussed in more detail
 in section~\ref{sec:fib}.
 \smallskip{}
 
 \emph{Interactive} files depend on the interaction of the computer system
 with the outside world, and their contents can change due to such
-interaction. Interactive files do not have a well-defined file size as the
+interactions. Interactive files do not have a well-defined file size as the
 number of bytes that can be read from them depends on events in the
 environment. An attempt to read from them or write to them can block an
 indefinite amount of time until triggered by an external event.
@@ -1337,7 +1347,7 @@ where read requests are satisfied by data arriving at the serial port
 and written bytes are transmitted out of the port. The parallel port is a
 third example of an interactive file. Requests to read from it result in an
 error condition, while writing prints data on a printer connected to the
-port. Writing may block indefinitely if the printer runs out of paper or is
+port. Writing can block indefinitely if the printer runs out of paper or is
 turned off.
 
 \section{Paths and File Names} \label{sec:paths}
@@ -1357,24 +1367,28 @@ the handler to locate the file and/or defines its properties.
 \smallskip{}
 
 The first part, if present, is interpreted by the \emph{dos.library}
-itself. It relates to the name of a handler (or file system) of the given
-name, or a known disk volume\mkey{Volume}, or a logical volume of the name
-within the AmigaDOS \emph{device list}\key{Device List}. These concepts are
-presented in further detail in chapter~\ref{sec:devicelist}.
+itself. It relates to the name of a handler (or file system), a known disk
+volume\mkey{Volume}, or a logical volume, denoted as \emph{assign}. The
+latter type is best understood as a shortcut to a directory (or even
+multiple directories) located on some other volume(s) known to
+AmigaDOS. Handlers, volumes and assigns are administrated in the AmigaDOS
+\emph{device list}\key{Device List}. This list is discussed in depth in
+chapter~\ref{sec:devicelist}.
 \smallskip{}
 
-The second, or only part is interpreted by the handler or file system
-identified by the first part.
+The second part of a path, or its only part, is interpreted by the handler or
+file system, either as identified by the first part, or by the
+current directory of the calling process if the first part is missing. 
 
 \subsection{Devices, Volumes and Assigns}
 The first part of a path, up to the colon, identifies the device, the
-volume or the assign\key{Assign} a file is located in.
+volume or the assign\key{Assign} a file or directory is located in.
 
 \punchline{30 Characters Max!}{For legacy reasons, device, volume and assign
   names can be at most 30 characters long. The AmigaDOS functions that
   locate handlers, most notably {\tt GetDeviceProc()}\key{GetDeviceProc()},
-  are not able to handle longer names, and the {\tt Assign} command suffers
-  from a similar restriction. This 30 character limit does not hold for file
+  are not able to handle longer names, and the {\tt Assign} command creating
+  assigns suffers from the same restriction. This 30 character limit does not hold for file
   names or paths in general as the corresponding AmigaDOS components have
   been augmented. However, additional limits also arise, unfortunately, for
   paths.}
@@ -1382,10 +1396,10 @@ volume or the assign\key{Assign} a file is located in.
 \subsubsection{Devices} \label{sec:deviceoverview}
 A \emph{\mkey{Device name}device name} identifies the handler or file system
 directly. Handlers are typically responsible for particular hardware units,
-or partitions on such units within the system, for example for the first
+or partitions on such units, for example for the first
 floppy drive, or the second partition of a harddisk. For example, {\tt DF0}
 is the name of the handler responsible for the first floppy drive,
-regardless of which disk is inserted into it.
+regardless of which disk is inserted in it.
 \smallskip{}
 
 Table~\ref{table:romdevices} lists all device names AmigaDOS creates itself
@@ -1411,27 +1425,27 @@ Block\key{Rigid Disk Block (RDB)}, see~\cite{rkrmdev}. These names can be select
 the harddisks, e.g.\ through the HDToolBox. The general convention is to
 assign hard disk partitions the device names {\tt DH0} and following. As for floppy
 disks, partitions \emph{also} have a volume name, see
-section~\ref{sec:volumelist}, which should be different from its device
-name. The Workbench shows the latter, and \emph{not} the device name, on its
+section~\ref{sec:volumelist}, which should be different from their device
+names. The Workbench shows the latter, and \emph{not} the device name, on its
 screen.
 \smallskip{}
 
 The devices {\tt SER}, {\tt PAR}, {\tt PRT} and {\tt PIPE} are created by
-the Kickstart ROM, but the corresponding handler is disk-based and
-loaded from disk as soon as the device is needed. The addition of {\tt PIPE}
+the Kickstart ROM, but the corresponding handlers are disk-based and
+loaded as soon as the corresponding device is needed. The addition of {\tt PIPE}
 to this list is relatively recent, AmigaDOS V47 (Kickstart 3.2) includes it
 in the ROM-mounted devices as the Boot Shell requires it. Its handler is
 neither included in the Kickstart.
 \medskip{}
 
-The following device names have a special meaning and do not belong to
+The following device names have a special meaning and do not correspond to
 a particular handler:
 
 \begin{rkrmtable}{System Defined Devices} \label{table:specialdevices}
 {\bf Name} & {\bf Description} \\ \hline \hline
-{\tt *}\key{* (file name)}          & the console of the current process\\ \hline  
-{\tt CONSOLE}    & the console of the current process\\ \hline
-{\tt NIL}        & the data sink\\ \hline
+{\tt *}\key{* (file name)}          & The console of the current process\\ \hline  
+{\tt CONSOLE}    & The console of the current process\\ \hline
+{\tt NIL}        & The data sink\\ \hline
 \end{rkrmtable}
 
 The {\tt NIL}\mkey{NIL} device is a special device without a handler that is
@@ -1442,19 +1456,19 @@ behind its name.
 \smallskip{}
 
 The {\tt *}\mkey{* (file name)}, if used as complete path name without a
-trailing colon and without a file name, is the current console of the
+trailing colon and without a file name, identifies the current console of the
 process\key{Process}, if such a console\key{Console} exists. Any data output
 to the file named {\tt *} will be printed on the console. Reading from
 {\tt *} will wait for the user to input data on the console, and will return
 such data. If no console exists, for example for processes run from the
 Workbench, then AmigaDOS versions 36 and later fall back to opening
-{\tt NIL:} which absorbs any output. Earlier versions failed to
-open {\tt *} in such a case.
+{\tt NIL:} which absorbs any output. Earlier versions created an error in
+such a case.
 
 \punchline{Not a wildcard!}{Unlike other operating systems, the
   asterisk {\tt *} is \emph{not} a wildcard under AmigaDOS. It rather
-  identifies the current console of a process, or is used as escape
-  character in AmigaDOS Shell scripts\key{Shell Script}.}
+  identifies the current console of a process. It is also used as escape
+  character in AmigaDOS Shell scripts\key{Shell Script}, see chapter~\ref{sec:shell}.}
 
 The {\tt CONSOLE}\mkey{CONSOLE (device)} device is the default console of
 the process\key{Process}. This special device name exists since AmigaDOS
@@ -1472,7 +1486,7 @@ does not provide job control features, some third party consoles do.
   job started when creating the shell\key{Shell}. Thus, in case of doubt, use the
   ``{\tt *}'' without any colon if you mean the console.}
 
-Additional devices can be announced to the system by the
+Additional devices can be added to the system by the
 \emph{Mount}\mkey{Mount (command)} command, see
 chapter~\ref{sec:handlers}. Device names for custom mount handlers and file
 systems can be chosen freely as long as they do not conflict with system
@@ -1483,7 +1497,7 @@ the system-defined assigns in section~\ref{sec:volumelist}.
 
 \subsubsection{Volumes} \label{sec:volumelist}
 A \emph{volume name}\mkey{Volume name}\key{Volume} identifies a particular data
-carrier within a physical drive. For example, it may identify a
+carrier within a physical drive. For example, it can identify a
 particular floppy disk, regardless of the drive it is inserted it. For
 example, the volume name ``Workbench3.2'' relates always to the same
 floppy, regardless of whether it is inserted in the first {\tt DF0} or
@@ -1491,8 +1505,8 @@ second {\tt DF1} drive. Partitions on a harddisk also have a volume name by
 which they can be identified.
 
 \subsubsection{Assigns} \label{sec:assignlist}
-An \emph{assign}\mkey{Assign} or \emph{logical volume} identifies a subset
-of a files within a file system under a unique name. Such assigns are
+An \emph{assign}\mkey{Assign} or \emph{logical volume} identifies one or
+multiple directories within a file system under a unique name. Such assigns are
 created by the system or by the user helping to identify portions of the
 file system containing files that are of particular relevance for the
 system. For example, the assign {\tt C} contains all commands of the Boot
@@ -1501,7 +1515,7 @@ libraries. Such assigns can be changed or relocated, and by that the system
 can be instructed to take system resources from other parts of a file
 system, or entirely different file systems. Assigns can be used
 interchangeably with device or volume names and thus form logical volumes
-within volumes, or even across volumes.
+within partitions, disks, or even across multiple volumes.
 \medskip{}
 
 Assigns can be of three types: \emph{Regular assigns}, \emph{non-binding
@@ -1513,7 +1527,7 @@ insert this particular volume, and no other volume, even of identical name,
 will be accepted.
 \smallskip{}
 
-Regular assigns\key{Assign} can also bind to multiple directories at once, in which case
+Assigns\key{Assign} can also bind to multiple directories at once, in which case
 a particular file or directory within such a
 \emph{multi-assign}\mkey{Multi-Assign} is searched in all directories
 included in the assign. A particular use case for this is the {\tt FONTS}
@@ -1522,15 +1536,15 @@ assign, containing all system-available fonts. Adding another directory to
 the original ones.
 \medskip{}
 
-Regular assigns have the drawback that the volume remains known to the
-system, and the corresponding volume icon will not vanish from the
-Workbench. They also require the volume to be present at the time the assign
-is created.
+Regular assigns and multi-assigns have the drawback that the volume remains
+known to the system, and the corresponding volume icon will not vanish from
+the Workbench. They also require the volume to be present at the time the
+assign is created.
 \smallskip{}
 
 \emph{Non-binding assigns}\key{Non-binding Assign} avoid these problems by
 only storing the symbolic path the assign points to; whenever a file or path
-within the assign is accessed, any volume of the name given by the assign
+within the assign is requested, any volume of the name given by the assign
 target will satisfy the request. However, this also implies that the
 target of the assign is not necessarily consistent, i.e.\ if the assign is
 accessed again at a later time, another volume of the same name, but
@@ -1572,15 +1586,17 @@ added in version 36 of AmigaDOS:
 {\tt PROGDIR}     & Location of the executable\\ \hline
 \end{rkrmtable}
 
-Thus, {\tt PROGDIR}\mkey{PROGDIR} is the directory the currently
-executed binary was loaded from. Note that {\tt PROGDIR} does not
-exist in case an executable was not loaded from disk, probably
-because it was either taken from ROM or was made resident. More on
-resident executables is found in section~\ref{sec:resident}\footnote{Unfortunately,
-attempting to access a file relative to {\tt PROGDIR} if it does not exist,
-e.g.\ from within resident
-executables, will create a requester to insert a volume of this name. This is
-likely a defect as this requester is not particularly instructive.}.
+Thus, {\tt PROGDIR}\mkey{PROGDIR} is the directory within which the
+currently executed process finds the command or application it was created
+from. This allows applications to locate related program data contained in the same
+directory as their main program code. {\tt PROGDIR} does not
+exist\footnote{Unfortunately, attempting to access a file relative to
+{\tt PROGDIR} if it does not exist, e.g.\ from within resident executables,
+will create a requester to insert a volume of this name. This is likely a
+defect as this requester is not particularly instructive.} in case an
+executable was not loaded from disk, probably because it was either taken
+from ROM or was made resident. More on resident executables is found in
+section~\ref{sec:resident}.
 \smallskip{}
 
 Additional assigns\key{Assign} can become necessary for a fully operational
@@ -1601,8 +1617,8 @@ Table~\ref{table:startupassigns} lists some of them.
 {\tt CLASSES}     & Boopsi GUI components\\ \hline
 \end{rkrmtable}
 
-The assigns\key{Assign} {\tt ENV}, {\tt REXX}, {\tt LOCALE} and {\tt
-  CLASSES} became part of AmigaDOS in releases 36, 38 and 39,
+The assigns\key{Assign} {\tt ENV}, {\tt REXX}, {\tt LOCALE} and
+{\tt CLASSES} became part of AmigaDOS in releases 36, 38 and 39,
 respectively. Additional assigns can always be made with the
 {\tt Assign}\key{Assign} command or the AmigaDOS functions discussed in
 section~\ref{sec:assigns}.
@@ -1623,20 +1639,22 @@ relative to the \emph{current directory} of the process using the path.
 If only a colon is present but the device, volume or assign\key{Assign} name is omitted,
 the path is still an absolute path and is relative to the root directory of
 volume that contains the current directory of the running
-processing. Details on this are provided in section~\ref{sec:process}.
+processing. Details on processes and their properties are provided
+in chapter~\ref{sec:process}.
 \smallskip{}
 
 If neither a colon nor a device, volume or assign name is present, the path
-is a relative path.
+is a relative path; it is relative to the current directory of the process
+using it.
 \smallskip{}
 
 The path name behind the colon, or the entire relative path is forwarded to
 the handler or file system identified by either the current directory or the
 device, volume or assign\key{Assign} name and is not interpreted by the
-\emph{dos.library}. It is within the responsibility of the handler to
-interpret this path and locate a file within the data carrier it manages, or
-to configure an interface to the outside world according to this path. For
-example, while the Fast File System (FFS)\key{Fast File System (FFS)} ---
+\emph{dos.library}. It is within the responsibility of the file system to
+interpret this path and locate a file within the volume it manages, or in
+case of handlers, to configure an interface to the outside world according
+to this path. For example, while the Fast File System (FFS)\key{Fast File System (FFS)} ---
 the Amiga ROM file system --- interprets this path as a location within the
 file system directory hierarchy, the CON-Handler\key{CON-Handler} reads it as a
 specification of the dimensions and configuration of the window it is
@@ -1646,36 +1664,37 @@ supposed to open.
 In general, the \emph{dos.library} does not impose a particular syntax
 on how this second part looks like. However, several support functions
 of AmigaDOS implicitly define conventions file systems should follow
-to make these support functions workable and it is therefore advisable
+to make these support functions workable. It is therefore advisable
 for file system implementers to follow these
-conventions. Section~\ref{sec:flathierarchical} provides them.
+conventions, they are introduced in section~\ref{sec:locate}.
 
 \subsection{Maximum Path Length} \label{sec:pathlimit}
 
-The maximum path length that can be safely used with most functions of the
+The maximal length of a path that can be safely passed as argument to most functions of the
 \emph{dos.library} is 255 characters. This is because the library has to
-convert such paths internally to BSTRs to communicate them to handlers and
-file systems. The functions from section~\ref{sec:workpaths} and the
+convert paths internally to BSTRs to communicate them to handlers and
+file systems, and the lengths of BSTRs are expressed in bytes.
+The functions from section~\ref{sec:workpaths} and the
 {\tt ReadLink()} function of section~\ref{sec:readlink} are some notable
 exceptions.
 \smallskip{}
 
-How large the name of a directory or a file, i.e.\ a component of a path,
-can be is a matter of the file system itself. The Fast File
-System\key{Fast File System (FFS)} includes variants that limit component (file or
-directory) names to 30, 54 or 106 characters. The latter is the upper limit
-that is imposed by the {\tt FileInfoBlock}\key{FileInfoBlock} structure, see
-section~\ref{sec:fib}.
+How large the name of a file or directory can be is a matter of the file
+system itself. The Fast File System\key{Fast File System (FFS)} includes
+variants that limit names to 30, 54 or 106 characters. The latter is the
+upper limit that is imposed by the {\tt FileInfoBlock}\key{FileInfoBlock}
+structure, see section~\ref{sec:fib}.
 \smallskip{}
 
-File systems typically do not report an error if the maximum component name
-length is exceeded; instead, the name is clamped to the maximum size without
-further notice, which may lead to undesired side effects. For example, a
-file system may clip or remove a trailing {\tt .info} from a Workbench icon
-file name without ever reporting this, resulting in unexpected side
-effects. The \emph{icon.library} and \emph{workbench.library} of AmigaOs
-take care of this problem to avoid such file names and double check created
-objects for correct names.
+File systems typically do not report errors if the maximum file or directory
+name length is exceeded; instead, the name is clamped to the maximum size
+without further notice, which may lead to undesired side effects. For
+example, a file system may clip or remove a trailing {\tt .info} from a file
+representing a Workbench icon without ever reporting this, upon which the
+Workbench would not be able to identify the file as an icon. The
+\emph{icon.library} and \emph{workbench.library} of AmigaOs are aware of
+this problem, avoid such file names and double check created objects for
+correct names.
 
 \subsection{Flat vs. Hierarchical File Systems} \label{sec:flathierarchical}
 A flat file system organizes files as a single list of all files
@@ -1684,66 +1703,58 @@ a representation is clearly burdensome as files may be hard to find
 and hard to identify.
 
 For this reason, all file systems provided by AmigaOs are
-\emph{hierarchical} and organize files in nested sets of
-\emph{directories}\mkey{Directory}, where each directory contains files or
-more directories. The topmost directory of a volume forms the \emph{root
-directory}\mkey{Root Directory} of this volume.
+\emph{hierarchical} and organize files in nested 
+\emph{directories}\mkey{Directory}, where each directory contains more files or
+directories. The topmost directory of a volume forms the
+\emph{root directory}\mkey{Root Directory} of this volume.
 \smallskip{}
 
-While AmigaDOS itself does not enforce a particular convention, all
-file systems included in AmigaDOS follow the convention that a path
-consists of a sequence of zero or more directory names separated by a
-forwards slash (``/''), and a final file or directory name. Note that this
-is different from some other operating system that use a backslash as
-component separator.
+While AmigaDOS itself does not enforce a particular convention, all file
+systems included in AmigaDOS follow the convention that a path consists of a
+sequence of zero or more directory names separated by a forwards slash
+(``/''), and a final file or directory name. Each directory or file name in
+the path is denoted as a \emph{component} in the following. AmigaDOS
+therefore separates components by forward slashes; this is different from
+some other operating system that use the backslash as component separator.
 
 \subsection{Locating Files or Directories} \label{sec:locate}
 
 When attempting to locate a particular file or directory, the
-\emph{dos.library} first checks whether an absolute path name is
-present. If so, it starts from the root directory on the device,
-physical or logical volume identified by the device or volume name and
-delegates the interpretation of the path to the handler.
+\emph{dos.library} first checks if the path contains a colon (``{\tt :}'')
+and hence is an absolute path. If so, it locates the handler or file system
+responsible from the name upfront the colon and then provides the entire
+path to this handler.
 \smallskip{}
 
 Otherwise, it uses the \emph{current directory} of the calling
-process\key{Process} to locate a handler responsible for the
-interpretation of the path name. If this current directory is
-{\tt ZERO} (see section~\ref{sec:bptrs}), it uses the
-\emph{default file system} of the process, which by itself,
-defaults to the file system that booted the system.
+process\key{Process} to locate a file system responsible for the interpretation
+of the path name. If the current directory is {\tt ZERO} (see
+section~\ref{sec:bptrs}), it uses the \emph{default file system} of the
+process, which is, unless changed, the file system that booted the
+system.
 \smallskip{}
 
-The second part of the path interpretation is up to the file system
-identified by the first step and is performed there, outside of the
-\emph{dos.library}. If the path name includes a colon (``{\tt :}''), then
-locating a file starts from the root of the inserted volume.
-\medskip{}
-
-The following paragraphs describe a recommended set of operations an
-AmigaDOS file system should follow. A path consists of a sequence of
-components separated by forward slashes (``{\tt /}'').
+The \emph{dos.library} then provides to the file system the path, and a
+directory from which to start locating the requested object.
+Interpretation of the path continues then by the file system,
+outside of the \emph{dos.library}. The following paragraph describes a
+recommended algorithm all AmigaDOS file system should follow:
 \smallskip{}
 
-To locate a file, the file system should work iteratively through the
-path, component by component: A single isolated ``{\tt /}'' without a
-preceding component indicates the parent directory of the current
-directory. The parent directory of the root directory\key{Root Directory} is the root
-directory itself.
+To locate a file, the file system works iteratively through the path,
+component by component: A single isolated ``{\tt /}'' without a preceding
+component indicates the parent directory of the current directory. The
+parent directory of the root directory\key{Root Directory} is the root
+directory itself. Otherwise, a component followed by ``{\tt /}'' instructs
+the file system to enter the directory given by the component, and to
+continue searching there. Scanning terminates when the file system reaches
+the last component. The file or directory to find is then the given by the
+last component reached during the scan.
 \smallskip{}
 
-Otherwise, a component followed by ``{\tt /}'' instructs the file system to
-enter the directory of given by the component, and continue searching there.
-\smallskip{}
-
-Scanning terminates when the file system reaches the last component. The
-file or directory to find is then the given by the last component
-reached during the scan.
-\smallskip{}
-
-As scanning through directories starts with the current directory and
-stops when the end of the path has been reached, the empty string
-indicates the current directory.
+As interpreting relative path starts with the current directory and stops
+when the end of the path has been reached, the empty string indicates the
+current directory.
 
 \punchline{No Dots Here}{Unlike other operating systems, AmigaDOS does
   not use ``.'' and ``..'' to indicate the current directory or the
@@ -1752,15 +1763,15 @@ indicates the current directory.
   isolated forwards slash without a preceding component.}
 
 Thus, for example, ``{\tt :S}'' is a file or directory named ``{\tt S}'' in
-the root directory\key{Root Directory} of the current directory of the process, and ``{\tt
-  //Top/Hi}'' is a file or directory named ``{\tt Hi}'' two directories up
+the root directory\key{Root Directory} of the current directory of the
+process, and ``{\tt //Top/Hi}'' is a file or directory named ``{\tt Hi}'' two directories up
 from the current directory, in a directory named ``{\tt Top}''.
 
 \subsection{Case Sensitivity and Character Encoding} \label{sec:charencoding}
 
 Device, volume or assign\key{Assign} names are always case-insensitive. The
 \emph{dos.library} uses the service of the currently loaded locale to
-compare the path component with their names, and by default assumes the
+compare the path component with their names, and it assumes by default the
 ISO-Latin 1 encoding. Whether all other components of a path are case
 sensitive and how directory and file names are compared to the names of file
 system objects is dependent on the file system. While file systems
@@ -1777,16 +1788,16 @@ printable ISO-Latin characters, this is \emph{not necessarily} the case for
 other encodings or components containing non-printable characters. 
 \smallskip{}
 
-In general, AmigaDOS support functions such as the pattern matching
+In general, AmigaDOS support functions such as the pattern matcher
 functions discussed in chapter~\ref{sec:patternmatch} also assume that file
 systems are case-insensitive, and use the ISO-Latin character set. Thus,
 what a file system considers an identical file name can, actually, be
 something different from what the \emph{dos.library} considers a matching
 name. Code points from the control set of ISO-Latin, i.e.\ codes between
-{\tt 0x01} to {\tt 0x1f} or {\tt 0x7f} to {\tt 0x9f} should be avoided
-\footnote{Unfortunately, the file systems in the Amiga Kickstart are currently inconsistent on which
+{\tt 0x01} to {\tt 0x1f} or {\tt 0x7f} to {\tt 0x9f} should be
+avoided\footnote{Unfortunately, the file systems in the Amiga Kickstart are currently inconsistent on which
 characters they accept. The FFS does not accept any control characters,
-the RAM-Handler (probably erraneously) accepts characters in the C1 control set from {\tt 0x80} to {\tt 0x9f}.}, and
+the RAM-Handler (probably erroneously) accepts characters in the C1 control set from {\tt 0x80} to {\tt 0x9f}.}, and
 the code point {\tt 0x00} ASCII {\tt NUL} shall not be used at all as it terminates
 C strings and therefore cannot be part of a file name anyhow\footnote{To be very
 precise, it actually \emph{could} be as this character does not have a
@@ -1893,10 +1904,9 @@ section~\ref{sec:paths}. The argument {\tt accessMode} identifies how
 the file is opened. The function returns a {\tt BPTR} to a
 file handle\key{FileHandle} on success, or {\tt ZERO} on failure. A secondary result
 code can be retrieved from {\tt IoErr()}; this function is introduced in
-section~\ref{sec:ioerr}. This result code should be~$0$ on success, though unfortunately
-not all handlers set it correctly on success.
+section~\ref{sec:ioerr}. This result code is undefined on success.
 In case opening the file failed, {\tt IoErr()}\key{IoErr()}
-delivers one of the error codes from {\tt dos/dos.h},
+delivers one of the error codes from {\tt dos/dos.h};
 section~\ref{sec:ioerr} lists the system defined codes.
 
 \punchline{Length Limited}{As this function needs to convert the path
@@ -1980,34 +1990,37 @@ BOOL Close(BPTR)
 \end{verbatim}
 
 The {\tt file} argument is a BPTR to a file handle\key{FileHandle} identifying the
-file to close. The return code indicates whether the file system could successfully
-close the file and write back any data. If the result code is
-{\tt DOSFALSE}, an error code can be obtained through {\tt IoErr()} described
-in section~\ref{sec:ioerr}. Otherwise, {\tt IoErr()} will not be
-altered. Under version 34 and below, this function does not return a result
-code and the contents of register {\tt d0} cannot be depended upon.
+file to close. The return code indicates whether the file system or handler could successfully
+close the file; closing a file can fail, for example, if some data is still
+buffered in file system internal structures and the target volume is not
+accessible anymore.
+\smallskip{}
+
+If the result code is {\tt DOSFALSE}, an error code can be obtained through
+{\tt IoErr()} described in section~\ref{sec:ioerr}. On success, {\tt IoErr()}
+will not be altered. Under version 34 and below, this function does not
+return a result code and the contents of register {\tt d0} cannot be
+depended upon.
 \smallskip{}
 
 File handles that had been obtained through {\tt Input()}, {\tt Output()} or
 {\tt ErrorOutput()} should, in general, not be closed as they had been
-created by the environment running the process, i.e.\ the shell\key{Shell} or the
+created by the environment launching the process, e.g.\ the shell\key{Shell} or the
 Workbench. These handles will automatically be closed when the running
 program terminates. Attempting to close the same file twice will most likely
 result in a crash.
 \smallskip{}
 
-If closing a file fails, e.g.\ because internal buffers of the file system
-cannot be written back if the volume became inaccessible, unfortunately
-not much can be done and no general advice is possible how to handle this
-situation. At the time {\tt Close()} returns with an error, an error
-requester has already been shown to the user --- unless it has been
-explicitly disabled --- and thus retrying {\tt Close()} does not provide an
-advantage.
+If closing a file fails not much can be done unfortunately and no general
+advice is possible how to handle this situation. At the time {\tt Close()}
+returns with an error, an error requester has already been shown to the user
+--- unless it has been explicitly disabled --- and thus retrying
+{\tt Close()} does not provide an advantage.
 \smallskip{}
 
 Attempting to close the {\tt ZERO} file handle\key{FileHandle} under AmigaDOS version 36 or
-later returns success immediately. Under earlier versions, closing
-{\tt ZERO} caused a crash.
+later returns {\tt DOSFALSE} immediately. Under earlier versions, attempting
+to close {\tt ZERO} caused a crash.
 
 \section{Testing for Interactive Files}
 
@@ -2017,7 +2030,7 @@ interact with the outside world. File systems create non-interactive files;
 all other handlers\key{Handler} create interactive or non-interactive
 files, depending on the nature of the handler.
 
-\subsection{Obtaining the Type from a File} \label{sec:isinteractive}
+\subsection{Test whether an File Handle is Interactive} \label{sec:isinteractive}
 
 A file can be either interactive, in which case attempts to read or write
 data to the file may block indefinitely and the contents and state of the
@@ -2055,13 +2068,13 @@ pointer through {\tt Seek()}\key{Seek()} (see~\ref{sec:seek})
 or changing the file size through {\tt SetFileSize()}\key{SetFileSize()},
 see section~\ref{sec:setfilesize}.
 
-\subsection{Obtaining the Handler Type from a Path} \label{sec:isfilesystem}
+\subsection{Test whether a Path addresses a Handler or File System} \label{sec:isfilesystem}
 
-A handler\key{Handler} that manages physical data carriers and allows to
-access named files on such data carriers is a file system. Such handlers
-will generally create non-interactive files. The
-{\tt IsFileSystem()}\mkey{IsFileSystem()} function determines the nature of a
-handler given a path (see~\ref{sec:paths}) to a candidate handler.
+A handler\key{Handler} that volumes and allows to access named files on them
+is a file system. Such handlers will generally create non-interactive
+files. The {\tt IsFileSystem()}\mkey{IsFileSystem()} function determines the
+nature of a handler given a path (see~\ref{sec:paths}) addressing a candidate
+handler.
 
 \begin{verbatim}
 result = IsFileSystem(name) /* since V36 */
@@ -2071,7 +2084,7 @@ BOOL IsFileSystem(STRPTR)
 \end{verbatim}
 The {\tt name} argument is a path that does not need to identify a
 physically existing object. Instead, it is used to identify a handler
-that would be responsible to such a hypothetical object regardless
+that would be responsible to access a hypothetical object regardless
 whether it exists or not.
 \smallskip{}
 
@@ -2082,12 +2095,12 @@ calling process is a file system.
 \smallskip{}
 
 The returned result is non-zero in case the handler identified by the
-path is a file system, and as such allows access to multiple files on a
-physical data carrier and examining directories. Otherwise, it
+path is a file system, and as such allows access to files on volumes, and
+examine directories on it. Otherwise, the function
 returns {\tt DOSFALSE}.
 \smallskip{}
 
-This function does not exist prior to version 36 of the
+This function did not exist prior to version 36 of the
 \emph{dos.library}. A possible workaround to check whether a candidate
 handler is a file system is to attempt to lock the root directory\key{Root Directory} of the
 handler, i.e.\ call {\tt Lock()}\key{Lock()} on the device name that is to be
@@ -2096,14 +2109,14 @@ succeeds, the handler corresponding to the provided path is likely a file
 system. A similar workaround
 is also used internally by the library for handlers that do not support the
 identification natively. A side effect of this workaround, but also
-of {\tt IsFileSystem()} is that it will load and start the corresponding handler
-if it is not already active.
+of {\tt IsFileSystem()}, is that it will load and start the corresponding handler
+if it is not already running.
 
 \section{Unbuffered Input and Output} \label{sec:unbuffered}
 
 The functions described in this section read bytes from or write bytes to
 opened files. These functions are \emph{unbuffered}, that is, any request
-goes directly to the handler. Since a request performs necessarily a task
+goes directly to the handler. Since a request necessarily performs a task
 switch from the caller to the handler managing the file, these functions are
 inefficient for small amounts of data and should then be avoided. Instead,
 files should be read or written in larger chunks, either by buffering data
@@ -3654,7 +3667,7 @@ in case of failure as the error code is not saved on a failed unlock.
 \emph{Locks}\mkey{Lock} are access rights to file system objects, such as
 files or directories. Once an object has been locked, it can no longer be
 deleted. Locked files cannot be replaced or deleted, and depending on the
-type of the lock, can neither be read or written to.
+type of the lock, can neither be opened for reading or writing.
 \smallskip{}
 
 Locks come in two types: \emph{exclusive locks}\key{EXCLUSIVE\_LOCK} and
@@ -3700,7 +3713,7 @@ locks, compare with table~\ref{table:modelock} in section~\ref{sec:locksnfiles}.
 
 As long as at least a single lock\key{Lock} is held on an object, the file
 system will keep the volume containing the locked object within the device
-list\key{Device List} of the \emph{dos.library}. This list is discussed in
+list\key{Device List} of the \emph{dos.library}, which is discussed in
 chapter~\ref{sec:devicelist}. This has, for example, the consequence that
 the Workbench will continue to show its volume icon.
 \smallskip{}
