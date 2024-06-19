@@ -1676,7 +1676,8 @@ convert paths internally to BSTRs to communicate them to handlers and
 file systems, and the lengths of BSTRs are expressed in bytes.
 The functions from section~\ref{sec:workpaths} and the
 {\tt ReadLink()} function of section~\ref{sec:readlink} are some notable
-exceptions.
+exceptions. Section~\ref{sec:openlong} demonstrates how to work around this
+restriction by operating with pairs of paths and directory locations.
 \smallskip{}
 
 How large the name of a file or directory can be is a matter of the file
@@ -1766,6 +1767,72 @@ Thus, for example, ``{\tt :S}'' is a file or directory named ``{\tt S}'' in
 the root directory\key{Root Directory} of the current directory of the
 process, and ``{\tt //Top/Hi}'' is a file or directory named ``{\tt Hi}'' two directories up
 from the current directory, in a directory named ``{\tt Top}''.
+
+\subsection{Open a File From an Overlong File Name} \label{sec:openlong}
+
+The following code demonstrates both how to iterate through a path, and also
+shows how to work around the 255 character limit of paths the
+\emph{dos.library} can process. It implements a lookalike of the
+{\tt Open()}\key{Open()} function introduced in section~\ref{sec:open} that
+also works with paths longer than 255 characters.
+
+\begin{verbatim}
+BPTR OpenFromLongName(UBYTE *name,LONG mode)
+{
+  LONG pos  = 0;
+  BPTR file = ZERO;
+  BPTR old  = -1L; /* Never a valid lock */
+  /* Long enough for a component and a device name */
+  UBYTE buffer[108+32];
+
+  do {
+    pos = SplitName(name,'/',buffer,pos,sizeof(buffer));
+    if (pos < 0) {
+      /* No separator found, call now Open() */
+      file = Open(buffer,mode);
+      break;
+    } else {
+      BPTR lock;
+      /* Lock the partial path so far and abort on error.
+      ** If two slashes are next to each other, 
+      ** go to the parent directory. 
+      */
+      if (!(lock = Lock(*buffer?buffer:"/",SHARED_LOCK)))
+        break;
+
+      /* Rotate directories */
+      lock = CurrentDir(lock);
+
+      /* Unlock previous directory, 
+      ** keep the old directory 
+      */
+      if (old >= 0) {
+        UnLock(lock);
+      } else {
+        old = lock;
+      }
+    }
+  } while(1);
+      
+  /* Restore the current directory if any.
+  ** None of the functions touch IoErr().
+  */
+  if (old >= 0)
+    UnLock(CurrentDir(old));
+
+  /* Return the opened file */
+  return file;
+}
+\end{verbatim}
+
+The {\tt SplitName()}\key{SplitName()} function copies a component of a
+path into a buffer, splitting it at the indicated position. More details on
+this function are found in~\ref{sec:splitname}. The {\tt Lock()}\key{Lock()}
+and {\tt UnLock()}\key{UnLock()} functions obtain and release abstract
+descriptors of directories, they are discussed in
+chapter~\ref{sec:locks}. The {\tt CurrentDir()}\key{CurrentDir()} function
+changes the current directory of the calling process and returns the
+previous directory. More on this function in section~\ref{sec:currentdir}.
 
 \subsection{Case Sensitivity and Character Encoding} \label{sec:charencoding}
 
@@ -5725,14 +5792,15 @@ beyond this slash. Therefore, the ``file part'' of a path that
 explicitly indicates a directory is empty, though the ``path part'' is
 the same path without the trailing slash.
 
-\subsection{Extract a Component From a Path}
+\subsection{Extract a Component From a Path} \label{sec:splitname}
 
 The {\tt SplitName()}\mkey{SplitName()} function extracts a component
 starting at a given offset from a path and delivers the component in a
 buffer. It also returns a new position at which to continue parsing the path
 for the next component. By iteratively calling {\tt SplitName()}, a path can
 be resolved directory by directory, walking the file system tree from the
-root to the leaves.
+root to the leaves. Section~\ref{sec:openlong} provides an example
+how to use it for iterating through a path.
 
 \begin{verbatim}
 newpos = SplitName(name, separator, buf, oldpos, size) /* since V36 */
