@@ -1774,13 +1774,14 @@ The following code demonstrates both how to iterate through a path, and also
 shows how to work around the 255 character limit of paths the
 \emph{dos.library} can process. It implements a lookalike of the
 {\tt Open()}\key{Open()} function introduced in section~\ref{sec:open} that
-also works with paths longer than 255 characters.
+also works with paths longer than 255 characters, though requires that
+the handler addressed by the path is a file system.
 
 \begin{verbatim}
 BPTR OpenFromLongName(UBYTE *name,LONG mode)
 {
   LONG pos  = 0;
-  BPTR file = ZERO;
+  BPTR file = 0;
   BPTR old  = -1L; /* Never a valid lock */
   /* Long enough for a component and a device name */
   UBYTE buffer[108+32];
@@ -1826,7 +1827,7 @@ BPTR OpenFromLongName(UBYTE *name,LONG mode)
 \end{verbatim}
 
 The {\tt SplitName()}\key{SplitName()} function copies a component of a
-path into a buffer, splitting it at the indicated position. More details on
+path into a buffer, splitting it at the indicated separator. More details on
 this function are found in~\ref{sec:splitname}. The {\tt Lock()}\key{Lock()}
 and {\tt UnLock()}\key{UnLock()} functions obtain and release abstract
 descriptors of directories, they are discussed in
@@ -1981,11 +1982,11 @@ section~\ref{sec:ioerr} lists the system defined codes.
   characters are not supported and results are unpredictable if
   passed into {\tt Open()}. It is the responsibility of the caller to
   split oversized paths and potentially walk through the directories
-  manually by the functions in chapter~\ref{sec:locks} if necessary.
-  Note that this strategy may not be suitable
-  for interactive files or for handlers that follow conventions of the
-  path name that are different from the conventions described in
-  section~\ref{sec:locate}.}
+  manually if necessary, for example by a function similar to that
+  presented in section~\ref{sec:openlong}. Note that this strategy
+  may not be suitable for interactive files or for handlers that
+  follow conventions of the path name that are different from
+  the conventions described in section~\ref{sec:locate}.}
 
 The access mode shall be one of modes in table~\ref{table:openmodes}, they
 are also defined in {\tt dos/dos.h}:
@@ -1999,7 +2000,7 @@ are also defined in {\tt dos/dos.h}:
 
 The access mode {\tt MODE\_OLDFILE}\mkey{MODE\_OLDFILE} attempts to find an existing
 file. If the file does not exist, the function fails. If the file
-exists, it can be read from or written to, and simultaneous
+exists and {\tt Open()} succeeds, it can be read from or written to, and simultaneous
 access from multiple processes is possible and does not create an
 error condition. If multiple processes write to the same file
 simultaneously, the result is undefined and no particular order of the
@@ -2014,27 +2015,28 @@ create directories in the middle of the path if they do not exist. Once the file
 opened, access to the file is shared, even if it has been just created. That
 is, multiple processes may then access it for reading or writing. If
 multiple processes write to the file simultaneously, the order in which the
-writes are served is undefined and depends on the scheduling of the
-processes.
+writes are served is undefined and depends on how processes are scheduled.
 \smallskip{}
 
-For AmigaDOS versions 34 and below, {\tt MODE\_READWRITE}\key{MODE\_READWRITE} implements a
-somewhat different access mode. Under these releases, a file system
-attempting to open a file in this mode does not attempt to create files
-that do not exist, and exclusive access is granted. Due to these
-inconsistencies, {\tt MODE\_READWRITE} should probably be best avoided. If
-exclusive access without deleting existing file content is required, it is
-best to first obtain an exclusive lock\key{Lock}, see section~\ref{sec:lock}, and then
-use this lock to create a file handle\key{FileHandle} from it though {\tt OpenFromLock()},
-see section~\ref{sec:openfromlock}.
+For AmigaDOS versions 34 and below,
+{\tt MODE\_READWRITE}\key{MODE\_READWRITE} implements a mode that is almost the
+reverse of what newer releases provide under the same name. There,
+{\tt MODE\_READWRITE} requested exclusive access, but required the file to
+be existing already; it did not create new files. Due to these
+inconsistencies, {\tt MODE\_READWRITE} should probably
+be best avoided. If exclusive access without deleting existing file content
+is required, it is best to first obtain an exclusive lock\key{Lock}, see
+section~\ref{sec:lock}, and then use this lock to create a file
+handle\key{FileHandle} from it though {\tt OpenFromLock()}, see
+section~\ref{sec:openfromlock}.
 \smallskip{}
 
-The access mode {\tt MODE\_NEWFILE}\mkey{MODE\_NEWFILE} creates a new file, potentially
-erasing an already existing file of the same name if it already
-exists. The function does not attempt to create directories within the
-path if they do not exist. Access to the file is exclusive, that is,
-any attempt to access the file from a second process fails with the error
-code {\tt ERROR\_OBJECT\_IN\_USE}\key{ERROR\_OBJECT\_IN\_USE}.
+Finally, the access mode {\tt MODE\_NEWFILE}\mkey{MODE\_NEWFILE} creates a new file,
+potentially erasing an already existing file of the same name. The function
+does not attempt to create directories within the path if they do not
+exist. Access to the file is exclusive, that is, any attempt to access the
+file from a second process fails with the error code
+{\tt ERROR\_OBJECT\_IN\_USE}\key{ERROR\_OBJECT\_IN\_USE}.
 
 \punchline{No Wildcards}{The Open() function, similar to most
   \emph{dos.library} functions, does not attempt to resolve wildcards. That
@@ -2058,7 +2060,7 @@ BOOL Close(BPTR)
 
 The {\tt file} argument is a BPTR to a file handle\key{FileHandle} identifying the
 file to close. The return code indicates whether the file system or handler could successfully
-close the file; closing a file can fail, for example, if some data is still
+close the file; closing a file can fail, for example, if data is still
 buffered in file system internal structures and the target volume is not
 accessible anymore.
 \smallskip{}
@@ -2088,96 +2090,6 @@ returns with an error, an error requester has already been shown to the user
 Attempting to close the {\tt ZERO} file handle\key{FileHandle} under AmigaDOS version 36 or
 later returns {\tt DOSFALSE} immediately. Under earlier versions, attempting
 to close {\tt ZERO} caused a crash.
-
-\section{Testing for Interactive Files}
-
-As introduced in \ref{sec:interactive}, AmigaDOS distinguishes between
-non-interactive files managed by file systems and interactive files that
-interact with the outside world. File systems create non-interactive files;
-all other handlers\key{Handler} create interactive or non-interactive
-files, depending on the nature of the handler.
-
-\subsection{Test whether an File Handle is Interactive} \label{sec:isinteractive}
-
-A file can be either interactive, in which case attempts to read or write
-data to the file may block indefinitely and the contents and state of the
-file depends on conditions of the outside world, or non-interactive where
-the amount of available data is determined by file itself. The
-{\tt IsInteractive()} function returns the nature of an already opened file.
-
-\begin{verbatim}
-status = IsInteractive( file )
- D0                      D1
-
-BOOL IsInteractive(BPTR)
-\end{verbatim}
-
-The {\tt IsInteractive()}\mkey{IsInteractive()} function returns
-a non-zero result code in case the file handle\key{FileHandle} passed in is interactive, or
-{\tt FALSE} in case it corresponds to a non-interactive stream of
-bytes, potentially on a file system.
-This function cannot fail and does not alter {\tt IoErr()}.
-\smallskip{}
-
-The Port-Handler\key{Port-Handler} and the devices {\tt PRT}, {\tt SER} and {\tt PAR} managed
-by it generate interactive file handles, and so does the CON-Handler\key{CON-Handler} and
-the {\tt CON}, {\tt RAW} and {\tt AUX} devices it implements. The
-Queue-Handler and its {\tt PIPE} device is another example of a handler
-generating interactive files. The FFS\key{Fast File System (FFS)} and the
-RAM-Handler\key{RAM-Handler} are file systems and thus create non-interactive files.
-\smallskip{}
-
-While reading from interactive files may block indefinitely, the
-{\tt WaitForChar()}\key{WaitForChar()} function introduced in
-section~\ref{sec:waitforchar} may be used to test for the availability of
-data. Interactive files typically do not support repositioning the file
-pointer through {\tt Seek()}\key{Seek()} (see~\ref{sec:seek})
-or changing the file size through {\tt SetFileSize()}\key{SetFileSize()},
-see section~\ref{sec:setfilesize}.
-
-\subsection{Test whether a Path addresses a Handler or File System} \label{sec:isfilesystem}
-
-A handler\key{Handler} that volumes and allows to access named files on them
-is a file system. Such handlers will generally create non-interactive
-files. The {\tt IsFileSystem()}\mkey{IsFileSystem()} function determines the
-nature of a handler given a path (see~\ref{sec:paths}) addressing a candidate
-handler.
-
-\begin{verbatim}
-result = IsFileSystem(name) /* since V36 */
-D0                     D1
-
-BOOL IsFileSystem(STRPTR)
-\end{verbatim}
-The {\tt name} argument is a path that does not need to identify a
-physically existing object. Instead, it is used to identify a handler
-that would be responsible to access a hypothetical object regardless
-whether it exists or not.
-\smallskip{}
-
-It is advisable to provide a path that identifies the handler uniquely,
-i.e.\ a device or volume name that is terminated by a colon (``{\tt :}''). Otherwise, the
-call checks whether the handler responsible for the current directory of the
-calling process is a file system.
-\smallskip{}
-
-The returned result is non-zero in case the handler identified by the
-path is a file system, and as such allows access to files on volumes, and
-examine directories on it. Otherwise, the function
-returns {\tt DOSFALSE}.
-\smallskip{}
-
-This function did not exist prior to version 36 of the
-\emph{dos.library}. A possible workaround to check whether a candidate
-handler is a file system is to attempt to lock the root directory\key{Root Directory} of the
-handler, i.e.\ call {\tt Lock()}\key{Lock()} on the device name that is to be
-checked, see section~\ref{sec:lock} for this function. If this function
-succeeds, the handler corresponding to the provided path is likely a file
-system. A similar workaround
-is also used internally by the library for handlers that do not support the
-identification natively. A side effect of this workaround, but also
-of {\tt IsFileSystem()}, is that it will load and start the corresponding handler
-if it is not already running.
 
 \section{Unbuffered Input and Output} \label{sec:unbuffered}
 
@@ -2218,61 +2130,9 @@ the {\tt length} argument, either because the EOF position has been reached
 (see section \ref{sec:interactive}) for non-interactive files, or because
 the interactive source is depleted. Note that for interactive files, the
 function may block indefinitely until sufficient data or a fraction of the
-requested data becomes available.
-
-\subsection{Testing for Availability of Data} \label{sec:waitforchar}
-
-An issue of the {\tt Read()}\key{Read()} function is that it may block
-indefinitely on an interactive file if the user or the environment does not
-provide any input. The {\tt WaitForChar()}\mkey{WaitForChar()} tests for the
-availability of at least one byte on an interactive file for limited amount of
-time and returns either if data becomes available or if it runs out of time.
-
-\begin{verbatim}
-status = WaitForChar( file, timeout )
-  D0                    D1    D2
-
-BOOL WaitForChar(BPTR, LONG)
-\end{verbatim}
-
-This function waits for a maximum of {\tt timeout} microseconds for the
-availability of at least one character on {\tt file}. If data is already
-available, or becomes available within or before this time, the function
-returns a non-zero result. In such a case, a subsequent {\tt Read()}\key{Read()}
-is able to retrieve at least one byte from the stream without
-blocking. Otherwise, and also in case of an error, the function returns
-{\tt DOSFALSE}.
-\smallskip{}
-
-This function does not remove any bytes from the stream, it only checks for
-the availability of bytes at the level of the handler. This function is
-neither aware of any bytes buffered in the file handle\key{FileHandle} the buffered IO
-functions of section~\ref{sec:bufferedio} would be able to read.
-\smallskip{}
-
-A secondary return code can be obtained from {\tt IoErr()}. If the function
-returns {\tt DOSFALSE}, then {\tt IoErr()}\key{IoErr()} returns~0 if
-no bytes became available and the handler was able to complete the
-function. On failure, {\tt WaitForChar()}\key{WaitForChar()} returns
-{\tt DOSFALSE} and {\tt IoErr()} returns an error code.
-\smallskip{}
-
-If {\tt WaitForChar()}\key{WaitForChar()} returns a non-zero code, then for
-some handlers, in particular for the CON-Handler\key{CON-Handler}, a secondary result
-code is provided through {\tt IoErr()}\key{IoErr()}. The CON-Handler
-provides here the number of lines available in the input buffer. In
-particular, one \emph{shall not} depend on {\tt IoErr()}\key{IoErr()}
-returning~0 on success.
-\smallskip{}
-
-This function requires an interactive file to operate, file systems
-will typically not implement this function as they do not block.
-It then returns {\tt DOSFALSE} and sets {\tt IoErr()} to
-{\tt ERROR\_ACTION\_NOT\_KNOWN}\key{ERROR\_ACTION\_NOT\_KNOWN}.
-\smallskip{}
-
-Under AmigaDOS versions prior to V36, a timeout value of~0 does not function
-properly. This was fixed in V36.
+requested data becomes available. The {\tt WaitForChar()}\mkey{WaitForChar()}
+function introduced in section~\ref{sec:waitforchar} may be used to probe
+interactive file handles for the availability of data.
 
 \subsection{Writing Data} \label{sec:write}
 The {\tt Write()}\mkey{Write()} function writes an array of bytes unbuffered
@@ -2455,10 +2315,282 @@ code. Handlers that do not implement this function will set {\tt IoErr()} to
   attempt is made to adjust the file by more than 2GB depends on
   the file system performing the operation. A possible strategy to
   adjust the file size to a value above 2GB is to first seek to the
-  closest position, potentially using multiple seeks of maximal size,
+  closest position, potentially using multiple seeks,
   and then perform a call to {\tt SetFileSize()} with
   the {\tt mode} set to {\tt OFFSET\_CURRENT}. However, whether this
   strategy succeeds is file system dependent.}
+
+\section{Interactive File Support}
+
+As introduced in \ref{sec:interactive}, AmigaDOS distinguishes between
+non-interactive files managed by file systems and interactive files that
+interact with the outside world. File systems create non-interactive files;
+all other handlers\key{Handler} create interactive or non-interactive
+files, depending on the nature of the handler.
+
+\subsection{Test whether an File Handle is Interactive} \label{sec:isinteractive}
+
+A file can be either interactive, in which case attempts to read or write
+data to the file may block indefinitely and the contents and state of the
+file depends on conditions of the outside world, or non-interactive where
+the amount of available data is determined by file itself. The
+{\tt IsInteractive()} function returns the nature of an already opened file.
+
+\begin{verbatim}
+status = IsInteractive( file )
+ D0                      D1
+
+BOOL IsInteractive(BPTR)
+\end{verbatim}
+
+The {\tt IsInteractive()}\mkey{IsInteractive()} function returns
+a non-zero result code in case the file handle\key{FileHandle} passed in is interactive, or
+{\tt FALSE} in case it corresponds to a non-interactive stream of
+bytes, potentially on a file system.
+This function cannot fail and does not alter {\tt IoErr()}.
+\smallskip{}
+
+The Port-Handler\key{Port-Handler} and the devices {\tt PRT}, {\tt SER} and {\tt PAR} managed
+by it generate interactive file handles, and so does the CON-Handler\key{CON-Handler} and
+the {\tt CON}, {\tt RAW} and {\tt AUX} devices it implements. The
+Queue-Handler and its {\tt PIPE} device is another example of a handler
+whose files are interactive. The FFS\key{Fast File System (FFS)} and the
+RAM-Handler\key{RAM-Handler} are file systems and thus create non-interactive files.
+\smallskip{}
+
+While reading from interactive files may block indefinitely, the
+{\tt WaitForChar()}\key{WaitForChar()} function introduced in
+section~\ref{sec:waitforchar} may be used to test for the availability of
+data. Interactive files typically do not support repositioning the file
+pointer through {\tt Seek()}\key{Seek()} (see~\ref{sec:seek})
+or changing the file size through {\tt SetFileSize()}\key{SetFileSize()},
+see section~\ref{sec:setfilesize}.
+
+\subsection{Test whether a Path addresses a Handler or File System} \label{sec:isfilesystem}
+
+A handler\key{Handler} that manages volumes and allows to access named files on them
+is a file system. Such handlers will generally create non-interactive
+files. The {\tt IsFileSystem()}\mkey{IsFileSystem()} function determines the
+nature of a handler given a path (see~\ref{sec:paths}) addressing a candidate
+handler.
+
+\begin{verbatim}
+result = IsFileSystem(name) /* since V36 */
+D0                     D1
+
+BOOL IsFileSystem(STRPTR)
+\end{verbatim}
+The {\tt name} argument is a path that does not need to identify a
+physically existing object. Instead, it is used to identify a handler
+that would be responsible for accessing the hypothetical object, regardless
+whether it exists or not.
+\smallskip{}
+
+It is advisable to provide a path that identifies the handler uniquely,
+i.e.\ a device or volume name that is terminated by a colon (``{\tt :}''). Otherwise, the
+call checks whether the handler responsible for the current directory of the
+calling process is a file system.
+\smallskip{}
+
+The returned result is non-zero in case the handler identified by the
+path is a file system, and as such allows access to files on volumes, and
+examine directories on it. Otherwise, it returns {\tt DOSFALSE}.
+\smallskip{}
+
+This function did not exist prior to version 36 of the
+\emph{dos.library}. A possible workaround to check whether a candidate
+handler is a file system is to attempt to lock the root directory\key{Root Directory} of the
+handler, i.e.\ call {\tt Lock()}\key{Lock()} on the device name that is to be
+checked, see section~\ref{sec:lock} for the latter function. If a lock
+on the root directory could be obtained, the handler is likely a file
+system:
+
+\begin{verbatim}
+LONG IsFileSystem34(UBYTE *path)
+{
+  UBYTE *colon = strchr(path,':');
+
+  if (colon && colon > path) {
+    BPTR lock;
+    /* A non-empty device name */
+    colon[1] = '\0';
+    UnLock(lock = Lock(path,SHARED_LOCK));
+    if (lock == 0)
+      return DOSFALSE;
+  } else if (!strcmp(path,"*")) {
+    /* The console is never a file system */
+    return DOSFALSE;
+  }
+  return DOSTRUE;
+}
+\end{verbatim}
+
+This workaround should not be used in AmigaDOS version 36 as its
+\emph{dos.library} uses a dedicated packet to identify file systems,
+see section~\ref{sec:actionisfilesystem}. However, a similar workaround is
+also used internally by the newer library for handlers that do not support this
+identification natively. A side effect of this workaround, but also
+of {\tt IsFileSystem()}, is that it will load and start the corresponding handler
+if it is not already running.
+
+\subsection{Testing Interactive Files for Availability of Data} \label{sec:waitforchar}
+An issue of the {\tt Read()}\key{Read()} function is that it can block
+indefinitely on an interactive file if the user or the environment does not
+provide any input. The {\tt WaitForChar()}\mkey{WaitForChar()} tests for the
+availability of at least one byte on an interactive file for limited amount of
+time and returns either if data becomes available or if it runs out of time.
+
+\begin{verbatim}
+status = WaitForChar( file, timeout )
+  D0                    D1    D2
+
+BOOL WaitForChar(BPTR, LONG)
+\end{verbatim}
+
+This function waits for a maximum of {\tt timeout} microseconds for the
+availability of at least one character on {\tt file}. If data is already
+available, or becomes available within or before this time, the function
+returns a non-zero result. In such a case, a subsequent {\tt Read()}\key{Read()}
+is able to retrieve at least one byte from the stream without
+blocking. Otherwise, and also in case of an error, the function returns
+{\tt DOSFALSE}.
+\smallskip{}
+
+This function does not remove any bytes from the stream, it only checks for
+the availability of bytes at the level of the handler. This function is
+neither aware of any bytes buffered in the file handle\key{FileHandle} the buffered IO
+functions of section~\ref{sec:bufferedio} would be able to read.
+\smallskip{}
+
+A secondary return code can be obtained from {\tt IoErr()}. If the function
+returns {\tt DOSFALSE}, then {\tt IoErr()}\key{IoErr()} returns~0 if
+no bytes became available and the handler was able to complete the
+function. On failure, {\tt WaitForChar()}\key{WaitForChar()} returns
+{\tt DOSFALSE} and {\tt IoErr()} returns an error code.
+\smallskip{}
+
+If {\tt WaitForChar()}\key{WaitForChar()} returns a non-zero code, then for
+some handlers, in particular for the CON-Handler\key{CON-Handler}, a secondary result
+code is provided through {\tt IoErr()}\key{IoErr()}. The CON-Handler
+leaves here the number of lines available in its line buffer. In
+particular, one \emph{shall not} depend on {\tt IoErr()}\key{IoErr()}
+returning~0 on success.
+\smallskip{}
+
+This function requires an interactive file to work with, file systems
+will typically not implement this function as they do not block.
+File systems rather return {\tt DOSFALSE} and set instead {\tt IoErr()} to
+the error code {\tt ERROR\_ACTION\_NOT\_KNOWN}\key{ERROR\_ACTION\_NOT\_KNOWN}.
+\smallskip{}
+
+Under AmigaDOS prior to version 36, a timeout value of~0 does not function
+properly. This was fixed in release 36.
+
+\subsection{Setting the Console Buffer Mode} \label{sec:setmode}
+
+The {\tt SetMode()}\mkey{SetMode()} function sets the buffer mode of an
+interactive handler. It is typically used in conjunction with the graphical
+or serial console, i.e.\ the CON-Handler\key{CON-Handler} and the
+AUX-Handler\key{AUX-Handler}, and there sets the input buffer mode of the
+console. Depending on this mode, the console either waits for an entire line
+to be completed to satisfy a read request, provides each individual key as
+input to programs, or uses the keystrokes to implement a line editor except
+for some control keys that are transmitted
+immediately. Section~\ref{sec:conmodes} contains further details on the
+console and its modes.
+
+\begin{verbatim}
+success = SetMode(fh, mode) /* since V36 */
+D0                D1  D2
+
+BOOL SetMode(BPTR, LONG)
+\end{verbatim}
+
+This function sets the mode of the handler addressed by the
+FileHandle {\tt fh} to the {\tt mode} provided as second
+argument. The meaning of the modes is specific to the handler; however, this
+function is typically used in conjunction with both consoles provided by
+AmigaDOS, the graphical console of the {\tt CON} and {\tt RAW} device, and
+the serial console corresponding to the {\tt AUX} device.
+\smallskip{}
+
+For the console(s), the interpretation of the {\tt mode} argument is as
+follows:
+
+\begin{rkrmtable}{Console Modes} \label{table:conmodes}
+{\bf Buffer Mode} & {\bf Description}\\ \hline \hline
+\tt 0 & Cooked mode\key{Cooked Mode} \\ \hline
+\tt 1 & Raw mode\key{Raw Mode} \\ \hline
+\tt 2 & Medium mode\key{Medium Mode} (V47) \\ \hline
+All other values & Reserved for future use \\ \hline
+\end{rkrmtable}
+
+In the \emph{cooked mode}\key{Cooked Mode}, the console buffers entire lines, provides
+line-editing features, but only makes the input data available to clients when the user
+terminates the input with the {\tt RETURN} key. The {\tt CON} and
+{\tt AUX} devices operate by default in this mode, but can be switched to
+any other buffer mode by this function.
+\smallskip{}
+
+In the \emph{raw mode}\key{Raw Mode}, every single keystroke is made
+available immediately, including control sequences corresponding to all
+cursor and function keys. That implies, however, that line editing is not
+available and pressed keys are not echoed on the console. If echoing is
+desired, the application reading from the console needs to print out each
+typed key itself. This mode corresponds to the {\tt RAW} device which is
+nothing but a console operating in this mode when opening it under this name.
+\smallskip{}
+
+In the \emph{medium mode}\key{Medium Mode}, the console also buffers lines, but some
+keystrokes are directly transmitted without requiring the user to press the
+{\tt RETURN} key. In specific, the key-combinations consisting of the up- and down cursor
+keys as well as the {\tt TAB} key are reported immediately to the caller through
+control sequences. These sequences are documented in
+section~\ref{sec:conmodes}. The Amiga Shell uses this mode to offer a history and
+provides by it {\tt TAB} expansion of commands and command line
+arguments. No device name corresponds to this mode; instead, the Shell
+switches a regular {\tt CON:} window to this mode in order to offer its
+services.
+\smallskip{}
+
+Both the CON-Handler\key{CON-Handler} and the AUX-Handler\key{AUX-Handler}
+implement this function, supporting all three modes. However, there is ---
+unless explicitly mounted by the user --- no device name that corresponds to
+the \emph{medium mode} and no device name that corresponds to an {\tt AUX:}
+console in the \emph{raw mode}.
+\smallskip{}
+
+The {\tt SetMode()}\key{SetMode()} function returns a Boolean success code,
+which is non-zero if the function could change the console mode, or~0 if it
+failed. In case of success, {\tt IoErr()}\key{IoErr()} is set to~1 if the
+console is attached to a window of the Amiga graphical user interface, or
+to~0 if the window is currently closed or the console is operating on top of
+some other device, such as the serial port. In case of failure,
+{\tt IoErr()} returns an error code from {\tt dos/dos.h}.
+\medskip{}
+
+As an application, the following function attempts to read a keystroke from
+a given file handle\key{FileHandle}, supposed to be connected to the console, without
+waiting for the return key; it returns~$-1$ on an error or otherwise the
+ISO-Latin code of the pressed key:
+
+\begin{verbatim}
+LONG getch(BPTR file)
+{
+  UBYTE c;
+  LONG err = -1;
+
+  /* switch to raw */
+  if (SetMode(file,1)) { 
+   if (Read(file,&c,1) == 1)
+    err = 0;
+   /* back to cooked */
+   SetMode(file,0); 
+  }
+
+  return (err < 0)?err:c;
+}
+\end{verbatim}
 
 \section{Buffered Input and Output} \label{sec:bufferedio}
 
@@ -2471,21 +2603,22 @@ equipped with a file buffer of a default size of 204 bytes as soon as
 buffered input or output is requested. The {\tt SetVBuf()}\key{SetVBuf()}
 function in section~\ref{sec:setvbuf} should be used to request larger
 buffers.
+\smallskip{}
+
+Buffered I/O functions had always been part of AmigaDOS, they were only
+available to BCPL programs through the Global Vector\key{Global Vector}
+prior to version 36. In version 36, the \emph{dos.library} was rewritten in
+assembler and C, and as part of this re-implementation, they became available
+through the \emph{dos.library} interface as well.
 
 \punchline{Performance Improved}{While buffered I/O functions of
   AmigaDOS~45 and below were based on single-byte functions
-  and thus caused massive overhead, the functions in this
+  and thus had a massive overhead, the functions in this
   section were redesigned in AmigaDOS~47 and now provide significantly better
   performance. Unfortunately, the default buffer size AmigaDOS uses is
   quite small and should be significantly increased by
   {\tt SetVBuf()}\key{SetVBuf()}. A suggested buffer size is 4096 bytes
   which corresponds to a disk block of modern hard drives.}
-
-While most buffered I/O functions closely reassemble those of ANSI-C, there
-is one important difference: Unlike many ANSI-C functions, the buffered I/O
-functions of the \emph{dos.library} retrieve the file handle\key{FileHandle} as first and
-not as last parameter.
-\smallskip{}
 
 The standard input file handle of a shell\key{Shell} command provided by
 {\tt Input()}\key{Input()} is unfortunately a special case as its input buffer
@@ -2499,38 +2632,19 @@ buffer containing the command line parameters is allocated manually
 following the algorithm in section~\ref{sec:stringstreams}, and an
 {\tt Flush()}\key{Flush()} is not necessarily functional if the original
 stream was unbuffered. Instead, the input stream first needs to be converted
-to a buffered stream, and then flushed. The following code sequence performs
-this:
+to a buffered stream, and then flushed. The following function pair
+prepares the input stream for buffered I/O:
 
 \begin{verbatim}
-  FGetC(Input());  /* convert to buffered mode        */
-  Flush(Input());  /* release the cmd line parameters */
+  FGetC(Input()); /* convert to buffered mode        */
+  Flush(Input()); /* release the cmd line parameters */
 \end{verbatim}
 
-The include file {\tt dos/stdio.h} also defines a couple of additional
-macros for buffered I/O that are slightly inefficient by requiring an
-additional call to {\tt Input()} or {\tt Output()}. If called in a tight
-loop, the target file handle\key{FileHandle} should be obtained first and the functions
-should be called manually rather than through the following macros:
-
-\mkey{ReadChar()}\mkey{WriteChar()}\mkey{UnReadChar()}\mkey{UnReadChar()}
-\mkey{ReadLn()}\mkey{WriteStr()}\mkey{VWritef()}
-\begin{verbatim}
-#define ReadChar()           FGetC(Input())
-#define WriteChar(c)         FPutC(Output(),(c))
-#define UnReadChar(c)        UnGetC(Input(),(c))
-#define ReadChars(buf,num)   FRead(Input(),(buf),1,(num))
-#define ReadLn(buf,len)      FGets(Input(),(buf),(len))
-#define WriteStr(s)          FPuts(Output(),(s))
-#define VWritef(format,argv) VFWritef(Output(),(format),(argv))
-\end{verbatim}
-
-While buffered I/O functions had always been part of AmigaDOS, they were
-only available to BCPL programs through the Global Vector\key{Global Vector}
-prior to version 36. In version 36, the \emph{dos.library} was rewritten in
-assembler and C, and as part of this rewrite, they became available as part
-of the library interface.
-\medskip{}
+While most buffered I/O functions closely reassemble those of ANSI-C, there
+is one important difference: Unlike many ANSI-C functions, the buffered I/O
+functions of the \emph{dos.library} retrieve the file handle\key{FileHandle}
+as first and not as last parameter. 
+\smallskip{}
 
 AmigaDOS provides buffered record-oriented read and write functions similar to
 ANSI-C {\tt fread()} and {\tt fwrite()}; they are introduced in
@@ -2539,7 +2653,8 @@ the same size. There is no advantage of setting the record size to a
 particular value, in effect they read or write the number of bytes given by
 the product of record size and record count, though return only the total
 number of complete records that could be received or written. Thus, a block
-of bytes can be read or written by setting the record size to~1.
+of bytes can be read or written by setting the record size (the
+{\tt blocklen} argument in the following sections) to~1.
 
 \subsection{Buffered Read From a File} \label{sec:fread}
 
@@ -2572,8 +2687,8 @@ This function does not modify {\tt IoErr()}\key{IoErr()} in case the
 request can be satisfied completely from the file handle\key{FileHandle} buffer. It
 neither returns $-1$ in case of an error. Callers should instead use
 {\tt SetIoErr(0)} to clear the error state before calling this
-function, and then use {\tt IoErr()} to learn if any error occurred when
-the number of records read is smaller than the number of records
+function, and then inspect the return code of {\tt IoErr()} to learn if any
+error occurred when the number of records read is smaller than the number of records
 requested.
 
 \subsection{Buffered Write to a File}
@@ -2597,7 +2712,7 @@ in {\tt count}.
 \smallskip{}
 
 From AmigaDOS~47 onward, {\tt FWrite()} first checks whether the file
-handle\key{FileHandle} internal buffer is partially filled. If so, the file handle
+handle\key{FileHandle} internal buffer contains already some data. If so, the file handle
 internal buffer is filled from {\tt buf}. If any bytes remain to be
 written, and the number of bytes is larger than the internal buffer
 size, the handler will be invoked to write the data in a single block,
@@ -2609,7 +2724,7 @@ This function does not modify {\tt IoErr()}\key{IoErr()} in case the
 request can be satisfied completely by using the file handle\key{FileHandle}
 buffer. It neither returns~$-1$ in case of an error. Callers should
 instead use {\tt SetIoErr(0)} to clear the error state before calling
-this function, and then use {\tt IoErr()} to learn if any error
+this function, and then use {\tt IoErr()} afterwards to learn if any error
 occurred if the number of records written is smaller than the number of
 records passed in.
 
@@ -2637,11 +2752,11 @@ reset the error upfront with {\tt SetIoErr(0)}\key{SetIoErr()}.
 
 \subsection{Adjusting the Buffer} \label{sec:setvbuf}
 
-The {\tt SetVBuf()}\mkey{SetVBuf()} function allows to adjust the
-internal buffer size for buffered input/output functions such as
-{\tt FRead()}\key{FRead()} or {\tt FWrite()}\key{FWrite()}. It also sets
-the buffer mode. The default buffer size is 204 characters, which is
-too low for many applications.
+The {\tt SetVBuf()}\mkey{SetVBuf()} function sets the buffer mode and adjust the
+buffer size for buffered input/output functions such as
+{\tt FRead()}\key{FRead()} or {\tt FWrite()}\key{FWrite()}.
+As the default buffer size is with 204 characters quite small, it is for
+many applications advisable to enlarge it by this function.
 
 \begin{verbatim}
 error = SetVBuf(fh, buff, type, size) /* since V39 */
@@ -2650,7 +2765,7 @@ D0              D1   D2    D3    D4
 LONG SetVBuf(BPTR, STRPTR, LONG, LONG)
 \end{verbatim}
 
-This function sets the internal buffer of the file handle\key{FileHandle}
+This function sets the size of the internal buffer of the file handle\key{FileHandle}
 {\tt fh} to {\tt size} bytes. Sizes smaller than 204 bytes will be rounded up to
 204 bytes\footnote{While the official autodocs and~\cite{guru} reports a default
 buffer size of 208 characters, this information is not correct.}. If
@@ -2661,8 +2776,8 @@ is closed or another buffer is provided.
 \smallskip{}
 
 Otherwise, if {\tt buff} is {\tt NULL}, AmigaDOS will allocate the buffer
-for you, and will also release it when the file is closed or the buffer is
-updated.
+for you, and will also release it when the file is closed or the buffer size
+or buffer is updated.
 \smallskip{}
 
 The {\tt type} argument identifies the type of buffering according to
@@ -2678,7 +2793,7 @@ file {\tt dos/stdio.h}.
 
 The buffer mode {\tt BUF\_LINE}\mkey{BUF\_LINE} automatically flushes the buffer when
 writing a line feed (0x0a), carriage return (0x0c) or ASCII NUL (0x00)
-character to the buffer, and the target file is
+character to the buffer and the target file is
 interactive. Otherwise, the characters remain in the buffer until it
 either overflows or is flushed manually, for this see the definition of
 {\tt Flush()}\key{Flush()} in section~\ref{sec:flush}.
@@ -2716,7 +2831,7 @@ function if this element is {\tt NULL}, see also section~\ref{sec:filehandle}.
 
 The {\tt Flush()}\mkey{Flush()} function flushes the internal buffer
 of a file handle\key{FileHandle} and synchronizes the file pointer to the
-buffer position.
+buffer.
 
 \begin{verbatim}
 success = Flush(fh) /* since V36 */
@@ -2727,7 +2842,7 @@ LONG Flush(BPTR)
 
 This function synchronizes the file pointer to the buffer, that is, if data
 were written to the buffer, it writes buffer content out to the file. If
-data were read from the file and non-read files remained in the buffer,
+data were read from the file and non-read bytes remained in the buffer,
 such bytes are dropped and the function attempts to seek back to the
 position of the last read byte. This can fail for interactive files.
 \smallskip{}
@@ -2736,7 +2851,7 @@ The return code is currently always {\tt DOSTRUE} and thus cannot be
 used as an indication of error, even if not all bytes could be
 written, or if seeking failed. If error detection is desired, the
 caller should first use {\tt SetIoErr(0)}\key{SetIoErr()} to erase an
-error condition, then call flush, and then use {\tt IoErr()} to
+error condition, then call {\tt Flush()}, and then use {\tt IoErr()} to
 check whether an error occurred.
 
 \punchline{Flush when switching between reading and writing}{The
@@ -2775,7 +2890,7 @@ error. The latter constant is defined in the include file
 \smallskip{}
 
 This function does not touch {\tt IoErr()}\key{IoErr()} if the character only goes
-into the internal buffer and is only updated when the buffer contents is
+into the internal buffer; {\tt IoErr()} is only updated when the buffer contents is
 written out.
 
 \subsection{Write a String Buffered to a File} \label{sec:fputs}
@@ -2821,10 +2936,10 @@ LONG PutStr(STRPTR)
 
 This function is equivalent to {\tt FPuts(Output(),str)}, that is, it writes
 the {\tt NUL}-terminated string pointed to by {\tt str} to the output. It
-returns~$0$ on success and~$-1$ on error. The {\tt IoErr()}\key{IoErr()} is
+returns~$0$ on success and~$-1$ on error. {\tt IoErr()}\key{IoErr()} is
 only adjusted when the buffer of the {\tt Output()}\key{Output()}
 file handle\key{FileHandle} is flushed. When this happens depends on the buffer mode
-installed by {\tt SetVBuf()}\key{SetVBuf()}.
+installed by {\tt SetVBuf()}\key{SetVBuf()}, see section~\ref{sec:setvbuf}
 
 \subsection{Read a Character from a File}
 
@@ -2841,7 +2956,7 @@ LONG FGetC(BPTR)
 This function attempts to read a single character from the file
 handle\key{FileHandle} {\tt fh} using the buffer of the handle. If characters are
 present in the buffer, the request is satisfied from the buffer first,
-then the function attempts to refill the buffer from the file and
+otherwise the function attempts to refill the buffer from the file and
 tries again.
 \smallskip{}
 
@@ -2852,7 +2967,7 @@ end of file condition or an error. The latter constant is defined in
 
 To distinguish between the error and the end of file case, the caller should
 first reset the error condition with {\tt SetIoErr(0)}\key{SetIoErr()}, and
-then check {\tt IoErr()} when the function returns with
+then check {\tt IoErr()} if the function returns with
 {\tt ENDSTREAMCH}\key{ENDSTREAMCH}.
 \smallskip{}
 
@@ -2878,23 +2993,24 @@ pointed to by {\tt buf}, capable of holding {\tt len} characters.
 \smallskip{}
 
 Reading terminates either if {\tt len}-1 characters have been read, filling
-up the buffer completely; or a line-feed character is found, which is
-copied into the buffer; or if an end of file condition or an error
-condition is encountered. In either event, the string is {\tt NUL}
-terminated.
+up the buffer completely. The function also returns if line-feed character is found, which is
+copied into the buffer. Finally, if an end of file condition or an error
+condition is encountered, reading also stops. In either event, the
+string is {\tt NUL} terminated.
 \smallskip{}
 
-The function returns {\tt NULL} in case not even a single character
-could be read. Otherwise, the function returns the buffer passed in.
+The function returns {\tt NULL} in case an error or end-of-file condition
+was detected. Otherwise, the function returns the buffer passed in. If a
+line-feed character was read, it remains in the buffer.
 \smallskip{}
 
 To distinguish between the error and end-of-file condition, the caller
-should first use {\tt SetIoErr(0)}\key{SetIoErr()}, and then test
-{\tt IoErr()} in case the function returns {\tt NULL}.
+should first use {\tt SetIoErr(0)}\key{SetIoErr()}, call this function and
+then test {\tt IoErr()} in case {\tt FGets()} returned {\tt NULL}.
 \smallskip{}
 
 In AmigaDOS versions prior to version 39, this function would copy one byte
-too much if no line terminator such as a newline or end of file is found,
+too much if no terminator such as a newline or an end of file is found,
 and it thus overflowed the input buffer by the {\tt NUL} termination of the
 string. This was fixed in version 39. To work around this defect, the
 {\tt len} parameter should be set to the size of the buffer minus~1.
@@ -2927,7 +3043,31 @@ characters can fail.
 Under AmigaDOS version~36, it was not possible to push back an end of file
 condition. This was fixed in version~37.
 
-\section{File Handle Documentation}
+\subsection{Macros for Buffered I/O}
+
+The include file {\tt dos/stdio.h} also defines a couple of additional
+macros for buffered I/O on the standard input and output streams that are
+slightly inefficient by requiring an additional call to {\tt Input()} or
+{\tt Output()}. If used in a tight loop, the target file
+handle\key{FileHandle} should be obtained first and the functions should be
+called manually rather than through the following macros:
+
+\mkey{ReadChar()}\mkey{WriteChar()}\mkey{UnReadChar()}\mkey{UnReadChar()}
+\mkey{ReadLn()}\mkey{WriteStr()}\mkey{VWritef()}
+\begin{verbatim}
+#define ReadChar()           FGetC(Input())
+#define WriteChar(c)         FPutC(Output(),(c))
+#define UnReadChar(c)        UnGetC(Input(),(c))
+#define ReadChars(buf,num)   FRead(Input(),(buf),1,(num))
+#define ReadLn(buf,len)      FGets(Input(),(buf),(len))
+#define WriteStr(s)          FPuts(Output(),(s))
+#define VWritef(format,argv) VFWritef(Output(),(format),(argv))
+\end{verbatim}
+
+The added value of these macros is quite small, and there is rarely an
+advantage in using them.
+
+\section{Working with File Handles}
 
 So far, the file handle\key{FileHandle} has been used as an opaque value bare
 any meaning. However, the {\tt BPTR}, once converted to a regular
@@ -2940,7 +3080,7 @@ struct FileHandle *fh = BADDR(file);
 
 In the following sections, this structure and its functions are documented.
 
-\subsection{The struct FileHandle} \label{sec:filehandle}
+\subsection{The FileHandle Structure} \label{sec:filehandle}
 
 A file is represented by a {\tt FileHandle} structure. For example, the
 {\tt Open()}\key{Open()} function returns a BPTR to such a structure.  It is
@@ -2979,49 +3119,49 @@ according to the nature of the handler.
 \smallskip{}
 
 {\tt fh\_Type}\mkey{fh\_Type} points to the {\tt MsgPort} of the handler or
-file system that implements all input and output
-operations. Chapter~\ref{sec:handlers} provides additional information on
+file system that implements input and output
+operations through this handle. Chapter~\ref{sec:handlers} provides additional information on
 how handlers and file systems work. If this pointer is {\tt NULL}, no
-handler is associated to the file handle\key{FileHandle}. AmigaDOS will deposit this value
-here when opening a file to the {\tt NIL} (pseudo-)device. Attempting to
+handler is associated to the file handle\key{FileHandle}. AmigaDOS will
+deposit {\tt NULL} here when opening a file to the {\tt NIL} (pseudo-)device. Attempting to
 {\tt Read()}\key{Read()} from such a handle results in an end-of-file
 situation, and calling {\tt Write()}\key{Write()} on such a handle does nothing, ignoring
 any data written.
 \smallskip{}
 
 {\tt fh\_Buf}\mkey{fh\_Buf} is a {\tt BPTR} to the file handle\key{FileHandle} internal buffer all
-buffered I/O function documented in section~\ref{sec:bufferedio} use.
+buffered I/O function documented in section~\ref{sec:bufferedio} make use of.
 \smallskip{}
 
-{\tt fh\_Pos}\mkey{fh\_Pos} is the byte offset of the next byte to be read
-or the next available index for absorbing the next written byte
-within {\tt fh\_Buf}.
+{\tt fh\_Pos}\mkey{fh\_Pos} is the byte offset within {\tt fh\_Buf} from
+which the next byte will be read, or the buffer position into which the next
+byte will be written.
 \smallskip{}
 
 {\tt fh\_End}\mkey{fh\_End} is the size of the buffer in bytes.
 \smallskip{}
 
-{\tt fh\_Func1}\mkey{fh\_Func1} is a function pointer that is called whenever the
+{\tt fh\_Func1}\mkey{fh\_Func1} is a pointer to a function that is called whenever the
 buffer is to be filled through the handler. Users shall not call this
 function itself, and the function prototype is intentionally not
 documented.
 \smallskip{}
 
-{\tt fh\_Func2}\mkey{fh\_Func2} is a second function pointer that is called
+{\tt fh\_Func2}\mkey{fh\_Func2} is a pointer to a second function that is called
 whenever the buffer is full and is to be written out by the handler. Users
 shall not call this function itself, and the function prototype is
-neither documented.
+neither documented on purpose.
 \smallskip{}
 
-{\tt fh\_Func3}\mkey{fh\_Func3} is a function pointer that is called whenever
+{\tt fh\_Func3}\mkey{fh\_Func3} is a pointer to a function which is called whenever
 the file handle\key{FileHandle} is closed. This function potentially writes the
-buffer content out when dirty, releases the buffer if it is
-system-allocated, and finally forwards the close request to the
+buffer content out when dirty, releases the buffer if it is allocated
+by the \emph{dos.library} and finally forwards the close request to the
 handler.
 \smallskip{}
 
 {\tt fh\_Arg1}\mkey{fh\_Arg1} is a file-system specific value the handler or
-file system uses to identify the file. The interpretation of this value is
+file system may use to identify the file. The interpretation of this value is
 up to the file system or handler, and the \emph{dos.library} does not
 attempt to interpret it. The handler deposits the file identification here
 when opening a file, and the \emph{dos.library} forwards it to the handler
@@ -3029,20 +3169,21 @@ on {\tt Read()}, {\tt Write()}\key{Write()} and many other requests. See chapter
 and~\ref{sec:packettypes} for details.
 \smallskip{}
 
-{\tt fh\_Arg2}\mkey{fh\_Arg2} is currently unused.
+{\tt fh\_Arg2}\mkey{fh\_Arg2} is currently unused but reserved for future
+use through the \emph{dos.library}.
 \smallskip{}
 
 Additional elements have been added at the end of the {\tt FileHandle}
-structure in release 39. They are not publicly documented. For this reason,
-this structure shall never be allocated manually, but shall rather be
-obtained by opening a file, or through
+structure in AmigaDOS version 39. They are not publicly documented. For this reason,
+this structure shall never be allocated manually, but shall be
+obtained by either opening a file, or through
 {\tt AllocDosObject()}\key{AllocDosObject()}, see section~\ref{sec:allocdosobject}.
 
 \subsection{String Streams} \label{sec:stringstreams}
 It is sometimes useful to provide programs with (temporary) input not coming
 from a file system or handler directly, even though the program uses a file
 interface to access it. One solution to this problem is to deposit the input
-data in a file of the {\tt RAM} disk, then opening this file and providing it as input
+data in a temporary file of the {\tt RAM} disk, then opening this file and providing it as input
 to such a program. The drawback of this approach is that additional tests
 are necessary to ensure that the file name is unique, and to avoid that any 
 other than the intended program accesses or modifies it.
@@ -3050,28 +3191,18 @@ other than the intended program accesses or modifies it.
 
 A better alternative is to place the data to be read in a file handle\key{FileHandle} and
 thus hide them from other programs. AmigaDOS uses a similar technique
-internally, for example to provide the command to be executed to the
-{\tt Run}\key{Run} command. There, the string stream contains the command(s) to
-be run in background, which is provided as command stream input file to the
-shell\key{Shell}. The {\tt System()}\key{System()} function of the \emph{dos.library}
-discussed in section~\ref{sec:system} makes use of the same trick to
-feed the command(s) to be executed to the shell\key{Shell} as well.
-Thus, even though the shell\key{Shell} reads its commands from a file
-only, AmigaDOS generates such file handles\key{FileHandle} from strings.
+internally, for example to provide an shell script to be executed to the
+{\tt Run}\key{Run} command, which is then provided as command stream to the
+shell\key{Shell}, or to feed command line arguments to shell commands.
 \smallskip{}
 
-The Shell\key{Shell} uses the same technique to pass arguments to the commands it
-executes; it deposits the command arguments in the file handle\key{FileHandle} buffer of the
-input stream where the {\tt ReadArgs()}\key{ReadArgs()} function called from the
-command collects them; more on this in sections~\ref{sec:readargs} and~\ref{sec:runcommand}.
-\medskip{}
-
 The following program demonstrates this technique: It creates a dummy file
-handle\key{FileHandle} from a {\tt NIL:} stream and replaces its input buffer with a pointer
-to the string. Since the buffer must be representable as BPTR, it is in the
-example program below allocated through {\tt AllocVec()} which ensures
-proper alignment. This step is not necessary if alignment can be guaranteed
-by other means.
+handle\key{FileHandle} from a {\tt NIL:} stream and replaces its input
+buffer with a pointer to the string providing the data to be read. Since the
+buffer must be representable as BPTR, it is in the example program below
+allocated through {\tt AllocVec()} which ensures proper alignment. This step
+is not necessary if alignment can be guaranteed by other means and the
+buffer remains available as long as the file handle is in use.
 \smallskip{}
 
 \begin{verbatim}
@@ -3110,15 +3241,13 @@ int main(int argc,char **argv)
     }
     FreeVec(buf);
   }
-  
   return 0;
 }
 \end{verbatim}
 
 \subsection{Cloning File Handles} \label{sec:clonehandle}
-
-Unlike locks\key{Lock} (see~\ref{sec:duplock}), file handles cannot be duplicated in
-general. However, if the file is interactive (see~\ref{sec:isinteractive}),
+Unlike locks\key{Lock} (see chapter~\ref{sec:locks} and section~\ref{sec:duplock}), file handles cannot be duplicated in
+general. However, if the file is interactive (see section~\ref{sec:isinteractive}),
 or a {\tt NIL:} handle, a copy can be made. Thus, for
 example, files of the the CON-Handler\key{CON-Handler} and the
 Port-Handler\key{Port-Handler} can be duplicated and then access the same
@@ -3128,18 +3257,19 @@ console window or physical device.
 
 The following function creates a copy of a file handle, and is also able to
 duplicate a handle to the {\tt NIL} (pseudo-)device. It returns {\tt ZERO}
-if no copy can be made; see section~\ref{sec:setconsoletask} for the
-{\tt SetConsoleTask()}\key{SetConsoleTask()} function:
+if no copy can be made. The idea is here to temporarily install the handler
+serving the file handle as console of the calling process, and then open a
+file to the console through the ``{\tt *}'' file name. This works for all
+interactive handlers. See section~\ref{sec:setconsoletask} for the
+{\tt SetConsoleTask()}\key{SetConsoleTask()} function which updates the
+console handler of the calling process:
 
 \begin{verbatim}
-#include <dos/dos.h>
-#include <dos/dosextens.h>
-
 BPTR CloneHandle(BPTR handle)
 {
   struct MsgPort *ctask;
   struct MsgPort *fport;
-  BPTR newhandle = ZERO;
+  BPTR newhandle = 0;
 
   if (handle) {
     fport = ((struct FileHandle *)BADDR(handle))->fh_Type;
@@ -3151,38 +3281,35 @@ BPTR CloneHandle(BPTR handle)
       newhandle = Open("NIL:",MODE_OLDFILE);
     }
   }
-
   return newhandle;
 }
 \end{verbatim}
 
-The above function returns {\tt ZERO} for files opened to a file system;
-they cannot be duplicated with the above algorithm. An alternative
-algorithm that, however, only works if the source file is opened in shared
-mode (see table~\ref{table:openmodes} of section~\ref{sec:open}) is to first
-obtain the file name through {\tt NameFromFH()}\key{NameFromFH()} (see
-section~\ref{sec:namefromfh}) and then to re-open another file handle
-from the same name.
+The above function returns {\tt ZERO} for files opened to a file system,
+they cannot be duplicated easily.
 
 \subsection{An FSkip() Implementation} \label{sec:fskip}
-
-Unlike most unbuffered functions, {\tt Seek()}\key{Seek()} can be safely
-mixed with buffered input and output functions. However, it is not very
-efficient, and seeking should be avoided if buffer manipulation is
-sufficient. Buffer manipulation has the advantage that small amounts of
-bytes can be skipped easily without going through a file system; skipping
-over larger amounts of bytes can be performed by a single function without
-requiring to read bytes.
+Even though {\tt Seek()}\key{Seek()} can be safely mixed with buffered input
+and output functions, it is then not very efficient as it always performs a
+full synchronization of the buffer with {\tt Flush()}, loosing any buffer
+content. The algorithm provided in this section avoids this overhead, but
+can only skip forwards over bytes by manipulating the file handle buffer
+pointer. Buffer manipulation has the advantage that small amounts of bytes
+can be skipped over without requiring interaction with the file system;
+skipping over larger distances still requires going through
+{\tt Seek()} to interact with the file system.
 \smallskip{}
 
-The following function implements an {\tt FSkip()}\mkey{FSkip()}
-function that selects the most viable option and is more efficient
-that {\tt Seek()}\key{Seek()} for buffered streams.
+The following function implements an {\tt FSkip()}\mkey{FSkip()} function
+that selects the most viable strategy for skipping over bytes and is more
+efficient that {\tt Seek()}\key{Seek()} on buffered streams.
+
 \begin{verbatim}
 LONG FSkip(BPTR file,LONG skip)
 {
   LONG res;
   struct FileHandle *fh = BADDR(file);
+
   if (fh->fh_Pos >= 0 && fh->fh_End > 0) {
     LONG newpos = fh->fh_Pos + skip;
     if (newpos >= 0 && newpos < fh->fh_End) {
@@ -3190,42 +3317,40 @@ LONG FSkip(BPTR file,LONG skip)
       return DOSTRUE;
     }
   }
+
   skip += fh->fh_Pos - fh->fh_End;
   fh->fh_Pos = -1;
   fh->fh_End = -1;
   if (Seek(file,skip,OFFSET_CURRENT) != -1)
    return DOSTRUE;
+
   return DOSFALSE;
 }
 \end{verbatim}
 
-The first if-condition checks whether the buffer is actually
-present. Then, the new buffer position is computed. If it is within
-the buffer, the new buffer position is installed as the work is done.
-\smallskip{}
-
-Otherwise, the skip distance is adjusted by the buffer
-position. Initializing the buffer size and position to~$-1$ ensures
-that the following {\tt Seek()} does not attempt to call {\tt Flush()}
-internally.
+The first if-condition checks whether the buffer is actually present. Then,
+the new buffer position is computed. If it is within the buffer, the new
+buffer position is installed and the work is done.  Otherwise, the skip
+distance is adjusted by the buffer position. Initializing the buffer size
+and position to~$-1$ ensures that the following {\tt Seek()}\key{Seek()} does not
+attempt to call {\tt Flush()}\key{Flush()} internally.
 \smallskip{}
 
 There is one particular catch, namely that the {\tt file}
-needs to be initialized for reading immediately after opening the
-file, or the buffer will not be in the right state for the trick:
+need to be initialized for buffered reading immediately after opening the
+file; instead of {\tt UnGetC()}\key{UnGetC()}, any buffered read function is
+also sufficient.
 \begin{verbatim}
 BPTR file = Open(filename,MODE_OLDFILE);
-UnGetC(file,-1); /* initialize buffer */
+/* Initialize the buffer */
+   UnGetC(file,-1); 
 \end{verbatim}
-This is only necessary if the first access to the file could be an
-{\tt FSkip()}.
 
 \subsection{An FGet() Implementation}
-
-While the {\tt FRead()}\key{FRead()} function already provides a
-buffered read function, it is not very efficient prior version 47 of
-AmigaDOS. The following simple function provides in such cases a
-faster implementation that even allows inlining:
+While the {\tt FRead()}\key{FRead()} function already provides a buffered
+read function, it is not very efficient prior to version 47 of AmigaDOS. The
+following simple function provides in such cases a faster implementation
+that even allows inlining:
 
 \begin{verbatim}
 LONG FGet(BPTR f,void *buf,LONG size)
@@ -3241,33 +3366,37 @@ LONG FGet(BPTR f,void *buf,LONG size)
       return size;
     }
   }
-
   return FRead(f,buf,1,size);
 }
 \end{verbatim}
 
-It reads {\tt size} bytes from the file {\tt fh} into the buffer {\tt
-  buf}, and returns the number of bytes read.
+This code reads {\tt size} bytes from the file {\tt fh} into the buffer
+{\tt buf} and returns the number of bytes read. Similar to all functions in
+section~\ref{sec:bufferedio}, {\tt IoErr()} is only updated if the handler
+is required to supply data.
 \smallskip{}
 
-As seen from this implementation, the function attempts to satisfy the
-read if a partial buffer is present. If not, the above implementation
-runs into the operating system function. As for the {\tt FSkip()}
-implementation presented in section~\ref{sec:fskip}, the file handle\key{FileHandle}
-requires some preparation by a dummy {\tt UnGetC()}, see there.
+As seen from this implementation, the function attempts to satisfy the read
+if a partially filled buffer is available. If not, the above code runs into
+the operating system function {\tt FRead()} which also refills the buffer of
+the file handle. As for the {\tt FSkip()} implementation presented in
+section~\ref{sec:fskip}, the file handle\key{FileHandle} requires
+preparation by a dummy {\tt UnGetC()}, see there.
 
 \section{Formatted Output}
 
-The functions in this section print strings formatted to a file. All 
-functions use the internal buffer of the file handle\key{FileHandle} and are thus buffered.
+The functions in this section print elementary data types formatted to a
+file, using a string that defines the types and provides formatting
+instructions. All functions in this section use the internal buffer of the
+file handle\key{FileHandle} and are thus buffered.
 
 \subsection{Print Formatted using C-Syntax to a File} \label{sec:fprintf}
 
 The {\tt VFPrintf()}\mkey{VFPrintf()} function prints multiple
 datatypes using a format string that closely reassembles the syntax of
 the C language. {\tt FPrintf()}\mkey{FPrintf()} is based on the same
-entry point of the \emph{dos.library}, though the prototype for the C
-language is different and thus arguments are expected directly as function
+entry point of the \emph{dos.library}, though the prototype
+is different and thus arguments are expected directly as function
 arguments instead of requiring them to be collected in an array upfront.
 
 \begin{verbatim}
@@ -3284,7 +3413,7 @@ LONG FPrintf(BPTR, STRPTR, ...)
 This function uses the {\tt fmt} string to format an array of
 arguments pointed to by {\tt argv} and outputs the result to the file
 {\tt fh}. The syntax of the format string is identical to that of the
-exec function {\tt RawDoFmt()}\key{RawDoFmt()}, and shares its problems,
+exec function {\tt RawDoFmt()}\key{RawDoFmt()} and shares its problems,
 see also section~\ref{sec:sprintf}.
 In particular, format strings indicating integer arguments such as
 {\tt \%d} and {\tt \%u} assume 16-bit integers, independent of the integer
@@ -3297,7 +3426,7 @@ writing a single character provided as argument.
 As {\tt RawDoFmt()}\key{RawDoFmt()} is also patched by the
 \emph{locale.library}, syntax elements from the {\tt FormatString()}
 function of this library become available for {\tt VFPrintf()} and
-{\tt FPrintf()}.
+{\tt FPrintf()}, too.
 \smallskip{}
 
 The result {\tt count} delivers the number of characters written to
@@ -3309,9 +3438,9 @@ the file, or $-1$ for an error. In the latter case,
 The {\tt VPrintf()}\mkey{VPrintf()} function prints multiple
 datatypes using a format string to the {\tt Output()}\key{Output()} stream
 of the calling process. {\tt Printf()}\mkey{Printf()} is based on the same
-entry point of the \emph{dos.library}, though the prototype for the C
-language is different and thus arguments are expected directly as function
-arguments instead of requiring them to be collected in an array upfront.
+entry point of the \emph{dos.library}, though the prototype
+is different and arguments are expected directly as function
+arguments.
 
 \begin{verbatim}
 count = VPrintf(fmt, argv) /* since V36 */
@@ -3326,34 +3455,26 @@ LONG Printf(STRPTR, ...)
 
 The {\tt Printf()} function is the closest analog of the ANSI-C library
 function {\tt printf()} within AmigaDOS, but cannot be directly substituted
-for it.  The formatting directives in the {\tt fmt} argument are interpreted
-according to a 16-bit integer model, see also sections~\ref{sec:sprintf}
-and~\ref{sec:fprintf}. Format strings indicating integer arguments such as
-{\tt \%d} and {\tt \%u} assume 16-bit integers, independent of the integer
-model of the compiler. On compilers working with 32-bit integer models, the
-format modifier {\tt l} must be used, e.g.\ {\tt \%ld} for signed and {\tt
-  \%lu} for unsigned integers, and {\tt \%lc} for printing a single
-character provided as argument.
-\smallskip{}
-
-Since the functions are based on {\tt RawDoFmt()}\key{RawDoFmt()} which is
-patched by the \emph{locale.library}, syntax elements from the
-{\tt FormatString()} function of this library become also available for
-{\tt VPrintf()} and {\tt Printf()}.
+for it as the formatting directives in {\tt fmt} are subtly different.
+They are interpreted according to a 16-bit integer model, see also
+sections~\ref{sec:sprintf} and~\ref{sec:fprintf} and require the {\tt l}
+modifier when printing integers and characters for compilers using a 32-bit
+integer model. Similar to {\tt FPrintf()}, this function can be localized and then
+accepts additional formatting directives from {\tt FormatString()} function
+of the \emph{locale.library}.
 \smallskip{}
 
 The result {\tt count} delivers the number of characters written to
-the file, or $-1$ for an error. In the latter case,
+the file, or returns $-1$ for an error. In the latter case,
 {\tt IoErr()}\key{IoErr()} provides an error code.
 
 \subsection{BCPL Style Formatted Print to a File}
 
 The {\tt VFWritef()}\mkey{VFwrite()} function formats its
-arguments according to a format string similar to
-{\tt VFPrintf()}\key{VFPrintf()}, but uses the formatting syntax of the
+arguments according to a format string based on the syntax defined by the
 BCPL language. The main purpose of this function is to offer formatted
-output for legacy BCPL programs where this function appears as an
-entry of the BCPL Global Vector. New code
+output for legacy BCPL programs to which this function appears as an
+entry in the BCPL Global Vector. New code
 should not use this function but rather depend on {\tt VFPrintf()}
 which also gets enhanced by the \emph{locale.library}.
 \smallskip{}
@@ -3361,8 +3482,7 @@ which also gets enhanced by the \emph{locale.library}.
 The {\tt FWritef()}\mkey{FWritef()} uses the same entry point of the
 \emph{dos.library}, though the compiler prototype imposes a different
 calling syntax where the objects to be formatted are directly
-delivered as function arguments rather requiring the caller to collect
-them in an array upfront.
+delivered as function arguments.
 
 \begin{verbatim}
 count = VFWritef(fh, fmt, argv) /* since V36 */
@@ -3377,13 +3497,13 @@ LONG FWritef(BPTR, STRPTR, ...)
 
 This function formats the arguments from the array pointed to by
 {\tt argv} according to the format string in {\tt fmt} and writes the
-output to the file {\tt fh}. The format string follows the syntax of
+output to the file {\tt fh}. The format string follows the conventions of
 the BCPL language. The following format identifiers are supported:
 
 \begin{itemize}
 \item[{\tt \%S }] Write a {\tt NUL} terminated string from the array to the output.
 \item[{\tt \%Tx}] Writes a {\tt NUL} terminated string left justified
-  in a field whose width is given by the character {\tt x}. The length
+  into a field whose width is given by the character {\tt x}. The length
   indicator is always a single character; a digit from {\tt 0} to
   {\tt 9} indicates the field widths from $0$ to $9$ directly. Characters
   {\tt A} to {\tt Z} indicate field widths from $10$ onward. Strings
@@ -3425,134 +3545,26 @@ Global Vector\key{Global Vector}, it there takes BSTRs instead of regular
 C strings for the format string and the arguments of the {\tt \%S} and
 {\tt \%T} formats.
 
-\subsection{Setting the Console Buffer Mode} \label{sec:setmode}
-
-The {\tt SetMode()}\mkey{SetMode()} function sets the buffer mode of an interactive
-handler. It is typically used in conjunction with the graphical or serial
-console, i.e.\ the CON-Handler\key{CON-Handler} and the AUX-Handler\key{AUX-Handler}, and there sets the input
-buffer mode of the console. Depending on this mode, the console either waits
-for an entire line to be completed to satisfy an input, provides each
-individual key as input to programs, or provides a line buffer with the
-exception of some special control keys that are transmitted
-immediately. Section~\ref{sec:conmodes} contains further details on the
-console and its modes.
-
-\begin{verbatim}
-success = SetMode(fh, mode) /* since V36 */
-D0                D1  D2
-
-BOOL SetMode(BPTR, LONG)
-\end{verbatim}
-
-This function sets the mode of the handler addressed by the
-FileHandle {\tt fh} to the {\tt mode} provided as second
-argument. The meaning of the modes is specific to the handler; however, this
-function is typically used in conjunction with both consoles provided by
-AmigaDOS, the graphical console of the {\tt CON} and {\tt RAW} device, and
-the serial console corresponding to the {\tt AUX} device. All three devices
-are, actually, implemented by the CON-Handler\key{CON-Handler}, while
-the AUX-Handler\key{AUX-Handler} is just a simple wedge to the first for
-historical reasons, see also section~\ref{sec:console}.
-\smallskip{}
-
-For the console(s), the interpretation of the {\tt mode} argument is as
-follows:
-
-\begin{rkrmtable}{Console Modes} \label{table:conmodes}
-{\bf Buffer Mode} & {\bf Description}\\ \hline \hline
-\tt 0 & Cooked mode\key{Cooked Mode} \\ \hline
-\tt 1 & Raw mode\key{Raw Mode} \\ \hline
-\tt 2 & Medium mode\key{Medium Mode} (V47) \\ \hline
-All other values & Reserved for future use \\ \hline
-\end{rkrmtable}
-
-In the \emph{cooked mode}\key{Cooked Mode}, the console buffers entire lines, provides
-line-editing features, but only makes the input data available to clients when the user
-terminates the input with the {\tt RETURN} key. The {\tt CON} and
-{\tt AUX} devices operate by default in this mode, but can be switched to
-any other buffer mode by this function.
-\smallskip{}
-
-In the \emph{raw mode}\key{Raw Mode}, every single keystroke is made available
-immediately, including control sequences corresponding to all cursor and
-function keys. That implies, however, that line editing is not available and
-pressed keys are not echoed on the console, but rather transmitted directly.
-If echoing is desired, the application reading from the console needs to
-print out each typed key again. This mode corresponds to the {\tt RAW} device
-which is nothing but a console operating in this mode by default.
-\smallskip{}
-
-In the \emph{medium mode}\key{Medium Mode}, the console also buffers lines, but some
-keystrokes are directly transmitted without requiring the user to press the
-{\tt RETURN} key. In specific, the key-combinations consisting of the up- and down cursor
-keys as well as the {\tt TAB} key are reported immediately to the caller through
-control sequences. These sequences are documented in
-section~\ref{sec:conmodes}. The Amiga Shell uses this mode to offer a history and
-provides by it {\tt TAB} expansion of commands and command line
-arguments. No device name corresponds to this mode; instead, the Shell
-switches a regular {\tt CON:} window to this mode in order to offer its
-services.
-\smallskip{}
-
-Both the CON-Handler\key{CON-Handler} and the AUX-Handler\key{AUX-Handler}
-implement this function, supporting all three modes. However, there is ---
-unless explicitly mounted by the user --- no device name that corresponds to
-the \emph{medium mode} and no device name that corresponds to an {\tt AUX:}
-console in the \emph{raw mode}.
-\smallskip{}
-
-The {\tt SetMode()}\key{SetMode()} function returns a Boolean success code,
-which is non-zero if the function could change the console mode, or~0 if it
-failed. In case of success, {\tt IoErr()}\key{IoErr()} is set to~1 if the
-console is attached to a window of the Amiga graphical user interface, or
-to~0 if the window is currently closed or the console is attached to some
-other device, such as the serial port. In case of failure, {\tt IoErr()}
-returns an error code from {\tt dos/dos.h}.
-\medskip{}
-
-As an application, the following function attempts to read a keystroke from
-a given file handle\key{FileHandle}, supposed to be connected to the console, without
-waiting for the return key; it returns~$-1$ on an error or otherwise the
-code of the pressed key:
-
-\begin{verbatim}
-LONG getch(BPTR file)
-{
-  UBYTE c;
-  LONG err = -1;
-
-  /* switch to raw */
-  if (SetMode(file,1)) { 
-   if (Read(file,&c,1) == 1)
-    err = 0;
-   /* back to cooked */
-   SetMode(file,0); 
-  }
-
-  return (err < 0)?err:c;
-}
-\end{verbatim}
-
 \section{Record Locking} \label{sec:recordlocking}
 
-While locks\key{Lock}, see chapter~\ref{sec:locks}, control access to a file
-system object in total, record locks provide access control on contiguous
+While locks\key{Lock}, see chapter~\ref{sec:locks}, control access to file
+systems object in total, record locks provide access control on contiguous
 regions of a file. Unlike locks, however, the file system does not block
 read or write access to the locked region and does not attempt to enforce
 record locks during read or write operations. Instead, a record lock on a
 file region only prevents another conflicting record lock on a region
-that overlaps with the locked region. Record locks therefore require the
-locking processes to follow the same locking protocol.
+that overlaps with the locked region. Record locks therefore require all
+participating processes to use the record locking functions of this section.
 \smallskip{}
 
-Record locks are a relatively modern protocol not all file systems
+Record locks are a relatively modern concept not all file systems
 implement. The RAM-Handler\key{RAM-Handler} and the Fast File
 System\key{Fast File System (FFS)} support it.
 
 \subsection{Locking a Region of a File} \label{sec:lockrecord}
 
 The {\tt LockRecord()}\mkey{LockRecord()} function locks a single region
-of a file, potentially waiting for a timeout for the region to become
+of a file, potentially waiting a limited time for the region to become
 available.
 
 \begin{verbatim}
@@ -3597,7 +3609,7 @@ soon as they can determine that the requested record cannot be locked.
 \smallskip{}
 
 This function returns~$0$ in case of failure and then returns a
-non-zero error code with {\tt IoErr()}\key{IoErr()}. In case the record lock cannot
+non-zero error code through {\tt IoErr()}\key{IoErr()}. In case the record lock cannot
 be obtained because the region overlaps with another locked region,
 the error will be {\tt ERROR\_LOCK\_COLLISION}\key{ERROR\_LOCK\_COLLISION}. If the region can be
 locked, the call returns a non-zero result code. Even though
@@ -3648,14 +3660,15 @@ obtained. It shall be one of the modes listed in
 table~\ref{table:reclockmode}; the modes are all defined in {\tt dos/record.h}.
 \smallskip{}
 
-The {\tt timeout} argument specifies how long each of the attempts to obtain a lock
-is supposed to wait for a record to become available if a non-immediate
-record lock is requested, it is measured in ticks. The {\tt timeout} is applied to each of the
-records in the {\tt RecordLock} array sequentially until either all records
-could be locked, or until locking one of the records fail. In such a case,
-the call unlocks all locks obtained so far, and then returns with
-failure. That is, the maximal time {\tt LockRecords()}\key{LockRecords()}
-blocks is the sum of all timeouts.
+The {\tt timeout} argument specifies how long each of the attempts to obtain
+a non-immediate lock is supposed to wait for a record to become available;
+it is measured in ticks. It is ignored for records to be locked immediately.
+The {\tt LockRecords()} works through the elements of the {\tt RecordLock}
+array sequentially until either all records could be locked, or until
+locking one of the records fails. In the latter case, the function unlocks
+all locks obtained so far and then returns with failure. That is, the
+maximal time {\tt LockRecords()}\key{LockRecords()} blocks is the sum of all
+timeouts.
 \smallskip{}
 
 On failure, i.e.\ if one of the records cannot be locked, the function
@@ -3666,13 +3679,13 @@ cannot be relied upon.
 \smallskip{}
 
 Unlike what the function prototype suggests, this function is \emph{not
-atomic}. Instead, it attempts to lock the records sequentially one after
-another, applying the same timeout for each call, unless {\tt rec\_Mode}
-indicates that no timeout shall be applied to a particular record. Thus, it
-can happen that another task attempts for a lock of a conflicting region
-while the first caller is executing this function. It is therefore
-recommended to establish an order in which records within a file are locked,
-e.g.\ from smallest to largest start offset.
+atomic}. It attempts to lock the records sequentially one after another,
+applying the same timeout for each call, unless {\tt rec\_Mode} indicates
+that no timeout shall be applied to a particular record. Thus, it can happen
+that another task attempts for a lock of a conflicting region while the
+first caller is executing this function. It is therefore recommended to
+establish an order in which records within a file are locked, e.g.\ from
+smallest to largest start offset.
 
 \subsection{Unlocking a Region of a File}
 
@@ -3701,7 +3714,7 @@ attempt is made to unlock a record
 that has not been not locked before, or to partially unlock a record. On
 success, the function returns a non-zero result code. Even though
 {\tt IoErr()}\key{IoErr()} is altered in case of success, its value
-cannot be relied upon.
+cannot be relied upon then.
 
 \subsection{Unlocking Multiple Records of a File}
 
@@ -3722,12 +3735,14 @@ indicated by its {\tt rec\_FH} element set to {\tt NULL}. This
 structure is defined in section~\ref{sec:lockrecords}.
 \smallskip{}
 
-The function calls {\tt UnLockRecord()}\key{UnLockRecord()} in a loop, and is therefore
-\emph{not atomic}. In case unlocking any of these records fails, the
-function returns~0 but attempts to unlock also any remaining records
-in the array. On success, it returns a non-zero result code.
-Unfortunately, the function does not set {\tt IoErr()}\key{IoErr()} consistently
-in case of failure as the error code is not saved on a failed unlock.
+The function calls {\tt UnLockRecord()}\key{UnLockRecord()} in a loop, and
+is therefore \emph{not atomic}. In case unlocking any of the records
+fails, the function returns~0 but continues to attempt to unlock all
+remaining records in the array. If unlocking all regions succeeds, it
+returns a non-zero result code. If unlocking one of the regions fails, it
+returns with {\tt DOSFALSE}, but unfortunately does not set
+{\tt IoErr()}\key{IoErr()} consistently as the error code is not saved on a
+failed unlock.
   
 \chapter{Locks} \label{sec:locks}
 
@@ -22684,7 +22699,7 @@ inhibit a volume is for example if any files are open for writing, and thus
 the bitmap is inconsistent. Inhibiting in such a case could damage the file
 system structure.
 
-\subsection{Check if a Handler is a File System}
+\subsection{Check if a Handler is a File System} \label{sec:actionisfilesystem}
 
 The {\tt ACTION\_IS\_FILESYSTEM}\mkey{ACTION\_IS\_FILESYSTEM} tests whether
 a handler is a file system.
