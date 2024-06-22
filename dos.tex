@@ -13992,8 +13992,8 @@ start of the file at which the {\tt HUNK\_HEADER}\key{HUNK\_HEADER} of the
 overlay node~$i$ is found. The offset~$o_t[i]$ corresponding to
 {\tt ot\_TrampolineOff}\mkey{ot\_TrampolineOff} is the offset of the first trampoline to a symbol
 within overlay node~$i$; the offset is relative to the second segment of the
-root node\key{Root Node}, or more precisely, relative to {\tt
-  \textunderscore\textunderscore{}H1\textunderscore{}org}.
+root node\key{Root Node}, or more precisely, relative to
+{\tt \textunderscore\textunderscore{}H1\textunderscore{}org}.
 \smallskip{}
 
 Finally, $o_s[i]$, or in memory {\tt ot\_SymbolOffset}\mkey{ot\_SymbolOffset}, is used by the MANX
@@ -15193,8 +15193,9 @@ the best source for the port is the {\tt fh\_Type}\key{fh\_Type}
 pointer in the {\tt FileHandle}\key{FileHandle} structure. If the
 communication is related to a lock\key{Lock}, the
 {\tt fl\_Task}\key{fl\_Task} element of the {\tt FileLock}\key{FileLock}
-is the recommended source. For activities unrelated to locks or files,
-the {\tt dol\_Task}\key{dol\_Task} element of the {\tt DosList}
+is the recommended source. Notification requests carry in {\tt nr\_Handler}\key{nr\_Handler}
+a pointer to the port to be used. For activities unrelated to locks, files
+or notification requests, the {\tt dol\_Task}\key{dol\_Task} element of the {\tt DosList}
 structure is yet another source. To obtain such a structure from a path,
 use the {\tt GetDeviceProc()}\key{GetDeviceProc()} function, see
 section~\ref{sec:getdeviceproc}.
@@ -15551,7 +15552,7 @@ operations that are related to files, locks\key{Lock}, notification
 requests and many others are off-loaded to file systems or
 handlers. Thus, the \emph{dos.library} establishes a virtual file
 system that provides a common API for its clients, but depends on
-handlers or file systems to implement its functions.
+handlers and file systems to implement its functions.
 \smallskip{}
 
 This chapter provides insight into the interface between the
@@ -15575,9 +15576,10 @@ find a {\tt MsgPort} of the handler, either from a path or from an already
 existing object such as a lock\key{Lock} or a file
 handle\key{FileHandle}. For Locks, the {\tt fl\_Task}\key{fl\_Task}
 element of the {\tt FileLock} structure contains the port, and for
-files the {\tt fh\_Type}\key{fh\_Type} field is the pointer to the
+files the {\tt fh\_Type}\key{fh\_Type} element is the pointer to the
 port, see sections~\ref{sec:filelock}
-and~\ref{sec:filehandle}. If only a path is given,
+and~\ref{sec:filehandle}. Notification requests carry the pointer in
+{\tt nr\_Handler}\key{nr\_Handler}. If only a path is given,
 then section~\ref{sec:locatehandler} describes how a port and thus a handler
 responsible for a path is identified.
  
@@ -15607,12 +15609,11 @@ which packets are send to the handler.  If it is {\tt ZERO}, then
 in section~\ref{sec:filelock} and chapter~\ref{sec:process}.
 \smallskip{}
 
-If an absolute path to the (pseudo-)device {\tt CONSOLE} or to the
-path ``{\tt *}'' is\key{* (file name)} provided, the {\tt MsgPort} in
+If an absolute path to the (pseudo-)device {\tt CONSOLE} provided, the {\tt MsgPort} in
 {\tt pr\_ConsoleTask} is contacted. This port belongs
 to the current console the calling process is running in. While
 {\tt CONSOLE} is handled within {\tt GetDeviceProc()}\key{GetDeviceProc()},
-the ``{\tt *}'' and paths relative to {\tt CONSOLE:} are filtered out by
+the ``{\tt *}''\key{* (file name)}, {\tt CONSOLE:} and {\tt NIL:} are filtered out by
 {\tt Open()}\key{Open()}.
 If a path relative to the pseudo-assign {\tt PROGDIR} has been
 passed, the lock in {\tt pr\_HomeDir} is used to identify a
@@ -15641,7 +15642,7 @@ the device list\key{Device List}.
 Once a suitable entry has been found, {\tt GetDeviceProc()}\key{GetDeviceProc()} tests {\tt dol\_Type}
 which contains the type of the entry as given by table~\ref{table:doslisttypes} in chapter~\ref{sec:devicelist}.
 For volumes, {\tt dol\_Task}\key{dol\_Task} is non-{\tt NULL} if the
-volume is currently inserted. It is then the pointer to the port of the
+volume is currently inserted; it is then the pointer to the port of the
 responsible handler. If it is {\tt NULL}, the volume is currently not
 available and then requested from the user if {\tt pr\_WindowPtr}\key{pr\_WindowPtr} allows to do so.
 If this requester is aborted or disabled, path resolution fails.
@@ -15651,7 +15652,7 @@ For regular assigns\key{Assign} or multi-assigns\key{Multi-Assign}, {\tt dol\_Ta
 the port of the handler responsible for the first directory in the assign, and
 {\tt dol\_Lock} provides the lock to this directory. The same port can
 also be found in the {\tt fl\_Type} element of this lock. All additional
-directories in a multi-assign are only represented by locks in the
+directories in a multi-assign are represented by locks in the
 {\tt AssignList}\key{AssignList} structure, and the port can taken
 from the corresponding {\tt fl\_Type} element, see
 chapter~\ref{sec:devicelist} for a detailed
@@ -15684,18 +15685,19 @@ loaded from the file name indicated in {\tt dol\_Handler}\key{dol\_Handler} thro
 list\key{SegmentList}.
 \smallskip{}
 
-Next, a new process is created by running it from
-the first byte of {\tt dol\_SegList} for C or assembler handlers, or
-from the {\tt START} entry of the Global Vector\key{Global Vector} for
-BCPL handlers. To further initialize the handler, a startup package
-is delivered; details depend on the {\tt dol\_GlobVec}\key{dol\_GlobVec}
+Next, a new process is created; details depend on the {\tt dol\_GlobVec}\key{dol\_GlobVec}
 element of the device list\key{Device List} entry, see
 Table~\ref{table:gvvalues} in chapter~\ref{sec:devicelist}. For
-C or assembler handlers with a {\tt dol\_GlobVec} value of $-1$ or $-2$, the
+C or assembler handlers with a {\tt dol\_GlobVec} value of $-1$ or $-2$,
+the process is started from the first byte of {\tt dol\_SegList}.
+For all other values of {\tt dol\_GlobVec}, i.e.\ BCPL handlers,
+it is run from the {\tt START} entry of the Global
+Vector\key{Global Vector}, see also section~\ref{sec:bcplbinding}. To further initialize the handler, a startup package
+is delivered: for C or assembler handlers, the
 startup packet is send to the {\tt pr\_MsgPort}\key{pr\_MsgPort} of the handler
-process. For all other values of {\tt dol\_GlobVec}, i.e.\ BCPL handlers,
+process; for BCPL handlers,
 the startup packet becomes the first argument of the {\tt START} function
-at index 1 of the Global Vector\key{Global Vector}, see also section~\ref{sec:bcplbinding}.
+at index 1 of the Global Vector\key{Global Vector}.
 If the ``fake'' BCPL startup code from section~\ref{sec:bcplbinding}
 is used, this packet is either delivered in register {\tt a0} of the
 handler main function, or shall be retrieved from {\tt pr\_MsgPort} if {\tt a0}
@@ -15744,8 +15746,8 @@ but a BSTR whose first element is the size of the string. This is the
 \emph{full} path which triggered the request for the handler, not only
 the device name. For the CON-Handler\key{CON-Handler} for example,
 this is the window specification that informs the handler on the
-position, size and title of the console; window parameters
-are \emph{not} taken from the subsequent {\tt DosPacket}\key{DosPacket}
+position, size and title of the console; this handler does
+not take window parameters from the subsequent {\tt DosPacket}\key{DosPacket}
 send for opening a file, see also section~\ref{sec:console}.
 \smallskip{}
 
@@ -15793,14 +15795,14 @@ requests to the process just started, the file system places a pointer to a
 shall also be provided in {\tt dp\_Arg4}\footnote{Unlike what~\cite{guru} claims,
 {\tt dp\_Arg4} defines {\tt dvp\_Port} during file system startup even if
 also {\tt dol\_Task} of the {\tt DosList} structure is populated.}. 
-The Fast File System\key{Fast File System (FFS)} and file systems in general proceed in
-this way.
+The Fast File System\key{Fast File System (FFS)} and file systems in general
+initialize {\tt dol\_Task} with their process port.
 \smallskip{}
 
 A handler such as the CON-Handler\key{CON-Handler} requires a separate
 process for each window it manages. In such a case, {\tt dol\_Task}
 remains {\tt NULL} and {\tt GetDeviceProc()}\key{GetDeviceProc()} will
-initiate a new process for each path to the handler. This
+initiate a new process for each path requesting the handler. This
 does \emph{not} imply that the handler process only receives a single request
 to open a file in its lifetime, though. Any attempt to open a file
 named ``{\tt *}'' or a using a file name relative to the (pseudo-)
@@ -15829,13 +15831,13 @@ the handler shall release all resources acquired so far and terminate.
 
 On success, the main processing loop of the handler is entered
 processing requests through {\tt DosPacket}s\key{DosPacket} it
-receive through its port(s).
+receives through its port(s).
 
 \subsection{Handler Main Processing Loop} \label{sec:handlermain}
 
 Once started up, handlers or file systems shall wait for incoming
 packets. The main loop of a handler then checks its own process port,
-or all ports it provided through the mechanisms below for incoming
+or all ports it provided for incoming
 packets. Chapter~\ref{sec:packettypes} provides information on all
 packets documented in AmigaDOS, though third-party handlers may
 implement additional packet types.
@@ -15844,8 +15846,8 @@ implement additional packet types.
 When opening files through the packets documented in
 section~\ref{sec:actionfindinput} and following, the handler or file system
 receives a BPTR to a {\tt FileHandle} structure whose {\tt fh\_Arg1} element
-may serve as an identifier of the file and associated resources. It is
-delivered back to the handler on all operations on the file, such as reading
+may be initialized to serve as an identifier of the file and associated resources. It is
+delivered back to the handler on all further operations on the file, such as reading
 from or writing to it. At this point, the handler may also update the
 {\tt fh\_Type} element of the file handle to have packets related to the file
 delivered to an alternative port. Section~\ref{sec:fileactions} lists all
@@ -15976,7 +15978,7 @@ LONG __asm __saveds main(register __a0 struct DosPacket *pkt)
 }
 \end{verbatim}
 
-The handler first checks whether it received a startup packet through the
+This example handler first checks whether it received a startup packet through the
 BCPL binder, and if not, retrieves it from its process port. It then
 allocates its resources, in this case it only opens the
 \emph{dos.library}. If that fails, the startup packet is replied with an
@@ -16029,8 +16031,10 @@ object it creates, and decremented for each object deleted. For
 example, if the handler supports opening files, then the initialization of
 each file handle\key{FileHandle} should increment the counter, and each file handle
 closed through {\tt ACTION\_END}\key{ACTION\_END} should decrement the
-counter. Similarly, if locks are supported, every lock created should
-increment it, and every lock unlocked should decrement it. Once the use
+counter. Similarly, if locks or notification requests are supported, every
+lock or request created should
+increment it, and every lock unlocked and every request canceled should
+decrement it. Once the use
 counter reaches 0, the handler process should die by releasing all of its
 resources and falling off its main function. This ensures that AmigaDOS is
 not congested by creating more and more processes of the same handler that,
@@ -16055,7 +16059,7 @@ file systems should check for incoming packets of the type
 {\tt ACTION\_DIE}\key{ACTION\_DIE}. If the file system is aware that
 any of its resources are still in use, e.g.\ some files or locks are
 still open, {\tt ACTION\_DIE} shall fail. Otherwise, the file system
-may reply to this packet with success and attempt to shutdown.
+may reply to this packet with success and should attempt to shutdown.
 \smallskip{}
 
 The {\tt pr\_MsgPort} or any other ports of such a handler can still
@@ -16069,12 +16073,12 @@ Despite such precautions, {\tt ACTION\_DIE}\key{ACTION\_DIE} cannot be
 implemented in a fully reliable way as some of the {\tt MsgPort}(s) of the
 file system could still be cached by client programs even without
 having access to any of its resources. Section~\ref{sec:packetactiondie} contains
-further details on this packet.
+further details on {\tt ACTION\_DIE}.
 
 \section{The CON-Handler} \label{sec:console}
 
 The CON-Handler\mkey{CON-Handler}\mkey{Console} implements the console of
-AmigaDOS, which hosts for example the Shell. It not only serves the
+AmigaDOS, which hosts for example the shell. It not only serves the
 graphical console based on an intuition window, but also consoles on the
 serial port or other devices. The AUX-Handler\key{AUX-Handler} is only a
 minimal disk-based wrapper that locates the CON-Handler\key{CON-Handler}
@@ -16101,7 +16105,7 @@ section~\ref{sec:constartup} for examples how to mount a customized
 \subsection{CON-Handler Path for Graphical Consoles} \label{sec:conwindowpath}
 
 The path through which a stream to the {\tt CON} and {\tt RAW} devices is
-opened determines the size, position of the window and features of the
+opened determines the size and position of the window, and defines features of the
 console that runs in this window; for the {\tt AUX} device, it defines
 connection parameters such as the baud rate and the parity.
 \smallskip{}
@@ -16177,7 +16181,7 @@ queuing an end-of-file condition to read requests; the window will pop open agai
 write requests are received. Unfortunately, an {\tt ACTION\_DISK\_INFO} will
 lock the window open, thus disabling this parameter, see section~\ref{sec:diskinfoconsole} for alternatives
 to this packet or how to regain the {\tt AUTO} feature.
-This option does not work for the {\tt RAW} device or in the raw mode for
+{\tt AUTO} does not work for the {\tt RAW} device or in the raw mode for
 reasons explained below.
 \smallskip{}
 
@@ -16209,7 +16213,7 @@ events send by the \emph{console.device}, but in raw mode the console only
 forwards all received data to its clients directly.
 \smallskip{}
 
-In all other modes, an EOF condition is generated if the window
+In the cooked and medium mode, an EOF condition is generated if the window
 close gadget is pressed and the console is still in use by at least one file
 handle. It is again up to the receiving process how to react on an end of
 file. If the process then closes its file handle to the console, and this
@@ -16222,22 +16226,22 @@ press the close gadget --- probably once more.
 If the console is not in raw mode, the keyboard combination
 {\tt Ctrl+\textbackslash{}} also triggers an EOF condition. As for the close
 gadget, this keyboard combination is not functional in raw mode and there
-sends the ASCII {\tt FS} control character of the code {\tt 0x1c}. The
+sends the ASCII {\tt FS} control character, i.e.\ the code {\tt 0x1c}. The
 same keyboard combination also closes a console whose file handles have all
 been closed and which only stays open due to the {\tt WAIT} option.
 \medskip{}
 
 {\tt SMART}\mkey{SMART} enforces smart refresh of the window. If this is
-enabled, more RAM is required for saving the graphics hidden behind other windows,
-but it is not necessary to re-render the contents of the console window if
+enabled, more RAM is required for saving console graphics hidden behind other windows,
+and it is then not necessary to re-render the contents of the console if
 it is moved upfront another window. In most cases, rendering speed improves
 only insignificantly, but at the price of a larger RAM footprint.
 \smallskip{}
 
-{\tt SIMPLE}\mkey{SIMPLE} enforces simple refresh of the window. If parts of
-a hidden window is moved upfront and made visible again, those parts will be
-reprinted. This does usually not cost a lot of time, saves RAM and is also
-the default.
+{\tt SIMPLE}\mkey{SIMPLE} enforces simple refresh of the window. If a
+partially hidden console window is moved upfront and made visible again,
+its contents will be reprinted. This does usually not cost a lot of
+time, saves RAM and is also the default.
 \smallskip{}
 
 {\tt INACTIVE}\mkey{INACTIVE} prevents that the window is receiving
@@ -16272,7 +16276,7 @@ depth arranged.
 \smallskip{}
 
 {\tt WINDOW}\mkey{WINDOW} instructs the console to hijack an already open
-window and run the console within. This window will also be
+window and run the console within it. This window will also be
 closed if the console closes, i.e.\ the console owns the window from this
 point on and controls its life-time. The address of the {\tt Window} structure is
 provided in hexadecimal behind the parameter, optionally separated by
@@ -16285,18 +16289,18 @@ documented in~\cite{rkrmlib} and defined in {\tt intuition/intuition.h}.
 
 {\tt SCREEN}\mkey{SCREEN} provides a name of a public screen on which the
 console shall appear. The public screen name
-follows the option, optionally separated by spaces, e.g.\
+follows the path component, optionally separated by spaces, e.g.\
 {\tt SCREEN~myProgram.1}. If the screen name is {\tt *}, then the front-most
 public screen will be used as host for the console.
 \smallskip{}
 
 {\tt ALT}\mkey{ALT} provides an alternative window position and dimension to
-which the window can be toggled by the top-right zoom gadget of the
-window. The alternative window placement provides left edge, top edge, width
+which the window can be toggled by its top-right zoom gadget.
+The alternative window placement provides left edge, top edge, width
 and height, similar to the main window placement, though numerical arguments
 are separated by comma (``{\tt ,}'') and not by the forwards slash. The
 alternative position and size shall follow directly behind the {\tt ALT} keyword,
-e.g.\ {\tt ALT 0,0,320,200}.
+for example {\tt ALT 0,0,320,200}.
 \smallskip{}
 
 {\tt ICONIFY}\mkey{ICONIFY} equips the window with an iconification
@@ -16341,8 +16345,7 @@ Parameters for the handler come from three sources: First, from the
 Serial preferences of the system. These default parameters are
 overridden by the mountlist for {\tt AUX}, described separately in
 section~\ref{sec:constartup}. Third, the parameters from the mountlist
-can be overridden through components in the path from which
-{\tt AUX:} is opened.
+can be overridden by the path from which {\tt AUX:} is opened.
 \smallskip{}
 
 The syntax of the path is as follows:
@@ -16381,7 +16384,7 @@ place. If {\tt AUX} is mounted as {\tt HANDLER} and not as
 {\tt EHANDLER}, setting the {\tt STARTUP} mount parameter to 1 also
 switches to this mode, but makes all other options in the
 mountlist\key{Mountlist} unavailable. Section~\ref{sec:filesysstartup}
-provides more details on these two keywords.
+provides more details on these two keywords in the mountlist.
 \smallskip{}
 
 {\tt UNIT}\mkey{UNIT} defines the unit of the device over which the
@@ -16456,7 +16459,7 @@ The handler startup mechanism in general is specified in
 section~\ref{sec:handlerstartup}.  As described there, {\tt dp\_Arg2}
 of the startup packet is a copy of the {\tt dol\_Startup} entry of the
 {\tt DosList}\key{DosList} created from the mountlist\key{Mountlist}.
-The path from which the CON-Handler receives the path described in
+The string from which the CON-Handler receives the path described in
 sections~\ref{sec:conwindowpath} and~\ref{sec:auxwindowpath} is taken
 from {\tt dp\_Arg1} of the startup packet, and not --- as one might expect
 --- from the packets opening file handles.
@@ -16479,7 +16482,8 @@ BPTR with bit 30 set    & cooked mode open on a device specified by a
 \end{rkrmtable}
 
 The values~0 to~3 configure the line buffer mode and correspond to the
-{\tt mode} selected by~{\tt SetMode()}\key{SetMode()}. The buffer mode~3 is
+{\tt mode} selected by~{\tt SetMode()}\key{SetMode()}, compare also with
+section~\ref{sec:setmode}. The buffer mode~3 is
 currently not used and reserved for future extensions.  Mode~2 is a new mode
 introduced in AmigaDOS 47. Its primary purpose is to support the Shell with
 additional features. It is described along with all other modes in
@@ -16495,8 +16499,7 @@ a graphical console within this window. It is quite hard to make
 practical use of this startup mechanism and it is thus discouraged,
 but~\cite{guru} provides example code how to trigger it. It should be
 considered deprecated. A better mechanism to run a console in an
-already opened window is by the {\tt WINDOW} argument in the
-path described in section~\ref{sec:conwindowpath}.
+already opened window is by the {\tt WINDOW} argument described in section~\ref{sec:conwindowpath}.
 \smallskip{}
 
 In all other cases, {\tt dol\_Startup}\key{dol\_Startup} is a BPTR to a
@@ -16552,40 +16555,40 @@ the following keystrokes:
 \begin{rkrmtabular}{Keystrokes Interpreted in Cooked Mode} \label{table:cookedconsole}
 \begin{longtable}{|ll|} \hline
 {\bf Keystroke} & {\bf Function}\\ \hline \hline
-Cursor left       & Move left one character \\ \hline
-Cursor right      & Move right one character \\ \hline
-Cursor up         & Do nothing${}^*$ \\ \hline
-Cursor down       & Do nothing${}^*$ \\ \hline
-Shift+Cursor up   & Do nothing${}^*$ \\ \hline
-Shift+Cursor down & Do nothing${}^*$ \\ \hline
-Shift+Cursor left & Move to the start of line\\ \hline
-Shift+Cursor right& Move to the end of line\\ \hline
-Shift+Cursor up   & Move to the start of line${}^*$ \\ \hline
-Shift+Cursor down & Erase line${}^*$ \\ \hline
-TAB               & Inserts a TAB control code${}^*$ \\ \hline
-Shift+TAB         & Do nothing${}^*$ \\ \hline
-Return            & Complete line and send it to clients \\ \hline
-Ctrl+A            & Move to the start of line \\ \hline
-Ctrl+B            & Erase entire line \\ \hline
-Ctrl+C            & Sends signal 12 \\ \hline
-Ctrl+D            & Sends signal 13 \\ \hline
-Ctrl+E            & Sends signal 14 \\ \hline
-Ctrl+F            & Sends signal 15 \\ \hline
-Ctrl+H            & Identical to Backspace \\ \hline
-Ctrl+J            & Insert a Line Feed \\ \hline
-Ctrl+K            & Kill characters into yank buffer \\ \hline
-Ctrl+M            & Identical to Return \\ \hline
-Ctrl+Q            & Resume output \\ \hline
-Ctrl+R            & Do nothing${}^*$ \\ \hline
-Ctrl+S            & Suspend output \\ \hline
-Ctrl+U            & Delete beginning of line \\ \hline
-Ctrl+W            & Delete word \\ \hline
-Ctrl+X            & Erase entire line \\ \hline
-Ctrl+Y            & Paste characters from yank buffer\\ \hline
-Ctrl+Z            & Move to end of line \\ \hline
-Ctrl+\textbackslash & Signal an end-of-file \\ \hline
-Backspace         & Delete character upfront cursor \\ \hline
-Del               & Delete character under cursor \\ \hline
+{\tt Cursor left}       & Move left one character \\ \hline
+{\tt Cursor right}      & Move right one character \\ \hline
+{\tt Cursor up}         & Do nothing${}^*$ \\ \hline
+{\tt Cursor down}       & Do nothing${}^*$ \\ \hline
+{\tt Shift+Cursor up}   & Do nothing${}^*$ \\ \hline
+{\tt Shift+Cursor down} & Do nothing${}^*$ \\ \hline
+{\tt Shift+Cursor left} & Move to the start of line\\ \hline
+{\tt Shift+Cursor right}& Move to the end of line\\ \hline
+{\tt Shift+Cursor up}   & Move to the start of line${}^*$ \\ \hline
+{\tt Shift+Cursor down} & Erase line${}^*$ \\ \hline
+{\tt TAB}               & Inserts a TAB control code${}^*$ \\ \hline
+{\tt Shift+TAB}         & Do nothing${}^*$ \\ \hline
+{\tt Return}            & Complete line and send it to clients \\ \hline
+{\tt Ctrl+A}            & Move to the start of line \\ \hline
+{\tt Ctrl+B}            & Erase entire line \\ \hline
+{\tt Ctrl+C}            & Sends signal 12 \\ \hline
+{\tt Ctrl+D}            & Sends signal 13 \\ \hline
+{\tt Ctrl+E}            & Sends signal 14 \\ \hline
+{\tt Ctrl+F}            & Sends signal 15 \\ \hline
+{\tt Ctrl+H}            & Identical to Backspace \\ \hline
+{\tt Ctrl+J}            & Insert a Line Feed \\ \hline
+{\tt Ctrl+K}            & Kill characters into yank buffer \\ \hline
+{\tt Ctrl+M}            & Identical to Return \\ \hline
+{\tt Ctrl+Q}            & Resume output \\ \hline
+{\tt Ctrl+R}            & Do nothing${}^*$ \\ \hline
+{\tt Ctrl+S}            & Suspend output \\ \hline
+{\tt Ctrl+U}            & Delete beginning of line \\ \hline
+{\tt Ctrl+W}            & Delete word \\ \hline
+{\tt Ctrl+X}            & Erase entire line \\ \hline
+{\tt Ctrl+Y}            & Paste characters from yank buffer\\ \hline
+{\tt Ctrl+Z}            & Move to end of line \\ \hline
+{\tt Ctrl+\textbackslash} & Signal an end-of-file \\ \hline
+{\tt Backspace}         & Delete character upfront cursor \\ \hline
+{\tt Del}               & Delete character under cursor \\ \hline
 \multicolumn{2}{|l|}{\small ${}^*$ Interpreted differently in medium mode, see
   table~\ref{table:mediumcsi}} \\ \hline
 \end{longtable}
@@ -16633,7 +16636,7 @@ of the most recently reading program by the {\tt DosPacket}\key{DosPacket}
 \smallskip{}
 
 Unlike other operating systems, AmigaDOS does not have the ability to
-asynchronously terminate processes; thus, programs shall check for the
+asynchronously terminate processes; thus, programs should check for the
 above signals periodically, e.g.\ by {\tt CheckSignal()} as described
 in section~\ref{sec:checksignal}, and interrupt their program flow when
 one of them has been received. By convention, {\tt Ctrl+C} is supposed
@@ -16643,7 +16646,7 @@ unassigned. {\tt Ctrl+F} makes the control window of Commodities
 visible. The pattern matching functions from
 chapter~\ref{sec:patternmatch} offer the option check such signals
 while scanning a directory tree, but the \emph{dos.library} is
-otherwise ignorant with respect to the signals.
+otherwise ignorant to the signals.
 \medskip{}
 
 One particular difference between the V47 console and its predecessors is
@@ -16687,7 +16690,7 @@ console starting in raw mode\key{Raw Mode} \emph{does not} subscribe to the
 window close event, though consoles opening in cooked mode do, in order
 to react on the close gadget. The CON-Handler only forwards such
 events from the \emph{console.device} or any other device it is connected to if
-operating in the raw-mode, but it interprets them in the cooked and medium mode,
+operating in the raw mode, but it interprets them in the cooked and medium mode,
 and, for that reason, cannot react on close window events or any other events
 in raw mode.
 \smallskip{}
@@ -16742,7 +16745,7 @@ The {\tt U} is a literal character and identifies this sequence as TAB
 Report\key{TAB Report Sequence}. {\tt <line>} is a copy of the current line
 that is being edited by the user. For many sequences, this input is
 used as a template the Shell\key{Shell} interprets as part of the requested
-action, e.g.\ for a TAB-expansion: there, the
+action, e.g.\ for a TAB expansion: there, the
 command line argument within which the cursor is positioned, as
 reported by the {\tt <c>} parameter of the CSI sequence, is used to
 generate a wildcard the Shell uses to find possible candidates for the
@@ -16754,14 +16757,14 @@ purpose, are as follows:
 
 \begin{rkrmtable}{TAB Report CSI Sequences} \label{table:mediumcsi}
 {\bf Keystroke} & {\bf Sequence}\\ \hline \hline
-Cursor up         & {\tt <m>}=2,\phantom{0} move upwards in the history \\ \hline
-Cursor down       & {\tt <m>}=3,\phantom{0} move downwards in the history \\ \hline
-Shift+Cursor up   & {\tt <m>}=4,\phantom{0} search history upwards \\ \hline
-Shift+Cursor down & {\tt <m>}=5,\phantom{0} search history downwards \\ \hline
-Ctrl+R            & {\tt <m>}=6,\phantom{0} search history upwards, partial pattern \\ \hline
-Ctrl+B            & {\tt <m>}=10, rewind history \\ \hline
-TAB               & {\tt <m>}=12, iterate forwards through expansion \\ \hline
-Shift+TAB         & {\tt <m>}=13, iterate backwards through expansion \\ \hline
+{\tt Cursor up}         & {\tt <m>}=2,\phantom{0} move upwards in the history \\ \hline
+{\tt Cursor down}       & {\tt <m>}=3,\phantom{0} move downwards in the history \\ \hline
+{\tt Shift+Cursor up}   & {\tt <m>}=4,\phantom{0} search history upwards \\ \hline
+{\tt Shift+Cursor down} & {\tt <m>}=5,\phantom{0} search history downwards \\ \hline
+{\tt Ctrl+R}            & {\tt <m>}=6,\phantom{0} search history upwards, partial pattern \\ \hline
+{\tt Ctrl+B}            & {\tt <m>}=10, rewind history \\ \hline
+{\tt TAB}               & {\tt <m>}=12, iterate forwards through expansion \\ \hline
+{\tt Shift+TAB}         & {\tt <m>}=13, iterate backwards through expansion \\ \hline
 \end{rkrmtable}
 
 The only difference between the cases {\tt <m>}=6 and {\tt <m>}=4 is
@@ -16833,7 +16836,6 @@ Serial preferences provide the baud rate. Optionally, this parameter
 may be introduced with the keyword {\tt BAUD} which shall be separated
 from the decimal baud rate by spaces or an equals sign, e.g.\
 {\tt BAUD~9600}. Without the keyword, it shall be the first parameter in the path.
-Clearly, this parameter is only used by the {\tt SER} device.
 \smallskip{}
 
 {\tt CONTROL}\key{CONTROL} specifies additional parameters of the
@@ -16845,7 +16847,7 @@ control string of identical encoding, and if not present there, the
 settings from the Serial preferences are used.
 \smallskip{}
 
-The string follows the same convention as the one for the {\tt AUX}
+The argument of {\tt CONTROL} follows the same convention as the one for the {\tt AUX}
 terminal. The first digit  between ``{\tt 5}'' and ``{\tt 8}'',
 specifies the number of data bits; the second letter is the parity, which is
 either {\tt N}, {\tt E}, {\tt O}, {\tt M} or {\tt S}, indicating no
@@ -16855,8 +16857,8 @@ A typical control string is {\tt 8N1} indicating 8 data bits, no parity and
 1 stop bit, which is also the optimal setting for the \emph{serial.device}.
 \smallskip{}
 
-This parameter is either matched by position as second
-component of the path, or by the {\tt CONTROL} keyword, which shall be
+The {\tt CONTROL} parameter is either matched by position as second
+component of the path, or by its keyword, which shall be
 separated by a blank space or an equals-sign from its value, e.g.\ {\tt CONTROL 8N1}.
 \medskip{}
 
@@ -17011,7 +17013,7 @@ features of the most recent version.
 
 Pipes are created and identified by a unique name; reading and writing
 ends of the same name are connected together. The name itself does not
-matter as long as it uniquely identifies the pipe; the Shell
+matter; the Shell
 constructs a pipe name from the process indicator and a second unique
 number that is incremented for each pipe used. The Queue handler can
 be either opened in {\tt MODE\_OLDFILE}, which represents the reading
@@ -17050,6 +17052,10 @@ complete specification is as follows:
 \begin{verbatim}
 PIPE:name[/quantumsize[/buffercount]]
 \end{verbatim}
+
+The {\tt name} is the name of the pipe and serves as its identifier, see
+above.
+\smallskip{}
 
 The {\tt quantumsize} is the size of a block the Queue-Handler uses to
 buffer data between the writing and the reading end. It is encoded as
@@ -17157,9 +17163,9 @@ mountlist.
 \medskip{}
 
 The RAM-Handler is not responsible for the reset-resident {\tt RAD}
-device. It is driven by the Fast File System\key{Fast File System (FFS)}
+device. The latter is driven by the Fast File System\key{Fast File System (FFS)}
 described in section~\ref{sec:ffs} mounted on the
-\emph{ramdrive.device}. The latter is a ROM-resident device that makes part
+\emph{ramdrive.device}, which is a ROM-resident device that makes part
 of the system RAM available as a block device, and unlike the RAM-Handler,
 not as a file system. Even though the \emph{ramdrive.device} could in
 principle carry any other file system, it initializes its contents such that
@@ -18870,8 +18876,7 @@ or~\ref{sec:porthandler} for examples. Even though the interpretation of
 paths by file systems is up to their implementation, too, it is advisable to
 follow the conventions of section~\ref{sec:locate}, namely to separate
 components by forward slashes (``{\tt /}''). The path may consist of multiple components
-whose last component is the name of the file, and whose initial components
-indicate a path relative to {\tt Arg2}.
+whose last component is the name of the file, which is relative to {\tt Arg2}.
 \medskip{}
 
 All other arguments of the packet shall be ignored. On success, the
