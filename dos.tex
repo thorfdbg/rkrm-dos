@@ -883,7 +883,7 @@ struct DateStamp {
 };
 \end{verbatim}
 
-The elements of this structure are as follows:
+The elements of this structure have the following meaning:
 \smallskip{}
 
 {\tt ds\_Days}\mkey{ds\_Days} counts the number of days since January
@@ -895,10 +895,11 @@ approximately all four years at the end of February.
 \smallskip{}
 
 {\tt ds\_Tick}\mkey{ds\_Tick} counts the ticks since the start of the minute. The number of
-ticks per second is defined as {\tt TICKS\_PER\_SECOND} in {\tt
-  dos/dos.h}. The ticks, and the seconds that can be derived from it, do not
-include leap seconds that are added from time to time. In case leap seconds
-are added, the Amiga clock needs to be adjusted manually.
+ticks per second is defined as {\tt TICKS\_PER\_SECOND} in
+{\tt dos/dos.h}. By dividing the number of ticks by the above constants, one
+can derive the number of seconds since the start of the minute. Leap seconds
+that are added from time to time cannot be represented by AmigaDOS, instead
+the clock then requires manual adjustment.
 \smallskip{}
 
 \punchline{Ticking 50 Times a Second}{A system ``tick'' is always
@@ -909,19 +910,23 @@ independent of the clocking of the system or the monitor refresh frequency.}
 
 The system date, or rather the functions to convert between the Amiga
 {\tt timer.device} representation and the AmigaDOS {\tt DateStamp}\key{DateStamp (struct)}
-representation is currently limited to $31^{\mbox{\tiny th}}$ December
-2045. There is no function in AmigaDOS to set the date, this needs to be
-done through the {\tt timer.device} with the {\tt TR\_SETSYSTIME}
-command. The Kickstart, during bootstrap, takes the current time from the
-real time clock, if it is present. If no real time clock is present, then
-all elements of the {\tt rn\_Time} structure in the {\tt RootNode} structure
-(see section~\ref{sec:rootnode}) of the \emph{dos.library} remain~0,
+representation are currently not able to handle dates
+after $31^{\mbox{\tiny th}}$ December 2045.
+\smallskip{}
+
+There is no function in AmigaDOS to set the date, this needs to be done
+through the {\tt timer.device} with the {\tt TR\_SETSYSTIME} command. The
+Kickstart, during bootstrap, takes the current time from the real time
+clock, if it is present. If no real time clock is present, then all elements
+of the {\tt rn\_Time} structure in the {\tt RootNode} structure (see
+section~\ref{sec:rootnode}) of the \emph{dos.library} remain~0,
 corresponding to a system date of January $1^{\mbox{\tiny st}}$ 1978. The
 boot file system shall check this condition and provide a better
-approximation in such a case. The FFS\key{Fast File System (FFS)} will use in this case the creation
-time of the boot volume recorded in the root block, see
-section~\ref{sec:rootblock} and adjusts the system time then through the
-{\tt timer.device}.
+approximation in such a case. The FFS\key{Fast File System (FFS)} will use
+in this case the creation time of the boot volume recorded in the root
+block, see section~\ref{sec:rootblock} and adjusts the system time then
+through the {\tt timer.device}. Section~\ref{sec:sysstartup} contains
+a more detailed description of the boot process.
 
 \section{Elementary Time and Date Functions}
 
@@ -954,7 +959,7 @@ align {\tt ds} to a long-word boundary.
 
 The {\tt CompareDates()}\mkey{CompareDates()} function compares two dates as
 given by {\tt DateStamp}\key{DateStamp (struct)} structures and returns an indicator
-which of the dates are earlier.
+which of the dates is earlier.
 
 \begin{verbatim}
 result = CompareDates(date1,date2) /* since V36 */
@@ -972,13 +977,13 @@ or~0 if the two dates are identical.
 This function does not check the dates for validity, and it also assumes
 that difference between the days does not exceed $2^{31}$ days. Note that
 the logic of this function is different from {\tt strcmp()} and related
-functions of ANSI-C, which return a positive number if its first argument is
+functions of ANSI-C which return a positive number if its first argument is
 larger than its second.
 
 \subsection{Delaying Program Execution} \label{sec:delay}
 
 The {\tt Delay()}\mkey{Delay()} function delays the execution of the calling
-process by a specific amount of ticks.
+process by a specific a number of ticks.
 
 \begin{verbatim}
 Delay( ticks )
@@ -1000,8 +1005,13 @@ appropriately, thus passing a~0 argument should be avoided.
 
 \section{Conversion Into and From Strings} \label{sec:dateconv}
 
-Functions in this section convert date and time in the (binary) AmigaDOS
-representation to human-readable strings, and in the reverse direction.
+Functions in this section convert date and time between the (binary)
+AmigaDOS representation and a human-readable string. The functions in this
+section are patched by the \emph{locale.library} once it is loaded. The
+\emph{dos.library} then also offers and recognizes localized strings of the
+corresponding locale, including four-digit representation of the year.
+\smallskip{}
+
 Both the input and output of these functions are kept in the
 {\tt DateTime} structure that is defined in {\tt dos/datetime.h}
 and reads as follows:
@@ -1021,9 +1031,10 @@ struct DateTime {
 represented as a {\tt DateStamp}\key{DateStamp (struct)} structure.
 \smallskip{}
 
-{\tt dat\_Format}\mkey{dat\_Format} defines the format of the date string to create, and the
-order in which days, months and years appear within the string. The
-following formats are available, all defined in {\tt dos/datetime.h}:
+{\tt dat\_Format}\mkey{dat\_Format} defines the format of the date string
+and the order in which days, months and years appear within the string.
+The following formats are available, all
+defined in {\tt dos/datetime.h}:
 
 \begin{rkrmtable}{Date Formatting Options} \label{table:dateformats}
 {\bf Format Definition} & {\bf Description} \\ \hline \hline
@@ -1031,8 +1042,9 @@ following formats are available, all defined in {\tt dos/datetime.h}:
 {\tt FORMAT\_INT} & International (ISO) format \\ \hline
 {\tt FORMAT\_USA} & USA date format \\ \hline
 {\tt FORMAT\_CDN} & Canadian and European format \\ \hline
-{\tt FORMAT\_DEF} & The format defined by the locale \\ \hline
+{\tt FORMAT\_DEF} & The format defined by the locale\footnotemark \\ \hline
 \end{rkrmtable}
+\footnotetext[\value{footnote}]{Unfortunately not defined in the official includes, see note below.}
 
 {\tt FORMAT\_DOS}\mkey{FORMAT\_DOS} represents the date as day of the month in two digits,
 followed by the month as three-letter abbreviation, followed by a two-digit
@@ -1051,14 +1063,16 @@ followed by two digits of the day of the month, followed by two digits of
 the year. An example of this formatting is {\tt 09-30-23}.
 \smallskip{}
 
-{\tt FORMAT\_CDN}\mkey{FORMAT\_CDN} follows the European convention and places the day of the
-month first, followed by the month represented as two numerical digits,
-followed by the year as two digits.
+{\tt FORMAT\_CDN}\mkey{FORMAT\_CDN} follows the European and Canadian
+convention and places the day of the month first, followed by the month
+represented as two numerical digits, followed by the year as two digits.
 \smallskip{}
 
 {\tt FORMAT\_DEF}\mkey{FORMAT\_DEF} uses the format defined by the locale
 settings of the system if the \emph{locale.library} is installed. Otherwise,
-it falls back to {\tt FORMAT\_DOS}.
+it falls back to {\tt FORMAT\_DOS}. {\tt FORMAT\_DEF} will, depending on the
+locale, also use four-digit years and thus should be the preferred output
+format.
 \smallskip{}
 
 Unfortunately, it seems that the current NDK does not seem to define this
@@ -1117,15 +1131,20 @@ AmigaDOS representation, that is into {\tt DateStamp} structure. It
 indicates whether weekdays such as ``{\tt Monday}'' are interpreted as dates in
 the past, i.e.\ ``last Monday'', or as dates in the future, i.e.\ ``next
 Monday''. If the flag is cleared, weekdays are interpreted as being in the
-past, same as the {\tt DateToStr()}\key{DateToStr()} function would generate
+past, as the {\tt DateToStr()}\key{DateToStr()} function would generate
 them. If the flag is set, weekdays are assumed as references to the
 future.
 \medskip{}
 
+All following elements are string buffers that are either parsed when
+converting from human-readable strings, or filled by the \emph{dos.library}
+when converting to strings. In the latter case, the output buffers
+shall be at least {\tt LEN\_DATSTRING}\mkey{LEN\_DATSTRING} bytes long.
+\smallskip{}
+
 {\tt dat\_StrDay}\mkey{dat\_StrDay}: This buffer is only used when converting {\tt DateStamps}
 to strings, and --- if present --- is then filled by the week of the day,
-e.g.\ ``{\tt Saturday}''. This buffer, as well as all other output buffers, needs to be at least
-{\tt LEN\_DATSTRING} bytes long.
+e.g.\ ``{\tt Saturday}''.
 \smallskip{}
 
 {\tt dat\_StrDate}\mkey{dat\_StrDate}: This element points to a buffer that is either filled
@@ -1137,14 +1156,8 @@ according to {\tt dat\_Format} and {\tt dat\_Flags}.
 {\tt dat\_StrTime}\mkey{dat\_StrTime}: This element points to a buffer that is either filled
 with a human-readable time, or is the input time to be converted. AmigaDOS
 expects and provides here a 24h clock, hours, minutes and seconds in this order,
-separated by colon, e.g.\ {\tt 21:47:16}. If this element is {\tt NULL}, then
+separated by colons, e.g.\ {\tt 21:47:16}. If this element is {\tt NULL}, then
 the time is not converted.
-\medskip{}
-
-The functions in this section are patched by the \emph{locale.library} once
-it is loaded. The \emph{dos.library} then also offers and recognizes
-localized strings of the corresponding locale, including four-digit
-representation of the year.
 
 \subsection{Converting a Time and Date to a String} \label{sec:datetostr}
 
@@ -1176,8 +1189,8 @@ a value from table~\ref{table:dateformats}.
 process. This function only honors the {\tt DTF\_SUBST} flag which indicates
 that {\tt DateToStr()} is supposed to represent the date relative to the
 current system date if possible. That is, if possible, the date is
-represented as ``{\tt Today}'', ``{\tt Tomorrow}'', ``{\tt Yesterday}'' or a weekday. Week
-days always correspond to past days, e.g.\ ``{\tt Friday}'' corresponds to the past
+represented as ``{\tt Today}'', ``{\tt Tomorrow}'', ``{\tt Yesterday}'' or a
+day of the week. The latter always correspond to past days, e.g.\ ``{\tt Friday}'' means past
 Friday, not a day in the future.
 \smallskip{}
 
@@ -27511,7 +27524,7 @@ list\key{Device List}, see chapter~\ref{sec:devicelist}. This mounts all
 devices that were recorded in expansion. The first one added to this list
 will become the boot volume.
 \smallskip{}
-
+% remember that the boot file system needs to set the system time
 The {\tt System-Startup} process then locates the
 FFS\key{Fast File System (FFS)} in the exec list of resident modules. It is represented there
 as a module named ``{\tt filesystem}''. If an autobooting host
