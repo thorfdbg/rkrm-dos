@@ -296,7 +296,7 @@ AmigaDOS, even though it consists of components beyond this library,
 e.g.\ the \emph{AmigaDOS Shell} and the
 \emph{Fast File System}\key{Fast File System (FFS)}, which is the
 default (ROM-based) file system organizing the
-data on data carriers such as floppy disks or hard disks.
+data on volumes such as floppy disks or hard disks.
 \smallskip{}
 
 Unlike many other operating systems, the \emph{dos.library} does not manage
@@ -304,8 +304,8 @@ disks or files itself, neither does it provide access to hardware interface
 components. It rather implements a \emph{virtual file system} which forwards
 requests to its subsystems, called \emph{handlers}\mkey{Handler} or
 \emph{file systems}\mkey{File System}. The FFS\key{Fast File System (FFS)} is only one of the multiple
-file systems AmigaDOS is able to handle; instead, it provides an abstract
-interface to handlers that allows its extension by third-party file systems
+file systems AmigaDOS is able to handle; instead, the library provides an abstract
+interface to handlers that enables extensions through third-party file systems
 and handlers. Handlers and file systems are introduced in
 section~\ref{sec:handlerovv}, and the interface between the
 \emph{dos.library} and such handlers is specified in
@@ -323,12 +323,12 @@ Hence, in general, there is no need to open this library manually.
 \smallskip{}
 
 The \emph{\mkey{DosLibrary}DosLibrary} structure is defined in
-{\tt dos/dosextens.h}, but its elements are usually not required and should not
-be accessed directly. However, chapter~\ref{sec:dosbase} provides further
-details and provides information on its structure. The most important
-function of the library is to provide functions to applications due to its
-library vector offsets --- or short {\tt \_LVO}s --- which are made
-available to a C compiler by including {\tt proto/dos.h}:
+{\tt dos/dosextens.h}, but most programs do not require and should not access to its
+elements. However, chapter~\ref{sec:dosbase} documents its structure and
+objects referenced by it. Instead, the library offers functions to
+application programs through its library vector offsets --- or short
+{\tt \_LVO}s --- which are made available to a C compiler by
+including {\tt proto/dos.h}:
 
 \begin{verbatim}
 #include <proto/dos.h>
@@ -361,7 +361,7 @@ int __saveds startup(void)
 }
 \end{verbatim}
 The most up to date version of the \emph{dos.library} also discussed in this
-book is~$47$, as indicated by the second argument of
+book is version~$47$, as indicated by the second argument of
 {\tt OpenLibrary()}. Not all
 programs will require its most recent version,
 though; the version in which a particular function of the \emph{dos.library}
@@ -416,10 +416,10 @@ DOSFALSE & \phantom{-}0  \\ \hline
 DOSTRUE  & -1 \\ \hline
 \end{rkrmtable}
 
-Note that the C language instead uses the value~$1$ for
+Note that the C language uses instead the value~$1$ for
 {\tt TRUE}. Code that checks for zero or non-zero return codes will
-function normally, however code shall not compare to {\tt TRUE} in
-Boolean tests. Instead, tests shall be made whether particular values are~0
+function normally, however it shall not compare to {\tt TRUE} in
+Boolean tests. Instead, programs shall test whether a value is~0
 or different from~0, avoiding this discrepancy between the conventions of
 AmigaDOS and the C language.
 
@@ -427,30 +427,30 @@ AmigaDOS and the C language.
 AmigaDOS is a descendant of the \emph{Tripos} operating system and as such
 was originally implemented in the BCPL language. As of Kickstart 2.0,
 i.e.\ version 36 of the \emph{dos.library}, AmigaDOS was re-implemented in C
-and assembler, but this implementation had to preserve the existing
+and assembler, but this new implementation had to preserve the existing
 interface based on BCPL conventions.
 \smallskip{}
 
 BCPL is a type-less language that structures the memory of its host system as
 an array of 32-bit elements enumerated contiguously from zero up. Rather
-than pointers, BCPL communicates the position of its data structures in the
-form of the index of the first 32-bit element of a structure in memory. As
-each 32-bit group is assigned its own index, one can obtain this index by
-dividing the byte-address of an element by 4, or equivalently, by
-right-shifting the address as given by a pointer of the C language by two
-bits. This also has the consequence that (most) data structures passed into
+than pointers, BCPL expresses the positions of its objects as
+indices of their first 32-bit element in memory. As
+each 32-bit group is assigned its own index, one can obtain such an index by
+dividing the byte-address of an object by 4, or equivalently, by
+right-shifting the address as given by a conventional pointer by two bits.
+This also has the consequence that (most) objects passed into
 and out of the \emph{dos.library} shall be aligned to 32-bit boundaries. Similarly,
-in order to obtain the byte-address of a BCPL structure, its index is
+in order to obtain the byte-address of a BCPL object, its index is
 multiplied by 4, or left-shifted by 2 bits.
 
-\punchline{Not on the Stack!}{Since BCPL structures must have an address
-  that is divisible by 4, using automatic storage duration for AmigaDOS
-  objects is inappropriate. Compilers will typically keep such objects on
+\punchline{Not on the Stack!}{Since BCPL objects must have addresses
+  divisible by 4, using automatic storage duration for AmigaDOS
+  objects is inappropriate. Compilers will typically keep automatic objects on
   the hardware stack of the 68K processor~\cite{mcfam,yuchen}, but usually do not
   ensure that their addresses are aligned to long word boundaries. In case a
   particular AmigaDOS object cannot be constructed by
   \key{AllocDosObject()}{\tt AllocDosObject()} (see
-  section~\ref{sec:allocdosobject}), a safe strategy is use \emph{exec.library}
+  section~\ref{sec:allocdosobject}), a safe strategy is to use \emph{exec.library}
   memory allocation functions such as {\tt AllocMem()} or
   {\tt AllocVec()} to obtain memory for holding them. All
   three functions ensure proper alignment.}
@@ -464,7 +464,7 @@ integers. In order to communicate this fact more clearly, the
 
 \mkey{BPTR}
 \begin{verbatim}
-typedef long  BPTR;                 /* Long word pointer */
+typedef long  BPTR;                 /* Long word index */
 \end{verbatim}
 
 The include file {\tt exec/types.h} contains the definition of an untyped C
@@ -473,7 +473,7 @@ pointer as follows:
 \begin{verbatim}
 typedef void *APTR;                 /* 32-bit untyped pointer */
 \end{verbatim}
-This is, unlike a BPTR a real pointer, though the data type it points to
+This is -- unlike a BPTR -- a real pointer, though the data type it points to
 remains undefined.
 \smallskip{}
 
@@ -502,7 +502,7 @@ heap through the \emph{exec.library} or the \emph{dos.library}, and doing so
 can also fragment the AmigaOs memory unnecessarily. However, allocation of
 automatic objects from the stack does not ensure long-word alignment in
 general. To work around this burden, one can use a trick and instead request
-from the compiler a somewhat longer object with automatic storage duration
+from the compiler a somewhat larger object with automatic storage duration
 and align the requested object manually within the memory obtained this
 way. The following macro performs this trick:
 
@@ -517,14 +517,14 @@ It is used as follows:
 D_S (struct FileInfoBlock, fib); 
 \end{verbatim}
 
-At this point, fib is a pointer to a properly aligned {\tt struct
+At this point, {\tt fib} is a pointer to a properly aligned {\tt struct
 FileInfoBlock}, e.g.\ this is equivalent to
 \begin{verbatim}
 struct FileInfoBlock _tmp;
 struct FileInfoBlock *fib = &tmp;
 \end{verbatim}
-except that the created pointer is properly aligned and can safely be
-passed into the \emph{dos.library}.
+except that the created pointer is aligned to a long-word boundary and thus
+can be safely passed into the \emph{dos.library}.
 \smallskip{}
 
 Similar to the C language, a pointer to a non-existing element is
@@ -559,20 +559,20 @@ such strings:
 
 \mkey{BSTR}
 \begin{verbatim}
-typedef long  BSTR;   /* Long word pointer to BCPL string  */
+typedef long  BSTR;   /* Long word index of a BCPL string  */
 \end{verbatim}
 
 Luckily, functions of the \emph{dos.library} take C strings as
 arguments and perform the conversion from C strings to their BCPL
 representation as \emph{BSTR}s internally, such that one rarely gets
-in contact with this type of strings. They appear as part of some
+in contact with them. They appear as part of some
 AmigaDOS structures to be discussed, and as part of the interface
 between the \emph{dos.library} and its handlers, e.g.\ file systems.
 However, even though users of the \emph{dos.library} rarely come in
 contact with BSTRs themselves, the BCPL convention has
 an important consequence, namely that (most) strings handled by the
 \emph{dos.library} cannot be longer than 255 characters as this is the
-maximum value an byte-sized length value can take.
+maximum value a byte-sized length value can take.
 
 \punchline{Length-Limited Strings}{Remember that most strings that are
   passed into the \emph{dos.library} are internally converted to
@@ -584,7 +584,8 @@ likely fail or mis-interpret if such strings are passed in. If longer strings
 are required, e.g.\ as part of a \emph{path}, it is
 (unfortunately) in the responsibility of the caller to take this path
 apart into components and iterate through the components manually,
-see also chapter~\ref{sec:paths}.
+see also chapter~\ref{sec:paths} and specifically section~\ref{sec:openlong}
+for a workaround.
 \smallskip{}
 
 Finally, the {\tt NUL} character --- note the single ``{\tt L}'' --- is the
@@ -602,13 +603,13 @@ point of the ASCII code set and represented by a byte of value~0.}
 \section{Elementary Conversion Functions}
 
 Functions in this section perform conversions between the elementary data
-types listed in this chapter, and convert between strings representing numbers as
+types listed in this chapter; they convert between strings representing numbers as
 human-readable decimals and their binary machine representations. The
 {\tt StrToLong()}\key{StrToLong()} takes such a string and converts it to an
 integer. There is no function in the \emph{dos.library} to perform the
-inverse conversion of an integer into a string, though the \emph{exec.library}
+inverse conversion of an integer to a string, though the \emph{exec.library}
 function {\tt RawDoFmt()}\key{RawDoFmt()} may be used to implement it as a by-product of a
-more general family of functions. Section~\ref{sec:printf} provides a very
+more general family of functions. Section~\ref{sec:sprintf} provides a very
 compact and in many cases sufficient implementation of a function that
 closely reassembles the {\tt sprintf()}\key{sprintf()} function of ANSI-C;
 it prints and formats many elementary data types, including integers, into an output
@@ -626,9 +627,9 @@ D0                      D1    D2
 LONG StrToLong(STRPTR, LONG *)
 \end{verbatim}
 
-This function converts the {\tt NUL}-terminated {\tt string} containing a
+This function receives a {\tt NUL}-terminated {\tt string} containing a
 decimal number encoded in ASCII and converts it to a signed integer. The
-return value is the number of characters it could interpret from the string,
+return value is the number of characters it could parse from the string,
 or $-1$ if not a single valid digit could be found. The converted number is
 placed into the 32-bit long word pointed to by {\tt value}.
 \smallskip{}
@@ -639,7 +640,7 @@ The function skips leading spaces and tabs, they are included in
 leading plus sign (``{\tt +}''). This function also aborts in case the
 conversion overflows, i.e.\ the absolute value of the number is larger than
 $2^{31}$, and then returns the number of characters up to which the
-conversion could be performed without overflow. The output of the conversion
+conversion could be performed without overflow. The result of the conversion
 filled into {\tt value} is in this case meaningless.
 \smallskip{}
 
@@ -647,12 +648,12 @@ Even in case of error, this function does not alter {\tt IoErr()}\key{IoErr()}.
 
 \subsection{Print Formatted into a Buffer} \label{sec:sprintf}
 
-While not a function of the \emph{dos.library}, the code segment in this
+While not a function of the \emph{dos.library}, the code example in this
 section implements a function similar to the {\tt sprintf()} function of the
 ANSI C library; it converts many elementary data types to
 strings. It is based on the {\tt RawDoFmt()}\mkey{RawDoFmt()} function of the
 \emph{exec.library}, which is also patched by the \emph{locale.library} and
-thus converts numbers according to the currently loaded locale.
+thus formats numbers according to the currently loaded locale.
 
 \mkey{sprintf()}\mkey{vsprintf()}\mkey{LongToStr()}
 \begin{verbatim}
@@ -721,7 +722,8 @@ are shown here:
   a leading {\tt 0x} must be inserted manually, it is not part of the output
   of the conversion.
 \item[\tt \%lc] Interpret a 32-bit integer as an ISO-Latin or ASCII code
-  point and insert a single character this code point represents.
+  point and insert the single character this code point represents.
+\item[\tt \%\%] Insert the percent sign itself.
 \end{itemize}
 
 As also seen above, the ANSI-C flags, field width, precision and length
@@ -773,6 +775,12 @@ by {\tt RawDoFmt()}\key{RawDoFmt()} and pushes it into the target buffer pointed
 register {\tt A3}. Other compilers will need a small assembler stub function
 of the same name that consists only of this instruction, and an {\tt RTS}.
 
+\section{Paths}
+Paths are human-readable strings that uniquely identify an object on a file
+system, such as a file or a directory, or represent an interface of the
+computer system to the outside world, such as the serial or parallel
+port. Chapter~\ref{sec:paths} introduces paths in more detail.
+
 \section{Files}
 Files\key{File} are streams of bytes together with a file pointer that
 identifies the next position to be read, or the next byte position to write
@@ -785,7 +793,7 @@ pass the BPTRs around.
 \section{Directories}
 \emph{Directories}\key{Directory} are collections of files logically grouped
 together. They correspond to drawers on the workbench. Each medium such as a
-floppy disk, each medium and each partition on a harddisk has at least one top-most directory;
+floppy disk, and each partition on a harddisk has at least one top-most directory;
 it contains all the objects that are immediately visible if the icon
 representing the medium is double-clicked on the Workbench. This top-most
 directory is also called the \emph{root directory} of the disk, partition or
@@ -799,11 +807,11 @@ any other process, a locked directory can be altered, but not be
 deleted. Chapter~\ref{sec:locks} provides more details on locks. AmigaDOS
 represents locks through the \emph{FileLock}\key{FileLock} structure also
 introduced in the above chapter, though in most cases, locks\key{Lock} are passed
-around as BPTRs to this structure.
+around as BPTRs.
 
 \section{Processes}
 AmigaDOS is a multi-tasking system operating on top of the \emph{exec}
-kernel~\cite{rkrmlib}. As such, it can operate multiple tasks at once, where
+kernel~\cite{rkrmlib}. As such, it can execute multiple tasks at once, where
 the tasks are assigned to the CPU in a round-robin fashion. A
 \emph{Process}\key{Process} is an extension of an AmigaOs
 \emph{Task}\mkey{Task}; it includes additional state information relevant
@@ -817,16 +825,16 @@ explained in more detail in chapter~\ref{sec:process}.
 \section{Handlers and File Systems} \label{sec:handlerovv}
 \emph{Handlers} are special processes that perform input or output
 operations to logical or physical devices, such as the serial port, a
-printer, the floppy or even the RAM. The \emph{dos.library} delegates most
+printer, the floppy or even the main memory. The \emph{dos.library} delegates most
 operations, such as reading from a stream or file to such handlers. Handlers
 are explained in more detail in chapter~\ref{sec:handlers}.
 \smallskip{}
 
 \emph{File systems} are special handlers that organize the contents of data
-carriers such as hard disks, floppies or CD-Roms in the form of files and
-(optionally) directories. File systems interpret paths (see chapter~\ref{sec:paths})
-in order to locate objects such as files and directories on data
-carriers. Thus, every file system is a handler --- i.e.\ the Fast File System
+volumes such as hard disks, floppies or CD-Roms in the form of files and
+directories. File systems interpret paths (see chapter~\ref{sec:paths})
+in order to locate objects such as files and directories on storage media.
+Thus, every file system is a handler --- i.e.\ the Fast File System
 (FFS) is a handler, discussed in section~\ref{sec:ffs} --- but not every
 handler implements a file system. The console window, for example, is
 provided by the CON-Handler\key{CON-Handler} in the form of the
@@ -853,7 +861,7 @@ commands are built into the Shell and do not require access to a medium.
 \smallskip{}
 
 The Shell is not restricted to reading commands from the console. Any other
-handler can serve as source as well, for example in the form of a
+handler can serve as source as well, for example by providing a
 \emph{Shell Script} or \emph{Batch File} located on a partition operated by
 the Fast File System (FFS)\key{Fast File System (FFS)}, the Amiga ROM file
 system. The most important Shell script\key{Shell Script} is the
@@ -863,8 +871,7 @@ AmigaOs. Chapter~\ref{sec:shell} provides more details on the AmigaDOS Shell.
 
 AmigaDOS is not limited to its own Shell\key{Shell}, which is also called the Boot
 Shell\key{Boot Shell}; even though this feature is rarely used, users may install additional
-alternative shells. The AmigaDO
-S interface to shells is specified in
+alternative shells. The AmigaDOS interface to shells is specified in
 section~\ref{sec:usershells}.
 
 \chapter{Date and Time} \label{sec:dates}
