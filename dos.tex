@@ -17180,15 +17180,15 @@ the bootstrap code of Amiga host adapters are typically able to load an
 updated version of this (and other) file systems from the
 \emph{Rigid Disk Block} (RDB)\mkey{Rigid Disk Block (RDB)} of the boot disk
 and make it available to the system. The \emph{System-Startup} module described in
-section~\ref{sec:sysstartup} will updates also available for all other
+section~\ref{sec:sysstartup} makes updates also available for all other
 devices, see there for more details.
 \smallskip{}
 
 The FFS serves from the same code multiple variants or flavors of the file
 system that differ slightly in the structure and organization of data on
 disk, all listed in table~\ref{table:ffsflavours} of
-section~\ref{sec:envec}. This section describes the disk structure for all
-variants. It is configured by a mountlist\key{Mountlist} through the
+section~\ref{sec:envec}. Here the disk structure for all
+variants is described. The FFS is configured by a mountlist\key{Mountlist} through the
 keywords and structures listed in section~\ref{sec:mountdoslist}.
 Section~\ref{sec:configffs} provides further details.
 \smallskip{}
@@ -17208,9 +17208,13 @@ section~\ref{sec:packetactiondie}.
 
 The FFS\key{Fast File System (FFS)} is customized through multiple
 sources. First of all, by the {\tt DosList}\key{DosList}, the
-{\tt FileSysStartupMsg}\key{FileSysStartupMsg} pointed to by this
-structure, see~\ref{sec:filesysstartup}, and by the environment vector
-(\ref{sec:envec}) in the latter. Section~\ref{sec:mountlist} provides
+{\tt FileSysStartupMsg}\key{FileSysStartupMsg} pointed to by
+{\tt dol\_Startup}\key{dol\_Startup} discussed in
+section~\ref{sec:filesysstartup}, which again contains a pointer to the
+environment vector, the {\tt DosEnvec}\key{DosEnvec} structure, which is
+specified in section~\ref{sec:envec}. These structures are setup by the ROM
+for the floppy drives, the auto-booting host adapter reading options from the
+RDB or the {\tt Mount} command parsing them from a mountlist. Section~\ref{sec:mountlist} provides
 a list of the configurable options and the corresponding entries in
 the mountlist\key{Mountlist}. Actually, the environment vector
 \emph{is} historically the configuration vector of the AmigaDOS file
@@ -17231,7 +17235,7 @@ section~\ref{sec:inhibit}.
 \smallskip{}
 
 Adjusting to the device geometry can
-also be enabled for AmigaDOS~45 and up for all other devices
+also be enabled for FFS version~45 and up for all other devices
 by the mountlist\key{Mountlist} parameter {\tt SUPERFLOPPY}, which
 corresponds to the
 {\tt ENVF\_SUPERFLOPPY}\key{ENVF\_SUPERFLOPPY} flag in the
@@ -17240,10 +17244,11 @@ vector. This flag, along with the environment vector is defined in the file
 {\tt dos/filehandler.h} and also introduced in section~\ref{sec:envec}.
 \smallskip{}
 
-Upon detecting device parameters, data from the device provided
-{\tt DriveGeometry} structure documented in {\tt devices/trackdisk.h} are
-copied into the environment vector of the file system. The following
-algorithm is used to adjust the data in the environment vector:
+When reinitializing, the FFS updates from the
+{\tt DriveGeometry} structure filled by {\tt TD\_GETGEOMETRY}
+its environment vector. The following
+algorithm is used to adjust the data in the environment vector from the
+{\tt DriveGeometry} structure documented in {\tt devices/trackdisk.h}:
 \mkey{dg\_SectorSize}\mkey{dg\_Heads}\mkey{dg\_TrackSectors}
 \mkey{DriveGeometry}
 
@@ -17264,15 +17269,14 @@ geometry, and {\tt dg\_Cylinders}\mkey{dg\_Cylinders} is a count, whereas
 {\tt de\_HighCyl}\key{de\_HighCyl} is an inclusive upper bound. In
 particular, {\tt dg\_BufMemType}\mkey{dg\_BufMemType} is not copied over, and
 therefore {\tt de\_BufMemType}\key{de\_BufMemType} shall be setup correctly by the
-mountlist\key{Mountlist} or the Rigid Disk Block\key{Rigid Disk Block (RDB)}. Ideally, of course, any
-memory type should be supported and this workaround should not be necessary.
+mountlist\key{Mountlist} or the Rigid Disk Block\key{Rigid Disk Block (RDB)}.
 \smallskip{}
 
 In case the {\tt ENVF\_SCSIDIRECT}\key{ENVF\_SCSIDIRECT} flag is set in
-addition, the FFS does not use {\tt TD\_GETGEOMETRY}, but collects the
+addition to {\tt ENVF\_SUPERFLOPPY}, the FFS does not use {\tt TD\_GETGEOMETRY}, but collects the
 parameters for the drive geometry using the SCSI {\tt MODE\_SENSE} command
-(see for exampe~\cite{scsi}) requesting all pages. The number of sectors and
-sector size is then taken from the SCSI block descriptor in the mode page
+(see for example~\cite{scsi}) requesting all mode pages. The number of sectors and
+the sector size is taken from the SCSI block descriptor in the mode page
 header; additionally a SCSI {\tt READ\_CAPACITY} is issued and if
 successful, the data returned by it overrides the information from the
 previous step.
@@ -17288,7 +17292,7 @@ whenever it finds a value that divides the total sector count.
 
 The algorithm by which the FFS attempts to obtain the disk geometry
 through SCSI is not necessarily identical to the algorithm the
-underlying exec device would use to compute them for filling the
+underlying exec device would use to compute geometry information for the
 {\tt DriveGeometry} structure, and thus super floppies mounted with the
 {\tt ENVF\_SCSIDIRECT} flag set are not necessarily compatible to
 those mounted without them.
@@ -17330,21 +17334,21 @@ for booting. It is found at sector
 \]
 
 of the device. Note that this is not necessarily the sector~0 if the
-volume is a partition of a hard-disk. The remaining data of the boot
+volume is a partition of a hard disk. The remaining data of the boot
 block is not used by the FFS\key{Fast File System (FFS)} but for
 bootblock booting, namely for floppy disks and for those partitions
 whose {\tt de\_BootBlocks}\key{de\_BootBlocks} element (see~\ref{sec:envec}) in the
 environment vector is larger than~0.
 \medskip{}
 
-The boot mechanism is part of the {\tt strap} module of the Kickstart
-ROM and specified in more detail in~\cite{rkrmdev}. In short, the
-Kickstart supports two boot mechanisms, boot block booting depending
-on the contents of the boot block described in this section, and boot
-point booting, which depends on an Autoconfig ROM implementing the
-boot procedure. For harddisks, the latter boot protocol is most
-relevant and typically used, though in principle boot block booting as
-for floppy disks is also supported.
+The boot block does not only identify the FFS flavor, it is also a
+component of the Kickstart boot process implemented by the {\tt strap}
+module of the Kickstart ROM. In short, the Kickstart supports two boot
+mechanisms, boot block booting described here and boot point booting, which
+depends on an Autoconfig ROM implementing the boot procedure,
+\cite{rkrmdev}~contains the details. For harddisks, the latter boot protocol
+is most relevant and typically used, though in principle boot block booting
+as for floppy disks is also supported.
 \smallskip{}
 
 The structure of the boot block is follows:
@@ -17368,16 +17372,16 @@ other values are rejected by the {\tt strap} module, it does not allow
 bootblock booting from them.
 \smallskip{}
 
-The {\tt DosType} constant is not, in general, the file system type,
+The {\tt DosType} entry does not, in general, define the file system type,
 i.e.\ other file systems do not (necessarily) install their identifier
 here. It is only read by the FFS to configure itself. That the
-{\tt Info()}\key{Info()} function of section~\ref{sec:info} returns these
-identifies in {\tt id\_DiskType}\key{id\_DiskType} is a side effect of
-an FFS being mounted on the particular medium, reading the type, and
-from that deciding whether it is able to interpret the disk
-structure. If it is not, it does not touch the partition, but leaves
-the long word identifier of the first long word in {\tt id\_DiskType}
-for other programs to observe.
+{\tt Info()}\key{Info()} function of section~\ref{sec:info} returns
+{\tt DosType} in {\tt id\_DiskType}\key{id\_DiskType} is a side effect of
+the FFS implementation; it reads the type, and
+from that decides whether it is able to interpret the disk
+structure. If {\tt DosType} is none of the constants
+in table~\ref{table:ffsflavours}, it does not touch the partition, but leaves
+the identifier from {\tt DosType} in {\tt id\_DiskType} for other programs to observe.
 \smallskip{}
 
 The special value $-1$ in {\tt DosType} currently puts the FFS into a
@@ -17388,11 +17392,11 @@ relied upon.
 
 {\tt Chksum}\mkey{Chksum (Boot Block)} is the checksum over the
 bootblock. It is computed in a somewhat different way from the
-checksum the FFS takes as it is the {\tt strap} module that implements
-the boot mechanism, and not the file system. The checksum is computed
-over all long words of the {\tt de\_BootBlocks}\key{de\_BootBlocks},
-including the carry which is added into the sum as well. The entire
-sum, over all boot blocks, including the {\tt Chksum}, must be $-1$ in
+checksum the FFS defines for all other block types as it is the {\tt strap} module that implements
+the boot mechanism, and not the file system. It is computed
+over all long words of {\tt de\_BootBlocks}\key{de\_BootBlocks} blocks
+read by {\tt strap} for booting, including the carry which is added into the sum as well. The entire
+sum over all boot blocks, including the {\tt Chksum}, must be $-1$ in
 order to enable execution of the boot code.
 \medskip{}
 
@@ -17427,16 +17431,16 @@ smbbSumDBF:
 {\tt RootBlk}\mkey{RootBlk (Boot Block)} is the sector number of the
 root block, see section~\ref{sec:rootblock}, or at least it should
 be. However, nothing in the system depends on its value, and the FFS
-does not take the position of the root block from here. Instead, it
+does not take the position of the root block from here. Instead, the FFS
 computes it from the disk geometry as specified in~\ref{sec:rootblock}.
-Actually, it is deposited here by the {\tt Install} command, which does
-not even attempt to adjust this value depending on whether a double or high
-density floppy disk is installed. Thus, program code cannot rely on this value being
+Actually, {\tt RootBlk} is deposited by the {\tt Install} command, which does
+not even attempt to adjust its value depending on whether a double or high
+density floppy disk is made bootable. Thus, program code cannot rely on this value being
 correct.
 \medskip{}
 
 {\tt Code}\mkey{Code (Boot Block)} is the boot code in 68000 machine
-code that is executed if the {\tt DosType} is accepted and the
+code that is executed if {\tt strap} accepts the {\tt DosType} and the
 {\tt Chksum} is valid. All the default boot code does is that it locates the
 \emph{dos.library} resident module and initializes it. Under AmigaDOS~36
 and later, it also sets the {\tt EBF\_SILENTSTART} flag in the
@@ -17498,7 +17502,7 @@ included as earlier FFS versions did not support this parameter.}:
 \]
 
 Note that the element name {\tt de\_BlocksPerTrack} is actually
-misleading as this the size of a track in (physical) sectors and not
+misleading as it is the size of a track in (physical) sectors and not
 in (logical) blocks or keys. The brackets $\lfloor \cdot \rfloor$
 indicate rounding down to the next integer.
 %\smallskip{}
@@ -17561,10 +17565,9 @@ above table as $L-x$ where $L$ is the block size in long works, i.e.\
 L = \mbox{\tt de\_SizeBlock} \times \mbox{\tt de\_SectorsPerBlock}
 \]
 
-Dashed table boundaries indicate that the corresponding element
-extends over multiple long words. In particular, the list of hash-keys
-is a variably sized number of long words large, it always extends over
-$L-56$ long words.
+Dashed table boundaries indicate that the corresponding elements
+extend over multiple long words. In particular, the list of hash-keys
+is a variably sized number of long words large, namely $L-56$ long words.
 \medskip{}
 
 The block type is indicated by {\tt Type}\mkey{Type (FFS)} and {\tt SecType}\mkey{SecType (FFS)}. For the root
@@ -17595,7 +17598,7 @@ flavor. The following algorithm computes the hash key from the object name,
 represented as a BSTR, i.e.\ the first character is the length of the string:
 
 \begin{verbatim}
-ULONG ComputeHash(UBYTE *name)
+ULONG ComputeHash(UBYTE *name, BOOL isInternational)
 {
   ULONG size = *name++; /* String size, this is a BSTR */
   ULONG hash = size;    /* Initial hash is string length */
@@ -17636,7 +17639,7 @@ bitmap keeps information on which blocks of the volume are allocated and
 which are free. More on this block is found in
 section~\ref{sec:bitmapblock}. If the quick validation on disk insertion
 finds that this field is~0, then the disk status is set to
-non-validated. The bitmap is then recomputed by a complete directory scan,
+non-validated. The FFS then recomputes the bitmap by a complete directory scan,
 recursively locating all objects on disks and marking the blocks they reside
 in as occupied.
 \smallskip{}
@@ -17685,7 +17688,7 @@ hard links to the root directory of a volume.
 \subsection{The User Directory Block} \label{sec:userdirblock}
 
 The user directory block\mkey{User Directory Block} represents a sub-directory of the
-volume root, or another user directory. It is enqueued in the
+volume root or another user directory. It is enqueued in the
 hash-chain corresponding to its name within its parent block.
 \smallskip{}
 
@@ -17847,17 +17850,18 @@ and comment fields are replaced by a new field at offset $L-46$. All other
 fields remain unchanged.
 \smallskip{}
 
-As this flavor of the flavor of the FFS does not offer a directory change,
-the field at $L-2$ remains unused.
+As this flavor of the flavor of the FFS does not offer a directory cache,
+the field at $L-2$ remains unused and thus always contains the key~0.
 \smallskip{}
 
-{\tt NaC}\mkey{NaC (FFS)} contains both the file name and file comment as two BSTRs,
-directly placed next to each other. The file name comes first, followed by
-the comment. This field is capable of storing 112 bytes, but the FFS\key{Fast File System (FFS)}
-reserves one byte making in total 110 bytes available. In case the comment
-is too long and cannot be placed in this field, an additional comment
-block is created keeping only the comment, and this field then only keeps
-the file name. 
+{\tt NaC}\mkey{NaC (FFS)} contains both the file name and file comment of
+the directory as two BSTRs, directly placed next to each other. The file
+name comes first, followed by the comment, if any. This field is capable of
+storing 112 bytes, but the FFS\key{Fast File System (FFS)} reserves one byte
+making in total 110 bytes available. In case the total size required for
+file and comment is too large and they cannot be hosted by this field, an
+additional comment block is created keeping only the comment, and this field
+then only keeps the file name.
 \smallskip{}
 
 {\tt CmtBlk}\mkey{CmtBlk (FFS)} is the key of the comment block, keeping the file comment if
@@ -17924,7 +17928,7 @@ the limited number of slots, this number is smaller or equal than $L-56$.
 {\tt Data1st}\key{Data1st (FFS)} is the key of the first data block of the file. This data
 block is actually made available twice, once here, and once again at offset
 $L-51$. Probably the key at this offset was historically used for sequential
-access into the file, whereas the block list at offset~$L-6$ following were
+access into the file, whereas the block list at offset~$L-6$ and following was
 used for random access.
 \smallskip{}
 
@@ -17961,7 +17965,7 @@ character. There is room for 80 bytes, i.e.\ the maximum comment size is
 \smallskip{}
 
 The fields at offset $L-23$ to $L-21$ form a {\tt DateStamp} structure
-that identifies the timestamp of the last change of this file.
+that identifies the timestamp of the last change to this file.
 \smallskip{}
 
 {\tt Name}\key{Name (FFS)} is the name of this file encoded as BSTR with the name length in
@@ -18118,9 +18122,10 @@ as {\tt NUL}-terminated C-string, not as BSTR\footnote{The information
 in~\cite{Bantam} that this is a BSTR is incorrect}. The maximum path name
 that can be stored here is $(L-56)\times 4 - 1$ characters
 long. Unfortunately, all versions of the FFS\key{Fast File System (FFS)} currently do not check the
-maximum link name and damage the file system structure if this path is too
-long, though for a default floppy with 512 bytes per sector, this field
-leaves room for paths up to 287 characters.
+maximum link name and damage the file system structure if an attempt is made
+to create a soft link to a path that is too
+long. For a default floppy with 512 bytes per sector, this field
+leaves room for paths of up to 287 characters.
 \smallskip{}
 
 {\tt OwnerID}\key{OwnerID (FFS)} is reserved for the owner ID of this link
@@ -18182,7 +18187,7 @@ links, this field is not used and set to~0.
 
 {\tt BckLink}\key{BckLink (FFS)} is the key to the next hard link to the same link target, or~0
 if there is no further hard link to the same target. Thus, all links to the
-same target are chained through {\tt BckLink}.
+same target are chained through {\tt BckLink}. This field is 0 for soft links.
 \smallskip{}
 
 {\tt NxtHash}\key{NxtHash (FFS)} is the key of the next object using the same hash as this
@@ -18505,7 +18510,7 @@ directory contents, keeping the directory cache in sync with the
 regular directory structure requires additional overhead as directory
 cache blocks need to be allocated, filled, and entries be moved within
 the blocks. Thus, while performance for listing directory contents can
-improve, the performance for creating file system objects
+improve, the performance for creating and deleting file system objects
 decreases. Usage of the directory cache is therefore discouraged.
 
 \subsection{The Data Block} \label{sec:datablock}
@@ -18724,7 +18729,7 @@ because bitmaps are disposable and can be recreated by a validation
 process if the FFS needs them.
 \smallskip{}
 
-{\tt BMKeys}\key{BMKeys (FFS)} is an array of $L-1$ keys, each of contains a
+{\tt BMKeys}\key{BMKeys (FFS)} is an array of $L-1$ keys, each of which contains a
 bitmap for the subsequent part of the volume. The slots in this block are
 allocated top to bottom, with non-used entries set to~0.
 \smallskip{}
