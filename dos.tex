@@ -18812,7 +18812,7 @@ section~\ref{sec:recordlocking}, which is an extension made by AmigaDOS~36.
 
 The arguments of the packets usually mirror the arguments of the
 corresponding \emph{dos.library} functions closely, though are often
-represented in their BCPL equivalents, i.e.\ BPTRs instead of regular
+represented by their BCPL equivalents, i.e.\ BPTRs instead of regular
 pointers or BSTRs instead of {\tt NUL}-terminated C strings. The
 conversion of the C strings to BSTRs are performed
 transparently within the \emph{dos.library}. Unfortunately, it means
@@ -18838,18 +18838,19 @@ This packet is used by the {\tt Open()}\key{Open()} function of the
 \emph{dos.library} which copies the packet type from its second
 argument, namely {\tt accessMode}. The macro
 {\tt ACTION\_FINDINPUT}\key{ACTION\_FINDINPUT} therefore expands to the
-same value as {\tt MODE\_OLDFILE}\key{MODE\_OLDFILE}.
+same value as {\tt MODE\_OLDFILE}\key{MODE\_OLDFILE}, see table~\ref{table:openmodes} of section~\ref{sec:open}.
 \smallskip{}
 
 {\tt dp\_Arg1} is a {\tt BPTR} to a {\tt FileHandle}\key{FileHandle}
 structure whose {\tt fh\_Arg1}\key{fh\_Arg1} handle should be initialized to a value
 the handler or file system may use later on to identify the file
 opened by this packet, see also section~\ref{sec:filehandle} for the specification of
-this structure. All other packets
+the file handle. All other packets
 that operate on files do not include the {\tt FileHandle} as one of
-their arguments, but instead the value placed there. Interactive handlers, i.e.\
+their arguments, but instead the value placed in {\tt fh\_Arg1}. Interactive handlers, i.e.\
 handlers that implement {\tt ACTION\_WAIT\_CHAR}, shall also set
-the {\tt fh\_Port} element of the {\tt FileHandle} to {\tt DOSTRUE}.
+the {\tt fh\_Port} element of the {\tt FileHandle} to {\tt DOSTRUE} to
+announce that they are interactive.
 \smallskip{}
 
 A handler or file system may also replace the {\tt fh\_Type}\key{fh\_Type}
@@ -18870,18 +18871,19 @@ volume. Handlers that do not implement locks, in particular interactive
 handlers, ignore this argument. The {\tt Open()} function obtains this
 lock through {\tt GetDeviceProc()}\key{GetDeviceProc()}, and it is typically
 the current directory of the calling process, or the lock of an assign
-taken from the file name argument.
+taken from the file name argument, section~\ref{sec:handlerstartup}
+documents the details.
 \smallskip{}
 
 {\tt dp\_Arg3} contains a {\tt BPTR} to a {\tt BSTR} providing the path
 including the name of the file to open. The path is relative to the
-directory in {\tt dp\_Arg2}. For interactive handlers, the interpretation
-of the path beyond the colon (``{\tt :}'') is up to the handler, see sections~\ref{sec:console}
-or~\ref{sec:porthandler} for examples. Even though the interpretation of
-paths by file systems is up to their implementation, too, it is advisable to
-follow the conventions of section~\ref{sec:locate}, namely to separate
-components by forward slashes (``{\tt /}''). The path may consist of multiple components
-whose last component is the name of the file, which is relative to {\tt Arg2}.
+directory in {\tt dp\_Arg2}, and the part beyond the colon (``{\tt :}'') if
+it exists, or all of the path, shall be used by the handler to determine the
+file to open. For interactive handlers, its interpretation is up to the handler, see sections~\ref{sec:console}
+or~\ref{sec:porthandler} for examples. The same holds for file systems,
+but it is advisable to follow the conventions of section~\ref{sec:locate}, namely to separate path
+components by forward slashes (``{\tt /}''), and that the last component is
+the name of the file to open.
 \medskip{}
 
 All other arguments of the packet shall be ignored. On success, the
@@ -18892,7 +18894,7 @@ shall be set to~0 on success.
 \medskip{}
 
 The purpose of this packet is to prepare a {\tt FileHandle} structure
-for shared access, allowing both reading and writing. If a file system
+for shared access, allowing both read and write operations. If a file system
 cannot locate the requested file, this packet \emph{shall not} create
 it but rather fail with the error code {\tt ERROR\_OBJECT\_NOT\_FOUND}\key{ERROR\_OBJECT\_NOT\_FOUND}.
 \smallskip{}
@@ -18973,7 +18975,7 @@ This packet is used by the {\tt Open()}\key{Open()} function of the
 \emph{dos.library} which copies the packet type from its second
 argument, namely {\tt accessMode}. The macro
 {\tt ACTION\_FINDOUTPUT}\key{ACTION\_FINDOUTPUT} therefore expands to the
-same value as {\tt MODE\_NEWFILE}\key{MODE\_NEWFILE}.
+same value as {\tt MODE\_NEWFILE}\key{MODE\_NEWFILE}, see table~\ref{table:openmodes} of section~\ref{sec:open}.
 \smallskip{}
 
 The arguments of the packet are initialized as for
@@ -19039,7 +19041,7 @@ This packet is used by the {\tt Open()}\key{Open()} function of the
 \emph{dos.library} which copies the packet type from its second
 argument, namely {\tt accessMode}. The macro
 {\tt ACTION\_FINDUPDATE}\key{ACTION\_FINDUPDATE} therefore expands to the
-same value as {\tt MODE\_READWRITE}\key{MODE\_READWRITE}.
+same value as {\tt MODE\_READWRITE}\key{MODE\_READWRITE}, see table~\ref{table:openmodes} of section~\ref{sec:open}.
 \smallskip{}
 
 The arguments of the packet are initialized as for
@@ -19062,7 +19064,7 @@ is opened.
 For file systems, this packet works quite similar to
 {\tt ACTION\_FINDINPUT}\key{ACTION\_FINDINPUT} described in
 section~\ref{sec:actionfindoutput} except that it creates
-the file if it does not exist. If it does exists, its contents remains
+the file if it does not exist. If it does exists, its contents remain
 intact. In either case, the file is opened for shared access and other
 handles may read from or write to it in parallel.
 \smallskip{}
@@ -19092,30 +19094,31 @@ lock. Upon success, the lock is absorbed into the {\tt FileHandle}.
 
 This packet type implements the {\tt OpenFromLock()}\key{OpenFromLock()}
 function of the \emph{dos.library}, see section~\ref{sec:openfromlock}. It
-opens a file from a lock\key{Lock}. For hierarchical file systems, this is equivalent
-to an {\tt ACTION\_FINDINPUT}\key{ACTION\_FINDINPUT} packet with
-{\tt dp\_Arg3} set to an empty string. This packet is new in AmigaDOS~36.
+opens a file from a lock\key{Lock}. For hierarchical file systems, this is
+close to an {\tt ACTION\_FINDINPUT}\key{ACTION\_FINDINPUT} packet with
+{\tt dp\_Arg3} set to an empty string, except that {\tt dp\_Arg2} is
+absorbed. This packet is new in AmigaDOS~36.
 \smallskip{}
 
 To uniquely identify the file and resources associated to it, the
-handler may --- and file systems should --- place an identifier or a
-handle or pointer to internal resources in the {\tt fh\_Arg1} element
-of the {\tt FileHandle}\key{FileHandle} provided in {\tt dp\_Arg1}.
+handler may, and file systems should, place an identifier 
+in the {\tt fh\_Arg1} element of the {\tt FileHandle}\key{FileHandle} provided in {\tt dp\_Arg1}.
 This value is delivered as argument of subsequent packets operating on
 the file and allows file systems to identify the target to work on.
-More on this in section~\ref{sec:actionfindinput}.
+More on this in section~\ref{sec:actionfindinput}. Interactive handlers
+shall also set {\tt fh\_Port} of the file handle to {\tt DOSTRUE}.
 \smallskip{}
 
 When successful, the lock in {\tt dp\_Arg2} is absorbed into the file
 and shall be released when the file handle is closed by {\tt ACTION\_END}\key{ACTION\_END},
 see~\ref{sec:actionend}. It is no longer available to the process initiating this packet.
 In typical implementations, the lock or internal resources associated to the lock
-are placed in the object placed in {\tt fh\_Arg1} of the file handle.
+become part of the object placed in {\tt fh\_Arg1} of the file handle.
 \smallskip{}
 
 Before replying the packet, {\tt dp\_Res1} shall be set by
 the handler to {\tt DOSTRUE} on success, or {\tt DOSFALSE} on error. On
-success, {\tt dp\_Res2} shall be set to~$0$, and to an error code from
+success, {\tt dp\_Res2} shall be set to~$0$, or to an error code from
 {\tt dos/dos.h} otherwise.
 
 \subsection{Closing a File} \label{sec:actionend}
@@ -19143,11 +19146,12 @@ to uniquely identify the resources associated to the file, see section~\ref{sec:
 more information.
 \smallskip{}
 
-This packet shall close the file, release all resources associated to it
-and, in case the file was opened in exclusive mode, shall make the file
-accessible again. This packet \emph{does not} release the
-{\tt FileHandle} structure, it does not even get access to it --- this
-step is performed by the \emph{dos.library} if the packet indicates success.
+This packet shall write out any pending changes, close the file, release all
+resources associated to it and, in case the file was opened in exclusive
+mode, shall make the file accessible again. This packet \emph{does not}
+release the {\tt FileHandle} structure, it does not even get access to it
+--- this step is performed by the \emph{dos.library} if this packet
+indicates success.
 \smallskip{}
 
 If there are still any packets blocking on the file to be closed,
@@ -19165,13 +19169,13 @@ release the memory of the {\tt FileHandle}\key{FileHandle} structure,
 and as such, it remains available for future operations. Thus,
 indicating failure implies that the file and resources associated to
 it remain available, and clients of a file system or handler possibly
-continue to access it. Unfortunately, it is unclear what a client should
-do in such a situation except retrying the request to close the file later.
+continue to access it. It is unfortunately unclear how a client will react
+on a failed {\tt ACTION\_END}.
 
 \subsection{Reading from a File} \label{sec:action_read}
 
-The packet {\tt ACTION\_READ}\mkey{ACTION\_READ} reads data from a \emph{file
-system} or handler and advances the file pointer accordingly.
+The packet {\tt ACTION\_READ}\mkey{ACTION\_READ} reads data from a file
+system or handler and advances the file pointer accordingly.
 
 \begin{rkrmtable}{\tt ACTION\_READ} \label{table:actionread}
 {\bf DosPacket Element}   & {\bf Value}\\ \hline \hline
@@ -19191,8 +19195,8 @@ Packet arguments contain the following data:
 {\tt dp\_Arg1} is a copy from {\tt fh\_Arg1} of the
 {\tt FileHandle}\key{FileHandle} structure and may be used by the file
 system or handler to identify the file. Note that it is \emph{not} the
-{\tt FileHandle} itself; instead, the handler may create and insert such an
-identifier into the {\tt FileHandle} when opening a file, see~\ref{sec:actionfindinput} for details.
+{\tt FileHandle} itself; instead, the handler may create and insert an
+identifier of file into the {\tt FileHandle} when opening it, see~\ref{sec:actionfindinput} for details.
 \smallskip{}
 
 {\tt dp\_Arg2} is a pointer (not a BPTR) to the buffer to be filled.
@@ -19239,7 +19243,7 @@ to return immediately with~0 bytes in the buffer, see
 section~\ref{sec:portpath}. An alternative approach to prevent
 blocking for an undetermined time span that shall be supported by
 all interactive handlers is {\tt ACTION\_WAIT\_CHAR}\key{ACTION\_WAIT\_CHAR}
-specified in section~\ref{sec:actionwaitchar}. This packet does not remove any
+specified in section~\ref{sec:actionwaitchar}. The latter does not remove any
 bytes from the stream, they remain available for a subsequent
 {\tt ACTION\_READ}\key{ACTION\_READ}.
 \smallskip{}
@@ -19347,7 +19351,8 @@ identify the file.
 \smallskip{}
 
 {\tt dp\_Arg2} defines the new location of the file pointer relative to a
-position identified by {\tt dp\_Arg3}.
+position identified by {\tt dp\_Arg3}, it comes from the second argument of
+{\tt Seek()}\key{Seek()}. This is an offset that may be positive or negative.
 \smallskip{}
 
 {\tt dp\_Arg3} defines the position to which {\tt dp\_Arg2} is relative. It
@@ -19382,7 +19387,7 @@ implementation strategy is to interpret {\tt dp\_Arg2} as unsigned
 extend it to 64 bits, and sign-extend it for {\tt OFFSET\_CURRENT}\key{OFFSET\_CURRENT}
 to 64 bits. For the mode {\tt OFFSET\_END}\key{OFFSET\_END}, it is suggested
 to first zero-extend the 32 bit negative of {\tt dp\_Arg2} to 64 bits, and then negate it in 64 bits.
-The 64 bit offset formed this way is either the new file pointer, or
+The 64 bit offset formed by the above steps is either the new file pointer, or
 should be added to the 64-bit file pointer or the 64-bit file size to form the new file pointer.
 The 32 least significant bits of the of the current 64-bit file
 pointer shall be returned in {\tt dp\_Res1}.  Unfortunately, that
@@ -19426,7 +19431,7 @@ identify the file.
 
 {\tt dp\_Arg2} defines the new size of the file, or equivalently the new
 position of the end of file, relative to a position identified by
-{\tt dp\_Arg3}.
+{\tt dp\_Arg3}. This offset is coming from the second argument of {\tt SetFileSize()}.
 \smallskip{}
 
 {\tt dp\_Arg3} defines the position {\tt dp\_Arg2} is relative to. It
@@ -19478,7 +19483,7 @@ function that is based on it.
 \subsection{Locking a Record of a File}
 
 The packet {\tt ACTION\_LOCK\_RECORD}\mkey{ACTION\_LOCK\_RECORD} locks a
-record of a file. Such a record lock neither prevents reading nor writing to
+record of a file. Such a record lock neither prevents reading from nor writing to
 the locked region, it just prevents locking an overlapping region with a
 conflicting lock, see section~\ref{sec:recordlocking} for details how the
 protocol is supposed to be used.
@@ -19541,7 +19546,7 @@ shall be signaled instead.
 \subsection{Release a Record of a File}
 
 The packet {\tt ACTION\_FREE\_RECORD}\mkey{ACTION\_FREE\_RECORD} releases a
-record lock on a portion of a file.
+record lock on a record of a file.
 
 \begin{rkrmtable}{\tt ACTION\_FREE\_RECORD} \label{table:actionfreerecord}
 {\bf DosPacket Element}   & {\bf Value}\\ \hline \hline
@@ -19614,9 +19619,8 @@ relative, also represented by a lock. As such, this packet implements the
 \smallskip{}
 
 {\tt dp\_Arg1} is a BPTR to a {\tt FileLock} structure that represents
-the object to which the path given in {\tt dp\_Arg2} is relative. The
-{\tt Lock()}\key{Lock()} function fills it from the current directory of
-the calling process. If {\tt dp\_Arg1} is {\tt ZERO}\key{ZERO lock}, the path in
+the object to which the path given in {\tt dp\_Arg2} is relative.
+If {\tt dp\_Arg1} is {\tt ZERO}\key{ZERO lock}, the path in
 {\tt dp\_Arg2} is relative to the root of the currently inserted
 volume. The {\tt Lock()}\key{Lock()} function determines this lock from the
 {\tt GetDeviceProc()} function, which delivers for example the current
@@ -19705,7 +19709,7 @@ On success, the BPTR to the created {\tt FileLock}\key{FileLock} shall be
 stored in {\tt dp\_Res1} and {\tt dp\_Res2} shall be set to~0. On error,
 {\tt dp\_Res1} shall be set to {\tt ZERO} and {\tt dp\_Res2} to an error
 code from {\tt dos/dos.h} identifying the source of the problem, see also
-section~\ref{sec:ioerr}.
+section~\ref{sec:ioerr} for a list of error codes.
 
 \subsection{Duplicating a Lock}
 
@@ -19869,11 +19873,11 @@ are as follows:
 \smallskip{}
 
 The lock in {\tt dp\_Arg1} is the directory to which the path in
-{\tt dp\_Arg2} is relative. The {\tt CreateDir()} function fills it
-for example with the current directory of the calling process.
+{\tt dp\_Arg2} is relative. The {\tt CreateDir()} function obtains it
+from the {\tt GetDeviceProc()}\key{GetDeviceProc()} function applied to the path.
 \smallskip{}
 
-The path in {\tt dp\_Arg2} is logically concatenated with the directory
+The path in {\tt dp\_Arg2} is logically concatenated to the directory
 represented by the lock in {\tt dp\_Arg1}, or is relative to the root
 directory of the currently inserted volume if {\tt dp\_Arg1} is
 {\tt ZERO}\key{ZERO lock}. The name of the directory to be created is given by the last
@@ -20022,9 +20026,9 @@ finally the {\tt FileLock} structure itself shall be disposed; it is
 \emph{not} allocated or released by the \emph{dos.library}.
 \smallskip{}
 
-If the volume the lock points to is currently not inserted, and
+If the volume the locked object is located on is currently not inserted, and
 the lock has not been claimed by another file system, i.e.\ its
-{\tt fl\_Task} element still points to the port of this file system and
+{\tt fl\_Task} element still points to a port of this file system and
 it is still in the {\tt dol\_LockList}\key{dol\_LockList}, the attempt
 to unlock the lock shall be satisfied, and the lock shall be
 removed from this list and then released.
@@ -20103,8 +20107,8 @@ into {\tt fib\_DiskKey}\key{fib\_DiskKey}, which is an element application
 programs, i.e.\ callers of the \emph{dos.library}, shall not interpret.
 \smallskip{}
 
-If {\tt dp\_Arg1} is {\tt ZERO}, then the root directory of the name
-is examined\key{ZERO lock}. In such a case, {\tt fib\_FileName} shall be
+If {\tt dp\_Arg1} is {\tt ZERO}, then the root directory of the currently
+inserted volume shall be examined\key{ZERO lock}. In such a case, {\tt fib\_FileName} shall be
 filled with the name of the volume.
 \smallskip{}
 
@@ -20128,7 +20132,7 @@ to~0. In case of an error, {\tt dp\_Res1} shall be set to
 \subsection{Scanning Directory Contents} \label{sec:actionexnext}
 
 The {\tt ACTION\_EXAMINE\_NEXT}\mkey{ACTION\_EXAMINE\_NEXT} continues a scan
-over the directory contents and delivers information on the subsequent
+over the directory contents and delivers information on the next subsequent
 entry in a directory. Such a scan is started by an
 {\tt ACTION\_EXAMINE\_OBJECT}\key{ACTION\_EXAMINE} on the directory to be
 scanned; the first {\tt ACTION\_EXAMINE\_NEXT} then provides information on
@@ -20238,7 +20242,7 @@ through a pattern or through a hook.
 \tt dp\_Arg2  & APTR to a buffer to fill \\ \hline
 \tt dp\_Arg3  & Size of the buffer \\ \hline
 \tt dp\_Arg4  & Type defining the requested entries \\ \hline
-\tt dp\_Arg5  & Pointer to struct ExAllControl \\ \hline \hline
+\tt dp\_Arg5  & Pointer to {\tt ExAllControl} structure \\ \hline \hline
 \tt dp\_Res1  & Continuation flag \\ \hline
 \tt dp\_Res2  & Error code \\ \hline
 \end{rkrmtable}
@@ -20264,7 +20268,7 @@ Packet arguments are as follows:
 be {\tt ZERO} by the requirements of {\tt ExAll()}\key{ExAll()}, see section~\ref{sec:exall}.
 \smallskip{}
 
-{\tt dp\_Arg2} is a word aligned pointer to the buffer to be filled with information on
+{\tt dp\_Arg2} is a pointer to a word aligned buffer to be filled with information on
 the objects found in the directory, it is \emph{not} a BPTR. This buffer shall be
 filled with a singly linked list of {\tt ExAllData}\key{ExAllData} structures, see
 again section~\ref{sec:exall} for the definition of this structure. Only the
@@ -20318,7 +20322,7 @@ filled into the target buffer.
 \smallskip{}
 
 {\tt eac\_MatchFunc}\key{eac\_MatchFunc} provides even finer control of which objects are
-filled into the target buffer; it supplies a {\tt Hook} structure whose
+filled into the target buffer; it supplies a pointer to a {\tt Hook} structure whose
 {\tt h\_Entry} function shall be called for each candidate directory entry,
 e.g.\ by the {\tt CallHookPkt()} function of the \emph{utility.library}. Its
 {\tt object} argument is then a pointer a {\tt LONG} containing the
@@ -20335,7 +20339,7 @@ section~\ref{sec:exall}.
 The same precautions as for {\tt ACTION\_EXAMINE\_NEXT}\key{ACTION\_EXAMINE\_NEXT}
 hold for {\tt ACTION\_EXAMINE\_ALL}\key{ACTION\_EXAMINE\_ALL}, too.
 In particular, the file system shall be prepared for the
-directory to get modified within scans, by either adding, removing,
+directory to get modified during scans, by either adding, removing,
 renaming or moving objects out of or into the directory. Using a disk block or
 a pointer to a structure representing a specific object through
 {\tt eac\_LastKey}\key{eac\_LastKey} is therefore discouraged.
@@ -20442,7 +20446,7 @@ packet. This would then clearly reach the end of the directory without
 overrunning the buffer. However, due to a defect in the \emph{dos.library} up
 to the latest version, the (non-matching) pattern is a literal pattern and
 not a pre-parsed pattern. It therefore could match an entry in the
-directory. Thus, it is advised to always implement
+directory. Thus, it is advisable to always implement
 {\tt ACTION\_EXAMINE\_ALL\_END}\key{ACTION\_EXAMINE\_ALL\_END}
 if {\tt ACTION\_EXAMINE\_ALL}\key{ACTION\_EXAMINE\_ALL} is implemented, even
 if it is just replied with success and no additional resources need to be released.
@@ -20468,8 +20472,8 @@ lock\key{Lock}.
 
 This packet implements the {\tt ExamineFH()}\key{ExamineFH()} function
 of the \emph{dos.library}, see section~\ref{sec:examinefh}, and
-retrieves information on an object from a file handle\key{FileHandle}
-opened to this object rather than a lock\key{Lock}. This packet therefore
+retrieves information on an object identified by a file handle\key{FileHandle}
+rather than a lock\key{Lock}. This packet therefore
 allows to retrieve information on files from handlers
 that do not support locks. It was introduced in AmigaDOS version~36.
 \smallskip{}
@@ -20497,7 +20501,7 @@ to {\tt DOSFALSE} and {\tt dp\_Res2} to an error code.
 
 \section{Packets for Working with Links}
 
-The packets in this section interact with links and defines the
+The packets in this section interact with links and define the
 interface for working with links on the file system level. They mirror
 the functions of the \emph{dos.library} listed in
 section~\ref{sec:links} which also provides additional background
@@ -20505,8 +20509,8 @@ information.
 \smallskip{}
 
 The packet interface consists of two packets: one for creating all
-types of links given the path of the link and the link target, and a
-second that is specific to soft links\key{Soft Link} only: this packet
+types of links given the path of the link to create and the link target, and a
+second packet that is specific to soft links\key{Soft Link} only: this packet
 finds the path of the link target given a path containing a soft link
 as one of its components. It is mostly used by the \emph{dos.library}
 internally to resolve soft links transparently to applications.
@@ -20552,13 +20556,14 @@ Arguments are populated as follows:
 \smallskip{}
 
 {\tt dp\_Arg1} is a BPTR to a {\tt FileLock}\key{FileLock} structure that identifies the
-directory within which the object is to be created.
+directory within which the object is to be created. It is typically
+retrieved from the {\tt GetDeviceProc()}\key{GetDeviceProc()} function.
 \smallskip{}
 
 {\tt dp\_Arg2} is a BPTR to a BSTR that provides the path of the link
 to be created. This path is logically appended to the path of the
 directory given by {\tt dp\_Arg1}, and the last component of this path
-is the file name of the link.
+is the file name of the link to be created.
 \medskip{}
 
 {\tt dp\_Arg3} identifies the target of the link, i.e.\ the object the link
@@ -20598,26 +20603,26 @@ If {\tt dp\_Arg4} is {\tt LINK\_HARD}\key{LINK\_HARD} and the
 {\tt FileLock}\key{FileLock} pointed to by {\tt dp\_Arg3} is on a different file
 system, then an external link\key{External Link} shall be
 created. That is, the file system addressed by the packet shall
-create a file or directory within its own file system in the directory
-containing the link, and this file or directory shall mirror the
+create a file or directory within its own file system, and this file or directory shall mirror the
 contents of the link target given by {\tt dp\_Arg4} whenever the link or an
 object within the link is accessed; the file system shall thus implement
-a ``copy on read'' for the linked object, and if the link target is a
-directory, also for all objects within it.
+a ``copy on read'' for the linked object. If the link target is a
+directory, it shall also create copies of the objects within it if they are
+accessed. 
 \smallskip{}
 
-If the target of such a link is deleted or an object within the linked
-target, the copy within the file system containing the link remains
-accessible as a regular file or directory. If no copy has been created so
-far, an attempt to access the linked object fails with
+Once the copy is made, the copied object is detached from its source; if the
+source is deleted or modified, the copied objects remains available
+unaltered, and can also be modified or deleted without affecting the object
+in the link target. If no copy has been created so
+far and the object in the link target has been deleted, an attempt to access
+the linked object fails with
 {\tt ERROR\_OBJECT\_NOT\_FOUND}\key{ERROR\_OBJECT\_NOT\_FOUND}.
 \smallskip{}
 
 Currently, only the RAM-Handler\key{RAM-Handler} implements this type of link, and it
 is there used to realize the {\tt ENV} assign containing all preferences
-settings. The external link\key{External Link} pulls only those preferences settings into the
-RAM disk that are actually required, at the time they are required.
-Section~\ref{sec:links} contains more information on external links which
+settings. Section~\ref{sec:links} contains more information on external links which
 were added in AmigaDOS version~47.
 \medskip{}
 
@@ -20648,8 +20653,8 @@ which shall construct from the link an updated path to the object. Section~\ref{
 provides more details on this packet.
 \smallskip{}
 
-From this follows that a file system is not aware whether the target
-of a soft link\key{Soft Link} actually exists as it can only provide the path to the
+From this follows that file systems are not aware whether the target
+of a soft link\key{Soft Link} actually exists as they can only provide the path to the
 object, but not necessarily the object itself; in particular, soft links\key{Soft Link} can
 cross file system boundaries. If the target of a soft link is deleted, the
 soft link itself remains and becomes a ``dangling'' link. When accessing
@@ -20709,16 +20714,16 @@ This argument is, unlike in many other packets, not a BPTR
 to a BSTR but a pointer to a regular {\tt NUL}-terminated C string.
 \smallskip{}
 
-The file system shall now proceed with soft link\key{Soft Link} resolution as
-follows: Starting from the directory given by {\tt dp\_Arg1}, it shall
+The file system shall now proceed with soft link\key{Soft Link} resolution
+as follows: Starting from the directory given by {\tt dp\_Arg1}, it shall
 interpret the path in {\tt dp\_Arg2} component by component as explained in
-chapter~\ref{sec:paths}, until it finds a soft link. That is, colons
-(``{\tt :}'') indicate that the scan shall continue at the root directory of the
-volume, an isolated slash (``{\tt /}'') shall enter the parent directory,
-and all other components terminated by a slash shall be interpreted as names
-of directories that shall be recursively entered. This process continues
-until either the end of the path is found, or --- and this is the purpose of
-this packet --- a soft link is detected.
+chapter~\ref{sec:paths}, until it finds a soft link. That is, a colon
+(``{\tt :}'') indicates that the scan shall continue at the root directory,
+an isolated slash (``{\tt /}'') shall enter the parent directory, and all
+other components terminated by a slash shall be interpreted as names of
+directories that shall be recursively entered. This process continues until
+either the end of the path is found, or --- and this is the purpose of this
+packet --- a soft link is detected.
 \smallskip{}
 
 If a soft link\key{Soft Link} is detected as part of the path, the target of the link as
@@ -20734,7 +20739,7 @@ from {\tt dp\_Arg2} up to the detection of the soft link shall be disregarded in
 order to start from the root directory. If no device or volume name is
 provided in the absolute link target, the file system shall insert
 the name of the current volume and a colon, in order to provide an
-unambiguous anchor of the newly constructed path. The remaining of the path
+unambiguous anchor of the newly constructed path. The remaining path
 stored in the soft link is then concatenated to the volume
 name. Finally, the rest of the components from {\tt dp\_Arg2}
 behind the component name of the soft link are concatenated to this
@@ -21048,7 +21053,8 @@ or the object location.
 \smallskip{}
 
 If the last component in the target path is an existing directory or
-hard link\key{Hard Link} to an existing directory, the source object as identified by
+hard link\key{Hard Link} to an existing directory, and an object of the
+source name does not exist within it, the source object as identified by
 {\tt dp\_Arg1} and {\tt dp\_Arg2} shall be moved \emph{into} this
 directory under its original name, i.e. the name as given by the last
 component of the path in {\tt dp\_Arg2}.
@@ -21100,8 +21106,8 @@ and links.
 \smallskip{}
 
 {\tt dp\_Arg1} is a lock\key{Lock} to the directory to which the path in
-{\tt dp\_Arg2} is relative. The {\tt DeleteFile()} function fills it for
-example with the current directory of the calling process.
+{\tt dp\_Arg2} is relative. The {\tt DeleteFile()} function fills
+it from {\tt GetDeviceProc()}\key{GetDeviceProc()}.
 \smallskip{}
 
 {\tt dp\_Arg2} is the path to the object to be deleted. The path can
@@ -21119,7 +21125,7 @@ to. In particular, in this special case resolution of links, in
 particular soft links, is not necessary. This particular case depends
 on the asymmetry between links and regular entries of the Amiga file
 systems: Deleting a link to a non-empty directory is possible, though
-deleting the directory itself not, even if the link could replace it
+deleting the directory itself not, even if the (or a) link could replace it
 and adopt its entries. Other file systems that cannot distinguish
 between hard links and their link targets may resolve the situation
 differently, and for example refuse to delete hard links that point to
@@ -21158,8 +21164,8 @@ request, or may only implement a subset of all bits.
 
 {\tt dp\_Arg2} is a lock\key{Lock} of a directory to which the path in {\tt dp\_Arg3} is
 relative\footnote{This is not a typo, {\tt dp\_Arg1} is really unused.}. The
-{\tt SetProtection()} function sets it for example to the current directory of the
-calling process.
+{\tt SetProtection()} function retrieves it from the
+{\tt GetDeviceProc()}\key{GetDeviceProc()} function.
 \smallskip{}
 
 {\tt dp\_Arg3} is a path relative to {\tt dp\_Arg2}. This path need
@@ -21169,7 +21175,8 @@ walk the provided path, starting from {\tt dp\_Arg2} to find the object to modif
 \smallskip{}
 
 {\tt dp\_Arg4} are the new protection bits as specified in
-table~\ref{table:protectionbits} in section~\ref{sec:fib}. Note that the first four bits are shown
+table~\ref{table:protectionbits} in section~\ref{sec:fib}. Note that the
+least significant four bits are shown
 inverted by most system tools such as the {\tt List} command.
 \smallskip{}
 
@@ -21217,7 +21224,7 @@ support this request, or may only support comments on a subset of objects.
 
 {\tt dp\_Arg2} represents a directory relative to which the path in
 {\tt dp\_Arg3} shall be interpreted. The {\tt SetComment()} function fills
-it for example with the current directory of the calling process.
+it from the {\tt GetDeviceProc()}\key{GetDeviceProc()} function.
 \smallskip{}
 
 {\tt dp\_Arg3} is the path relative to {\tt dp\_Arg2} of the object whose
@@ -21265,8 +21272,8 @@ will support this packet, or may only support it with reduced precision of the d
 {\tt dp\_Arg2} represents a directory relative to which the path in
 {\tt dp\_Arg3} is interpreted\footnote{The information in~\cite{Bantam} is
 incorrect, and {\tt dp\_Arg1} is, indeed, unused.}. The implementation of
-the {\tt SetFileDate()} function fills it for example
-with the current directory of the calling process.
+the {\tt SetFileDate()} function retrieves it from
+the {\tt GetDeviceProc()}\key{GetDeviceProc()} function.
 \smallskip{}
 
 {\tt dp\_Arg3} is the path of the object whose creation date is to be
@@ -21275,8 +21282,8 @@ last component is the object whose creation date shall be changed.
 \smallskip{}
 
 {\tt dp\_Arg4} is a BPTR to a {\tt DateStamp}\key{DateStamp (struct)} structure as specified in
-section~\ref{sec:dates} and defines the target date to install for the
-object.
+section~\ref{sec:dates} and defines the target date to install in the
+metadata of the object.
 \smallskip{}
 
 The AmigaDOS file systems, the FFS\key{Fast File System (FFS)} and the
@@ -21329,7 +21336,8 @@ the current directory of the calling process.
 \smallskip{}
 
 {\tt dp\_Arg3} is the path of the object whose owner information is to be
-changed. This path shall be interpreted relative to {\tt dp\_Arg2}.
+changed. This path shall be interpreted relative to {\tt dp\_Arg2}, and its
+last component is the object whose owner shall be changed.
 \smallskip{}
 
 {\tt dp\_Arg4} is an opaque owner information; the
