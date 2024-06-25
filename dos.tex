@@ -23108,7 +23108,7 @@ in the {\tt S} assign.
 
 \section{The Shell Syntax} \label{sec:shellsyntax}
 
-The Shell reads commands along with its arguments line by line from
+The Shell reads \emph{commands} along with its \emph{arguments} line by line from
 the console or a script\key{Shell Script}. Each line consists of at
 least one command and its arguments, all separated by spaces or
 tabulators. Each argument is either a value, e.g.\ a file name, a string or a
@@ -23117,15 +23117,17 @@ separated by blank spaces or tabulators from its value, or by an equals sign
 (``{\tt =}''), without any spaces or tabulators in between. Many shell
 commands use the argument parser from section~\ref{sec:readargs} and thus
 use the syntax implied by the {\tt ReadArgs()}\key{ReadArgs()} function
-described there.
+described above, even though commands can use other means for parsing their
+arguments.
 \smallskip{}
 
-The command refers to an alias, or a script or executable file within the
+The \emph{command} refers to an alias, or a script or executable file within the
 \emph{path}\key{Path}. The path is a list of directories the Shell searches
 for scripts or executables; it always contains the current directory and the
 {\tt C} assign, though additional directories can be added or removed with
-the {\tt Path} command any time. Aliases are simple Shell macros that expand
-to other commands and perform simple argument injection and reordering.
+the {\tt Path} command any time. Aliases (see~\ref{sec:alias})
+are simple Shell macros that expand to other commands and perform simple
+argument injection and reordering.
 \smallskip{}
 
 The following sections describe the Shell syntax in detail. Even
@@ -23147,56 +23149,61 @@ absolute or relative path to a file or device in the sense of
 chapter~\ref{sec:paths}, that is, a path name that can be opened to provide
 alternative input, output or error streams.
 \smallskip{}
+\pagebreak[3]
 
 The Shell\key{Shell} supports the following redirection
-operators\mkey{Redirection (Shell)}:
-
+operators\mkey{Redirection (Shell)}:\nopagebreak
 \begin{itemize}[leftmargin=5em]
   \item[{\tt >}{\it path}] redirects the output of a command to a
     particular file, creating the file if it does not yet exist, or
     overwriting it if does.
   \item[{\tt >{}>}{\it path}] appends the output of a command to a
-    file if the file already exists, or creates a the output file if it does
+    file if the file already exists, or creates the output file if it does
     not yet exist.
   \item[{\tt <}{\it path}] redirects the input of a command from an
     already existing file which must exist; otherwise, an error is
-    created.
+    reported.
   \item[{\tt <{}<}{\it ind}] uses the current console or the shell
-    script itself from which the command is run as input, line by line,
-    until a line starting with the indicator {\tt ind} that
-    follows the redirection operator is found. The indicator can be
+    script from which the command is run as input, line by line,
+    until a line starting with the indicator {\tt ind} is found. The indicator can be
     chosen arbitrarily. A typical choice is {\tt EOF}. This avoids
-    creating temporary files for providing longer inputs. This
+    creating temporary files for providing longer inputs, the input is
+    instead taken from the script containing the command. This
     operator was added in AmigaDOS version~45.
   \item[{\tt <>}{\it path}] redirects both the standard input and
     the standard output of the command to a file. The file must exist
-    already, otherwise an error is indicated.
+    already, otherwise an error is reported. This can be used, for example,
+    to detach a command completely from the console and redirect input
+    and output to {\tt NIL:}.
   \item[{\tt *>}{\it path}] redirects the error output of the command to the
     given file. If the path identifies an interactive stream (see
     section~\ref{sec:isinteractive}), such as a console, then the console
-    process of the command is also set to the handler of the stream.
-    Changing the console process will also redirect output of commands that
+    process of the command is also set to the handler of the path.
+    Changing the console process will also redirect the output of commands that
     print errors to the {\tt *}\key{* (file name)} file representing the
-    console. This redirection operator was also added to AmigaDOS version~45.
+    console. This redirection operator was also added to AmigaDOS
+    version~45. The syntax of this redirection operator is a
+    reminder that the console, i.e.\ the file ``{\tt *}'', is redirected.
   \item[{\tt *>{}>}{\it path}] appends the error output of a command to a
     file, or creates a new file for error output if it does not yet
     exist. If the target file is interactive, the console process of the
     command is also updated. This redirection operator was added to
-    AmigaDOS version~45.
+    AmigaDOS version~45. 
   \item[{\tt *<>}] creates a standard error stream and redirects it to the
-    standard output, that is, errors go into the same file into which output
-    is redirected. If none of the three above redirection operators are
+    standard output, that is, errors go into the same file into which
+    command output is redirected. This operator does not take a path
+    as argument and stands alone. If none of the three above redirection operators are
     present, then (unlike in other operating systems) the command
     \emph{does not} receive a standard error stream. What happens in such a
     case with error output is specific to the implementation of the
-    command. The system error handling functions will still provide error
+    command. The system error handling functions will still redirect error
     output to the standard output as if an implicit {\tt *<>} would be
     present. This redirection operator was introduced in AmigaDOS version~45, too.
 \end{itemize}
 
 Where the redirection operator is placed within a command line does typically not
 matter, e.g.\ whether it is directly following the command or placed at the
-end of the command line. There are, however, three exceptions the shell
+end of the command line. There are, however, three exceptions the Shell
 makes when parsing the command line:
 \smallskip{}
 
@@ -23214,7 +23221,7 @@ command run in background will redirect its streams rather than the output of th
 the alias\key{Alias} and will become active when the alias is
 expanded. Enabling the {\tt oldredirect} variable will do likewise for all
 other commands which then need to parse redirection operators manually as
-they appear as part of their command line. Most executables are not prepared
+they appear as part of their command line arguments. Most executables are not prepared
 to interpret redirection operators, however, and it is thus
 recommended \emph{not to set} the {\tt oldredirect} variable.
 
@@ -23286,7 +23293,7 @@ In addition, the Shell recognizes two unary operators that do not stand
 between commands, but only at their end or at the end of the command line.
 
 \begin{itemize}
-\item[\&] The run-back operator works similar to the {\tt Run} command, it starts
+\item[\tt \&] The run-back operator works similar to the {\tt Run} command, it starts
   the command line within which it appears in background. The command will
   receive a new logical console, and its output and error streams will be
   redirected to this console, unless additional operators redirect the streams
@@ -23296,7 +23303,7 @@ between commands, but only at their end or at the end of the command line.
   third party handlers use this information for job control and hold
   the output of the background process until moved explicitly to the
   foreground. This operator was introduced in AmigaDOS version~45.
-\item[+] The plus operator shall only appear at the end of a command line.
+\item[\tt +] The plus operator shall only appear at the end of a command line.
   If it is present, it injects a line-feed and the following line of the
   current input of the Shell\key{Shell} into the argument line of the command. It thus
   forms an argument string that consists of multiple lines. Only very few
@@ -23309,9 +23316,9 @@ between commands, but only at their end or at the end of the command line.
   receive a shell script\key{Shell Script} as input which consists of multiple lines, and will
   execute the commands one after another. In combination with the {\tt Run}
   command, the plus (``{\tt +}'') operator therefore indicates that the following
-  line forms an additional command line of a shell script that is executed in
+  line forms an additional command line of a shell script that is to be executed in
   background.
-\item[;] The semicolon ends a command line and starts a comment. All
+\item[\tt ;] The semicolon ends a command line and starts a comment. All
   characters beyond the semicolon are ignored.
 \end{itemize}
 
@@ -23321,7 +23328,7 @@ Run List +
 Dir
 \end{verbatim}
 run the {\tt List} command in background, which is followed by the
-{\tt Dir} command, also run in the same background Shell after
+{\tt Dir} command, also run in the same background shell after
 the {\tt List} command finished. The same can be accomplished, though
 in a more compact form, by the single line
 \begin{verbatim}
@@ -23374,7 +23381,7 @@ then responsible to perform the above substitutions correctly itself. Thus, the 
 Echo "Hello*NThere"
 \end{verbatim}
 prints the word {\tt Hello} on one line, and {\tt There} on a new line
-below, though the {\tt Echo} command receives the command line {\tt "Hello*NThere"} including
+below, though the {\tt Echo} command receives the argument line {\tt "Hello*NThere"} including
 the quotes and the escape sequence. Replacement of ``{\tt *N}'' with the line feed happens inside of
 the {\tt Echo} command, or more precisely, within the
 {\tt ReadArgs()}\key{ReadArgs()} function called by it.
@@ -23457,8 +23464,9 @@ enclosing the variable name after the ``{\tt \$}'' sign in braces,
 i.e.\ ``{\tt \$\{{\it name}\}}'' within which all other characters except
 the closing brace are allowed as components of the name as well. In
 particular, variables can be grouped in a directory-like hierarchy where
-components are separated by forward-slashes (``{\tt /}'') as in paths. See
-section~\ref{sec:getvar} for additional information.
+components are separated by forward-slashes (``{\tt /}'') as in paths.
+Section~\ref{sec:getvar} provides more information on how to access shell
+variables from program code without requiring variable expansion of the Shell.
 \smallskip{}
 
 Local variables are represented as entries in the {\tt pr\_LocalVars}
@@ -23503,7 +23511,7 @@ that are included in the expansion. This binary expansion is only applicable
 to global variables, and as potential control characters are injected into
 the Shell tokenizer, it is necessary to include such binary expanded
 variables in double quotes. This ensures that the Shell escapes the control
-characters properly and makes them accessible to commands and their argument
+characters properly and makes them accessible to the command and its argument
 parser.
 
 \subsection{Pre-defined Shell Variables, Configuring the Shell}
@@ -23575,7 +23583,7 @@ become part of the regular arguments of a command. Thus, for example,
 ``{\tt List >Out C:}'' will continue to redirect the output of the
 {\tt List} command, though ``{\tt List C: >Out}'' will not. Instead, it will
 attempt to list the ``{\tt C:}'' assign along with a file or
-directory named ``{\tt >Out}'' where the ``{\tt >}'' sign is part of the
+directory named ``{\tt >Out}'' where the ``{\tt >}'' character is part of the
 file name. This emulates the AmigaDOS~33
 BCPL CLI syntax. Note that enclosing a redirection operator in double
 quotes also disables its function regardless of this variable, and makes
@@ -23595,12 +23603,13 @@ delete key or ``{\tt n}'' skips over the command, and the escape key or
 see section~\ref{sec:conmodes}. Instead, the Shell will only set the console
 to cooked mode and read entire lines. The history and file name expansion by
 the TAB key are then not available anymore, and the Shell falls back to
-AmigaDOS~45 and prior console handling. As of AmigaDOS~47, the history is no
-longer part of the console, but was migrated into the Shell.
+pre-AmigaDOS~45 console usage. As of AmigaDOS~47, the history is no
+longer part of the console, but was migrated into the Shell, and thus is
+then neither available anymore.
 \smallskip{}
 
 {\tt histsize} sets the size of the history in lines. This variable is
-only used if the shell does actually keep a history, and thus requires the
+only used if the Shell does actually keep a history, and thus requires the
 {\tt simpleshell} variable to be either undefined or off.
 \smallskip{}
 
@@ -23628,8 +23637,8 @@ restriction was lifted in AmigaDOS version~45.
 
 Note that the result of the backtick expansion may even contain functional
 syntax elements of the Shell, e.g.\ angle brackets in the output of a command
-in back-ticks will become shell\key{Shell} stream redirection operators
-which are then further interpreted by the shell. Needless to say, this can
+in back-ticks will become Shell\key{Shell} stream redirection operators
+which are then further interpreted by the Shell. Needless to say, this can
 cause bad surprises.
 \smallskip{}
 
@@ -23656,7 +23665,7 @@ expands it\mkey{Alias Substitution}.
 \smallskip{}
 
 Aliases are always local to the executing Shell, AmigaDOS keeps them in the
-same list as local Shell variables\key{Shell Variable}. If the
+same list as local shell variables\key{Shell Variable}. If the
 command name matches an alias, its name is removed, and replaced by
 the contents of the alias. If this contents contains a pair of opening and
 closing square brackets, that is the sequence ``{\tt {[}{]}}'', then the
@@ -23688,7 +23697,7 @@ processed.
 \subsection{Command Location and Execution} \label{sec:cmdexecution}
 
 The purpose of the next step is to identify from a command name a
-segment\key{Segment} containing executable code which is executed to
+segment\key{Segment} containing machine code which is executed to
 implement the function of the command.
 \smallskip{}
 
@@ -23700,7 +23709,7 @@ executed. If no match is found there, or the command name is quoted, then
 the Shell keeps looking in the current directory for a file system object
 matching the command name --- at this stage, both files and directories are
 accepted. Note that unlike under Unix like systems, the current directory is
-always scanned first, and there is no option to remove it.
+always scanned first, and there is no option to disable searching it.
 \smallskip{}
 
 If the command could not be located there, the Shell keeps scanning all
@@ -23733,7 +23742,7 @@ it, see section~\ref{sec:fib} for their value. If the {\tt s}
 protection bit is set, the Shell assumes that command is actually a
 script\key{Shell Script}. If this script starts with the magic character
 sequence ``{\tt /*}'', it is assumed to be a Rexx script and an implicit
-{\tt RX} command is prepended to the component, and command location
+{\tt RX} command is prepended to the file name, and command location
 starts again with the updated line. If the script starts with the
 two-character sequence ``{\tt \#!}'' or ``{\tt ;!}'', then the remaining
 first line of the script file contains the path of the command interpreter
@@ -23762,7 +23771,7 @@ If the {\tt e} protection bit is \emph{not} set, but the
 shell\key{Shell Variable} variable {\tt VIEWER} is set, then the Shell attempts to check
 whether the system {\tt datatypes.library} is able to identify the contents
 of the file. If a suitable datatype exists, the Shell prepends the contents
-of this variable to the component and then restarts command location. By
+of this variable to the file name and then restarts command location. By
 setting {\tt VIEWER} to the system program {\tt MultiView}, the Shell can
 therefore display any system-known datatype by typing its name. This feature
 was added in AmigaDOS version~45.
@@ -23774,9 +23783,9 @@ its console process if the error output is interactive. The found segment is
 then --- depending on the context --- either started as a background
 process, or overlays the Shell executable with the
 {\tt RunCommand()}\key{RunCommand()}, see section~\ref{sec:runcommand}. A
-background process is started for the component left of a pipe operator,
+background process is started for the command left of a pipe operator,
 i.e.\ to the left of the ``{\tt |}'' or ``{\tt ||}'' operators, or if the
-``{\tt \&}'' operator is present at the right of the component. Otherwise,
+``{\tt \&}'' operator is present at the right of the command. Otherwise,
 the command overlays the Shell process.
 \smallskip{}
 
@@ -23802,7 +23811,7 @@ Shell\footnote{This is probably another historical accident from
 Tripos legacy}.
 \smallskip{}
 
-Argument substitution and its syntax elements are controlled through
+Argument substitution and {\tt Execute} syntax elements are controlled through
 ``pseudo''-commands that are only interpreted though {\tt Execute} but
 removed before the resulting script is fed back into the Shell. All these
 pseudo-command start by default with a dot (``{\tt .}''), though even this
@@ -23825,9 +23834,10 @@ this default.
 
 {\tt .key}\mkey{.KET} or {\tt .k}\key{.K} defines which arguments a Shell script\key{Shell Script} takes. The
 argument is a {\tt ReadArgs()}\key{ReadArgs()} type template, defining the
-type of the command line arguments of the script, and also the
-names of the formal parameters which will be substituted with the arguments
-provided during invocation of the script. Clearly, only a single {\tt .key}
+names of the formal parameters along with their types. Each formal
+name in this template, enclosed in angle brackets -- or rather the characters
+defined by {\tt .bra} and {\tt .ket} -- is substituted by a matching argument
+provided to the script. Clearly, only a single {\tt .key}
 pseudo-command shall be present within a script. Such command templates and
 their syntax are discussed in section~\ref{sec:readargs} along with the
 {\tt ReadArgs()}\key{ReadArgs()} function which is also used by {\tt Execute}.
@@ -23860,7 +23870,7 @@ alternatives are curly or square brackets.
 {\tt .ket}\key{.KET} or {\tt .k} defines the character that marks the end of a formal parameter
 that is to be substituted. This is by default the ``{\tt >}'' sign,
 i.e.\ formal parameters are enclosed in pairs of angle
-brackets. Unfortunately, this default is not a very wise choice as it makes
+brackets. Unfortunately, this default is not a very wise choice either as it makes
 output redirections in scripts\key{Shell Script} impossible. To override
 this default, {\tt .ket} should be used. A suggested alternative is a
 closing curly or square bracket.
@@ -23887,7 +23897,7 @@ above, or in whatever the angle brackets were replaced with by the
 {\tt .bra} and {\tt .ket} commands.
 \smallskip{}
 
-Two ``{\tt \$}'' signs in angle brackets expand to the Shell number and may
+Two ``{\tt \$}'' signs in angle brackets expand to the shell number and may
 be used as unique identifier, e.g.\ to generate a file name of
 a temporary file. The following script
 \begin{verbatim}
@@ -23923,7 +23933,7 @@ The generated script\key{Shell Script} after substitution of formal parameters i
 in the {\tt T:} directory, its name is filled into {\tt cli\_CommandFile}\key{cli\_CommandFile} and the
 command input of the invoking Shell, namely {\tt cli\_CurrentInput}\key{cli\_CurrentInput}
 (see section~\ref{sec:clistruct}), is redirected to a file
-handle\key{FileHandle} opened on this temporary script. Thus, the Shell\key{Shell} continues
+handle\key{FileHandle} opened from this temporary script. Thus, the Shell\key{Shell} continues
 execution of commands, but rather takes its input from the temporary
 file rather than its current input, e.g.\ the console. As this construction would forbid
 the recursive execution of another Shell script\key{Shell Script} within a Shell script,
@@ -23957,10 +23967,10 @@ uniquely identified by its task number.
 
 \subsection{Create New Shells and Execute Scripts} \label{sec:system}
 
-The {\tt System()}\mkey{System()} function creates a new Shell, and
-potentially executes a Shell script\key{Shell Script} within it. Depending on parameters, it waits for
+The {\tt System()}\mkey{System()} function creates a new shell, and
+potentially executes a shell script\key{Shell Script} within it. Depending on parameters, it waits for
 the script to complete, or launches an interactive Shell in a console or a
-non-interactive Shell in the background. The same \emph{dos.library} entry
+non-interactive shell in the background. The same \emph{dos.library} entry
 point exists under three names that only differ in how the code generator of a
 compiler provides parameters for it.
 \smallskip{}
@@ -23968,13 +23978,13 @@ compiler provides parameters for it.
 The {\tt SystemTagList()}\mkey{SystemTagList()} function is equivalent to
 the {\tt System()}\key{System()} function and does not differ in arguments
 and call syntax. It is only present to harmonize function naming across all
-library entry points. It takes a pointer to a string containing a Shell
+library entry points. It takes a pointer to a string containing a shell
 script\key{Shell Script}, and additional parameters encoded in
 a {\tt TagItem} array as defined in {\tt utility/tagitem.h}.
 \smallskip{}
 
 The {\tt SystemTags()}\mkey{SystemTags()} function also receives this
-string, but provides the {\tt TagItem}s explicitly as one or multiple extra
+string, but expects the {\tt TagItem}s explicitly as one or multiple extra
 arguments to the function. Compilers typically build then the {\tt TagItem}
 array on the stack and pass the pointer to the first item on the stack to
 the \emph{dos.library} entry point.
@@ -24030,7 +24040,7 @@ is not to close them when run synchronously, and to close them otherwise,
 even if they were the streams of the caller, so beware!
 \smallskip{}
 
-The input and output file handles\key{FileHandle} provided to the Shell
+The input and output file handles\key{FileHandle} provided to the shell
 \emph{shall be different}, i.e.\ it is not permissible to provide the same
 file handle as input and as output stream. If the input and output handle
 should go to an interactive stream such as the console, then only provide an
@@ -24042,7 +24052,7 @@ the {\tt CloneHandle()} function introduced in
 section~\ref{sec:clonehandle}.
 \smallskip{}
 
-The newly creates Shell will receive a copy of the path, the local
+The newly creates shell will receive a copy of the path, the local
 shell\key{Shell Variable} variables, the prompt, the current directory and
 the stack size of the shell of the caller, if such a shell exists, i.e.\
 {\tt pr\_CLI}\key{pr\_CLI} of the calling process is non-{\tt ZERO}. Otherwise,
@@ -24087,10 +24097,11 @@ used as output stream of the new shell\key{Shell}.
 This handle \emph{shall be different} from the handle
 provided by {\tt SYS\_Input}. If this tag is not
 present, the output stream of the calling process ({\tt pr\_COS})\key{pr\_COS} will be
-used for shell output. If in addition the {\tt command} is {\tt NULL} and
-{\tt SYS\_Asynch}\key{SYS\_Asynch} is not set, then {\tt SYS\_Output} is cloned by the
+used for shell output. If the {\tt command} is {\tt NULL} and
+{\tt SYS\_Asynch}\key{SYS\_Asynch} is not set, then {\tt SYS\_Output} or
+{\tt pr\_COS} is cloned by the
 mechanism of section~\ref{sec:clonehandle} if it is an interactive stream,
-or the console of the caller is used as an output stream. That is, even
+otherwise the console of the caller is used as an output stream. That is, even
 though {\tt System()} is in this case implicitly asynchronous, {\tt SYS\_Output} will \emph{not}
 be closed and remains available to the caller. If {\tt SYS\_Output} is explicitly set to {\tt ZERO}, then
 AmigaDOS will attempt to create an output stream itself: If an input stream is present and interactive, and {\tt command} is
@@ -24218,8 +24229,7 @@ when the shell\key{Shell} process exits. This mechanism is described in more det
 section~\ref{sec:createnewproc}.
 \medskip{}
 
-The return code of the {\tt System()}\key{System()} function and all other
-functions in this section is~$-1$ in case creating the shell\key{Shell}
+The return code of the {\tt System()}\key{System()} function is~$-1$ in case creating the shell\key{Shell}
 failed. In such a case {\tt IoErr()}\key{IoErr()} delivers an error
 code providing more details on the cause of the failure. Otherwise,
 if the commands were executed synchronously, the return code is the result
@@ -24228,7 +24238,7 @@ command executed. If an asynchronous shell was created, the result code is~0
 on success, and {\tt IoErr()} will be set to~0.
 \medskip{}
 
-This function is used to implement a couple of essential system
+{\tt System()} is used to implement a couple of essential system
 functionalities, and all Shell commands and system functions that create a
 shell go through this function. This includes the {\tt NewShell} and
 {\tt Run} shell\key{Shell} commands and the {\tt Shell} icon on the Workbench. The initial
