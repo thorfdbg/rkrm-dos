@@ -25597,7 +25597,7 @@ Each command line argument to be filled is represented by a keyword, and an opti
 abbreviation that is separated from the full keyword by an equals-sign
 (``{\tt =}''), e.g.\ ``{\tt QUICK=Q}''. Additional options defining the
 type and parsing rule of the argument may follow the
-keyword, and are separated from the keyword by a forwards
+keyword or, if present, the abbreviation, and are separated from them by a forwards
 slash (``{\tt /}''). Most options can be combined, and are then also
 separated from each other by slashes. Such options describe whether a particular argument is
 mandatory, optional, numerical, whether the keyword is required to match an
@@ -25640,16 +25640,16 @@ The following options are supported:
     command line, and set to a non-zero value if it is present at least
     once.
   \item[{\tt /T}] The argument is a Boolean switch which expects an explicit
-    argument to set its state. If the argument is {\tt On} or {\tt Y},
+    argument to set its state\footnote{\cite{Bantam} and also the
+      autodocs state that {\tt /T} defines a Boolean toggle
+      that changes its value with each appearance, but this information is
+      not correct.}. If the argument is {\tt On} or {\tt Y},
     the entry in {\tt array} will be set to {\tt DOSTRUE}. If the argument
     is {\tt Off} or {\tt N}, the entry in {\tt array} will be set to
     {\tt DOSFALSE}. The acceptable values for this argument \emph{are not}
-    localized and rather hard-coded\footnote{\cite{Bantam} and also the
-      autodocs state that {\tt /T} defines a Boolean toggle
-      that changes its value with each appearance, but this information is
-      not correct.}.
+    localized and rather hard-coded.
   \item[{\tt /K}] This argument is only filled in if its keyword appears on the
-    command line, arguments without {\tt /K} are also matched by position. For
+    command line, arguments without {\tt /K} and without {\tt /S} are also matched by position. For
     example, if the template is {\tt FROM/K}, then its element in
     {\tt array} is not filled in unless {\tt FROM} appears on the command
     line. Remaining command line arguments are filled to non-{\tt /K}
@@ -25706,7 +25706,7 @@ internal resource management of {\tt ReadArgs()}\key{ReadArgs()}. If
 {\tt NULL} is passed in here, this function will allocate and initialize a
 {\tt RDArgs} structure itself, and the command line to be parsed will be
 taken from the buffer of the input file handle\key{FileHandle} of the
-calling process, i.e.\ {\tt pr\_CIS} (see chapter~\ref{sec:process}).
+calling process, i.e.\ {\tt pr\_CIS} (see section~\ref{sec:bufferedio} and chapter~\ref{sec:process}).
 \smallskip{}
 
 To customize command line parsing, a
@@ -25728,7 +25728,7 @@ struct RDArgs {
 
 Its most relevant part is the {\tt RDA\_Source} structure, which allows to
 provide an alternative source for the string to be parsed. It is also
-documented in {\tt dos/rdargs.h} and is defined as following:
+documented in {\tt dos/rdargs.h} and is defined as follows:
 
 \mkey{CSource}
 \begin{verbatim}
@@ -25779,7 +25779,7 @@ standard input. If yet another question mark is provided as input and
 {\tt RDA\_ExtHelp} is not {\tt NULL}, then this extended help is printed and
 a third attempt is made to read command line arguments. This feature allows
 users to request help on the called command, and enter the command line
-again after reading the template and the extended help.
+arguments again after reading the template and the extended help.
 \medskip{}
 
 The {\tt RDA\_Flags}\mkey{RDA\_Flags} element allows callers to further refine the
@@ -25865,8 +25865,8 @@ the structure itself. If a custom allocated {\tt RDArgs}
 structure was passed into {\tt ReadArgs()}\key{ReadArgs()}, then
 first {\tt FreeArgs()} shall be called to release the system-allocated
 resources, and then the structure itself shall be
-disposed by {\tt FreeDosObject()}\key{FreeDosObject()}
-(see section~\ref{sec:freedosobject}).
+disposed by {\tt FreeDosObject()}\key{FreeDosObject()} introduced
+in~\ref{sec:freedosobject} at a later point.
 \smallskip{}
 
 As {\tt FreeArgs()} potentially releases all elements of the {\tt array}
