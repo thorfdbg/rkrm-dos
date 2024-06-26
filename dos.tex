@@ -12804,7 +12804,7 @@ D0                 D1
 BPTR LoadSeg(STRPTR)
 \end{verbatim}
 This function loads the binary executable from the path {\tt name} and returns
-a BPTR to its first segment in case of success, or {\tt ZERO}
+a BPTR to the singly linked list of segments in case of success, or {\tt ZERO}
 in case of failure. The {\tt name} is passed into the
 {\tt Open()}\key{Open()} function, accessing
 the file in the {\tt MODE\_OLDFILE} (shared) mode, and follows the
@@ -12870,7 +12870,8 @@ BPTR NewLoadSegTags(STRPTR, ...)
 \end{verbatim}
 
 This function loads a binary executable from {\tt file} and returns a
-BPTR to its first segment\key{Segment}, similar to {\tt LoadSeg()}\key{LoadSeg()}.
+BPTR to the first segment\key{Segment} of the singly linked list of
+segments, similar to {\tt LoadSeg()}\key{LoadSeg()}.
 \smallskip{}
 
 Additional parameters may be provided in the form of a TagList, passed in as
@@ -23712,7 +23713,8 @@ accepted. Note that unlike under Unix like systems, the current directory is
 always scanned first, and there is no option to disable searching it.
 \smallskip{}
 
-If the command could not be located there, the Shell keeps scanning all
+If the command could not be located there and does not include a directory
+name, the Shell keeps scanning all
 directories in the \emph{path}\mkey{Path}, though from this point on, only
 files match. The path is a list of directories containing commands, and is
 adjusted by the {\tt Path} command, see also section~\ref{sec:getcli} how it
@@ -24407,7 +24409,7 @@ AmigaDOS Shell uses this function to execute loaded commands within its
 context.
 \smallskip{}
 
-The {\tt seglist} argument is a BPTR to the first segment\key{Segment} of the executable
+The {\tt seglist} argument is a BPTR to the chained list of segments\key{Segment} of the executable
 to start, for example as returned by {\tt LoadSeg()}\key{LoadSeg()} for
 disk-based commands, or as the {\tt seg\_Seg}\key{seg\_Seg} element of
 resident commands, see section~\ref{sec:resident}.
@@ -24556,14 +24558,15 @@ Shell\key{Shell}. This command is \emph{not} terminated by a newline, but only b
 Shell. This method does not take any arguments.
 \smallskip{}
 
-{\tt SHELL\_METH\_ADDHIST}\mkey{SHELL\_METH\_ADDHIST} adds an entry to the new end of the AmigaDOS
-Shell history and make it accessible to the user through the cursor
-keys. This method takes a single tag, namely {\tt SHELL\_ADDH\_LINE}. The
-argument of this tag is a {\tt const UBYTE *} to a {\tt NUL}-terminated string,
-and defines the entry to be added to the history. The Shell copies the provided
-string, and can strip initial or trailing spaces. It can also limit the size of
-the history buffer by releasing the oldest entry or entries. This method
-returns a non-zero result on success, or {\tt NULL} on error.
+{\tt SHELL\_METH\_ADDHIST}\mkey{SHELL\_METH\_ADDHIST} adds an entry to the
+tail of the AmigaDOS Shell history and make it accessible to the
+user. This method takes a single tag, namely {\tt SHELL\_ADDH\_LINE}. The
+argument of this tag is a {\tt const UBYTE *} to a {\tt NUL}-terminated
+string, and defines the entry to be added to the history. The Shell copies
+the provided string, and can strip initial or trailing spaces. It can also
+limit the size of the history buffer by releasing the oldest entry or
+entries from the head of the list. This method returns a non-zero result
+on success, or {\tt NULL} on error.
 \smallskip{}
 
 {\tt SHELL\_METH\_FGETS}\mkey{SHELL\_METH\_FGETS} retrieves a single line
@@ -24612,7 +24615,7 @@ task number.
 
 \begin{verbatim}
 proc = FindCliProc(num) /* since V36 */
-D0             D1
+D0                 D1
 
 struct Process *FindCliProc(ULONG)
 \end{verbatim}
@@ -24632,8 +24635,7 @@ chapter~\ref{sec:process}.
 This function returns a pointer to the process structure whose task number is {\tt num}. If no such process
 exists, this function returns {\tt NULL}. However, even if it returns a
 non-{\tt NULL} result code, it is possible that the process has already
-exited and no longer exists when the function returns or an attempt is made
-to access its process structure. Furthermore, the \emph{dos.library} does
+exited and no longer exists when the function returns. Furthermore, the \emph{dos.library} does
 not attempt to protect its process table within this function, and there is no
 semaphore protecting it. Therefore, this function \emph{shall only be called}
 while task switching is disabled with {\tt Forbid()} and its return value is
@@ -24668,7 +24670,7 @@ many shell processes are active, even under the feet of the caller.
 
 As the \emph{dos.library} does not protect the process table from
 modifications, this function \emph{shall only be called} while task
-switching is disabled with {\tt Forbid()}, and its value is only valid as
+switching is disabled with {\tt Forbid()}, and its return value is only valid as
 long as task switching remains disabled.
 
 \section{The CLI Structure} \label{sec:clistruct}
@@ -24677,12 +24679,12 @@ The {\tt CommandLineInterface}\key{CommandLineInterface} structure is the
 public interface of a shell\key{Shell}, see section~\ref{sec:getcli} for
 its definition. Every command started from a shell
 has access to this structure through the {\tt pr\_CLI}\key{pr\_CLI} BPTR in its process
-structure, see chapter~\ref{sec:process}. As commands run by the shell only
-overlay the shell process, see section~\ref{sec:runcommand}, the process
-structure is actually the process of the shell.
+structure, the latter is documented in chapter~\ref{sec:process}. As commands run by the shell only
+overlay the shell process by the {\tt RunCommand()}\key{RunCommand()}
+function specified in section~\ref{sec:runcommand}, the process structure of a shell command is actually the process of the shell.
 \smallskip{}
 
-The functions listed in this section provide accessor functions to this structure.
+The functions listed in this section provide accessor functions to the {\tt CommandLineInterface} structure.
 Altering or requesting properties of the shell\key{Shell} through these
 functions should be preferred to modifying the CLI structure directly.
 
@@ -24690,7 +24692,7 @@ functions should be preferred to modifying the CLI structure directly.
 
 The {\tt GetCurrentDirName()}\mkey{GetCurrentDirName()} function copies the
 current directory of the shell\key{Shell} into the provided buffer if such a shell
-exists, or retrieves the current directory of the calling process instead.
+exists, or retrieves the current directory of the calling process otherwise.
 
 \begin{verbatim}
 success = GetCurrentDirName(buf, len) /* since V36 */
@@ -24758,11 +24760,11 @@ copies the supplied string into the {\tt cli\_SetName} element of the CLI
 structure of the shell, and potentially truncates it to the size of this
 buffer. Even if the string is truncated, the function returns
 {\tt DOSTRUE}. It does not update {\tt IoErr()}\key{IoErr()} in either
-case. For some legacy reasons, the size of this buffer is limited, and thus
+case. For legacy reasons, the size of this buffer is limited, and thus
 the buffer may not reflect the full directory name supplied. While in principle the
 size of the {\tt cli\_SetName} buffer can be changed when creating a CLI
 structure with {\tt AllocDosObject()}\key{AllocDosObject()} introduced in
-section~\ref{sec:allocdosobject}, AmigaDOS ignores the buffer size allocated
+section~\ref{sec:allocdosobject}, AmigaDOS ignores the buffer size supplied
 there.
 \smallskip{}
 
@@ -24774,8 +24776,8 @@ This function does not attempt to synchronize the lock {\tt pr\_CurrentDir}\key{
 calling process with the supplied path. If the two are not consistent,
 the path the shell\key{Shell} could print as part of the prompt would be
 incorrect. Thus, any attempt to change {\tt cli\_SetName}\key{cli\_SetName} through this
-function \emph{shall} be combined with calling {\tt CurrentDir()}\key{CurrentDir()} to make
-this change consistent to the shell.
+function \emph{shall} also update the current directory by calling
+{\tt CurrentDir()}\key{CurrentDir()}.
 
 \subsection{Obtaining the Current Program Name} \label{sec:getprogramname}
 
@@ -24789,8 +24791,10 @@ D0                       D1   D2
 BOOL GetProgramName(STRPTR, LONG)
 \end{verbatim}
 
-This function fills {\tt buf} with the what the shell assumes to be the name
-of the currently executed command. This name is taken from
+This function fills {\tt buf} with the what the shell assumes to be the file
+name of the currently executed command. Unlike what the function name
+suggests, the program name can also be a path including directory components
+if this is what was entered as command. The file name is taken from
 {\tt cli\_CommandName}\key{cli\_CommandName} of the CLI structure,
 see section~\ref{sec:clistruct}, where the shell\key{Shell}
 deposits it before executing a program. If the program name including
@@ -24814,11 +24818,9 @@ program.
 \smallskip{}
 
 The shell buffer that keeps the current command name is unfortunately due to
-legacy reasons limited in size, and at present shorter than the 106
-character limit imposed by the {\tt FileInfoBlock}\key{FileInfoBlock} structure, see
-section~\ref{sec:fib}. Even though the shell uses internally a longer buffer
-and is thus not limited in the file name size of commands it executes, the
-ability of the shell to communicate such long command names to the caller is
+legacy reasons limited in size. Even though the shell uses internally a longer buffer
+and is thus not limited in the path length of the commands it executes, the
+ability of the shell to communicate long file names to the caller is
 restricted, and thus the command name retrieved from this function may not
 reflect the correct file name.
 
@@ -24838,7 +24840,9 @@ If this function is called from a shell\key{Shell} command, it installs the supp
 string as program name into {\tt cli\_CommandName}\key{cli\_CommandName}, see
 section~\ref{sec:clistruct}, and returns {\tt DOSTRUE}. If the supplied
 string does not fit into the shell internal buffer, it is truncated without
-this function indicating failure.
+this function indicating failure. Unlike what the function name
+suggests, the program name is a path and can therefore also contain directory
+components.
 \smallskip{}
 
 This function is mainly intended to be used by the shell to communicate the
@@ -24853,7 +24857,7 @@ case.
 \subsection{Obtaining the Shell Prompt} \label{sec:getprompt}
 
 The {\tt GetPrompt()}\mkey{GetPrompt()} function copies the prompt format
-string with all formatting instructions into a caller supplied function.
+string with all formatting instructions into a caller supplied buffer.
 
 \begin{verbatim}
 success = GetPrompt(buf, len) /* since V36 */
@@ -24886,7 +24890,7 @@ The AmigaDOS Shell recognizes the following strings:
     returned by {\tt GetCurrentDirName()}\key{GetCurrentDirName()}.
   \item[{\tt \%N}] is substituted with the CLI number, which is the closest
     analog of a process ID AmigaDOS has to offer. This is taken from {\tt
-      pr\_TaskNum} of the process running the Shell\key{Shell}, see also
+      pr\_TaskNum} of the process running the shell\key{Shell}, see also
     chapter~\ref{sec:process}.
   \item[{\tt \%R}] represents the return code of the last executed command
     as contained in {\tt cli\_ReturnCode}.
@@ -24977,10 +24981,10 @@ chapter~\ref{sec:process}.
 
 Some elements of this structure point to string
 buffers of unspecified size and should therefore not be altered manually as
-any attempt to copy an over-sized string into them could overwrite other
+an attempt to copy an over-sized string into them could overwrite other
 system structures. Instead, the accessor functions from
 sections~\ref{sec:getcurrentdirname} to~\ref{sec:setprompt} should be
-preferred for reading, and shall also be used for updating them.
+preferred for reading, and also for updating them.
 \medskip{}
 
 The elements of this structure are as follows:
@@ -25034,9 +25038,12 @@ to the shell. The Shell\key{Shell} also copies this value to the {\tt \$RC} shel
 variable\key{Shell Variable}.
 \smallskip{}
 
-{\tt cli\_CommandName}\mkey{cli\_CommandName} is a BPTR to a BSTR containing the name of the
-currently executing command. It is placed here by the shell\key{Shell}
-before executing it. It is typically used by the startup code of C compilers
+{\tt cli\_CommandName}\mkey{cli\_CommandName} is a BPTR to a BSTR containing
+the file name of the currently executing command. The shell\key{Shell}
+places here the unaltered string provided by the user as command, and
+therefore the string is either the name of a resident segment, a file name
+in the path, or can include directory components and then is a path relative to
+the current directory of the shell. It is typically used by the startup code of C compilers
 to fill the {\tt argv[0]} argument. This element should be accessed through
 {\tt GetProgramName()}\key{GetProgramName()} and
 {\tt SetProgramName()}\key{SetProgramName()},
@@ -25050,8 +25057,8 @@ or equal than the {\tt cli\_FailLevel}, this will cause termination of the
 currently executing script.
 \smallskip{}
 
-{\tt cli\_Prompt}\mkey{cli\_Prompt} contains a BPTR to BSTR that is used by the shell\key{Shell} to print
-the command prompt of interactive shells. The format strings the AmigaDOS
+{\tt cli\_Prompt}\mkey{cli\_Prompt} contains a BPTR to BSTR that is used by the shell\key{Shell} to generate
+the command prompt of interactive shells. The formatting directives the AmigaDOS
 Shell recognizes are listed in section~\ref{sec:getprompt}. This element
 should be accessed by {\tt GetPrompt()}\key{GetPrompt()} and
 {\tt SetPrompt()}\key{SetPrompt()}, see section~\ref{sec:getprompt} and~\ref{sec:setprompt}.
@@ -25082,7 +25089,7 @@ file is exhausted, the shell will close it. This happens, for example,
 if a script reaches the EOF or is aborted by the {\tt Exit}
 command. Depending on how the shell was created and configured, see
 section~\ref{sec:cliinitrun}, the shell\key{Shell} then sets {\tt cli\_CurrentInput} to
-{\tt cli\_StandardInput}\key{cli\_StandardInput} and continues execution
+{\tt cli\_StandardInput}\key{cli\_StandardInput} if the two are different and continues execution
 from there, or in other configurations, terminates.
 \smallskip{}
 
@@ -25101,14 +25108,14 @@ shell is interactive, i.e.\ requesting data from the console. It is computed
 and updated by the shell itself. If this
 Boolean is non-zero and {\tt cli\_Background}\key{cli\_Background} is {\tt DOSFALSE}, a
 prompt is printed before attempting to read a command. If the shell\key{Shell} is executing a script\key{Shell Script}, this element
-is {\tt DOSFALSE} and the Shell then checks for {\tt Ctrl-D} to
+is {\tt DOSFALSE} and the shell then checks for {\tt Ctrl-D} to
 potentially abort a running script.
 \smallskip{}
 
 {\tt cli\_Background}\mkey{cli\_Background} is a Boolean flag that indicates whether the shell runs in
 background. This flag is set by {\tt System()}\key{System()} and
 {\tt Execute()} for shells\key{Shell} that are started asynchronously or
-are equipped with a non-interactive (non-console) input or output
+are equipped with a non-interactive (non-console) output
 stream. A synchronous {\tt System()} call with a non-{\tt NULL}
 {\tt command} argument, however, will always create a foreground shell.
 If this flag is cleared, and the shell is interactive, it prints prompts for
@@ -25139,13 +25146,13 @@ copied by the {\tt System()}\key{System()} function from the
 {\tt SYS\_Output}\key{SYS\_Output} tag or obtained by opening the file name
 provided by the {\tt SYS\_OutName}\key{SYS\_OutName} tag. If none of the two
 are available, {\tt System()}\key{System()} will derive an suitable output
-file from the input stream or the console handler of its caller,
+stream from the input stream or the console handler of its caller,
 see~\ref{sec:system}.
 \smallskip{}
 
-{\tt cli\_Module}\key{cli\_Module} is a BPTR to the first segment\key{Segment} of the command currently
+{\tt cli\_Module}\key{cli\_Module} is a BPTR to the singly linked list of segments\key{Segment} of the command currently
 executed. The shell also uses this BPTR to release loaded, non-resident
-commands. It is either filled with the segment returned by
+commands. It is either filled with the chained segment list returned by
 {\tt LoadSeg()}\key{LoadSeg()} (see section~\ref{sec:loadseg}), or an element of
 the list of resident segments, see section~\ref{sec:resident}. A common
 technique for implementing load and stay resident commands is to set this BPTR to
@@ -25176,8 +25183,7 @@ particular variable is defined.
 Local variables and aliases are represented
 as a {\tt LocalVar}\key{LocalVar} structure defined in
 section~\ref{sec:findvar} which is linked into the {\tt pr\_LocalVars}\key{pr\_LocalVars}
-list of the {\tt Process}\key{Process} structure, see
-chapter~\ref{sec:process}.
+list of the {\tt Process}\key{Process} structure specified in chapter~\ref{sec:process}.
 \smallskip{}
 
 Global variables are files in a directory hierarchy of the {\tt ENV}
@@ -25185,10 +25191,9 @@ assign, which exists typically as an external link\key{External Link}
 in the RAM-Handler\key{RAM-Handler}.
 The functions in this section also allow to make changes to global variables
 permanent such that they survive a reboot. For that, the file representing
-the variable is updated in {\tt ENVARC:} which is typically a directory on the
-boot volume. The external link {\tt ENV:} usually points to this directory
-such that the RAM-Handler copies variables defined in {\tt ENVARC:} to {\tt ENV:}
-whenever they are requested.
+the variable is updated in {\tt ENV:} and {\tt ENVARC:}, which is usually
+the link target of the former. Section~\ref{sec:assignlist}
+introduces these assigns.
 
 \subsection{Reading a Shell Variable} \label{sec:getvar}
 
@@ -25203,7 +25208,7 @@ LONG GetVar( STRPTR, STRPTR, LONG, ULONG )
 \end{verbatim}
 
 The {\tt name} argument is the name of the variable to retrieve; this name
-may contain one or multiple forward slashes (``({\tt /})'') which structure
+may contain one or multiple forward slashes (``{\tt /}'') which structure
 variables hierarchically similar to directories in file systems. It is not
 case-sensitive. For global variables, this hierarchy is mapped to
 directories within the {\tt ENV} assign. There variables are represented
@@ -25214,8 +25219,8 @@ variable is found, it checks for a global variable of the provided name.
 \smallskip{}
 
 The {\tt buffer} and {\tt size} arguments specify a buffer and its length
-into which the contents of the variable or alias, if it exists, is copied. It is
-advisable to store only printable characters in variables, in which case any
+into which the contents of the variable or alias is copied. It is
+advisable to store only printable characters in variables, in which case a
 {\tt NUL} or line feed character truncates the contents of the
 variable. However, variables may also contain binary data; such binary data
 is, however, only copied if it is requested explicitly. If a variable does
@@ -25234,6 +25239,7 @@ variable\key{Shell Variable}. If set to {\tt LV\_VAR}\mkey{LV\_VAR}, this
 function reads variables, if set to {\tt LV\_ALIAS}\mkey{LV\_ALIAS}, it
 reads aliases\key{Alias}. Aliases are always local to the shell\key{Shell}
 and cannot be global.
+\smallskip{}
 
 If the {\tt GVF\_GLOBAL\_ONLY}\mkey{GVF\_GLOBAL\_ONLY} flag is set, then this function only returns
 contents of global variables, and local variables are ignored. Aliases are
@@ -25262,7 +25268,7 @@ variable\key{Shell Variable} after
 truncation is applied if necessary. The size does not include the
 terminating {\tt NUL}, if one is included. On success, this function sets
 {\tt IoErr()}\key{IoErr()} to the entire size of the variable in the
-database, including any bytes beyond a terminating newline or {\tt NUL}.
+database without truncation, including any bytes beyond a terminating newline or {\tt NUL}.
 \smallskip{}
 
 On error, $-1$ is returned and {\tt IoErr()}\key{IoErr()} is set to an error
@@ -25354,7 +25360,7 @@ deleted or updated. This flag only makes a difference if {\tt buffer} is
 If {\tt GVF\_SAVE\_VAR}\mkey{GVF\_SAVE\_VAR} is set, and a global variable is
 set or deleted, the change will be made permanent by mirroring it in the
 {\tt ENVARC:} directory\footnote{\cite{Bantam} does not document this flag,
-even though it is present.}.
+even though it is present and working.}.
 \medskip{}
 
 This function returns a non-zero return value in case of success.
@@ -25367,12 +25373,12 @@ error code. If a variable\key{Shell Variable} is to be deleted by setting
 
 Releases prior to AmigaDOS version~47 did not clear the {\tt e} protection bit of
 the file(s) created in {\tt ENV:} or {\tt ENVARC:}. If a variable name
-contained two slashes such as {\tt //}, releases prior to AmigaDOS version~47 crashed.
+contained two slashes such as ``{\tt //}'', releases prior to AmigaDOS version~47 crashed.
 \smallskip{}
 
 Furthermore, {\tt SetVar()} depends on the file system responsible to the
 directory the {\tt ENV} assign points to to support both
-{\tt MODE\_READWRITE}\key{MODE\_READWRITE} as mode of the {\tt Open()}\key{Open()},
+{\tt MODE\_READWRITE}\key{MODE\_READWRITE} as mode of the {\tt Open()}\key{Open()}
 function specified in section~\ref{sec:open}, as well as the
 {\tt SetFileSize()}\key{SetFileSize()} function, see section~\ref{sec:setfilesize}.
 While both the FFS~\key{Fast File System (FFS)} and the
@@ -25493,8 +25499,8 @@ BOOL DeleteVar(STRPTR, ULONG )
 
 This function removes a shell\key{Shell Variable} variable or
 alias\key{Alias} from the local or global pool of shell variables.
-This function is equivalent to {\tt SetVar(name,NULL,0,flags)}\key{SetVar()}
-defined in section~\ref{sec:setvar}.
+It is equivalent to {\tt SetVar(name,NULL,0,flags)}\key{SetVar()}
+introduced in section~\ref{sec:setvar}.
 \smallskip{}
 
 The {\tt name} argument is the name of the variable or alias\key{Alias} to remove. It
@@ -25528,7 +25534,7 @@ variable is to be deleted.
 
 If {\tt GVF\_SAVE\_VAR}\key{GVF\_SAVE\_VAR} is set, and a global variable is
 deleted, the change will be made permanent by also deleting the variable in the
-{\tt ENVARC:} assign.
+{\tt ENVARC} assign.
 \medskip{}
 
 This function returns a non-zero return value in case of success.
