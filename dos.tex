@@ -9450,38 +9450,6 @@ This function returns a non-zero result code for success and then sets
 {\tt IoErr()}\key{IoErr()} to an undefined value. On error, it
 returns~0 and provides an error code in {\tt IoErr()}.
 
-\subsection{Receive Information when a Volume is Requested}
-
-The {\tt VolumeRequestHook()}\mkey{VolumeRequestHook()} function is
-called by the \emph{dos.library} whenever it attempts to request the
-user to insert a volume.
-
-\begin{verbatim}
-res = VolumeRequestHook(volume) /* since V47 */
-D0                        D1
-
-LONG VolumeRequestHook(UBYTE *volume)
-\end{verbatim}
-
-This function is not supposed to be called by clients, it is rather
-called by the \emph{dos.library} and provided to be patched by
-application programs that want to learn whenever AmigaDOS is about to
-show a requester to ask for a specific volume.
-\smallskip{}
-
-The argument this function receives is the name of the volume AmigaDOS
-is about to ask for, without a trailing colon (``{\tt :}''). If this
-function returns {\tt DOSTRUE}, then the \emph{dos.library} progresses
-to show a requester to ask the user to insert {\tt volume}. If this
-function returns {\tt DOSFALSE}, the requester is suppressed as if the
-user pressed ``Cancel'' on it, thus refused to insert the volume.
-\smallskip{}
-
-The purpose of this function is to provide assign-wedge functionality that
-allows users to create an assign to a directory at the first time it is
-accessed by a program, or to suppress requesters to a volume
-that is never going to be inserted.
-
 \chapter{Pattern Matching} \label{sec:patternmatch}
 Unlike other operating systems, it is neither the file system nor the
 shell\key{Shell} that expands wildcards --- or patterns as they are also
@@ -21567,7 +21535,7 @@ The packets in this section impact the volume mounted on a file
 system in total and do not interact with individual objects, such as files,
 directories or links on it.
 
-\subsection{Determining the Currently Inserted Volume}
+\subsection{Determining the Currently Inserted Volume} \label{sec:actioncurrentvolume}
 
 The packet {\tt ACTION\_CURRENT\_VOLUME}\mkey{ACTION\_CURRENT\_VOLUME}
 determines from a {\tt FileHandle}\key{FileHandle} a BPTR to the {\tt DosList}\key{DosList}
@@ -26742,7 +26710,7 @@ shell\key{Shell} in AmigaDOS version~36 to version~45.
 {\tt Initial CLI} and not only initialized the shell to read from the
 {\tt S:Startup-Sequence}\key{Startup-Sequence}, it also initialized the \emph{dos.library}
 and mounted all ROM-resident handlers. These tasks are now taken over
-by a Kickstart module of its own, {\tt System-Startup}, which in its
+by a Kickstart module of its own, \emph{System-Startup}, which in its
 final step, creates the {\tt Initial CLI} through the
 {\tt System()}\key{System()} function. Section~\ref{sec:sysstartup}
 provides more details on this module.
@@ -26764,8 +26732,7 @@ to get initialized by AmigaDOS.
 
 In this section, miscellaneous functions are specified that logically do not
 belong into any other section. These are constructor and destructor
-functions for AmigaDOS objects, or retrieving error strings and generating
-error requesters.
+functions for AmigaDOS objects, and functions for error handling.
 
 \section{Object Constructors and Destructors}
 
@@ -26797,8 +26764,8 @@ allow tools to automatically generate prototypes for the third.
 
 The {\tt AllocDosObjectTags()}\mkey{AllocDosObjectTags()} function
 receives the tag list in the form of a variably sized argument
-list. The compiler places the tag list on the stack, and passes the stack
-pointer as a tag list into the entry point of the \emph{dos.library}.
+list consisting of tags and whose last tag shall be {\tt TAG\_DONE}
+terminating the list.
 
 \begin{verbatim}
 ptr = AllocDosObject(type, tags) /* since V36 */
@@ -26840,10 +26807,11 @@ defined in {\tt dos/dostags.h}, which is the mode in which the file is
 to be opened. This tag takes an argument from
 table~\ref{table:openmodes} of section~\ref{sec:open} which corresponds to the second argument
 of the {\tt Open()}\key{Open()} function specified in
-the same section. It defaults to {\tt ACTION\_FINDINPUT}\key{ACTION\_FINDINPUT}, i.e.\ a
-file that is opened non-exclusively for reading. File handles are typically
+the same section. It defaults to {\tt ACTION\_FINDINPUT}\key{ACTION\_FINDINPUT}, i.e.\ the 
+the file handle describes a file that is opened non-exclusively. File handles are typically
 created by the \emph{dos.library} only. However, even though this tag may
-sound useful, nothing in the initialization of the handle currently
+sound useful\footnote{Tags that would create string streams would be even
+more useful.}, nothing in the initialization of the handle currently
 depends on its value.
 \smallskip{}
 
@@ -26855,12 +26823,11 @@ section~\ref{sec:exall}; no additional tags are required.
 
 The {\tt DOS\_FIB}\mkey{DOS\_FIB} type creates a
 {\tt FileInfoBlock}\key{FileInfoBlock} structure as defined in
-section~\ref{sec:fib}. This structure may also be manually constructed as it
-does not contain any hidden elements, however, the structure shall be
+section~\ref{sec:fib}, no further tags are necessary. This structure may also be manually constructed as it
+does not contain any hidden elements. However, the structure shall be
 aligned to long word boundaries. If the memory is taken from the stack, the
 macro {\tt D\_S()}\key{D\_S() macro} in section~\ref{sec:bptrs} should be
-used to ensure alignment. No further tags are necessary for constructing the
-{\tt FileInfoBlock} through {\tt AllocDosObject()}.
+used to ensure alignment. 
 \smallskip{}
 
 The {\tt DOS\_STDPKT}\mkey{DOS\_STDPKT} type creates a {\tt StandardPacket}\key{StandardPacket} structure used
@@ -26898,7 +26865,7 @@ containing the formatting string of the prompt, in bytes.
 
 {\tt ADO\_CommNameLen} defines the size of the
 {\tt cli\_CommandName}\key{cli\_CommandName} buffer in bytes,
-containing the name of the currently loaded command.
+containing the file name of the currently loaded command.
 \smallskip{}
 
 {\tt ADO\_CommFileLen} selects the size of the
@@ -26925,7 +26892,7 @@ used to create one. No tags are defined for this object.
 the pointer to the constructed object. Note that for the type
 {\tt DOS\_STDPKT}\key{DOS\_STDPKT} this is a pointer to a
 {\tt DosPacket}\key{DosPacket} structure and not to the {\tt StandardPacket}\key{StandardPacket}
-structure. This function does not alter {\tt IoErr()}\key{IoErr()} on success. On
+structure. The {\tt AllocDosObject()} function does not alter {\tt IoErr()}\key{IoErr()} on success. On
 error, this function returns {\tt NULL} and sets
 {\tt IoErr()}\key{IoErr()} to {\tt ERROR\_NO\_FREE\_STORE}\key{ERROR\_NO\_FREE\_STORE}.
 
@@ -26946,7 +26913,7 @@ This function destroys an object created by
 {\tt AllocDosObject()}\key{AllocDosObject()}. The {\tt type} argument is
 one of the types from table~\ref{table:allocdosobject} in
 section~\ref{sec:allocdosobject}, and {\tt ptr} is a pointer to the
-object to be destroyed. In case type is {\tt DOS\_STDPKT}\key{DOS\_STDPKT},
+object to be destroyed. In case {\tt type} is {\tt DOS\_STDPKT}\key{DOS\_STDPKT},
 the {\tt ptr} argument shall be a pointer to the {\tt DosPacket}\key{DosPacket} element of the
 {\tt StandardPacket}\key{StandardPacket} aggregate.
 \smallskip{}
@@ -26973,7 +26940,7 @@ console, or by creating a requester with an error message on a screen.
 
 The {\tt ErrorReport}\mkey{ErrorReport()} function creates an error
 requester based on an error code and a file system object such as a
-file handle\key{FileHandle} or a lock\key{Lock} and waits a the
+file handle\key{FileHandle} or a lock\key{Lock} and waits for the
 response of the user who may either abort or retry an activity.
 
 \begin{verbatim}
@@ -26988,10 +26955,18 @@ screen, or on the same screen as the window given by
 the {\tt pr\_WindowPtr}\key{pr\_WindowPtr} of the calling process.
 If {\tt pr\_WindowPtr} is~$-1$, then no requester is
 shown and the function returns immediately with a non-zero return
-code, indicating that cancellation of the activity is desired. This
-function is implicitly called by most functions of the \emph{dos.library} in
-case of error, and thus rarely needs to be called by the user
-explicitly.
+code, indicating that cancellation of the activity is desired.
+\smallskip{}
+
+This function is implicitly called by most functions of the
+\emph{dos.library} in case of error, and thus rarely needs to be called by
+the user explicitly. However,
+{\tt ErrorReport()} may \emph{also} used by file systems to generate error
+requesters\footnote{The FFS \emph{does not} make use of this
+service and builds requesters itself, though checks its own
+{\tt pr\_WindowPtr} as well.}, and in such a case, it
+checks the {\tt pr\_WindowPtr} of the file system process and not that
+of the file system client; thus, such requesters cannot be easily suppressed by application programs.
 \smallskip{}
 
 The {\tt code} argument is an error identifier returned by
@@ -27044,37 +27019,56 @@ supported by this function:
   FileHandle} structure (section~\ref{sec:filehandle}) \\ \hline
 {\tt REPORT\_LOCK}\mkey{REPORT\_LOCK} & {\tt arg1} is a BPTR to a {\tt FileLock} structure (section~\ref{sec:filelock})\\ \hline
 {\tt REPORT\_VOLUME}\mkey{REPORT\_VOLUME} & {\tt arg1} is a BPTR\footnotemark to a {\tt DosList} structure (chapter~\ref{sec:devicelist})\\ \hline
-{\tt REPORT\_INSERT}\mkey{REPORT\_INSERT} & {\tt arg1} is a \emph{regular} pointer to a path separated at ``{\tt :}'' \\ \hline
+{\tt REPORT\_INSERT}\mkey{REPORT\_INSERT} & {\tt arg1} is a \emph{regular} pointer to an absolute path \\ \hline
 \end{rkrmtable}
 \footnotetext[\value{footnote}]{Unlike what the official documentation and
   \cite{Bantam,guru} say, this is a BPTR, not a regular pointer.}
 
 If {\tt type} is {\tt REPORT\_INSERT}\key{REPORT\_INSERT}, then {\tt arg1}
-shall be a pointer to an absolute path name containing a colon (``{\tt :}'')
-from which a volume or device name is extracted. This type is used by the
+shall be a pointer to a path that is split at a colon (``{\tt :}'')
+to extract a volume or device name. This type is used by the
 \emph{dos.library} when attempting to locate an entry on the device
 list\key{Device List} from an absolute path failed.
 \smallskip{}
 
 The {\tt device} argument is a (regular) pointer to a {\tt MsgPort}
 structure that is only used if {\tt type} is {\tt REPORT\_LOCK}\key{REPORT\_LOCK}
-and {\tt arg1} is {\tt ZERO} or the error indicates that the faulting volume
-is not accessible. This happens for the errors {\tt ERROR\_DEVICE\_NOT\_MOUNTED}
-in combination with the {\tt REPORT\_STREAM} type, and the {\tt ABORT\_BUSY}
-error. This port is assumed to be a {\tt MsgPort} of a file
-handler\key{FileHandle} that is contacted to learn about the name of the
-currently inserted volume. This is for example used when reporting errors
+and {\tt arg1} is {\tt ZERO}, thus the lock representing the root of a file
+system; {\tt device} is also used if the error indicates that the faulting volume is
+not accessible. This port is assumed to be a {\tt MsgPort} of a file
+handler\key{FileHandle} that is contacted with
+{\tt ACTION\_CURRENT\_VOLUME}\key{ACTION\_CURRENT\_VOLUME} of
+section~\ref{sec:actioncurrentvolume} to learn about the name of the
+currently inserted volume\footnote{If the faulting volume is not accessible, the \emph{dos.library} also
+attempts to find the name of the handler responsible for the volume, lock or file
+handle. It does so by matching the port from these objects, namely
+{\tt dol\_Task}\key{dol\_Task}, {\tt fl\_Task}\key{fl\_Task} or
+{\tt fh\_Type}\key{fh\_Type} to the ports of the file systems recorded in
+the device list\key{Device List}. This silently assumes that the port
+which locks, file handles or volumes provide as contact point is identical to
+the port the file system leaves in {\tt dol\_Task} of its {\tt DosList}, though
+this assumption is not necessarily true if the file system uses multiple
+ports to communicate to its clients. Again, this is probably a
+defect and instead of testing the port, {\tt mp\_Task} of the candidate ports
+should be checked. The algorithm that is used if \emph{no} matching
+file system is found is even weirder as the code then assumes to find an
+exec device unit number in {\tt IoErr()}, probably as part of a legacy Tripos interface
+which required the file system to deposit its unit here before calling
+{\tt ErrorReport()}. The FFS, however, no longer uses this function
+and thus does not require this legacy interface.}.
+This mechanism is for example used when reporting errors
 through a {\tt DevProc}\key{DevProc} structure whose lock and port are
 passed into the error report, see section~\ref{sec:getdeviceproc}.
-\medskip{}
+\smallskip{}
 
-%This condition needs to go here somehow.
-%If a file system does not implement this packet, the \emph{dos.library} scans
-%the device list for a device whose {\tt dol\_Task}\key{dol\_Task} element is
-%identical to the {\tt fh\_Type}\key{fh\_Type} element of the
-%{\tt FileHandle}\key{FileHandle}. Thus, this requires that the handler registers
-%the same port in the device list that is also used for communication through
-%file handles.
+Finally, for the error {\tt ERROR\_DEVICE\_NOT\_MOUNTED} and the type
+{\tt REPORT\_INSERT}, the \emph{dos.library} attempts to find out whether
+a request for particular volume should be suppressed completely, and for
+that calls the {\tt VolumeRequestHook()}\key{VolumeRequestHook()}
+function of section~\ref{sec:volreqhook}. If it returns {\tt DOSFALSE}, no
+requester is shown and {\tt ErrorReport()} aborts immediately,
+indicating cancellation. 
+\medskip{}
 
 The {\tt ErrorReport()}\key{ErrorReport()} function returns a Boolean
 indicator whether the currently ongoing operation shall be aborted or
@@ -27084,8 +27078,41 @@ medium into a drive while the requester is shown. If the requester is
 suppressed because the {\tt pr\_WindowPtr} of the calling process is set
 to~$-1$, or the system run out of memory, or an error not listed in
 table~\ref{table:errorsource} is reported, then this function always returns
-{\tt DOSTRUE}, requesting to abort the operation.  On return, this function
-also sets {\tt IoErr()} to the error identifier in {\tt code}.
+{\tt DOSTRUE}, requesting to abort the operation.
+On return, this function also sets {\tt IoErr()} to the error identifier in
+{\tt code}.
+
+\subsection{Receive Information when a Volume is Requested} \label{sec:volreqhook}
+
+The {\tt VolumeRequestHook()}\mkey{VolumeRequestHook()} function is
+called by the \emph{dos.library} whenever it attempts to request the
+user to insert a volume. 
+
+\begin{verbatim}
+res = VolumeRequestHook(volume) /* since V47 */
+D0                        D1
+
+LONG VolumeRequestHook(UBYTE *volume)
+\end{verbatim}
+
+This function is not supposed to be called by clients, it is rather
+called by the \emph{dos.library} and provided to be patched by
+application programs that want to learn whenever AmigaDOS is about to
+show a requester to ask for a specific volume.
+\smallskip{}
+
+The argument this function receives is the name of the volume AmigaDOS
+is about to ask for, without a trailing colon (``{\tt :}''). If this
+function returns {\tt DOSTRUE}, then the \emph{dos.library} progresses
+to show a requester to ask the user to insert {\tt volume}. If this
+function returns {\tt DOSFALSE}, the requester is suppressed as if the
+user pressed ``{\tt Cancel}'', thus refused to insert the volume.
+\smallskip{}
+
+The purpose of this function is to provide assign-wedge functionality that
+allows users to create an assign to a directory at the first time it is
+accessed by a program, or to suppress requesters to a volume
+that is never going to be inserted.
 
 \subsection{Generating an Error Message} \label{sec:fault}
 
@@ -27115,15 +27142,14 @@ value of the error is inserted instead.
 \smallskip{}
 
 The {\tt size} of {\tt buffer} shall not be~0. The byte for the {\tt NUL}
-terminator of the string to be created shall be included in {\tt size}.
+terminator of the string to be created shall be included in {\tt size}. 
 \smallskip{}
 
 Due to a defect present even in AmigaDOS version~47, the return value of this
 function is unlike documented \emph{not} the number of characters inserted
-into the buffer and is thus not usable. As a workaround, to find the length
-of the inserted string, use {\tt strlen()} on the buffer if {\tt code} is
-non-zero:
-
+into the buffer and is thus not usable. As a workaround,
+use {\tt strlen()} on the buffer if {\tt code} is non-zero; if it is~0, the buffer
+has not been modified:
 \begin{verbatim}
 if (code) {
   Fault(code,header,buffer,size);
@@ -27133,15 +27159,13 @@ if (code) {
 }
 \end{verbatim}
 
-Note that {\tt buffer} remains unchanged for a~0 argument of
-{\tt code}, and thus {\tt strlen()} does not return a reliable result in
-this case.
+{\tt Fault()} does not change {\tt IoErr()}.
 
 \subsection{Printing an Error Message}
 
 The {\tt PrintFault()}\mkey{PrintFault()} function prints an error
 message consisting of a header and a description of an error code over
-the error output channel of the calling process.
+the error output stream of the calling process.
 
 \begin{verbatim}
 success = PrintFault(code, header) /* since V36 */
@@ -27162,7 +27186,7 @@ If {\tt header} is non-{\tt NULL}, this string is printed first, followed by
 a colon and a space (``{\tt :~}''). Otherwise, nothing is printed upfront.
 If a textual description of the error code {\tt code} is available, it is
 printed behind it, followed by a line feed. Otherwise, just a generic error
-message with the provided error number is printed.
+message consisting of the provided error number is printed.
 \smallskip{}
 
 If {\tt code} is~0, nothing is printed at all and {\tt IoErr()} remains
@@ -27170,7 +27194,7 @@ unaltered. Otherwise, this
 function sets {\tt IoErr()}\key{IoErr()} to {\tt code}.
 \smallskip{}
 
-This function returns a Boolean success code. If the error is zero, or a
+This function returns a Boolean success code. If the error is~0, or a
 description of the error is available, this function returns a non-zero
 success code. Otherwise, this function returns~{\tt DOSFALSE}.
 
@@ -27187,9 +27211,10 @@ LONG PutErrStr(STRPTR)
 \end{verbatim}
 
 This function writes the {\tt NUL} terminated string {\tt str} over
-the error output {\tt pr\_CES}\key{pr\_CES} of the calling process. If this stream
-does not exist, this function writes the string over the standard
-output {\tt pr\_COS}\key{pr\_COS}.
+the error output {\tt pr\_CES}\key{pr\_CES} of the calling process.
+If this stream does not exist, this function writes the string over the standard
+output {\tt pr\_COS}\key{pr\_COS}. The process structure and the file
+handles it contains are explained in detail in chapter~\ref{sec:process}.
 \smallskip{}
 
 This function returns $0$ on success, or {\tt ENDSTREAMCH}\key{ENDSTREAMCH} on an
