@@ -26006,7 +26006,7 @@ To ease access to often used program code, AmigaDOS administrates a list of
 resident segments\key{Segment (resident)}. This list includes resident
 commands, and thus allows the Shell to execute them quickly without
 requiring to load them from disk; but also ROM-resident system segments such
-as the Shell have been placed there during the initialization of AmigaDOS.
+as the Shell are placed there during the initialization of AmigaDOS.
 \smallskip{}
 
 The list of resident segments should not be confused with the exec list of
@@ -26038,8 +26038,8 @@ to be loaded from disk.
 \smallskip{}
 
 Fourth, some non-command segments\key{Segment (resident)} are added to the list
-during initialization of AmigaDOS through System-Startup, see also
-section~\ref{sec:sysstartup}. These include the CON-Handler\key{CON-Handler}, the
+during initialization of AmigaDOS through System-Startup, which is discussed
+in more detail section~\ref{sec:sysstartup}. These include the CON-Handler\key{CON-Handler}, the
 RAM-Handler\key{RAM-Handler}, the FFS\key{Fast File System (FFS)} which is
 represented by a resident segment named ``{\tt FileHandler}'', and --- finally -- the Shell.
 \smallskip{}
@@ -26133,7 +26133,7 @@ The {\tt seg\_Name}\mkey{seg\_Name} is not only 4 characters long as indicated,
 but a variable length field. It contains the name of the command or system
 segment as BSTR.
 
-\subsection{Finding a Resident Segment} \label{sec:findsegment}
+\subsection{Find a Resident Segment by Name} \label{sec:findsegment}
 
 The {\tt FindSegment()}\mkey{FindSegment()} locates a resident
 segment\key{Segment (resident)} by name.
@@ -26171,7 +26171,7 @@ segment\key{Segment (resident)}
 and thus, it cannot guarantee that the segment will be unloaded by another
 process at the time the function returns. Thus, this function shall be
 called while a {\tt Forbid()} is active, and the caller shall increment
-{\tt seg\_UC}\key{seg\_UC} for non-system segments it attempts to use them before calling
+{\tt seg\_UC}\key{seg\_UC} for non-system segments it attempts to use before calling
 {\tt Permit()}.
 \smallskip{}
 
@@ -26196,9 +26196,9 @@ BOOL AddSegment(STRPTR, BPTR, LONG)
 \end{verbatim}
 
 This function adds the segment list {\tt seglist}, e.g.\ as returned by
-{\tt LoadSeg()}\key{LoadSeg()}, under the given {\tt name} to the list of
-resident segments. The {\tt seg\_UC}\key{seg\_UC} type and use counter is initialized to
-the value {\tt type}.
+{\tt LoadSeg()}\key{LoadSeg()}, under the name given by {\tt name} to the list of
+resident segments. The {\tt seg\_UC}\key{seg\_UC} type and use counter is
+initialized to {\tt type}.
 \smallskip{}
 
 The {\tt name} is copied and its original buffer may be released or reused after the function returns, but
@@ -26207,10 +26207,11 @@ segments\key{Segment (resident)}.
 \smallskip{}
 
 The value of {\tt type} shall be selected as follows: For regular pure
-executables that are made resident and by that available to other
-processes, {\tt type} shall be set to~1\footnote{The official autodocs and
+executables\footnote{The official autodocs and
 \cite{Bantam} are wrong in this regard, they suggest~0, but this value is
-incorrect and not even valid.}.
+incorrect and neither used by the Shell nor the {\tt Resident} command.}
+that are made resident and by that available to other
+processes, {\tt type} shall be set to~1.
 \smallskip{}
 
 For system segments that are not commands, {\tt type} shall be set to
@@ -26249,7 +26250,7 @@ This function attempts to remove the resident segment provided as argument
 from the AmigaDOS list of resident segments. If an attempt is made to
 remove a system segment, an internal command or a regular resident command
 that is currently in use, {\tt DOSFALSE} is returned and the resident
-segment is left in the list. Otherwise, the segment is removed, and all its
+segment remains in the list. Otherwise, the segment is removed, and all its
 resources are released, including the segment list associated to the
 resident segment which is purged through {\tt UnLoadSeg()}\key{UnLoadSeg()}.
 \smallskip{}
@@ -26267,7 +26268,7 @@ If the segment passed in cannot be removed because it is in use or is a system
 segment, this function returns {\tt DOSFALSE} and sets {\tt IoErr()} to
 {\tt ERROR\_OBJECT\_IN\_USE}\key{ERROR\_OBJECT\_IN\_USE}. On success, it
 returns {\tt DOSTRUE}\footnote{Due to a defect in the current version of the \emph{dos.library} it
-unfortunately \emph{also} sets {\tt IoErr()} to the same error code.}.
+unfortunately \emph{also} sets {\tt IoErr()} to the same error code on success.}.
 
 \section{Writing Custom Shells} \label{sec:usershells}
 
@@ -26276,7 +26277,8 @@ optionally also replace the AmigaDOS Shell. A shell is a resident
 system segment\key{Segment (resident)}, see section~\ref{sec:resident},
 similar to the CON-Handler\key{CON-Handler} or the
 RAM-Handler\key{RAM-Handler} on the same list. When launching a
-shell\key{Shell} with the {\tt System()}\key{System()} function, a custom
+shell\key{Shell} with the {\tt System()}\key{System()} function
+of section~\ref{sec:system}, a custom 
 shell\key{Shell} may be requested by providing the name of its resident
 segment to the {\tt SYS\_CustomShell} tag. A custom shell may even replace
 the AmigaDOS Shell it by making it resident under the name
@@ -26319,7 +26321,7 @@ the sake of completeness:
 If {\tt dp\_Type} is non-zero, and {\tt dp\_Res1} and {\tt dp\_Res2}
 are both~0, this is a regular shell\key{Shell} startup, and this is the only
 startup that still exists in AmigaDOS version~47, thus no particular test for
-{\tt dp\_Type} needs to be made for this version. Under AmigaDOS versions~36 to
+{\tt dp\_Type} needs to be made above version~45. Under AmigaDOS versions~36 to
 45, the following legacy startup types existed: if {\tt dp\_Type} was~0,
 then this used to indicate the creation of the ``Initial
 CLI'' booting the system, and if {\tt dp\_Res1} and {\tt dp\_Type} were non-zero,
@@ -26344,14 +26346,14 @@ the above identification of the AmigaDOS startup packet.
 Next, the shell\key{Shell} shall allocate all system resources it
 requires, and if this step fails, the startup code shall set the
 {\tt dp\_Res1} element of the startup packet to~0, place an error code in
-{\tt dp\_Res2}, then reply the packet by sending it back to its
-origin and exit.
+{\tt dp\_Res2}, then reply the packet by sending it back to {\tt dp\_Port}
+and exit.
 \smallskip{}
 
 If this first initialization succeeds, the segment array of the calling
 process in {\tt pr\_SegList}\key{pr\_SegList} needs to be reorganized, see
 also chapter~\ref{sec:process}. The regular process startup code of AmigaDOS
-places the segment list of the process in index~3 of this
+places the segment list of running program in index~3 of this
 array\key{Segment Array}, though commands executed by the shell\key{Shell}
 will require this entry themselves, and thus the shell shall move its own
 segment\key{Segment} from entry~3 to entry~4.
@@ -26361,8 +26363,8 @@ Initialization continues with the \emph{dos.library} function
 {\tt CliInitRun()}\key{CliInitRun()} which extracts parameters from the
 startup packet and from that initializes the
 {\tt CommandLineInterface}\key{CommandLineInterface} structure representing the shell\key{Shell}. This
-structure keeps the publicly accessible status of the shell\key{Shell}, see
-section~\ref{sec:getcli}.
+structure keeps the publicly accessible status of the shell\key{Shell}, it
+is specified in section~\ref{sec:getcli}.
 \smallskip{}
 
 The {\tt CliInitRun()}\key{CliInitRun()} function returns a {\tt LONG}
@@ -26533,8 +26535,8 @@ the caller yet.
 If the bit {\tt FN\_VALID}\key{FN\_VALID} of {\tt flags} is~0 and {\tt IoErr()} does
 \emph{not} equal the pointer to the process structure of the caller,
 then initialization was successful. In such a case, the startup packet
-shall only be replied after the first command executed by the shell\key{Shell},
-leaving the {\tt dp\_Res1} and {\tt dp\_Res2} unaltered from the
+shall only be replied after the first command to be executed by the
+shell\key{Shell} has been loaded, leaving the {\tt dp\_Res1} and {\tt dp\_Res2} unaltered from the
 values left by {\tt CliInitRun()}\key{CliInitRun()}. When the shell\key{Shell}
 terminates, the shell shall close the {\tt cli\_StandardOutput}\key{cli\_StandardOutput} and
 {\tt cli\_StandardInput}\key{cli\_StandardInput} file handles\key{FileHandle} of the
@@ -26546,11 +26548,11 @@ called with {\tt NULL} as its first argument and
 {\tt SYS\_Asynch}\key{SYS\_Asynch} is not set, see section~\ref{sec:system}.
 \smallskip{}
 
-The reason for delaying the startup packet until after execution of the
+The reason for delaying the startup packet until after loading of the
 first command is to avoid unnecessary head movements of floppies as
 otherwise two processes could attempt to access the disk
 simultaneously: the shell\key{Shell} starting a command with {\tt Run}, and the
-command that executes in the background.
+shell loading the command in the background.
 \medskip{}
 
 If the bits {\tt FN\_VALID}\key{FN\_VALID} and {\tt FN\_ASYNC}\mkey{FN\_ASYNC} are set, then
@@ -26665,6 +26667,11 @@ struct DosPacket *ShellMain(struct DosPacket *pkt,LONG fn,
       result = ReadItem(cmd,sizeof(cmd),NULL);
       if (result == ITEM_UNQUOTED || result == ITEM_QUOTED) {
         cli->cli_Module = LoadSeg(cmd);
+        /* Reply to pkt if not done so */
+        if (pkt && !(fn & (1L << FN_VALID))) {
+          ReplyPkt(pkt,pkt->dp_Res1,pkt->dp_Res2);
+          pkt = NULL;
+        }
         if (FGets(Input(),args,sizeof(args))) {
           if (cli->cli_Module) {
             SetProgramName(cmd);
@@ -26690,12 +26697,6 @@ struct DosPacket *ShellMain(struct DosPacket *pkt,LONG fn,
           }
         }
       }
-      /* Reply to pkt if not done so */
-      if (pkt && !(fn & (1L << FN_VALID))) {
-        ReplyPkt(pkt,pkt->dp_Res1,pkt->dp_Res2);
-        pkt = NULL;
-      }
-
       /* abort on system */
       if (((fn & FROM_SYSTEM) == FROM_SYSTEM) &&
           (cli->cli_CurrentInput == cli->cli_StandardInput))
