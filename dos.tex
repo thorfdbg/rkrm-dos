@@ -27229,7 +27229,7 @@ section~\ref{sec:fputs}.
 This chapter documents the \emph{dos.library} base structure and
 structures linked from it. These structures should not be accessed
 directly as the library provides accessor and manipulator functions
-for their elements.
+for its elements.
 
 \section{The Library Structure}
 
@@ -27318,23 +27318,23 @@ messages as one long array of {\tt UBYTE}s.
 Each error message is represented by a single byte that gives its 
 length including the terminating {\tt NUL}, followed by the
 {\tt NUL}-terminated message itself. If {\tt Fault()}
-requires a particular message, its skips each message by skipping the length
-indicator and adding the length until either the requested message is found,
-or the end of the current {\tt ErrorString} element is found. However, for all practical
+requires a particular message, its skips each message by adding the length+1 until either the requested message is found,
+or the end of the current {\tt ErrorString} element is reached. However, for all practical
 purposes, {\tt dl\_Errors} shall be left alone and instead
 {\tt Fault()}\key{Fault()} shall be used to retrieve a particular message.
 \medskip{}
 
 The {\tt dl\_TimeReq}\mkey{dl\_TimeReq} element is a private pointer to a
 {\tt timerequest} structure the \emph{dos.library} uses for functions
-such as {\tt Delay()}\key{Delay()} in section~\ref{sec:delay} or retrieving
-the system time for {\tt DateStamp()}\key{DateStamp()},
+such as {\tt Delay()}\key{Delay()} in section~\ref{sec:delay} or for retrieving
+the system time in {\tt DateStamp()}\key{DateStamp()},
 see~\ref{sec:datestamp}. If a particular process requires it, the
 \emph{dos.library} first makes a copy of this {\tt timerequest} structure,
 fills in {\tt pr\_MsgPort}\key{pr\_MsgPort} of the caller as reply port of the request,
 and then calls through {\tt DoIO()} the \emph{timer.device} to implement the required
 function. Similar to all other elements of the \emph{dos.library}, this
-element shall not be accessed directly, but only through the library.
+element shall not be accessed directly, but only through services offered by the
+library.
 \smallskip{}
 
 The {\tt dl\_UtilityBase}\mkey{dl\_UtilityBase} element provides a pointer to the
@@ -27387,7 +27387,7 @@ BCPL entry point of the shell\key{Shell}. Despite its name, it is in no
 correspondence to the CON-Handler\key{CON-Handler} or the
 {\tt console.device}. Even though
 this pointer is initialized, it is no longer used. Instead, the shell is
-located as part of the resident segments with
+located as part of the resident segments by the
 {\tt FindSegment()}\key{FindSegment()} function which is described in
 section~\ref{sec:findsegment}. The corresponding resident
 segment\key{Segment (resident)} whose BPTR is stored here has
@@ -27409,7 +27409,7 @@ found an invalid bitmap, see section~\ref{sec:rootblock}, it loaded the
 recomputed the bitmap by a full disk scan. With the introduction of the
 FFS\key{Fast File System (FFS)} in AmigaDOS version~34, disk validation became part
 of the file system, even though this element remained in use for the
-BCPL-based OFS until AmigaDOS version~36.
+BCPL-based OFS.
 \smallskip{}
 
 The {\tt rn\_Info}\mkey{rn\_Info} element is a BPTR to the
@@ -27425,7 +27425,7 @@ function {\tt AddDosNode()} function still accesses this element, but it should 
 considered obsolete and private. It is populated by the resident segment\key{Segment (resident)}
 ``{\tt FileHandler}'', and is even updated if a newer version of the FFS\key{Fast File System (FFS)} is
 found in the RDB of the booting disk. From AmigaDOS version~34 onward, file systems
-should be found through the \emph{FileSystem.resource}\key{FileSystem.resource} and not through this BPTR which only
+should be obtained through the \emph{FileSystem.resource}\key{FileSystem.resource} and not through this BPTR which only
 provides the FFS.
 \smallskip{}
 
@@ -27462,7 +27462,7 @@ this node, and thus the process number of the shell kept in {\tt cpl\_Array[1]}.
 The {\tt cpl\_Array}\mkey{cpl\_Array} element contains the number of entries
 in the table and pointers to the {\tt pr\_MsgPort}s of the
 {\tt Process}\key{Process} structures running shells\key{Shell}.
-The first element {\tt cpl\_Array[0]} entry contains the number of
+The first element {\tt cpl\_Array[0]} entry is the number of
 shell\key{Shell} processes administrated in this node and is
 typically~20. All remaining entries are pointers to {\tt MsgPort}
 structures, namely the {\tt pr\_MsgPort} of the processes executing
@@ -27487,7 +27487,7 @@ creates, and thus the file system responsible for the {\tt ZERO} lock\key{ZERO l
 \smallskip{}
 
 The {\tt rn\_ShellSegment}\mkey{rn\_ShellSegment} is a pointer to the C segment of the
-shell\key{Shell}. This pointer is also not used anymore, but still initialized. It
+shell\key{Shell}. This pointer is also not used anymore, but is still initialized. It
 corresponds to the resident segments ``{\tt shell}''\key{Shell (resident)}
 and ``{\tt BootShell}''\key{BootShell (resident)}, where the former may be replaced
 by a custom user-provided shell and the latter is always the shell that
@@ -27543,7 +27543,7 @@ section~\ref{sec:devlistaccess}.
 \smallskip{}
 
 The {\tt di\_Devices}\mkey{di\_Devices} and {\tt di\_Handlers}\mkey{di\_Handles} elements are Tripos
-legacies and not in use in any version of AmigaDOS.
+legacies and not in use by any version of AmigaDOS.
 \smallskip{}
 
 The {\tt di\_NetHand}\mkey{di\_NetHand} element contains the resident segments, despite
@@ -27616,16 +27616,17 @@ the \emph{dos.library}; this includes allocating the {\tt DosInfo} structure
 
 In the following step, the {\tt DosList} structures created by autobooting devices stored in
 the \emph{expansion.library} are carried over into the device
-list\key{Device List}, see chapter~\ref{sec:devicelist}. This mounts all
-devices that were recorded in expansion. The first one added to this list
+list\key{Device List}, more on the {\tt DosList} structure is found in
+chapter~\ref{sec:devicelist}.
+This mounts all devices that were recorded in expansion. The first one added to this list
 will become the boot volume.
 \smallskip{}
-% remember that the boot file system needs to set the system time
+
 The {\tt System-Startup} process then locates the
 FFS\key{Fast File System (FFS)} in the exec list of resident modules. It is represented there
 as a module named ``{\tt filesystem}''. If an autobooting host
 adapter loaded a newer version of the FFS from the Rigid Disk Block (RDB)\key{Rigid Disk Block (RDB)}, this
-version replaces the ROM version. It is then also used for the mount
+version replaces the ROM version. It is then also used to update the mount
 entries of all other devices using the FFS, for example the disk drive
 {\tt DF0}. From this file system, or the ROM version of the FFS if no newer
 version was found, a resident segment (see~\ref{sec:resident})
@@ -27636,10 +27637,16 @@ structure.
 In the next step, {\tt System-Startup} creates the mount entries for
 {\tt PRT}, {\tt PAR}, {\tt SER} and {\tt PIPE}, and then starts the file
 system of the boot device. This is possibly, but not necessarily the FFS
-found in the previous step. After devices, the system assigns\key{Assign}
-are created, namely {\tt L}, {\tt FONTS}, {\tt DEVS}, {\tt LIBS},
-{\tt S}, {\tt C}, {\tt SYS} and {\tt ENVARC}. The latter is a late-binding assign
-\key{Late-Binding Assign} pointing to ``{\tt SYS:Prefs/Env-Archive}''.
+found in the previous step. While the FFS is only a file system, it also
+contributes to the bootstrap process by checking whether a valid system time
+is available, and if not so, initializes the date and time of AmigaDOS from
+the creation date of the boot volume.
+\smallskip{}
+
+After devices, the system assigns\key{Assign} are created, namely {\tt L},
+{\tt FONTS}, {\tt DEVS}, {\tt LIBS}, {\tt S}, {\tt C}, {\tt SYS} and
+{\tt ENVARC}. The latter is a late-binding assign \key{Late-Binding Assign}
+pointing to ``{\tt SYS:Prefs/Env-Archive}''.
 \smallskip{}
 
 After the file system of the boot device has been started in the previous
@@ -27680,7 +27687,7 @@ version~47 of intuition was extended by the ability to shut itself down for
 replacement. If a newer disk-based version is found, the ROM-based library
 is torn down, the existing library entry points are patched to a call to
 {\tt Alert()}, and the new library base is installed into the
-\emph{dos.library} and the BCPL global vector. File systems should therefore
+\emph{dos.library} and the BCPL Global Vector. File systems should therefore
 not buffer the intuition library base in its code, but rather open it only when needed.
 \smallskip{}
 
@@ -27689,11 +27696,11 @@ in a 31kHz DblPPAL or DblNTSC mode. This step is would usually be performed
 by {\tt SetPatch}, though is already executed here; it allows users to
 show the boot console on a VGA monitor even without requiring to load
 {\tt SetPatch} in order to trace or debug the {\tt Startup-Sequence}\key{Startup-Sequence} if the
-native Amiga video cannot be displayed.
+ECS/OCS resolutions cannot be displayed.
 \smallskip{}
 
 This is followed by initializing all resident ROM modules of lower priority
-than \emph{dos.library} marked as {\tt RTF\_AFTERDOS}. That includes for example the \emph{audio.device} or the
+than \emph{dos.library} marked as {\tt RTF\_AFTERDOS}. That includes for example the \emph{audio.device} and the
 \emph{mathffp.library}. Note that these modules are not necessarily coming
 from ROM, they could have been replaced by disk-based modules by the ROM update
 mechanism executed before.
@@ -27707,7 +27714,7 @@ as setting its colors and the shape of the mouse pointer. The boot console
 is opened next, using the {\tt AUTO} mode of the
 CON-Handler\key{CON-Handler}, see section~\ref{sec:conwindowpath}. This
 delays opening the console window, and by that also of the intuition screen
-it appears upon, until some program attempts to print text into it.
+it appears on, until some program attempts to print text on the console.
 \smallskip{}
 
 Unless booting from the {\tt S:Startup-Sequence}\key{Startup-Sequence} is disabled, this file is
@@ -27744,15 +27751,12 @@ each single command it executes. This allows users to trace through the
 \smallskip{}
 
 As final step, the {\tt InitialCLI}, that is, the boot Shell, is launched through a
-{\tt System()}\key{System()} function call. The command input,
-unless disabled, is prepared to read from {\tt S:Startup-Sequence}\key{Startup-Sequence}. Once
-this Shell is running, the {\tt System-Startup} process terminates and
+{\tt System()}\key{System()} function call. Unless executing
+the {\tt S:Startup-Sequence}\key{Startup-Sequence} is disabled,
+the command stream is opened from this file and provided to the Shell for
+execution. Once this Shell is running, the {\tt System-Startup} process terminates and
 leaves it to the Shell to continue the boot process and boot the system to
 the Workbench.
-
-% scan for updated modules is not yet right.
-% intuition V40 downgrade missing
-% debug and interactive are missing in the shell chapter.
 
 \begin{thebibliography}{99}
 \bibitem{Bantam} Commodore-Amiga Inc:
