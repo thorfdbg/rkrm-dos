@@ -217,29 +217,127 @@ the Open Group.}
 %
 %
 \chapter{Introduction}
-\section{Foreword}
-The purpose of this manual is to provide a comprehensive documentation of
-the AmigaDOS subsystem of the Amiga Operation System. AmigaDOS provides
-elementary services similar to other contemporary operating systems, such as
-file systems and handlers implementing stream-based input and output,
-process management, volume and device management, command line execution and
-command line parsing. Its interface to applications is the
-\emph{dos.library}, a ROM based shared library that offers an interface
-between such applications and AmigaDOS subsystems such as file systems or
+\section{Preface by Olaf Barthel}
+The Amiga operating system is composed of libraries, devices and also
+resources, all of which provide APIs and data structures for shell
+commands and Workbench tools to make use of. The foundations on which
+everything else in the operating system rests are the Multitasking
+Executive (``\emph{exec.library}'') and AmigaDOS (``\emph{dos.library}'').
+\smallskip{}
+
+The \emph{dos.library} itself depends upon \emph{exec.library}, it is
+``just'' another operating system component after all. You might have
+expected that AmigaDOS plays a much greater part in the operating
+system, but the Amiga operating system is not constructed around its
+DOS component. Almost every Amiga program makes use of
+\emph{exec.library}, such as for accessing libraries and devices, but
+not every Amiga program has need of what \emph{dos.library} provides.
+\smallskip{}
+
+AmigaDOS encompasses \emph{dos.library}, the
+CON-Handler\key{CON-Handler}, the RAM disk implemented by the
+RAM-Handler\key{RAM-Handler}, the default file system and the command
+line Shell, as well as the shell commands on disk. These components
+came, mostly, from TRIPOS (Trivially portable operating
+system)~\cite{tripos} where they were part of a much larger networked
+multitasking operating system. As one of the last pieces to fall into
+place in 1985, the components were specially adapted for the Amiga and
+were not written by the original Amiga and Commodore developers. Both
+the Amiga operating system and TRIPOS had in common that they were
+built around non-copying message passing in a shared memory space,
+which enabled AmigaDOS to work ``hand in glove'' with the architecture
+and the means provided by \emph{exec.library}.
+\smallskip{}
+
+The \emph{dos.library} connects the functions adapted from TRIPOS,
+such as for opening and closing files, reading and writing data, to a
+regular shared Amiga library API, callable from both 'C' and assembly
+language. With a mere 31 functions the original 1985
+\emph{dos.library} API was very compact.
+\smallskip{}
+
+The same could be said, in a different context, for the AmigaDOS
+developer material for \emph{dos.library} at the time, which covered
+both the available API functions as well as selected data
+structures~\cite{techref1} in only 56 pages. This documentation was
+most helpful for creating programs which made use of \emph{dos.library}
+functions, such as reading and writing files.
+\smallskip{}
+
+How you would go about implementing and mounting a file system was virtually
+undocumented until October 1986~\cite{lindsay}. How \emph{dos.library} communicates with file systems
+--- through a special message type known as ``DOS packets'' --- and how the system-global
+data structures, which file systems depend upon, would be used would not be
+documented (partially, that is) until February 1987~\cite{scheppner,lindsay2,scheppner2}.
+These gaps in the documentation could never be closed by the three editions of
+the official AmigaDOS manual~\cite{Bantam}.
+\smallskip{}
+
+This state of affairs would change for the better by 1989, when Ralph Babel's
+book ``Das Amiga-Guru-Buch'' was published~\cite{guru1}. On 270 pages, chapter III "AmigaDOS"
+meticulously covers each component, the data structures being used as well as
+all every single function of the dos.library in Kickstart 1.3. In both detail
+and scope, chapter III of "Das Amiga-Guru-Buch" by far exceeds what "The
+AmigaDOS manual" and its Autodocs could cover at the time.
+\smallskip{}
+
+AmigaDOS in Kickstart 2.0 (1989) would replace the TRIPOS underpinnings, which
+had been adapted for the Amiga, with equivalent code written in 'C' and
+assembly language. This went along with a much expanded API, which cast into
+library functions what was previously only attainable by manually
+manipulating underdocumented/undocumented data structures.
+\smallskip{}
+
+Again, Ralph Babel provided the authoritative AmigaDOS documentation in
+``The Amiga Guru Book''\cite{guru}. With the same meticulous approach as applied to
+``Das Amiga-Guru-Buch'', chapter III "AmigaDOS" covers the entire \emph{dos.library},
+file system, DOS packet and data structure documentation on 419 pages.
+\smallskip{}
+
+The book which you are reading now covers the entirety of AmigaDOS and
+its components, filling in the gap between ``The Amiga Guru Book'' and the
+Amiga operating system changes in Kickstart 3.0, 3.1, 3.5, 3.1.4, 3.2 and beyond.
+\smallskip{}
+
+Essential to the understanding and use of \emph{dos.library} and its data structures
+is the knowledge of its shortcomings such as undefined behaviour, side effects
+and bugs, as well as its limitations and what constraints \emph{dos.library} imposes
+on the software which makes use of its API. While the \emph{dos.library} Autodocs would
+cover this field to a great degree, they mostly focus on the 1989-1991 \emph{dos.library}
+version.
+\smallskip{}
+
+One of the goals of the RKM AmigaDOS is to provide you with the means to gauge how
+thin the ice really is which you are walking on when developing software for AmigaDOS.
+What works, and how? What will fail silently if you attempt it? What was never
+implemented? The RKM AmigaDOS attempts to give you answers, enabling you to render
+your programs more robust where they previously stumbled over unexpected/undocumented
+behaviour.
+
+\section{Foreword of the Author}
+The purpose of this manual is to provide a comprehensive documentation
+of the AmigaDOS subsystem of the Amiga Operation System. AmigaDOS
+provides elementary services similar to other contemporary operating
+systems, such as file systems and handlers implementing stream-based
+input and output, process management, volume and device management,
+command line execution and command line parsing. Its interface to
+applications is the \emph{dos.library}, a ROM based shared library
+that offers the API for AmigaDOS subsystems such as file systems or
 the Shell.
 \smallskip{}
 
-While the Amiga ROM Kernel Reference Manuals~\cite{rkrmlib} document major
-parts of the AmigaOs, they do not include a volume on AmigaDOS and its
-subsystems. This is due to the history of AmigaDOS which is nothing but a
-port of Tripos, an experimental operating system developed
-at the University of Cambridge. Instead, its documentation became available
-as the AmigaDOS manual~\cite{Bantam} separately. This book is, similar to
-AmigaDOS, based on the Tripos manual which has been augmented and updated to
-reflect the changes that were necessary to fit Tripos into
-AmigaOs. Unfortunately, the book is now out of print, does not reflect the
-current state of AmigaDOS anymore, and leaves multiple parts of AmigaDOS
-undocumented.
+While the Amiga ROM Kernel Reference Manuals~\cite{rkrmlib} document
+major parts of the AmigaOs, they do not include a volume on AmigaDOS
+and its subsystems. This is due to the history of AmigaDOS which is
+nothing but a port of Tripos, an experimental operating system
+developed at the University of Cambridge by Dr. Martin Richards and
+Dr. Tim King. Instead, its documentation became available as the
+AmigaDOS manual~\cite{Bantam} separately. This book is, similar to
+AmigaDOS, based on the Tripos manual which has been augmented and
+updated to reflect the changes that were necessary to fit Tripos into
+AmigaOs. Unfortunately, the book is now out of print, does not reflect
+the current state of AmigaDOS anymore, and leaves multiple parts of
+AmigaDOS undocumented.
 \smallskip{}
 
 Good third party documentation is available in the form of the Guru
@@ -248,9 +346,10 @@ obtain. It also covers aspects of AmigaOs that go beyond AmigaDOS and its
 focus is a bit different than that of this work.
 \smallskip{}
 
-This book attempts to fill this gap and attempts to provide a comprehensive
-and complete documentation of AmigaDOS and its subsystems, closely
-following the style of the ROM Kernel Reference Manuals.
+The book in your hands attempts to fill this gap and attempts to
+provide a comprehensive and complete documentation of AmigaDOS and its
+subsystems, closely following the style of the ROM Kernel Reference
+Manuals.
 
 \subsection{Acknowledgments}
 
@@ -1387,7 +1486,7 @@ name. Code points from the control set of ISO-Latin, i.e.\ codes between
 {\tt 0x01} to {\tt 0x1f} or {\tt 0x7f} to {\tt 0x9f} should be
 avoided\footnote{Unfortunately, the file systems in the Amiga Kickstart are currently inconsistent on which
 characters they accept. The FFS does not accept any control characters,
-the RAM-Handler (probably erroneously) accepts characters in the C1 control set from {\tt 0x80} to {\tt 0x9f}.}, and
+the RAM-Handler\key{RAM-Handler} (probably erroneously) accepts characters in the C1 control set from {\tt 0x80} to {\tt 0x9f}.}, and
 the code point {\tt 0x00} ASCII {\tt NUL} shall not be used at all as it terminates
 C strings and therefore cannot be part of a file name anyhow\footnote{To be very
 precise, it actually \emph{could} be as this character does not have a
@@ -4911,18 +5010,29 @@ is undefined for directories, hard links\key{Hard Link} to directories or
 soft links\key{Soft Link}.
 \smallskip{}
 
-The {\tt fib\_NumBlocks}\mkey{fib\_NumBlocks} element indicates now many
-blocks a file occupies on the storage medium, if such a concept applies at
-all. Disks and harddisk organize their storage in blocks of equal size, and
-the file system manages these blocks to store data on the medium. The number
-of blocks can be meaningless for directories or file systems that organizes
-their contents differently, e.g.\ network file systems. The Fast File
-System\key{Fast File System (FFS)} includes in the block count also the file
-extension blocks, see section~\ref{sec:fileextensionblock}, and not only
-counts the data blocks. Unfortunately, not much can be concluded from the block count
-as it need not to be consistent across different file systems, or even
-different flavors of the same file system. For some file systems, it need
-not to be consistent even for identical file contents.
+The {\tt fib\_NumBlocks}\mkey{fib\_NumBlocks} element is supposed to
+indicate how many blocks a file occupies on the storage medium, if
+such a concept applies at all. Disks and harddisk organize their
+storage in blocks of equal size, and the file system manages these
+blocks to store data on the medium. The number of blocks can be
+meaningless for directories or file systems that organizes their
+contents differently, e.g.\ network file systems. The original BPCL
+implementation of the Amiga ROM file system included in the block
+count not only payload data, but also the file extension blocks, see
+section~\ref{sec:fileextensionblock}. Unfortunately, not much can be
+concluded from the block count as it need not to be consistent across
+different file systems, or even different flavors of the same file
+system. For some file systems, it need not to be consistent even for
+identical file contents. While the original BCPL implementation of the
+Amiga ROM file system spend a lot of time iterating over file system
+structures to determine the block count, the assembler
+re-implementation of the FFS\key{Fast File System (FFS)} that appeared
+with Kickstart 1.3 only approximates the block count from the file
+size, plus one file header block; for the OFS variants in
+table~\ref{table:ffsflavours}, the block count is even underestimated
+when accounting only for the payload. Thus, {\tt fib\_NumBlocks}
+should be left alone as it is not reliable even for the Amiga ROM file
+systems.
 \smallskip{}
 
 The {\tt fib\_Date}\mkey{fib\_Date} element indicates when the file was
@@ -7453,7 +7563,7 @@ lists some AmigaDOS file systems\key{File System}:
 
 \begin{rkrmtabular}{File System Types} \label{table:ffsflavours}
 \begin{longtable}{|ll|} \hline
-{\bf FFS Flavor} & {\bf Description} \\ \hline \hline
+{\bf File System Type} & {\bf Description} \\ \hline \hline
 {\tt ID\_DOS\_DISK} & Original file system (OFS) \\ \hline
 {\tt ID\_FFS\_DISK} & First version of FFS\key{Fast File System (FFS)} \\ \hline
 {\tt ID\_INTER\_DOS\_DISK} & International variant of OFS \\ \hline
@@ -20085,7 +20195,16 @@ inserted volume shall be examined\key{ZERO lock}. In such a case, {\tt fib\_File
 filled with the name of the volume.
 \smallskip{}
 
-This packet is also used to initiate a scan over a directory to
+The BCPL implementations of some system commands of the Kickstart 1.3,
+including {\tt Dir} and {\tt List}, only reserve storage for a reduced
+version of the {\tt FileInfoBlock}\key{FileInfoBlock} structure that does not
+include the {\tt fib\_Reserved} field. A file system that is supposed
+to operate under such obsolete operating system versions shall
+therefore not modify any element of this field as otherwise memory
+corruption may result.
+\smallskip{}
+
+The {\tt ACTION\_EXAMINE\_OBJECT} packet is also used to initiate a scan over a directory to
 examine all objects within in it. Then {\tt dp\_Arg1} is the lock of
 the directory to be scanned. File systems may use this packet to
 initialize internal state information stored in this lock,
@@ -20136,6 +20255,15 @@ directory through the {\tt ZERO} lock\key{ZERO lock} in
 {\tt dp\_Arg1}. Failing with {\tt ERROR\_INVALID\_LOCK} is permissible in
 such a case.
 \smallskip{}
+
+The BCPL implementations of some system commands of the Kickstart 1.3,
+including {\tt Dir} and {\tt List}, only reserve storage for a reduced
+version of the {\tt FileInfoBlock}\key{FileInfoBlock} structure that does not
+include the {\tt fib\_Reserved} field. A file system that is supposed
+to operate under such obsolete operating system versions shall
+therefore not modify any element of this field as otherwise memory
+corruption may result.
+\medskip{}
 
 Unlike Unix like file systems, AmigaDOS does not keep entries in directories
 that correspond to the directory itself or its parent directory, i.e.\
@@ -20981,13 +21109,13 @@ the same volume, and {\tt dp\_Arg2} and {\tt dp\_Arg4} represent paths
 within this volume.
 \smallskip{}
 
-Arguments are populated as follows:
+Arguments of this packet are populated as follows:
 \smallskip{}
 
 {\tt dp\_Arg1} represents the directory to which the source {\tt dp\_Arg2}
 is relative to. The {\tt Rename()}\key{Rename()} function takes it from the
-output of the {\tt GetDeviceProc()}\key{GetDeviceProc()} function applied to the
-source path, and it typically corresponds to the current directory of the
+output of the {\tt GetDeviceProc()}\key{GetDeviceProc()} function (see section~\ref{sec:getdeviceproc})
+applied to the source path, and it typically corresponds to the current directory of the
 calling process or the lock of an assign in the source path.
 \smallskip{}
 
@@ -21026,35 +21154,50 @@ or the object location.
 \smallskip{}
 
 If the last component in the target path is an existing directory or
-hard link\key{Hard Link} to an existing directory, and an object of the
-source name does not exist within it, the source object as identified by
-{\tt dp\_Arg1} and {\tt dp\_Arg2} shall be moved \emph{into} this
-directory under its original name, i.e. the name as given by the last
-component of the path in {\tt dp\_Arg2}.
+hard link\key{Hard Link} to an existing directory, and an object of
+the source name does not exist within it, the source object as
+identified by {\tt dp\_Arg1} and {\tt dp\_Arg2} shall be moved
+\emph{into} the target directory under its original name, i.e. the name as
+given by the last component of the path in {\tt dp\_Arg2}. This allows
+programs, in particular the {\tt Rename} command line utility, to relocate
+file system objects within a file system.
 \smallskip{}
 
-If the last component of the target path does not exist, it forms the new name
-of the target object, which will then be moved into the directory given by the
-target path up to the second to last component.
+If the last component of the target path does not exist, it forms the
+new name of the target object, and the target path up to the second to
+last component the target directory into which the source object is to
+be relocated. In this case, the object is not only moved, but also
+given a new name.
 \smallskip{}
 
 If the last component of the target path is a soft link\key{Soft Link}, the attempt to rename into a soft link
 shall fail with the error code {\tt ERROR\_IS\_SOFT\_LINK}\key{ERROR\_IS\_SOFT\_LINK}.
 \smallskip{}
 
-If the last component of the target path is an existing file or a hard link to an
-existing file, renaming shall fail with {\tt ERROR\_OBJECT\_EXISTS}\key{ERROR\_OBJECT\_EXISTS}. That is,
-it is not permissible to rename into an existing file or replace an existing file.
+If the last component of the target path is an existing file or a hard
+link to an existing file, renaming shall fail with
+{\tt ERROR\_OBJECT\_EXISTS}\key{ERROR\_OBJECT\_EXISTS}. That is, it is
+not permissible to rename into an existing file or replace an existing
+file by renaming contents into a an existing file. Strictly speaking,
+this is probably a limitation of the FFS and the RAM-Handler as file
+systems from other operating systems are capable of supporting this
+operation, then deleting the contents of the target file into which
+the source is renamed.
 \smallskip{}
 
 Particular care needs to be taken if the object to be relocated is a
+directory, and this directory is to be moved into another
 directory. In such a case, the file system shall test whether an
 attempt is made to move the directory into itself or into one of the
-sub-directories of its own. As this would render the directory unreachable,
-the error {\tt ERROR\_OBJECT\_IN\_USE}\key{ERROR\_OBJECT\_IN\_USE} shall be generated.
+sub-directories of its own. As this would render the directory
+unreachable, the packet shall fail and the error code {\tt ERROR\_OBJECT\_IN\_USE}\key{ERROR\_OBJECT\_IN\_USE}
+shall be reported\footnote{The Kickstart 1.3 BCPL implementation of the AmigaOs ROM file
+system missed this test and thus created an amusing opportunity to make
+directories disappear without deleting them.}.
+
 \medskip{}
 
-Before replying the packet, {\tt dp\_Res1} shall be set to a Boolean success
+Upon replying the packet, {\tt dp\_Res1} shall be set to a Boolean success
 indicator. On success, it shall be set to {\tt DOSTRUE} and {\tt dp\_Res2} shall
 be set to~0. On error, {\tt dp\_Res1} shall be to {\tt DOSFALSE} and
 {\tt dp\_Res2} to an error code.
@@ -27778,11 +27921,14 @@ Addison-Wesley Publishing Company (1992)
 \bibitem{rkrmdev} Dan Baker (Ed.):
 {\sl Amiga ROM Kernal Reference Manual: Devices. 3rd. ed.}
 Addison-Wesley Publishing Company (1992)
+\bibitem{guru1} Ralph Babel:
+{\sl Das Amiga-Guru-Buch: Das Referenzwerk} (German Edition),
+Ralph Babel, Taunusstein (1989)
 \bibitem{guru} Ralph Babel:
 {\sl The Amiga Guru Book.}
 Ralph Babel, Taunusstein (1993)
 \bibitem{kernrichie} Brian W. Kernighan and Dennis M. Ritchie:
-{\sl The C Programming Language}, $2^{\mbox{nd}}$ edition, Prentice Hall
+{\sl The C Programming Language}, $2^{\mbox{\tiny nd}}$ edition, Prentice Hall
 (1988)
 \bibitem{ecma48} ECMA:
 {\sl Control Functions for Coded Character Sets.}
@@ -27790,6 +27936,18 @@ ECMA International (1998)
 \bibitem{scsi} Brian Sawert
 {\sl The Programmer's Guide to SCSI},
 Addison-Wesley Publishing Company (1998)
+\bibitem{tripos} Rob Andrews (Ed.): {\sl Historical sources for the TRIvial
+Operating System} (sic!), available online at \url{https://github.com/borb/tripos}, (2020),
+retrieved 2024.
+\bibitem{techref1} Commodore-Amiga: {\sl AmigaDOS Technical Reference Manual}, (1985)
+\bibitem{lindsay} Phillip Lindsay: {\sl An Example of a AmigaDOS Handler in C}, in:
+Amiga Technical Support, AmigaLibDisk \#38, (1986)
+\bibitem{lindsay2} Phillip Lindsay: {\sl Grab disks from system device list}, in:
+Amiga Technical Support, AmigaLibDisk \#56, (1987)
+\bibitem{scheppner} Carolyn Scheppner: {\sl Re: CURSOR POSITION REPORT}, in:
+Amiga Technical Support, AmigaLibDisk \#56, (1987)
+\bibitem{scheppner2} Carolyn Scheppner: {\sl NEW PACKETS AND STRUCTURES IN 1.2 AMIGADOS}, in:
+Amiga Technical Support, AmigaLibDisk \#65, (1987)
 \end{thebibliography}
 %\begin{theindex}
 {
