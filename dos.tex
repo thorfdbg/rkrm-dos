@@ -232,6 +232,11 @@ system, but the Amiga operating system is not constructed around its
 DOS component. Almost every Amiga program makes use of
 \emph{exec.library}, such as for accessing libraries and devices, but
 not every Amiga program has need of what \emph{dos.library} provides.
+Of course, also libraries and devices can make use of the
+\emph{dos.library}, such as by opening files on the context of the
+caller of a library function. Great care must be taken to verify that
+the caller is indeed a process\footnote{with the exception of very few
+functions, the \emph{dos.library} requires its callers to be processes.}.
 \smallskip{}
 
 AmigaDOS encompasses \emph{dos.library}, the
@@ -307,10 +312,10 @@ cover this field to a great degree, they mostly focus on the 1989-1991 \emph{dos
 version.
 \smallskip{}
 
-One of the goals of the RKM AmigaDOS is to provide you with the means to gauge how
+One of the goals of the RKRM AmigaDOS is to provide you with the means to gauge how
 thin the ice really is which you are walking on when developing software for AmigaDOS.
 What works, and how? What will fail silently if you attempt it? What was never
-implemented? The RKM AmigaDOS attempts to give you answers, enabling you to render
+implemented? The RKRM AmigaDOS attempts to give you answers, enabling you to render
 your programs more robust where they previously stumbled over unexpected/undocumented
 behaviour.
 
@@ -5066,11 +5071,12 @@ necessarily true for other file systems.
 
 The {\tt fib\_OwnerUID}\mkey{fib\_OwnerUID} and
 {\tt fib\_OwnerGID}\mkey{fib\_OwnerGID} elements are filled in by some multi-user aware
-file systems. They are opaque values representing the owner and group ID
+file systems such as ``Envoy''. They are opaque values representing the owner and group ID
 owning the file or directory. While the FFS\key{Fast File System (FFS)}
 stores such information, no provision is made to moderate access to a particular
 file according to its owner or its group. The two concepts are alien to
-AmigaDOS itself. These elements were introduced in AmigaDOS version~43.
+AmigaDOS itself, though the Envoy server uses them to decide whether a client is permitted to
+access a file system object. These elements were introduced in AmigaDOS version~43.
 \smallskip{}
 
 The {\tt fib\_Reserved}\mkey{fib\_Reserved} element is currently unused and shall not be
@@ -7081,7 +7087,7 @@ the {\tt dol\_Task}\key{dol\_Task} element being {\tt NULL} or a valid
 pointer, see there.
 \smallskip{}
 
-{\tt dol\_DiskType}\mkey{dol\_DiskType} is indented to be an identifier of
+{\tt dol\_DiskType}\mkey{dol\_DiskType} is intended to be an identifier of
 the file system type that operates (or operated, for ejected media) the
 volume. The value is placed here such that an alternative process of the same file
 system operating on a different exec device is able to pick up or refuse the
@@ -7524,7 +7530,9 @@ workaround required to support defect device driver implementations that
 corrupt data if too many bytes are read or written in one go.
 The {\tt Mount}\key{Mount (command)} command installs here {\tt 0x7fffffff}
 as default value, the \emph{scsi.device} of AmigaDOS 45 and below required
-here due to multiple defects a value of {\tt 0x0001fe00}.
+here due to multiple defects a value of {\tt 0x0001fe00}. This value limits
+the number of 512-byte sectors to be transfered in one I/O operation to 255,
+which can help to keep harddisks from the 1980s operational.
 
 \punchline{MaxTransfer is not a rate}{The MaxTransfer keyword or element
   defines a byte count that, when exceeded, requests the file system to
@@ -11027,7 +11035,12 @@ The provided lock is also released if creating the new process failed.
 \smallskip{}
 
 {\tt NP\_StackSize}\mkey{NP\_StackSize} sets the stack size of the
-process to be created in bytes. The default is a stack size of $4000$ bytes.
+process to be created in bytes. The default is a stack size of $4000$
+bytes\footnote{Versions 34 and below of the \emph{dos.library} allocated
+  $1500$ bytes for the BCPL environment at the bottom of the 68K stack
+  for each function called, requiring a somewhat larger
+  stack. Programs not using the \emph{dos.library} could get away with
+  as little as 2000 bytes.}.
 \smallskip{}
 
 {\tt NP\_Name}\mkey{NP\_Name} is a pointer to a {\tt NUL} terminated string
@@ -14317,7 +14330,7 @@ ported to C and assembler, some of its components still depend on this
 legacy mechanism, namely all handlers\key{Handler} and file systems\key{File System} mounted with
 a {\tt GLOBVEC = 0} or {\tt GLOBVEC = -3}\key{GLOBVEC} entry in the
 mount list, see table~\ref{table:gvvalues} in
-chapter~\ref{sec:devicelist}. While newer handlers should not depend
+chapter~\ref{sec:devicelist}. While newer handlers should not use
 on this mechanism anymore, the Port-Handler\key{Port-Handler} mount
 entry, see section~\ref{sec:porthandler}, is created in the Kickstart
 ROM as BCPL handler, beyond control of the user.
@@ -14337,7 +14350,7 @@ and~\ref{sec:usershells}.
 If the above components --- the Port-Handler\key{Port-Handler} or the CLI
 --- are attempted to be customized, implementers need to be aware that
 their processes are not started from the first byte of the first
-segment\key{Segment}, but from the Global Vector entry {\tt \#1}, which
+segment\key{Segment}, but through the Global Vector entry {\tt \#1}, which
 contains the address of the {\tt START} function from which the
 process is run. All other entries of the vector are of no concern, and
 should not be used or depend upon anymore.
@@ -14379,8 +14392,8 @@ the Runtime Binder to populate the {\tt START} vector, and then calls
 into the {\tt \_main} function. BCPL unfortunately also uses a custom
 call syntax: register {\tt a6} is the address of the BCPL return code
 which cleans up the BCPL stack frame and returns to the caller. This
-register, along with registers {\tt a0}, {\tt a2}, {\tt a4} and {\tt
-  a5} need to be preserved and restored before exiting the program
+register, along with registers {\tt a0}, {\tt a2}, {\tt a4} and
+{\tt a5} need to be preserved and restored before exiting the program
 through the BCPL ``return from function'' call.
 
 \begin{verbatim}
@@ -17247,7 +17260,7 @@ mountlist.
 
 The RAM-Handler is not responsible for the reset-resident {\tt RAD}
 device. The latter is driven by the Fast File System\key{Fast File System (FFS)}
-described in section~\ref{sec:ffs} mounted on the
+described in section~\ref{sec:ffs}, mounted on the
 \emph{ramdrive.device}, which is a ROM-resident device that makes part
 of the system RAM available as a block device, and unlike the RAM-Handler,
 not as a file system. Even though the \emph{ramdrive.device} could in
