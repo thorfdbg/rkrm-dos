@@ -245,13 +245,16 @@ RAM-Handler\key{RAM-Handler}, the default file system and the command
 line Shell, as well as the shell commands on disk. These components
 came, mostly, from TRIPOS (Trivially portable operating
 system)~\cite{tripos} where they were part of a much larger networked
-multitasking operating system. As one of the last pieces to fall into
-place in 1985, the components were specially adapted for the Amiga and
-were not written by the original Amiga and Commodore developers. Both
-the Amiga operating system and TRIPOS had in common that they were
-built around non-copying message passing in a shared memory space,
-which enabled AmigaDOS to work ``hand in glove'' with the architecture
-and the means provided by \emph{exec.library}.
+multitasking operating system\footnote{An interview with Dr.~Tim King
+  on the creation of TRIPOS and AmigaDOS can be found here:
+  \url{https://www.youtube.com/watch?v=pm-szurM5VY} (retrieved
+  2024)}. As one of the last pieces to fall into place in 1985, the
+components were specially adapted for the Amiga and were not written
+by the original Amiga and Commodore developers. Both the Amiga
+operating system and TRIPOS had in common that they were built around
+non-copying message passing in a shared memory space, which enabled
+AmigaDOS to work ``hand in glove'' with the architecture and the means
+provided by \emph{exec.library}.
 \smallskip{}
 
 The \emph{dos.library} connects the functions adapted from TRIPOS,
@@ -337,12 +340,12 @@ and its subsystems. This is due to the history of AmigaDOS which is
 nothing but a port of Tripos, an experimental operating system
 developed at the University of Cambridge by Dr. Martin Richards and
 Dr. Tim King. Instead, its documentation became available as the
-AmigaDOS manual~\cite{Bantam} separately. This book is, similar to
-AmigaDOS, based on the Tripos manual which has been augmented and
-updated to reflect the changes that were necessary to fit Tripos into
-AmigaOs. Unfortunately, the book is now out of print, does not reflect
-the current state of AmigaDOS anymore, and leaves multiple parts of
-AmigaDOS undocumented.
+AmigaDOS manual~\cite{Bantam} separately. It is based on the Tripos
+manual which has been augmented and updated to reflect the changes
+that were necessary to fit Tripos into AmigaOs. Unfortunately, the
+AmigaDOS manual is now out of print, does not reflect the current
+state of AmigaDOS anymore, and leaves multiple parts of AmigaDOS
+undocumented.
 \smallskip{}
 
 Good third party documentation is available in the form of the Guru
@@ -5069,14 +5072,16 @@ target. However, this is an implementation detail of the file system and not
 necessarily true for other file systems.
 \smallskip{}
 
-The {\tt fib\_OwnerUID}\mkey{fib\_OwnerUID} and
-{\tt fib\_OwnerGID}\mkey{fib\_OwnerGID} elements are filled in by some multi-user aware
-file systems such as ``Envoy''. They are opaque values representing the owner and group ID
-owning the file or directory. While the FFS\key{Fast File System (FFS)}
-stores such information, no provision is made to moderate access to a particular
-file according to its owner or its group. The two concepts are alien to
-AmigaDOS itself, though the Envoy server uses them to decide whether a client is permitted to
-access a file system object. These elements were introduced in AmigaDOS version~43.
+The {\tt fib\_OwnerUID}\mkey{fib\_OwnerUID} and {\tt fib\_OwnerGID}\mkey{fib\_OwnerGID}
+elements are used by some peer to
+peer network systems such as ``Envoy'' to check whether remote users
+from over the network are permitted to access a local file system object. They are
+opaque values representing the owner and group ID owning the file or
+directory. While the FFS\key{Fast File System (FFS)} stores such
+information, no provision is made to moderate access to a particular
+file according to its owner or its group at its level;
+the two concepts are alien to AmigaDOS itself. These
+elements were introduced in AmigaDOS version~43.
 \smallskip{}
 
 The {\tt fib\_Reserved}\mkey{fib\_Reserved} element is currently unused and shall not be
@@ -7311,8 +7316,13 @@ The keywords {\tt SECTORSIZE}\mkey{SECTORSIZE} and
 While the mountlist\key{Mountlist} keywords take a byte count, this
 byte count is divided by 4 to form a long-word count that is inserted into
 {\tt de\_SizeBlock}. As the name suggests, it defines the size of a storage
-unit on a medium. Typical values are 128 for 512 byte sectors, or 1024 for
-4096 byte sectors. However, not all file systems support all sectors sizes,
+unit on a medium; the mass storage device accessing it will limit the choice of supported storage unit sizes,
+such as 512 or 4096 bytes\footnote{Unfortunately,
+  this is unit is sometimes also denoted as ``block'', though this word means something
+  different in the context of AmigaDOS, namely the unit by which a file system organizes
+  data. Multiple sectors can be combined into one block, see also {\tt SECTORSPERBLOCK}
+  below.}. Thus, typical values for this element are 128 for 512 byte sectors, or 1024 for
+4096 byte sectors. However, not all file systems support all sector sizes,
 most of them restrict them to powers of 2, and some only support the
 default value of 128, i.e.\ 512 byte sectors. This is
 also what the {\tt Mount}\key{Mount (command)} command fills in by default.
@@ -8036,13 +8046,13 @@ specification. This was fixed in version 39. Still, without sending any
 further packet to the handler, its process remains active.
 \smallskip{}
 
-Thus, as a fairly general recommendation, {\tt GetDeviceProc()} should only
-be called to find the target {\tt MsgPort} for a subsequent packet
-transmission, see also chapter~\ref{sec:handlers}. Handlers such as the
-CON-Handler\key{CON-Handler} will process this packet, and if after
-processing this packet, no file handle\key{FileHandle} is open, will terminate, avoiding a
-useless idle process. Section~\ref{sec:handlermain} provides in source code form an
-example.
+Thus, as a fairly general recommendation, {\tt GetDeviceProc()} should
+only be called to find the target {\tt MsgPort} for a subsequent
+packet transmission, see also chapter~\ref{sec:handlers}. If a handler
+such as the CON-Handler\key{CON-Handler} detects that no file
+handle\key{FileHandle} remained open after processing an incoming
+packet, it will terminate and by that avoids a useless idle
+process. Section~\ref{sec:handlermain} provides an example handler in source code form.
 \medskip{}
 
 If {\tt GetDeviceProc()}\key{GetDeviceProc()} returns {\tt NULL}, then {\tt IoErr()}\key{IoErr()}
@@ -8093,7 +8103,7 @@ specified in section~\ref{sec:getconsoletask}.
   unfortunately does not handle all paths correctly, and some
   special cases need to be filtered out by the caller. Namely ``{\tt *}''\key{* (file name)}
   indicating the current console, and {\tt NIL:} for the {\tt NIL}\key{NIL}
-  pseudo-device are not handled here.}
+  pseudo-device are not processed here.}
 
 Unfortunately, the {\tt GetDeviceProc()}\key{GetDeviceProc()} handling of assigns
 includes a race condition, namely that assigns can be added or
