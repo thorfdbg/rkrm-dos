@@ -1566,6 +1566,12 @@ characters are hard to reach from the AmigaDOS Shell:
   used within file names, though also separates arguments and commands in
   the AmigaDOS Shell and therefore requires proper quoting of paths within
   Shell scripts and within the Shell. 
+\item[{\tt =}] The equals-sign is allowed within file names, but
+  also interpreted by the \emph{dos.library} provided command line arguments
+  parser {\tt ReadArgs()} (see section~\ref{sec:readargs} for details) as separator
+  between an argument and its value. As many shell commands use this
+  built-in parser, the equals-sign must be enclosed in double quotes in Shell scripts and
+  within the Shell to avoid its interpretation as argument separator.
 \item[{\tt \#},{\tt ?},{\tt [},{\tt ]},{\tt '}, {\tt
       \textasciitilde{}},{\tt (},{\tt )},{\tt \%}] These characters are
   syntax elements of the pattern matcher described in
@@ -1609,7 +1615,13 @@ How large the name of a file or directory can be is a matter of the file
 system itself. The Fast File System\key{Fast File System (FFS)} includes
 variants that limit names to 30, 54 or 106 characters. The latter is the
 upper limit that is imposed by the {\tt FileInfoBlock}\key{FileInfoBlock}
-structure, see section~\ref{sec:fib}.
+structure\footnote{The alert reader may have
+noticed that the limit should probably be 31, 55 or 107 characters given that
+32, 56 or 108 bytes of buffer are available to the various versions of the
+Fast File System. The numbers
+given are, however, \emph{not} a typo. The Fast File System reserves, indeed, one
+extra character, probably to include both the BSTR length indicator
+\emph{and} a terminating {\tt NUL} character.}, see section~\ref{sec:fib}.
 \smallskip{}
 
 File systems typically do not report errors if the maximum file or directory
@@ -1744,11 +1756,14 @@ the system-defined assigns in section~\ref{sec:volumelist}.
 \subsection{Volumes} \label{sec:volumelist}
 A \emph{volume name}\mkey{Volume name}\key{Volume} identifies a particular data
 carrier within a physical drive. It can identify a
-particular floppy disk, regardless of the drive it is inserted it. For
+particular (physical) floppy disk, regardless of the drive it is inserted in. For
 example, the volume name ``Workbench3.2'' relates always to the same
 floppy, regardless of whether it is inserted in the first {\tt DF0} or
 second {\tt DF1} drive. Partitions on a hard disk also have a volume name by
-which they can be identified.
+which they can be identified. AmigaDOS uses both the volume name and the
+creation date of a volume, namely {\tt dol\_VolumeDate}\key{dol\_VolumeDate}
+(see chapter~\ref{sec:devicelist}), to distinguish volumes even if they have
+the same name.
 
 \subsection{Assigns} \label{sec:assignlist}
 An \emph{assign}\mkey{Assign} or \emph{logical volume} identifies one or
