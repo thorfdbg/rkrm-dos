@@ -6853,6 +6853,16 @@ or --- in AmigaDOS versions 45 and before --- through the Initial CLI
 and \emph{dos.library}.
 \smallskip{}
 
+Auto-booting hardware expansions also mount their boot partitions
+here through \emph{expansion.library} and its {\tt MakeDosNode()}\key{MakeDosNode()} and
+{\tt AddBootNode()}\key{AddBootNode} functions.
+The System-Startup process picks them up from
+\emph{expansion.library} and adds them to \emph{dos.library} when
+booting the system. This mechanism is explained in more detail
+in~\cite{rkrmdev}, and AmigaDOS specific details on the boot process are found in
+section~\ref{sec:sysstartup}.
+\smallskip{}
+
 The {\tt Assign} command creates assigns\key{Assign}, i.e.\ logical volume
 names bound to one or multiple directories, which utilizes
 the functions listed in section~\ref{sec:assigns} and by that also creates
@@ -6868,22 +6878,13 @@ list\key{Device List}. {\tt DosList} structures representing volumes
 are added and removed by file systems as media are inserted or removed.
 \smallskip{}
 
-Auto-booting hardware expansions also mount their boot partitions
-here through \emph{expansion.library} and its {\tt MakeDosNode()}\key{MakeDosNode()} and
-{\tt AddBootNode()}\key{AddBootNode} functions.
-The System-Startup process picks them up from
-\emph{expansion.library} and adds them to \emph{dos.library} when
-booting the system. This mechanism is explained in more detail
-in~\cite{rkrmdev}, and AmigaDOS specific details on the boot process are found in
-section~\ref{sec:sysstartup}.
-\smallskip{}
-
-Some special names such as {\tt NIL}\key{NIL} or {\tt *}\key{* (file name)} from
-table~\ref{table:specialdevices} in~\ref{sec:deviceoverview} are hard-coded
-into {\tt GetDeviceProc()}\key{GetDeviceProc()} and are not represented by a
-{\tt DosList} structure. They form an exception because the relation between
-handler and device name is dependent on the calling process, or the target
-device is not representable as a handler at all.
+Some special names such as {\tt NIL:}\key{NIL:} or
+{\tt *}\key{* (file name)} from table~\ref{table:specialdevices} in~\ref{sec:deviceoverview}
+are hard-coded into {\tt Open()}\key{Open()} and are not represented by a
+{\tt DosList} structure, and {\tt GetDeviceProc()}\key{GetDeviceProc()} will
+not be able to provide a port for them. They form an exception because the
+relation between handler and device name is dependent on the calling
+process, or the target device is not representable as a handler at all.
 \smallskip{}
 
 Thus, in short, the {\tt DosList} structure is central to
