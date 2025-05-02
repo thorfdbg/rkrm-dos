@@ -6408,7 +6408,7 @@ path.
 The {\tt port} is the message port of the file system containing the soft
 link\key{Soft Link} and which is requested to resolve this link. In typical
 cases, this port and {\tt lock} are obtained from {\tt dvp\_Port} and
-{\tt dvp\_Link} of the {\tt DevProc} structure returned by
+{\tt dvp\_Link} of the {\tt DevProc}\key{DevProc} structure returned by
 {\tt GetDeviceProc()}\key{GetDeviceProc()} called on {\tt path}, see
 section~\ref{sec:getdeviceproc} for this structure and the function.
 \smallskip{}
@@ -7975,7 +7975,7 @@ struct DevProc *GetDeviceProc(STRPTR, struct DevProc *)
 
 This function takes a path in {\tt name} and either {\tt NULL} on the first
 iteration or a {\tt DevProc} structure from a previous iteration and returns
-a {\tt DevProc} structure identifying a suitable handler or file system.
+a {\tt DevProc}\key{DevProc} structure identifying a suitable handler or file system.
 It returns {\tt NULL} if no matching handler could be found or all
 possible directories of a multi-assign\key{Multi-Assign} have been
 visited. It is not necessary that the path given by {\tt name} is an
@@ -7984,7 +7984,7 @@ operate properly for relative paths and then identifies the file system and
 lock responsible for the current directory.
 
 \punchline{Give back what you got}{To release all temporary resources,
-  the {\tt DevProc} structure returned by {\tt GetDeviceProc()} shall be
+  the {\tt DevProc}\key{DevProc} structure returned by {\tt GetDeviceProc()} shall be
   either be released through {\tt FreeDeviceProc()}, then aborting the scan,
   or used as second argument for a subsequent {\tt GetDeviceProc()} call.
   In case of failure, this function will return {\tt NULL} and then
@@ -7992,7 +7992,7 @@ lock responsible for the current directory.
   as second argument.}
 \smallskip{}
 
-The {\tt DevProc} structure, defined in {\tt dos/dosextens.h}
+The {\tt DevProc}\mkey{DevProc} structure, defined in {\tt dos/dosextens.h}
 looks as follows:
 
 \mkey{DevProc}
@@ -8165,7 +8165,7 @@ returned, e.g.\ if the function could not allocate sufficient memory for its ope
 \smallskip{}
 
 Unfortunately, the function does not set {\tt IoErr()} consistently if
-{\tt GetDeviceProc()} is called again with an existing {\tt DevProc} structure as
+{\tt GetDeviceProc()} is called again with an existing {\tt DevProc}\key{DevProc} structure as
 second argument with the {\tt DVPB\_ASSIGN}\mkey{DVPB\_ASSIGN} bit
 cleared. {\tt IoErr()} remains in this case unaltered and it is therefore
 advisable to clear it upfront.
@@ -8231,7 +8231,7 @@ The {\tt FreeDeviceProc()}\mkey{FreeDeviceProc()} function releases a
 {\tt DevProc}\key{DevProc} structure acquired by {\tt
   GetDeviceProc()}\key{GetDeviceProc()} and releases all temporary
 resources allocated by the latter function. It shall be called as soon as
-the {\tt DevProc} structure is no longer needed.
+the {\tt DevProc}\key{DevProc} structure is no longer needed.
 
 \begin{verbatim}
 FreeDeviceProc(devproc) /* since V36 */
@@ -15794,8 +15794,10 @@ responsible for a path is identified.
 Handlers\key{Handler} are located by the \emph{dos.library} function
 {\tt GetDeviceProc()}\key{GetDeviceProc()}. This function receives an
 absolute or relative path, and from this path it determines a {\tt MsgPort}
-through which the handler\key{Handler} responsible for the path can be contacted; the function itself
-is specified in section~\ref{sec:getdeviceproc}. All
+through which the handler\key{Handler} responsible for the path can be
+contacted. The port is available in the {\tt dvp\_Port}\key{dvp\_Port} element of the {\tt DevProc}\key{DevProc}
+structure returned by the function; this structure and function itself 
+are specified in section~\ref{sec:getdeviceproc}. All
 other functions of \emph{dos.library} requiring to resolve a path
 to a handler also call through
 {\tt GetDeviceProc()}\key{GetDeviceProc()}\footnote{Unfortunately, they do
@@ -15941,7 +15943,7 @@ handler startup, its elements are populated as follows:
 which is defined to be~0. As the startup packet is always received
 first, there is no need to test for this particular type. In an
 alternative implementation strategy, it may be processed as 
-{\tt ACTION\_NIL}\key{ACTION\_NIL} packet within the main handle loop,
+{\tt ACTION\_NIL}\key{ACTION\_NIL} packet within the main handler loop,
 noting that the encoding of {\tt ACTION\_NIL} is also~0.
 \smallskip{}
 
@@ -15952,7 +15954,7 @@ but a BSTR whose first element is the size of the string. This is the
 \emph{full} path which triggered the request for the handler, not only
 the device name. For the CON-Handler\key{CON-Handler} for example,
 this is the window specification that informs the handler on the
-position, size and title of the console; this handler does
+position, size and title of the console; the console does
 not take window parameters from the subsequent {\tt DosPacket}\key{DosPacket}
 send for opening a file, see also section~\ref{sec:console}.
 \smallskip{}
@@ -15965,7 +15967,7 @@ mountlist\key{Mountlist}. While its use is handler specific, it is
 typically, but not necessarily, a BPTR to a
 {\tt FileSysStartupMsg}\key{FileSysStartupMsg} structure for file
 systems. Other possibilities for {\tt dol\_Startup} are a BPTR to a
-BSTR or an integer. What exactly the handler will receive depends on
+BSTR, or an integer. What exactly the handler will receive depends on
 the mountlist and is discussed in more detail in
 section~\ref{sec:mountdoslist} and
 section~\ref{sec:filesysstartup}. There is no algorithm in the {\tt Mount}
@@ -15978,10 +15980,10 @@ the handler was identified and which the handler may modify according
 to its needs.
 \medskip{}
 
-{\tt dp\_Arg4} may be set by the handler when replying to the startup
+{\tt dp\_Arg4} may be set by the handler when replying the startup
 packet; it is initialized to {\tt NULL} by \emph{dos.library}. If it
 remains {\tt NULL}, then {\tt GetDeviceProc()}\key{GetDeviceProc()} delivers
-in {\tt dvp\_Port} the process port {\tt pr\_MsgPort}\key{pr\_MsgPort} of
+in {\tt dvp\_Port} the {\tt pr\_MsgPort}\key{pr\_MsgPort} of
 the handler as destination port for packets, see
 section~\ref{sec:getdeviceproc}. A handler may instruct
 \emph{dos.library}, however, to send packets to an alternative port by
@@ -16023,8 +16025,8 @@ Many (non file-system) handlers leave {\tt dol\_Task} uninitialized,
 though some exceptions exist, e.g.\ the
 Queue-Handler\key{Queue-Handler} serves all requests from a single
 process to allow inter-process communication. Concluding, handlers
-decide whether they require a new process on an attempt to access them
-through leaving {\tt dol\_Task} uninitialized.
+decide whether they require a new process on an attempt to access them;
+if so, they leave {\tt dol\_Task} uninitialized.
 \medskip{}
 
 Once the handler or file system initiated itself from the startup packet,
@@ -16044,7 +16046,7 @@ receives through its port(s).
 Once started up, handlers\key{Handler} or file systems\key{File System} shall wait for incoming
 packets. The main loop of a handler then checks its own process port,
 or all ports it provided for incoming
-packets. Chapter~\ref{sec:packettypes} provides information on all
+packets. Chapter~\ref{sec:packettypes} lists all
 packets documented in AmigaDOS, though third-party handlers may
 implement additional packet types.
 \smallskip{}
@@ -16073,7 +16075,7 @@ interact with locks.
 \smallskip{}
 
 The following code is a sketch of a (non-filesystem) handler implementation,
-expecting linkage with the assembler code from
+expecting linkage with the assembler startup code from
 section~\ref{sec:bcplbinding}:
 \begin{verbatim}
 #include <dos/dos.h>
@@ -16196,7 +16198,7 @@ The main processing loop follows: The handler receives packets from this
 process port, and checks for the type. For each request to open a file, a
 use counter is incremented, and for each request to close one, the counter
 is decremented. In this simple example, no other activity is performed as
-this dummy handler serves no purpose. Read and write requests are answered with an
+this dummy handler serves no other practical purpose. Read and write requests are answered with an
 {\tt EOF} condition or success indicating that all bytes had been written.
 \smallskip{}
 
@@ -17679,7 +17681,7 @@ For trackdisk style commands, e.g.\ {\tt TD\_READ} or
 data by a byte offset instead of a sector number. It is computed by
 multiplying $S$ by $\mbox{\tt de\_SizeBlock} \times 4$. The additional
 factor of~4 is required because {\tt de\_SizeBlock} is in units of long-words
-and not a byte count.
+and not in units of bytes.
 \smallskip{}
 
 Even though {\tt de\_SizeBlock}\key{de\_SizeBlock} and
