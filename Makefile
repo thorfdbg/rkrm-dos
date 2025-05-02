@@ -131,3 +131,6 @@ clean	:
 $(MAIN).dvi	: $(TEXSOURCES) $(TEXFIGURES) $(FIGURES) $(ROTFIGURES) $(PSFIGURES)
 $(MAIN).ps	: $(MAIN).dvi $(PSINCLUDE) $(PSFIGURES)
 $(MAIN).pdf	: $(TEXSOURCES) $(TEXFIGURES) $(FIGURES) $(ROTFIGURES) $(PSFIGURES)
+
+rkrm-dos.pdf:	pdf rkrm-dos.readme
+	cp dos.pdf rkrm-dos.pdf
