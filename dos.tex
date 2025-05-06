@@ -5629,7 +5629,7 @@ There was no possibility to abort a running directory scan prior to version
 section~\ref{sec:exallend}). Unfortunately, the fallback implementation of
 this function in \emph{dos.library} in case the file system does not
 support abortion is corrupt in currently all known AmigaDOS versions,
-including the patch included in {\tt SetPatch}.
+including the patch installed by {\tt SetPatch}.
 \smallskip{}
 
 Of all the AmigaDOS file systems, only the directory-cache enabled flavors
@@ -15133,7 +15133,7 @@ symbol.
 Indexed libraries are faster to parse as they contain a compressed
 index of all symbols defined in the library. It consists at its
 topmost level of two hunks\key{Hunk}: one containing the program
-units, and second hunk containing a symbol table with an index that
+units, and second hunk containing a symbol table including indices that
 are repeated until the end of the file.
 \smallskip{}
 
@@ -15822,9 +15822,9 @@ in section~\ref{sec:filelock} and chapter~\ref{sec:process}.
 If an absolute path to the (pseudo-)device {\tt CONSOLE} provided, the {\tt MsgPort} in
 {\tt pr\_ConsoleTask} is contacted. This port belongs
 to the current console the calling process is running in. While
-{\tt CONSOLE} is handled within {\tt GetDeviceProc()}\key{GetDeviceProc()},
-the ``{\tt *}''\key{* (file name)}, {\tt CONSOLE:} and {\tt NIL:} are filtered out by
-{\tt Open()}\key{Open()}.
+{\tt CONSOLE} is handled within {\tt GetDeviceProc()}\key{GetDeviceProc()}
+to a limited degree, the ``{\tt *}''\key{* (file name)}, {\tt CONSOLE:} and {\tt NIL:} are filtered out by
+{\tt Open()}\key{Open()} already.
 If a path relative to the pseudo-assign {\tt PROGDIR} has been
 passed, the lock in {\tt pr\_HomeDir} is used to identify a
 handler\footnote{Unfortunately, {\tt GetDeviceProc()} has issues
@@ -15834,9 +15834,7 @@ find a device, volume or assign of the name {\tt CONSOLE} or {\tt PROGDIR}.
 It is unclear whether this is intentional or a defect.}.
 \smallskip{}
 
-If the path is relative to {\tt NIL:}, no handler exists and the result is
-{\tt NULL}. This is not a failure, but rather an indicator to higher
-level functions that a dummy handler is requested that does nothing. As for
+If the path is relative to {\tt NIL:}, no handler exists. As for
 paths identifying the console, this case is already filtered out
 by {\tt Open()}\key{Open()}.
 \smallskip{}
@@ -15879,8 +15877,9 @@ that the former decay into regular assigns once a suitable lock has been found.
 \smallskip{}
 
 Finally, if {\tt dol\_Type} is {\tt DLT\_DEVICE} indicating an entry of a handler or file system,
-{\tt dol\_Task} is a pointer to a {\tt MsgPort} through which the handler can be
-contacted, provided it is non-{\tt NULL}.
+{\tt dol\_Task} is either {\tt NULL} if no handler process is
+running yet, or a pointer to a {\tt MsgPort} through which the handler can be
+contacted.
 
 \subsection{Starting a Handler} \label{sec:handlerstartup}
 
@@ -15997,8 +15996,8 @@ providing its pointer in {\tt dp\_Arg4}, which is then copied into
 During startup, the handler may or may not initialize {\tt dol\_Task}.
 {\tt GetDeviceProc()}\key{GetDeviceProc()} \emph{does not} initialize it and
 leaves at {\tt NULL}. A file system\key{File System} process would typically handle multiple
-files by the same process. To ensure that \emph{dos.library} sends all
-requests to the process just started, the file system places a pointer to a
+files by the same process and thus fills this element. To ensure that \emph{dos.library} sends all
+requests to the process just started, file systems place a pointer to a
 {\tt MsgPort} in {\tt dol\_Task} of the {\tt DosList} structure received in
 {\tt dp\_Arg3}. This is typically, but not necessarily, the
 {\tt pr\_MsgPort} of the handler process; if it is not, the alternative port
@@ -16257,7 +16256,7 @@ CON-Handler\key{CON-Handler} that requires a new process
 for each window opened. Even though there is only one window per console, it can
 be referenced by multiple files as the console can also be reached
 through ``{\tt *}'' and ``{\tt CONSOLE:}''. The window will be closed when each of
-these files had been closed\footnote{This is a simplification, ignoring
+these files have been closed\footnote{This is a simplification, ignoring
 {\tt AUTO}\key{AUTO} and {\tt WAIT}\key{WAIT} parameters, see section~\ref{sec:console} for details}.
 \medskip{}
 
