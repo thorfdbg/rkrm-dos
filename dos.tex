@@ -182,14 +182,14 @@ Thomas Richter\\}
 \thispagestyle{empty}
 \noindent{}{\bf Richter, Thomas:}\\
 AMIGA ROM Kernel Reference Manual --- AmigaDOS\\
-LOOK BEHIND YOU --- 2024\\[2ex]
-ISBN: 978-3-9826022-7-1\\
+%LOOK BEHIND YOU --- 2024\\[2ex]
+%ISBN: 978-3-9826022-7-1\\
 \vfill{}
 
 \noindent{}Copyright © Thomas Richter\\[2ex]
-Published by LOOK BEHIND YOU\\
-Barbat \& Neumann GbR, Simrockstr. 43, 53619 Rheinbreitbach, Germany.\\[2ex]
-Printed by PRINTMER, Krakow, Poland\\
+%Published by LOOK BEHIND YOU\\
+%Barbat \& Neumann GbR, Simrockstr. 43, 53619 Rheinbreitbach, Germany.\\[2ex]
+%Printed by PRINTMER, Krakow, Poland\\
 $1^{\mbox{\tiny{st}}}$ edition, 2024\\[2ex]
 All rights reserved. This publication is protected by copyright. The use of
 the texts and illustrations, even in extracts, is illegal without the
@@ -1629,7 +1629,7 @@ characters are hard to reach from the AmigaDOS Shell:
   the AmigaDOS Shell and therefore requires proper quoting of paths within
   Shell scripts and within the Shell. 
 \item[{\tt =}] The equals-sign is allowed within file names, but
-  also interpreted by the \emph{dos.library} provided command line arguments
+  also interpreted by \emph{dos.library} provided command line arguments
   parser {\tt ReadArgs()} (see section~\ref{sec:readargs} for details) as separator
   between an argument and its value. As many shell commands use this
   built-in parser, the equals-sign must be enclosed in double quotes in Shell scripts and
@@ -1882,10 +1882,12 @@ volume and directory from this point on.
 \medskip{}
 
 Table~\ref{table:romassigns} lists the assigns made by AmigaDOS
-automatically during bootstrap; except for the {\tt SYS} assign, they
-all go to a directory of the same name on the boot volume. They are
-all regular assigns, except for {\tt ENVARC}, which is
-late binding assign\key{Late Binding Assign}. {\tt ENVARC} was added in version 36 of AmigaDOS.
+automatically during bootstrap; except for the {\tt SYS} and {\tt ENVARC}
+assigns, they all go to a directory of the same name on the boot volume. They are
+all regular assigns, but {\tt ENVARC} is a
+late binding assign\key{Late Binding Assign} going to
+{\tt SYS:Prefs/Env-Archive}.
+{\tt ENVARC} was added in version 36 of AmigaDOS.
 
 \begin{rkrmtable}{System Defined Assigns} \label{table:romassigns}
 {\bf Assign Name} & {\bf Description}\\ \hline \hline
@@ -3406,13 +3408,13 @@ byte will be written.
 
 {\tt fh\_Func1}\mkey{fh\_Func1} is a pointer to a function that is called whenever the
 buffer is to be filled through the handler. Users shall not call this
-function itself, and the function prototype is intentionally not
+function, and the function prototype is intentionally not
 documented.
 \smallskip{}
 
 {\tt fh\_Func2}\mkey{fh\_Func2} is a pointer to a second function that is called
 whenever the buffer is full and is to be written out by the handler. Users
-shall not call this function itself, and the function prototype is
+shall not call this function, and the function prototype is
 neither documented on purpose.
 \smallskip{}
 
@@ -5065,7 +5067,7 @@ the compiler startup code, and thus the generated code will be pure.
 The Shell\key{Shell} command {\tt Resident} loads pure binaries into RAM for
 future usage and thus reduces loading times, see
 sections~\ref{sec:cmdexecution} and~\ref{sec:resident}. Unfortunately,
-nothing in the Shell\key{Shell} actually \emph{checks} whether a binary is
+nothing in the Shell\key{Shell} \emph{checks} whether a binary is
 actually pure, or whether its segments have been modified. Thus, the
 AmigaDOS Shell depends on the user setting this flag properly. This flag is
 supported and recognized from version 34 of the AmigaDOS Shell\key{Shell}
@@ -5187,7 +5189,7 @@ elements were introduced in AmigaDOS version~43.
 The {\tt fib\_Reserved}\mkey{fib\_Reserved} element is currently unused and shall not be
 accessed.
 
-\subsection{Retrieving Information on an Directory Entry} \label{sec:examine}
+\subsection{Retrieving Information on a Directory Entry} \label{sec:examine}
 
 The {\tt Examine()}\mkey{Examine()} function fills information on an
 object identified by a lock\key{Lock} into a {\tt FileInfoBlock}\key{FileInfoBlock}.
@@ -5628,7 +5630,7 @@ There was no possibility to abort a running directory scan prior to version
 section~\ref{sec:exallend}). Unfortunately, the fallback implementation of
 this function in \emph{dos.library} in case the file system does not
 support abortion is corrupt in currently all known AmigaDOS versions,
-including the patch included in {\tt SetPatch}.
+including the patch installed by {\tt SetPatch}.
 \smallskip{}
 
 Of all the AmigaDOS file systems, only the directory-cache enabled flavors
@@ -6409,7 +6411,7 @@ path.
 The {\tt port} is the message port of the file system containing the soft
 link\key{Soft Link} and which is requested to resolve this link. In typical
 cases, this port and {\tt lock} are obtained from {\tt dvp\_Port} and
-{\tt dvp\_Link} of the {\tt DevProc} structure returned by
+{\tt dvp\_Link} of the {\tt DevProc}\key{DevProc} structure returned by
 {\tt GetDeviceProc()}\key{GetDeviceProc()} called on {\tt path}, see
 section~\ref{sec:getdeviceproc} for this structure and the function.
 \smallskip{}
@@ -6854,6 +6856,16 @@ or --- in AmigaDOS versions 45 and before --- through the Initial CLI
 and \emph{dos.library}.
 \smallskip{}
 
+Auto-booting hardware expansions also mount their boot partitions
+here through \emph{expansion.library} and its {\tt MakeDosNode()}\key{MakeDosNode()} and
+{\tt AddBootNode()}\key{AddBootNode} functions.
+The System-Startup process picks them up from
+\emph{expansion.library} and adds them to \emph{dos.library} when
+booting the system. This mechanism is explained in more detail
+in~\cite{rkrmdev}, and AmigaDOS specific details on the boot process are found in
+section~\ref{sec:sysstartup}.
+\smallskip{}
+
 The {\tt Assign} command creates assigns\key{Assign}, i.e.\ logical volume
 names bound to one or multiple directories, which utilizes
 the functions listed in section~\ref{sec:assigns} and by that also creates
@@ -6869,22 +6881,13 @@ list\key{Device List}. {\tt DosList} structures representing volumes
 are added and removed by file systems as media are inserted or removed.
 \smallskip{}
 
-Auto-booting hardware expansions also mount their boot partitions
-here through \emph{expansion.library} and its {\tt MakeDosNode()}\key{MakeDosNode()} and
-{\tt AddBootNode()}\key{AddBootNode} functions.
-The System-Startup process picks them up from
-\emph{expansion.library} and adds them to \emph{dos.library} when
-booting the system. This mechanism is explained in more detail
-in~\cite{rkrmdev}, and AmigaDOS specific details on the boot process are found in
-section~\ref{sec:sysstartup}.
-\smallskip{}
-
-Some special names such as {\tt NIL}\key{NIL} or {\tt *}\key{* (file name)} from
-table~\ref{table:specialdevices} in~\ref{sec:deviceoverview} are hard-coded
-into {\tt GetDeviceProc()}\key{GetDeviceProc()} and are not represented by a
-{\tt DosList} structure. They form an exception because the relation between
-handler and device name is dependent on the calling process, or the target
-device is not representable as a handler at all.
+Some special names such as {\tt NIL:}\key{NIL:} or
+{\tt *}\key{* (file name)} from table~\ref{table:specialdevices} in~\ref{sec:deviceoverview}
+are hard-coded into {\tt Open()}\key{Open()} and are not represented by a
+{\tt DosList} structure, and {\tt GetDeviceProc()}\key{GetDeviceProc()} will
+not be able to provide a port for them. They form an exception because the
+relation between handler and device name is dependent on the calling
+process, or the target device is not representable as a handler at all.
 \smallskip{}
 
 Thus, in short, the {\tt DosList} structure is central to
@@ -7975,7 +7978,7 @@ struct DevProc *GetDeviceProc(STRPTR, struct DevProc *)
 
 This function takes a path in {\tt name} and either {\tt NULL} on the first
 iteration or a {\tt DevProc} structure from a previous iteration and returns
-a {\tt DevProc} structure identifying a suitable handler or file system.
+a {\tt DevProc}\key{DevProc} structure identifying a suitable handler or file system.
 It returns {\tt NULL} if no matching handler could be found or all
 possible directories of a multi-assign\key{Multi-Assign} have been
 visited. It is not necessary that the path given by {\tt name} is an
@@ -7984,7 +7987,7 @@ operate properly for relative paths and then identifies the file system and
 lock responsible for the current directory.
 
 \punchline{Give back what you got}{To release all temporary resources,
-  the {\tt DevProc} structure returned by {\tt GetDeviceProc()} shall be
+  the {\tt DevProc}\key{DevProc} structure returned by {\tt GetDeviceProc()} shall be
   either be released through {\tt FreeDeviceProc()}, then aborting the scan,
   or used as second argument for a subsequent {\tt GetDeviceProc()} call.
   In case of failure, this function will return {\tt NULL} and then
@@ -7992,7 +7995,7 @@ lock responsible for the current directory.
   as second argument.}
 \smallskip{}
 
-The {\tt DevProc} structure, defined in {\tt dos/dosextens.h}
+The {\tt DevProc}\mkey{DevProc} structure, defined in {\tt dos/dosextens.h}
 looks as follows:
 
 \mkey{DevProc}
@@ -8165,7 +8168,7 @@ returned, e.g.\ if the function could not allocate sufficient memory for its ope
 \smallskip{}
 
 Unfortunately, the function does not set {\tt IoErr()} consistently if
-{\tt GetDeviceProc()} is called again with an existing {\tt DevProc} structure as
+{\tt GetDeviceProc()} is called again with an existing {\tt DevProc}\key{DevProc} structure as
 second argument with the {\tt DVPB\_ASSIGN}\mkey{DVPB\_ASSIGN} bit
 cleared. {\tt IoErr()} remains in this case unaltered and it is therefore
 advisable to clear it upfront.
@@ -8231,7 +8234,7 @@ The {\tt FreeDeviceProc()}\mkey{FreeDeviceProc()} function releases a
 {\tt DevProc}\key{DevProc} structure acquired by {\tt
   GetDeviceProc()}\key{GetDeviceProc()} and releases all temporary
 resources allocated by the latter function. It shall be called as soon as
-the {\tt DevProc} structure is no longer needed.
+the {\tt DevProc}\key{DevProc} structure is no longer needed.
 
 \begin{verbatim}
 FreeDeviceProc(devproc) /* since V36 */
@@ -9718,13 +9721,13 @@ AmigaDOS recognizes the following wild cards, defined in {\tt dos/dosasl.h}:
     match the next wild card. This is particularly valuable for filtering out
     the Workbench icon files that end on {\tt .info}, i.e.\ {\tt \textasciitilde{}(\#?.info)}
     matches all files that do not end with {\tt .info}.
-  \item[{\tt[]}] The square brackets (``{\tt []}'') matches a single
+  \item[{\tt[]}] The square brackets (``{\tt []}'') match a single
     character from a range, e.g.\ {\tt [a-z]} matches a single alphabetic
     character and {\tt [0-9]} matches a single digit. Multiple ranges and
     individual characters can be combined, for example {\tt [ab]} matches
     the characters {\tt a} and {\tt b}, whereas {\tt [a-cx-z]} matches the
     characters from {\tt a} to {\tt c} and from {\tt x} to {\tt z}. If the
-    minus sign (``{\tt -}'') is supposed to be part of the range, it shall
+    dash (``{\tt -}'') is supposed to be part of the range, it shall
     appear first, directly within the bracket, e.g.\ {\tt [-a-c]} matches the
     dash and the characters {\tt a} to {\tt c}. If the dash is the last
     character in the range, all characters up to the end of the ASCII range,
@@ -10064,7 +10067,7 @@ Unlike many other functions, {\tt MatchFirst()}\key{MatchFirst()} returns an
 error code directly, and not a success/failure indicator. That is,~$0$
 indicates success, and everything else an error code
 {\tt IoErr()}\key{IoErr()} would provide for many other functions of
-\emph{dos.library}. In particular, if {\tt ERROR\_BREAK}\key{ERROR\_BREAK}
+\emph{dos.library}. In particular, {\tt ERROR\_BREAK}\key{ERROR\_BREAK}
 is returned in case any of the signal bits in {\tt ap->ap\_BreakBits} have
 been received during the scan. If {\tt pat} is a wild card that could match
 multiple objects and not a single match is found, the error code will be
@@ -12719,7 +12722,7 @@ each long-word defines an offset into the previously loaded segment\key{Segment}
 relocate, that is, to fix up the address. As this hunk relocates pointers
 into other hunks, the relocation offsets $r_o$ shall all be even; the
 AmigaDOS loader does not check this condition, and would crash on an odd
-offset if executed on an 68000 or 68010 processor.
+offset if executed on a 68000 or 68010 processor.
 \smallskip{}
 
 For AmigaDOS versions~36 and up (Kickstart 2.0 and later), the number of
@@ -12888,7 +12891,7 @@ i.e.\ $s_l = 31$.
 The symbol type $s_t$ defines the nature of the symbol. The symbol
 types are defined in the include file {\tt dos/doshunks.h} and shared
 with the {\tt HUNK\_EXT}\key{HUNK\_EXT} hunk; the latter hunk type shall not appear
-in an executable file, but may only appear in an object file; it is defined in
+in an executable file, but may only appear in an object file; symbol types are defined in
 section~\ref{sec:hunk_ext}.
 \smallskip{}
 
@@ -15029,7 +15032,7 @@ address, this is resolved by an {\tt EXT\_DEF} definition into an
 entry into a {\tt HUNK\_RELRELOC32} hunk by the linker. Not supported by all linkers. \\ \hline
 \tt EXT\_RELCOMMON\mkey{EXT\_RELCOMMON} &\tt [0x89] & 32-bit PC relative common reference for a
 32-bit address. Similar to a {\tt EXT\_COMMON} definition, this will
-be resolved into an {\tt HUNK\_RELRELOC32} entry where
+be resolved into a {\tt HUNK\_RELRELOC32} entry where
 space for the object will be allocated in a BSS segment if no
 corresponding definition is found.\\ \hline
 \tt EXT\_ABSREF16\mkey{EXT\_ABSREF16} &\tt [0x8a] & 16-bit absolute reference, resolved by
@@ -15131,7 +15134,7 @@ symbol.
 Indexed libraries are faster to parse as they contain a compressed
 index of all symbols defined in the library. It consists at its
 topmost level of two hunks\key{Hunk}: one containing the program
-units, and second hunk containing a symbol table with an index that
+units, and second hunk containing a symbol table including indices that
 are repeated until the end of the file.
 \smallskip{}
 
@@ -15794,8 +15797,10 @@ responsible for a path is identified.
 Handlers\key{Handler} are located by the \emph{dos.library} function
 {\tt GetDeviceProc()}\key{GetDeviceProc()}. This function receives an
 absolute or relative path, and from this path it determines a {\tt MsgPort}
-through which the handler\key{Handler} responsible for the path can be contacted; the function itself
-is specified in section~\ref{sec:getdeviceproc}. All
+through which the handler\key{Handler} responsible for the path can be
+contacted. The port is available in the {\tt dvp\_Port}\key{dvp\_Port} element of the {\tt DevProc}\key{DevProc}
+structure returned by the function; this structure and function itself 
+are specified in section~\ref{sec:getdeviceproc}. All
 other functions of \emph{dos.library} requiring to resolve a path
 to a handler also call through
 {\tt GetDeviceProc()}\key{GetDeviceProc()}\footnote{Unfortunately, they do
@@ -15818,9 +15823,9 @@ in section~\ref{sec:filelock} and chapter~\ref{sec:process}.
 If an absolute path to the (pseudo-)device {\tt CONSOLE} provided, the {\tt MsgPort} in
 {\tt pr\_ConsoleTask} is contacted. This port belongs
 to the current console the calling process is running in. While
-{\tt CONSOLE} is handled within {\tt GetDeviceProc()}\key{GetDeviceProc()},
-the ``{\tt *}''\key{* (file name)}, {\tt CONSOLE:} and {\tt NIL:} are filtered out by
-{\tt Open()}\key{Open()}.
+{\tt CONSOLE} is handled within {\tt GetDeviceProc()}\key{GetDeviceProc()}
+to a limited degree, the ``{\tt *}''\key{* (file name)}, {\tt CONSOLE:} and {\tt NIL:} are filtered out by
+{\tt Open()}\key{Open()} already.
 If a path relative to the pseudo-assign {\tt PROGDIR} has been
 passed, the lock in {\tt pr\_HomeDir} is used to identify a
 handler\footnote{Unfortunately, {\tt GetDeviceProc()} has issues
@@ -15830,9 +15835,7 @@ find a device, volume or assign of the name {\tt CONSOLE} or {\tt PROGDIR}.
 It is unclear whether this is intentional or a defect.}.
 \smallskip{}
 
-If the path is relative to {\tt NIL:}, no handler exists and the result is
-{\tt NULL}. This is not a failure, but rather an indicator to higher
-level functions that a dummy handler is requested that does nothing. As for
+If the path is relative to {\tt NIL:}, no handler exists. As for
 paths identifying the console, this case is already filtered out
 by {\tt Open()}\key{Open()}.
 \smallskip{}
@@ -15875,8 +15878,9 @@ that the former decay into regular assigns once a suitable lock has been found.
 \smallskip{}
 
 Finally, if {\tt dol\_Type} is {\tt DLT\_DEVICE} indicating an entry of a handler or file system,
-{\tt dol\_Task} is a pointer to a {\tt MsgPort} through which the handler can be
-contacted, provided it is non-{\tt NULL}.
+{\tt dol\_Task} is either {\tt NULL} if no handler process is
+running yet, or a pointer to a {\tt MsgPort} through which the handler can be
+contacted.
 
 \subsection{Starting a Handler} \label{sec:handlerstartup}
 
@@ -15941,7 +15945,7 @@ handler startup, its elements are populated as follows:
 which is defined to be~0. As the startup packet is always received
 first, there is no need to test for this particular type. In an
 alternative implementation strategy, it may be processed as 
-{\tt ACTION\_NIL}\key{ACTION\_NIL} packet within the main handle loop,
+{\tt ACTION\_NIL}\key{ACTION\_NIL} packet within the main handler loop,
 noting that the encoding of {\tt ACTION\_NIL} is also~0.
 \smallskip{}
 
@@ -15952,7 +15956,7 @@ but a BSTR whose first element is the size of the string. This is the
 \emph{full} path which triggered the request for the handler, not only
 the device name. For the CON-Handler\key{CON-Handler} for example,
 this is the window specification that informs the handler on the
-position, size and title of the console; this handler does
+position, size and title of the console; the console does
 not take window parameters from the subsequent {\tt DosPacket}\key{DosPacket}
 send for opening a file, see also section~\ref{sec:console}.
 \smallskip{}
@@ -15965,7 +15969,7 @@ mountlist\key{Mountlist}. While its use is handler specific, it is
 typically, but not necessarily, a BPTR to a
 {\tt FileSysStartupMsg}\key{FileSysStartupMsg} structure for file
 systems. Other possibilities for {\tt dol\_Startup} are a BPTR to a
-BSTR or an integer. What exactly the handler will receive depends on
+BSTR, or an integer. What exactly the handler will receive depends on
 the mountlist and is discussed in more detail in
 section~\ref{sec:mountdoslist} and
 section~\ref{sec:filesysstartup}. There is no algorithm in the {\tt Mount}
@@ -15978,10 +15982,10 @@ the handler was identified and which the handler may modify according
 to its needs.
 \medskip{}
 
-{\tt dp\_Arg4} may be set by the handler when replying to the startup
+{\tt dp\_Arg4} may be set by the handler when replying the startup
 packet; it is initialized to {\tt NULL} by \emph{dos.library}. If it
 remains {\tt NULL}, then {\tt GetDeviceProc()}\key{GetDeviceProc()} delivers
-in {\tt dvp\_Port} the process port {\tt pr\_MsgPort}\key{pr\_MsgPort} of
+in {\tt dvp\_Port} the {\tt pr\_MsgPort}\key{pr\_MsgPort} of
 the handler as destination port for packets, see
 section~\ref{sec:getdeviceproc}. A handler may instruct
 \emph{dos.library}, however, to send packets to an alternative port by
@@ -15993,8 +15997,8 @@ providing its pointer in {\tt dp\_Arg4}, which is then copied into
 During startup, the handler may or may not initialize {\tt dol\_Task}.
 {\tt GetDeviceProc()}\key{GetDeviceProc()} \emph{does not} initialize it and
 leaves at {\tt NULL}. A file system\key{File System} process would typically handle multiple
-files by the same process. To ensure that \emph{dos.library} sends all
-requests to the process just started, the file system places a pointer to a
+files by the same process and thus fills this element. To ensure that \emph{dos.library} sends all
+requests to the process just started, file systems place a pointer to a
 {\tt MsgPort} in {\tt dol\_Task} of the {\tt DosList} structure received in
 {\tt dp\_Arg3}. This is typically, but not necessarily, the
 {\tt pr\_MsgPort} of the handler process; if it is not, the alternative port
@@ -16023,8 +16027,8 @@ Many (non file-system) handlers leave {\tt dol\_Task} uninitialized,
 though some exceptions exist, e.g.\ the
 Queue-Handler\key{Queue-Handler} serves all requests from a single
 process to allow inter-process communication. Concluding, handlers
-decide whether they require a new process on an attempt to access them
-through leaving {\tt dol\_Task} uninitialized.
+decide whether they require a new process on an attempt to access them;
+if so, they leave {\tt dol\_Task} uninitialized.
 \medskip{}
 
 Once the handler or file system initiated itself from the startup packet,
@@ -16044,7 +16048,7 @@ receives through its port(s).
 Once started up, handlers\key{Handler} or file systems\key{File System} shall wait for incoming
 packets. The main loop of a handler then checks its own process port,
 or all ports it provided for incoming
-packets. Chapter~\ref{sec:packettypes} provides information on all
+packets. Chapter~\ref{sec:packettypes} lists all
 packets documented in AmigaDOS, though third-party handlers may
 implement additional packet types.
 \smallskip{}
@@ -16073,7 +16077,7 @@ interact with locks.
 \smallskip{}
 
 The following code is a sketch of a (non-filesystem) handler implementation,
-expecting linkage with the assembler code from
+expecting linkage with the assembler startup code from
 section~\ref{sec:bcplbinding}:
 \begin{verbatim}
 #include <dos/dos.h>
@@ -16196,7 +16200,7 @@ The main processing loop follows: The handler receives packets from this
 process port, and checks for the type. For each request to open a file, a
 use counter is incremented, and for each request to close one, the counter
 is decremented. In this simple example, no other activity is performed as
-this dummy handler serves no purpose. Read and write requests are answered with an
+this dummy handler serves no other practical purpose. Read and write requests are answered with an
 {\tt EOF} condition or success indicating that all bytes had been written.
 \smallskip{}
 
@@ -16253,7 +16257,7 @@ CON-Handler\key{CON-Handler} that requires a new process
 for each window opened. Even though there is only one window per console, it can
 be referenced by multiple files as the console can also be reached
 through ``{\tt *}'' and ``{\tt CONSOLE:}''. The window will be closed when each of
-these files had been closed\footnote{This is a simplification, ignoring
+these files have been closed\footnote{This is a simplification, ignoring
 {\tt AUTO}\key{AUTO} and {\tt WAIT}\key{WAIT} parameters, see section~\ref{sec:console} for details}.
 \medskip{}
 
@@ -17679,7 +17683,7 @@ For trackdisk style commands, e.g.\ {\tt TD\_READ} or
 data by a byte offset instead of a sector number. It is computed by
 multiplying $S$ by $\mbox{\tt de\_SizeBlock} \times 4$. The additional
 factor of~4 is required because {\tt de\_SizeBlock} is in units of long-words
-and not a byte count.
+and not in units of bytes.
 \smallskip{}
 
 Even though {\tt de\_SizeBlock}\key{de\_SizeBlock} and
@@ -22734,7 +22738,7 @@ Note that the keyboard input buffer is different from the line output
 buffer; lines entering the console through {\tt ACTION\_FORCE}\key{ACTION\_FORCE} qualify as
 keyboard input\footnote{Even though the V36 CON-Handler\key{CON-Handler} already supported
 this packet, it is there implemented incorrectly and does not impact the
-keyboard buffer but the keyboard buffer. This was fixed in V47.}. The main
+keyboard buffer but the output buffer. This was fixed in V47.}. The main
 user of this packet is the Shell through which it injects TAB-expanded file names into the console. The
 {\tt ConClip} command also uses this packet to insert the paths of icons
 dropped on the console window.
@@ -22776,7 +22780,7 @@ This packet is not exposed by \emph{dos.library}, it rather must be
 issued through the packet interface, e.g.\ {\tt DoPkt()}\key{DoPkt()}. It removes
 any lines injected by {\tt ACTION\_STACK}\key{ACTION\_STACK} and {\tt ACTION\_QUEUE}\key{ACTION\_QUEUE} from
 the output buffer of the console and thus reverts their effects.
-Keyboard inputs and the keyboard buffer remain unaffected. Thus, this packet resets the line stack
+User inputs and the keyboard buffer remain unaffected. Thus, this packet resets the line stack
 in the console. This packet is designed for compatibility with ARexx,
 it is, however, not used at the time of writing. While this packet does not
 show up in~\cite{Bantam}, it is present since AmigaDOS version~36 and the
@@ -25411,12 +25415,13 @@ shell\key{Shell} process itself, but a lower limit of the stack size of its
 clients.
 \smallskip{}
 
-{\tt cli\_StandardOutput}\mkey{cli\_StandardOutput} is the file handle\key{FileHandle} the shell\key{Shell} provides as default
+{\tt cli\_StandardOutput}\mkey{cli\_StandardOutput} is the file
+handle\key{FileHandle} the shell\key{Shell} provides as default
 output handle to its clients, and to which it prints prompts and other messages. This handle is
 copied by the {\tt System()}\key{System()} function from the
 {\tt SYS\_Output}\key{SYS\_Output} tag or obtained by opening the file name
 provided by the {\tt SYS\_OutName}\key{SYS\_OutName} tag. If none of the two
-are available, {\tt System()}\key{System()} will derive an suitable output
+are available, {\tt System()}\key{System()} will derive a suitable output
 stream from the input stream or the console handler of its caller,
 see~\ref{sec:system}.
 \smallskip{}
