@@ -15820,24 +15820,23 @@ which packets are send to the handler.  If it is {\tt ZERO}, then
 in section~\ref{sec:filelock} and chapter~\ref{sec:process}.
 \smallskip{}
 
-If an absolute path to the (pseudo-)device {\tt CONSOLE} provided, the
-{\tt MsgPort} in {\tt pr\_ConsoleTask} is contacted. This port belongs to the
-current console the calling process is running in. While {\tt CONSOLE} is
-handled within {\tt GetDeviceProc()}\key{GetDeviceProc()} is recognized here,
-the file names ``{\tt *}''\key{* (file name)}, {\tt CONSOLE:} and
-{\tt NIL:} are filtered out by {\tt Open()}\key{Open()} already. If a path
-relative to the pseudo-assign {\tt PROGDIR} has been passed, the lock in
-{\tt pr\_HomeDir} is used to identify a handler\footnote{Unfortunately, {\tt
-GetDeviceProc()} has issues in both handling {\tt CONSOLE} and {\tt PROGDIR}
-correctly if no handler or no lock representing these elements is
-available. Instead, it attempts then to find a device, volume or assign of
-the name {\tt CONSOLE} or {\tt PROGDIR}. It is unclear whether this is
-intentional or a defect.}.
-\smallskip{}
-
-If the path is relative to {\tt NIL:}, no handler exists. As for
-paths identifying the console, this case is already filtered out
-by {\tt Open()}\key{Open()}.
+If a path relative to the pseudo-assign {\tt PROGDIR} has been passed in,
+the lock in {\tt pr\_HomeDir} is used to identify a
+handler\footnote{Unfortunately, {\tt GetDeviceProc()} has issues in both
+handling {\tt CONSOLE} and {\tt PROGDIR} correctly if no handler or no lock
+representing these elements is available. Instead, it attempts then to find
+a device, volume or assign of the name {\tt CONSOLE} or {\tt PROGDIR}. It is
+unclear whether this is intentional or a defect.}. If an absolute path
+relative to the (pseudo-)device {\tt CONSOLE} is provided, the {\tt MsgPort}
+in {\tt pr\_ConsoleTask} is contacted. This port belongs to the current console
+the calling process is running in. If the path is relative to {\tt NIL:}, no
+handler exists and {\tt NULL} is returned.  While {\tt CONSOLE} is handled within
+{\tt GetDeviceProc()}\key{GetDeviceProc()}, the file
+names ``{\tt *}''\key{* (file name)}, {\tt CONSOLE:} and {\tt NIL:} without
+any subsequent components are filtered out by {\tt Open()}\key{Open()}
+already. It then creates a file handle\key{FileHandle} whose
+{\tt fh\_Type}\key{fh\_Type} is initialized from {\tt pr\_ConsoleTask}
+or set to {\tt NULL}, respectively, bypassing {\tt GetDeviceProc()}.
 \smallskip{}
 
 For every other absolute path, \emph{dos.library} walks the device
