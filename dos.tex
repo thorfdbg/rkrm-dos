@@ -757,7 +757,7 @@ typedef long  BSTR;   /* Long word index of a BCPL string  */
 
 Luckily, functions of \emph{dos.library} take C strings as
 arguments and perform the conversion from C strings to their BCPL
-representation as \emph{BSTR}s internally, such that one rarely gets
+representation as \emph{BSTR}s internally such that one rarely gets
 in contact with them. They appear as part of some
 AmigaDOS structures to be discussed, and as part of the interface
 between \emph{dos.library} and its handlers, e.g.\ file systems.
@@ -773,7 +773,8 @@ maximum value a byte-sized length value can take.
 
 Unfortunately, even in the latest version of \emph{AmigaDOS}, 
 \emph{dos.library} is ill-prepared to take longer strings, and will
-likely fail or mis-interpret if such strings are passed in. If longer strings
+likely fail or mis-interpret them if such strings are passed in.
+If longer strings
 are required, e.g.\ as part of a \emph{path}, it is
 (unfortunately) in the responsibility of the caller to take this path
 apart into components and iterate through the components manually,
@@ -805,7 +806,7 @@ function {\tt RawDoFmt()}\key{RawDoFmt()} may be used to implement it as a by-pr
 more general family of functions. Section~\ref{sec:sprintf} provides a very
 compact and in many cases sufficient implementation of a function that
 closely reassembles the {\tt sprintf()}\key{sprintf()} function of ANSI-C;
-it prints and formats many elementary data types, including integers, into an output
+it prints and formats many elementary data types, including integers, to an output
 buffer, and as such, can also convert an integer into a decimal number.
 
 \subsection{Convert a String to a Number} \label{sec:strtolong}
@@ -833,7 +834,7 @@ The function skips leading spaces and tabs, they are included in
 leading plus sign (``{\tt +}''). This function also aborts in case the
 conversion overflows, i.e.\ the absolute value of the number is larger than
 $2^{31}$, and then returns the number of characters up to which the
-conversion could be performed without overflow. The result of the conversion
+conversion could be performed without overflowing. The result of the conversion
 filled into {\tt value} is in this case meaningless.
 \smallskip{}
 
@@ -1047,7 +1048,7 @@ text based and available even without a boot medium.
 
 The Shell reads lines from the console, which is a handler of its own, and
 interprets them as commands, potentially along with additional
-arguments to them. Commands are binary executable files (see
+arguments given to them. Commands are binary executable files (see
 chapter~\ref{sec:binary} for their structure) that are contained in a
 special directory of an AmigaDOS installation, though some elementary
 commands are built into the Shell and do not require access to a medium.
@@ -1276,7 +1277,7 @@ locale, also use four-digit years and thus should be the preferred output
 format.
 \smallskip{}
 
-Unfortunately, it seems that the current NDK does not seem to define this
+Unfortunately, it seems that the current NDK does not define this
 format, yet it is properly handled. Its definition should therefore be
 performed manually as such:
 \begin{verbatim}
@@ -5629,7 +5630,7 @@ There was no possibility to abort a running directory scan prior to version
 section~\ref{sec:exallend}). Unfortunately, the fallback implementation of
 this function in \emph{dos.library} in case the file system does not
 support abortion is corrupt in currently all known AmigaDOS versions,
-including the patch included in {\tt SetPatch}.
+including the patch installed by {\tt SetPatch}.
 \smallskip{}
 
 Of all the AmigaDOS file systems, only the directory-cache enabled flavors
@@ -12924,7 +12925,7 @@ The syntax of this hunk is as follows:
    & \tt HUNK\_DEBUG [0x3f1] & Hunk including debug information \\ \hline
 32 & $l \in [3,2^{31}-1]$ & Size of the hunk in long words \\ \hline
 32 & \tt $h_o$ & Offset of symbols into the segment \\ \hline
-\multicolumn{3}{|l|}{Compiler- and configuration specific data for line-debug data:} \\ \hline
+\multicolumn{3}{|l|}{Compiler- and configuration specific data, here for line-debug information:} \\ \hline
 32 & \tt 'LINE' & Identifies the type of debug information \\ \hline
 32 & \tt $l_n$ & Size of the source file name in long-words \\ \hline
 32 $\times l_n$ & $n_f$ & Source file name that compiled to the current segment in $l_n$ long-words \\ \hline
@@ -13254,7 +13255,7 @@ D0                          D1       A1
 
 BOOL InternalUnLoadSeg(BPTR,
                        void __asm (*)(register __a1 APTR,
-                                      register _d0 ULONG,
+                                      register __d0 ULONG,
                                       register __a6 struct ExecBase 
                                                     *SysBase))
 \end{verbatim}
@@ -15133,7 +15134,7 @@ symbol.
 Indexed libraries are faster to parse as they contain a compressed
 index of all symbols defined in the library. It consists at its
 topmost level of two hunks\key{Hunk}: one containing the program
-units, and second hunk containing a symbol table with an index that
+units, and second hunk containing a symbol table including indices that
 are repeated until the end of the file.
 \smallskip{}
 
@@ -15819,26 +15820,23 @@ which packets are send to the handler.  If it is {\tt ZERO}, then
 in section~\ref{sec:filelock} and chapter~\ref{sec:process}.
 \smallskip{}
 
-If an absolute path to the (pseudo-)device {\tt CONSOLE} provided, the {\tt MsgPort} in
-{\tt pr\_ConsoleTask} is contacted. This port belongs
-to the current console the calling process is running in. While
-{\tt CONSOLE} is handled within {\tt GetDeviceProc()}\key{GetDeviceProc()},
-the ``{\tt *}''\key{* (file name)}, {\tt CONSOLE:} and {\tt NIL:} are filtered out by
-{\tt Open()}\key{Open()}.
-If a path relative to the pseudo-assign {\tt PROGDIR} has been
-passed, the lock in {\tt pr\_HomeDir} is used to identify a
-handler\footnote{Unfortunately, {\tt GetDeviceProc()} has issues
-in both handling {\tt CONSOLE} and {\tt PROGDIR} correctly if no handler or
-no lock representing these elements is available. Instead, it attempts then to
-find a device, volume or assign of the name {\tt CONSOLE} or {\tt PROGDIR}.
-It is unclear whether this is intentional or a defect.}.
-\smallskip{}
-
-If the path is relative to {\tt NIL:}, no handler exists and the result is
-{\tt NULL}. This is not a failure, but rather an indicator to higher
-level functions that a dummy handler is requested that does nothing. As for
-paths identifying the console, this case is already filtered out
-by {\tt Open()}\key{Open()}.
+If a path relative to the pseudo-assign {\tt PROGDIR} has been passed in,
+the lock in {\tt pr\_HomeDir} is used to identify a
+handler\footnote{Unfortunately, {\tt GetDeviceProc()} has issues in both
+handling {\tt CONSOLE} and {\tt PROGDIR} correctly if no handler or no lock
+representing these elements is available. Instead, it attempts then to find
+a device, volume or assign of the name {\tt CONSOLE} or {\tt PROGDIR}. It is
+unclear whether this is intentional or a defect.}. If an absolute path
+relative to the (pseudo-)device {\tt CONSOLE} is provided, the {\tt MsgPort}
+in {\tt pr\_ConsoleTask} is contacted. This port belongs to the current console
+the calling process is running in. If the path is relative to {\tt NIL:}, no
+handler exists and {\tt NULL} is returned.  While {\tt CONSOLE} is handled within
+{\tt GetDeviceProc()}\key{GetDeviceProc()}, the file
+names ``{\tt *}''\key{* (file name)}, {\tt CONSOLE:} and {\tt NIL:} without
+any subsequent components are filtered out by {\tt Open()}\key{Open()}
+already. It then creates a file handle\key{FileHandle} whose
+{\tt fh\_Type}\key{fh\_Type} is initialized from {\tt pr\_ConsoleTask}
+or set to {\tt NULL}, respectively, bypassing {\tt GetDeviceProc()}.
 \smallskip{}
 
 For every other absolute path, \emph{dos.library} walks the device
@@ -15879,8 +15877,9 @@ that the former decay into regular assigns once a suitable lock has been found.
 \smallskip{}
 
 Finally, if {\tt dol\_Type} is {\tt DLT\_DEVICE} indicating an entry of a handler or file system,
-{\tt dol\_Task} is a pointer to a {\tt MsgPort} through which the handler can be
-contacted, provided it is non-{\tt NULL}.
+{\tt dol\_Task} is either {\tt NULL} if no handler process is
+running yet, or a pointer to a {\tt MsgPort} through which the handler can be
+contacted.
 
 \subsection{Starting a Handler} \label{sec:handlerstartup}
 
@@ -15997,8 +15996,8 @@ providing its pointer in {\tt dp\_Arg4}, which is then copied into
 During startup, the handler may or may not initialize {\tt dol\_Task}.
 {\tt GetDeviceProc()}\key{GetDeviceProc()} \emph{does not} initialize it and
 leaves at {\tt NULL}. A file system\key{File System} process would typically handle multiple
-files by the same process. To ensure that \emph{dos.library} sends all
-requests to the process just started, the file system places a pointer to a
+files by the same process and thus fills this element. To ensure that \emph{dos.library} sends all
+requests to the process just started, file systems place a pointer to a
 {\tt MsgPort} in {\tt dol\_Task} of the {\tt DosList} structure received in
 {\tt dp\_Arg3}. This is typically, but not necessarily, the
 {\tt pr\_MsgPort} of the handler process; if it is not, the alternative port
@@ -16257,7 +16256,7 @@ CON-Handler\key{CON-Handler} that requires a new process
 for each window opened. Even though there is only one window per console, it can
 be referenced by multiple files as the console can also be reached
 through ``{\tt *}'' and ``{\tt CONSOLE:}''. The window will be closed when each of
-these files had been closed\footnote{This is a simplification, ignoring
+these files have been closed\footnote{This is a simplification, ignoring
 {\tt AUTO}\key{AUTO} and {\tt WAIT}\key{WAIT} parameters, see section~\ref{sec:console} for details}.
 \medskip{}
 
@@ -19817,8 +19816,8 @@ uniquely.
 {\bf DosPacket Element}   & {\bf Value}\\ \hline \hline
 \tt dp\_Type  & \tt ACTION\_LOCATE\_OBJECT (8) \\ \hline
 \tt dp\_Arg1  & BPTR to {\tt FileLock} \\ \hline
-\tt dp\_Arg2  & BPTR to BSTR of the object name \\ \hline \hline
-\tt dp\_Arg3  & Mode of the lock \\ \hline
+\tt dp\_Arg2  & BPTR to BSTR of the object name \\ \hline
+\tt dp\_Arg3  & Mode of the lock \\ \hline \hline
 \tt dp\_Res1  & BPTR to {\tt FileLock} \\ \hline
 \tt dp\_Res2  & Error code \\ \hline
 \end{rkrmtable}
@@ -22631,7 +22630,7 @@ lines, but after all lines entered by the user have been delivered.
 \smallskip{}
 
 Lines injected into the console output buffer are not echoed on the
-screen. Arexx uses this packet to implement the {\tt PUSH} instruction which
+screen. ARexx uses this packet to implement the {\tt PUSH} instruction which
 employs the console as ``external stack''. This packet places a line at the
 top of this stack.
 \medskip{}
@@ -22686,7 +22685,7 @@ console, including lines entered by the user.
 \smallskip{}
 
 Lines injected into the console output buffer are not echoed on the screen.
-Arexx uses this packet to implement the {\tt QUEUE} instruction which
+ARexx uses this packet to implement the {\tt QUEUE} instruction which
 employs the console as ``external stack''. This packet places a line at the
 end of this stack, i.e.\ queues it.
 \medskip{}
@@ -24914,7 +24913,7 @@ exited and no longer exists when the function returns. Furthermore, \emph{dos.li
 not attempt to protect its process table within this function, and there is no
 semaphore protecting it. Therefore, this function \emph{shall only be called}
 while task switching is disabled with {\tt Forbid()} and its return value is
-only valid as long as task switching is disabled.
+only valid as long as task switching remains disabled.
 \smallskip{}
 
 This function does not alter {\tt IoErr()}\key{IoErr()}, even if no process
@@ -25415,7 +25414,8 @@ shell\key{Shell} process itself, but a lower limit of the stack size of its
 clients.
 \smallskip{}
 
-{\tt cli\_StandardOutput}\mkey{cli\_StandardOutput} is the file handle\key{FileHandle} the shell\key{Shell} provides as default
+{\tt cli\_StandardOutput}\mkey{cli\_StandardOutput} is the file
+handle\key{FileHandle} the shell\key{Shell} provides as default
 output handle to its clients, and to which it prints prompts and other messages. This handle is
 copied by the {\tt System()}\key{System()} function from the
 {\tt SYS\_Output}\key{SYS\_Output} tag or obtained by opening the file name
