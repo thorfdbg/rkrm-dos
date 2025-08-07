@@ -19566,7 +19566,11 @@ position identified by {\tt dp\_Arg3}, it comes from the second argument of
 
 {\tt dp\_Arg3} defines the position to which {\tt dp\_Arg2} is relative. It
 is one of the modes in table~\ref{table:seekmode} of section~\ref{sec:seek} and is therefore identical
-to the third argument of {\tt Seek()}\key{Seek()}.
+to the third argument of {\tt Seek()}\key{Seek()}. File systems shall be
+permissive in the interpretation of this argument, though. Any negative
+value shall be considered identical to {\tt OFFSET\_BEGINNING}\key{OFFSET\_BEGINNING} and any
+positive value identical to {\tt OFFSET\_END}\key{OFFSET\_END} as some
+application programs supply invalid arguments to {\tt Seek()}.
 \smallskip{}
 
 If the resulting position of the file handle\key{FileHandle} as computed from
@@ -20395,18 +20399,21 @@ Unlike Unix like file systems, AmigaDOS does not keep entries in directories
 that correspond to the directory itself or its parent directory, i.e.\
 AmigaDOS file systems do not carry ``{\tt .}'' or ``{\tt ..}'' directory
 entries. Even if alien file system structures contain such entries, they
-should not be accessible by this packet and thus be hidden from
+shall not be visible through this packet and thus be hidden from
 AmigaDOS applications.
-\smallskip{}
+\medskip{}
 
 Unfortunately, this packet is one of the hardest to implement as
 directory contents can change between two {\tt ACTION\_EXAMINE\_OBJECT} packets.
 In particular, file
 systems shall handle the situation gracefully in which the object from
 the previous iteration identified by {\tt fib\_DiskKey}\key{fib\_DiskKey}
-has been deleted, moved or replaced
-by another object, or in which {\tt dp\_Arg1} is a different
-lock\key{Lock} than the lock that was used to start the scan by
+has been deleted, moved or replaced by another object.
+\smallskip{}
+
+To complicate matters even more, file systems shall also be prepared
+to receive in {\tt dp\_Arg1} a lock that is different from the
+lock\key{Lock} that was used to start the scan by
 {\tt ACTION\_EXAMINE\_OBJECT}\key{ACTION\_EXAMINE\_OBJECT}. The file
 system may only assume that the lock in {\tt dp\_Arg1} is a lock on
 the same directory on which the scan has been started. Similarly,
@@ -20416,13 +20423,15 @@ system shall only depend on {\tt fib\_DiskKey}\key{fib\_DiskKey} and
 compared to the last iteration, all other entries can be potentially
 trashed or inconsistent. Thus, the file system shall only use these
 two elements of the {\tt FileInfoBlock}\key{FileInfoBlock}
-to store state information. Also, file systems shall not
-depend on application programs scanning directories up to the last
-entry; application programs can abort a directory scan at an arbitrary
-point, yet file system shall release all resources required for
-storing state information of the scan after at least the lock on the
-scanned directory is released.
+to store state information.
 \smallskip{}
+
+Also, file systems shall not depend on application programs scanning
+directories up to the last entry; application programs may abort a directory
+scan at an arbitrary point, yet file system shall release all resources
+required for storing state information of the scan after at least the lock
+on the scanned directory is released.
+\medskip{}
 
 A possible implementation strategy is to store full state information in the
 lock\key{Lock} given by {\tt dp\_Arg1}, though keep sufficient information
@@ -20447,14 +20456,15 @@ implementation defects are rather common and have been found in multiple
 file systems of AmigaDOS in the past.
 \smallskip{}
 
-This packet shall provide a Boolean success code in {\tt dp\_Res1}. In case
+{\tt ACTION\_EXAMINE\_NEXT} shall provide a Boolean success code in {\tt dp\_Res1}. In case
 the next object in a directory could be successfully examined and
 information on it could be stored in {\tt FileInfoBlock}\key{FileInfoBlock},
 {\tt dp\_Res1} shall be set to {\tt DOSTRUE} and {\tt dp\_Res2} to~0. In
 case of an error, {\tt dp\_Res1} shall be set to {\tt DOSFALSE} and
 {\tt dp\_Res2} to an error code. In case the end of the directory has been
-reached and no further entries remain to be examined, this error code shall
-be {\tt ERROR\_NO\_MORE\_ENTRIES}\key{ERROR\_NO\_MORE\_ENTRIES}.
+reached and no further entries remain to be examined, {\tt dp\_Res1} shall
+be set to {\tt DOSFALSE} and {\tt dp\_Res2} to the error code
+{\tt ERROR\_NO\_MORE\_ENTRIES}\key{ERROR\_NO\_MORE\_ENTRIES}.
 
 \subsection{Examining Multiple Entries at once}
 
@@ -21608,18 +21618,22 @@ code.
 
 \section{Packets for Starting and Canceling Notification Requests}
 
-The packets in this section implement notification requests. Once a
-notification request has been registered, the file system informs a task
-through a signal or through a message send to a port when the observed object
-changes. This mechanism is for example used by the {\tt IPrefs} program to
-load new preferences when they are modified through the preferences editors.
+The packets in this section implement notification requests used to monitor
+files or directories. Once a notification request has been registered on a
+file system object, the file system informs a task through a signal or
+through a message send to a port when the monitored object changes. This
+mechanism is for example used by the {\tt IPrefs} program to load new
+preferences when they are modified through the preferences editors.
+\smallskip{}
+
 The \emph{dos.library} interface for notification requests is introduced in
-section~\ref{sec:notification}.
+section~\ref{sec:notification} and additional details on the high-level interface
+for application programs is found there.
 
 \subsection{Registering a Notification Request} \label{sec:packetaddnotify}
 
 The {\tt ACTION\_ADD\_NOTIFY}\mkey{ACTION\_ADD\_NOTIFY} packet registers a
-notification request at a file system.
+notification request as given by a {\tt NotifyRequest}\key{NotifyRequest} structure at a file system.
 
 \begin{rkrmtable}{\tt ACTION\_ADD\_NOTIFY} \label{table:actionaddnotify}
 {\bf DosPacket Element}   & {\bf Value}\\ \hline \hline
@@ -21685,7 +21699,10 @@ set a signal bit of the target task if the monitored object changes by calling
 If the {\tt NRF\_NOTIFY\_INITIAL}\key{NRF\_NOTIFY\_INITIAL} flag is set in {\tt nr\_Flags}\key{nr\_Flags}, the
 file system shall trigger a notification immediately after having received
 this packet, regardless of whether or not the object has been modified
-already. If {\tt NRF\_WAIT\_REPLY}\key{NRF\_WAIT\_REPLY} is set, and a {\tt NotifyMessage}\key{NotifyMessage} has
+already.
+\smallskip{}
+
+If {\tt NRF\_WAIT\_REPLY}\key{NRF\_WAIT\_REPLY} is set, and a {\tt NotifyMessage}\key{NotifyMessage} has
 already been send out, it shall rather note the modification, though defer
 any further notification on the same object until the former
 {\tt NotifyMessage} has been replied. This avoids queuing up too many
@@ -21705,7 +21722,8 @@ trigger a notification request immediately, but only after the modified file
 is closed. This avoids sending notifications on incomplete objects and
 avoids piling up too many notifications at once. Monitoring a directory
 implicitly also monitors the files within it for the changes listed in this
-table:
+table, though notifications do not recursively act on subdirectories of a
+monitored directory:
 
 \begin{rkrmtabular}{Packets triggering a Notification} \label{table:notifyingpackets}
 \begin{longtable}{|ll|} \hline
