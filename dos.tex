@@ -6917,6 +6917,7 @@ struct DosList {
         struct DateStamp        dol_VolumeDate;
         BPTR                    dol_LockList;  
         LONG                    dol_DiskType;  
+        APTR                    dol_NotifyList; /* undocumented */
       } dol_volume;
 
       struct {
@@ -7193,6 +7194,38 @@ For inserted volumes, this element remains {\tt ZERO}, and the information
 whether a volume is inserted or not comes from
 the {\tt dol\_Task}\key{dol\_Task} element being {\tt NULL} or a valid
 pointer, see there.
+\smallskip{}
+
+While {\tt dol\_LockList} allows file systems to move locks from one
+instance to another when ejecting and reinserting volumes, a corresponding
+mechanism for file handles\key{FileHandle} and
+{\tt NotifyRequest}s\key{NotifyRequest} is not documented and thus file
+systems are on their own how to solve this problem. The Fast File
+System\key{Fast File System (FFS)} approaches it as follows: Files are not
+carried over from one instance to another whatsoever. That is, if a volume
+is moved from one drive to another, and a process attempts to continue to
+read from a file whose volume was reinserted into another drive, the FFS
+will create a requester and ask the user to reinsert the volume in the
+original drive. In principle, other file systems may attempt to identify
+files on an implied lock to the file system object, store a reference
+to the open file in an extended lock structure and thus move files 
+between drives by moving the corresponding locks. As said before, the FFS
+does not attempt to do so.
+\smallskip{}
+
+{\tt dol\_NotifyList}\mkey{dol\_NotifyList} enables moving
+notification events on a volume between drives. This element is not
+officially documented, and corresponds to {\tt dl\_unused} of the
+{\tt DeviceList}\key{DeviceList (structure)} structure. It exists because
+the {\tt dol\_handler} structure of the {\tt dol\_misc} union is large
+enough to leave a gap in {\tt dol\_volume} which can be utilized for this
+otherwise anonymous group of four bytes. The Fast File
+System\key{Fast File System (FFS)} keeps here a singly linked list of
+private structures that describe notification requests on file system
+objects on the corresponding volume. Thus, the gap in the {\tt dol\_volume}
+structure cannot be made use of for other ``creative'' applications and is
+taken at least by the FFS. As the name and use is otherwise unofficial, and
+the FFS structure is undocumented, one cannot really depend on it either.
 \smallskip{}
 
 {\tt dol\_DiskType}\mkey{dol\_DiskType} is intended to be an identifier of
@@ -8480,7 +8513,9 @@ The {\tt AttemptLockDosList()}\mkey{AttemptLockDosList()} requests
 access to the device list or a subset of its entries, and, in
 case it cannot gain access, returns {\tt NULL}. Unlike
 {\tt LockDosList()}\key{LockDosList()}, it does not block, but fails if the
-list is not accessible.
+list is locked by another process. It is therefore a safe choice for
+handlers to gain access to the device list\key{Device List} without risking
+a deadlock.
 
 \begin{verbatim}
 dlist = AttemptLockDosList(flags) /* since V36 */
@@ -8831,7 +8866,7 @@ fooled by an incorrect mountlist\key{Mountlist} and by that crash the system.
 \emph{dos.library} internal state from inconsistencies as other processes
 may attempt to access the device list simultaneously, and they also ensure
 proper linkage of the structures. They cannot prevent, however, that an
-entry is removed whose resources, such as locks of an assign, are currently
+entry is removed whose resources, such as locks representing an assign, are currently
 in use by a another process. Locks recorded in a {\tt DosEntry} therefore
 cannot be safely released without causing a race condition.
 \smallskip{}
@@ -8865,6 +8900,12 @@ completed.
   getting access to the list fails, the operation requiring the lock,
   e.g.\ adding a volume to the device list, shall be delayed until after
   the list becomes accessible.}
+
+The first pair of functions described in the immediately following
+subsection adds or removes already initialized {\tt DosList} structures to
+the device list\key{Device List}, though does not attempt to populate or
+initialize them. Such constructor-type functions are discussed then in
+section~\label{createdeletedoslist}.
 
 \subsection{Adding an Entry to the Device List}
 
@@ -9001,7 +9042,7 @@ corresponding to the type of the entry to be removed, see
 table~\ref{table:lockdoslistflags} for the flags corresponding to volumes,
 devices or assigns.}
   
-\section{Creating and Deleting Device List Entries}
+\section{Creating and Deleting Device List Entries} \label{createdeletedoslist}
 
 AmigaOs offers multiple functions to create {\tt DosList}\key{DosList}
 structures. The {\tt MakeDosEntry()}\key{MakeDosEntry()} function is a
