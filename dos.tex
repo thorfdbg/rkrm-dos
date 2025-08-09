@@ -7,6 +7,7 @@
 \usepackage{arydshln}
 \usepackage{extdash}
 \usepackage{ifthen}
+\usepackage[all]{nowidow}
 \newbool{cameraready}
 %\booltrue{cameraready}
 \boolfalse{cameraready}
@@ -85,12 +86,13 @@
 %
 \newenvironment{rkrmtable}[1]%
 {%
-\nopagebreak[5]%
+\nopagebreak%
 \begin{center}%
 \begin{minipage}{15.2cm}%
 \begin{center}%
 \refstepcounter{rkrmtablecount}
-{\sfb Table \arabic{chapter}.\arabic{rkrmtablecount}: #1} \\[1ex]
+{\sfb Table \arabic{chapter}.\arabic{rkrmtablecount}: #1} \nopagebreak%
+\\[1ex] \nopagebreak
 \begin{tabular}{|ll|} \hline
 }{%
 \end{tabular}%
@@ -8905,7 +8907,7 @@ The first pair of functions described in the immediately following
 subsection adds or removes already initialized {\tt DosList} structures to
 the device list\key{Device List}, though does not attempt to populate or
 initialize them. Such constructor-type functions are discussed then in
-section~\label{createdeletedoslist}.
+section~\ref{sec:createdeletedoslist}.
 
 \subsection{Adding an Entry to the Device List}
 
@@ -9042,7 +9044,7 @@ corresponding to the type of the entry to be removed, see
 table~\ref{table:lockdoslistflags} for the flags corresponding to volumes,
 devices or assigns.}
   
-\section{Creating and Deleting Device List Entries} \label{createdeletedoslist}
+\section{Creating and Deleting Device List Entries} \label{sec:createdeletedoslist}
 
 AmigaOs offers multiple functions to create {\tt DosList}\key{DosList}
 structures. The {\tt MakeDosEntry()}\key{MakeDosEntry()} function is a
@@ -12957,9 +12959,8 @@ The debug information emitted by the SAS/C compiler for the
 as the DevPac assembler and will be documented here. In this format,
 the debug hunk contains for each line of the source file an offset
 into the segment containing the code that was compiled from this line.
-\smallskip{}
-
 The syntax of this hunk is as follows:
+
 \begin{rkrmtabular}{Hunk Debug Syntax} \label{table:hunk_debug}
 \begin{longtable}{|l|p{7.4cm}|p{5.5cm}|} \hline
 {\bf Size} & {\bf Code} & {\bf Syntax} \\ \hline \hline    
@@ -17891,13 +17892,14 @@ section~\ref{sec:bitmapblock}. If the quick validation on disk insertion
 finds that this field is~0, then the disk status is set to
 non-validated. The FFS then recomputes the bitmap by a complete directory scan,
 recursively locating all objects on disks and marking the blocks they reside
-in as occupied.
+in as occupied. In AmigaDOS versions 34 and below, this task was carried out
+by the {\tt L:Disk-Validator} loaded on demand.
 \smallskip{}
 
 {\tt BMKeys}\mkey{BMKeys (FFS)} is an array containing the keys of the
 bitmap blocks. How many bitmap blocks are required to represent the
 bitmap depends on the size of the volume and the size of a bitmap
-block. Unused keys are~0. 
+block. Unused keys are set to~0. 
 \smallskip{}
 
 {\tt BMExt}\mkey{BMExt (FFS)} is the key of a bitmap extension block if the above
@@ -17920,10 +17922,11 @@ The fields at offsets $L-10$ to $L-8$ form a {\tt DateStamp} structure
 that is updated on every change of the volume.
 \smallskip{}
 
-The fields at offsets $L-7$ to $L-5$ are also a {\tt DateStamp} structure
-that represent the time and date at which the volume was initialized. The
-packet {\tt ACTION\_SERIALIZE\_DISK} updates this date, too, but it remains
-otherwise unchanged even if objects in the root directory change.
+The fields at offsets $L-7$ to $L-5$ also form a {\tt DateStamp} structure,
+but it represent the time and date at which the volume was initialized. This
+date remains unchanged even if the root directory or objects within are updated;
+the only method to update this structure is the packet {\tt ACTION\_SERIALIZE\_DISK}
+specified in section~\ref{sec:actionserializedisk}.
 \smallskip{}
 
 {\tt DCache}\mkey{DCache (FFS)} is the key of the directory cache list of
@@ -17944,7 +17947,8 @@ hash-chain corresponding to its name within its parent block.
 
 The user directory block exists in multiple variants, depending on the flavor of the
 FFS. Table~\ref{table:userdirblock} applies to all FFS\key{Fast File System (FFS)} variants except the
-long file name variants {\tt DOS\textbackslash{}06} and {\tt DOS\textbackslash{}07}.
+long file name variants {\tt DOS\textbackslash{}06} and
+{\tt DOS\textbackslash{}07}.
 
 \begin{rkrmtabular}{FFS User Directory Block} \label{table:userdirblock}
 \begin{longtable}{|l|l|l|} \hline
@@ -18623,8 +18627,12 @@ extension.
 
 This block type\mkey{Directory Cache Block} is only used by the directory cache flavors of the FFS,
 namely {\tt DOS\textbackslash{}04} and {\tt DOS\textbackslash{}05}. It
-keeps, in a more compact form, the contents of directories. This block looks
-as follows:
+keeps, in a more compact form, the contents of directories. Directory cache
+blocks are rebuild whenever a volume requires validation, i.e.\ if the
+bitmap is marked as invalid. 
+\smallskip{}
+
+This block looks as follows:
 
 \begin{rkrmtabular}{Directory Cache Block} \label{table:cacheblock}
 \begin{longtable}{|l|l|l|} \hline
@@ -18753,6 +18761,14 @@ directory cache block. If the FFS\key{Fast File System (FFS)} has to delete entr
 it moves entries within the current block upwards over the released
 entry. In worst case, no entries remain in a directory cache block. Such
 blocks are not released, but remain available to accept new entries.
+\smallskip{}
+
+The FFS\key{Fast File System (FFS)} does not implement a garbadge collection
+mechansim for directory cache entries, and thus may clutter the disk with
+unused entries if file system objects are repeatedly created and
+deleted. However, one can enforce to rebuild the directory cache by marking
+the bitmap invalid, see section~\ref{sec:rootblock}, and enforce a disk
+change by {\tt ACTION\_INHIBIT}, see~\ref{sec:packetinhibit}.
 \medskip{}
 
 While the directory cache increases the performance of listing
