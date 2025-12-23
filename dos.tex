@@ -27137,6 +27137,79 @@ The shell startup mechanism under AmigaDOS~34 and below was even different.
 There, {\tt dp\_Type} was a pointer to a BCPL function the shell had to call
 to get initialized by AmigaDOS.
 
+\subsection{Setting the Shell Interface Hook}
+
+The {\tt DoShellMethod}\key{DoShellMethod()} provides the interface function
+from \emph{dos.library} to the shell, and thus enables application programs
+to call shell functions. This
+interface is established by a {\tt Hook} structure as defined in
+{\tt utility/hooks.h} an implementation of a shell shall initialize when
+starting up. The
+following (undocumented) function at offset {\tt 0x3c0} of
+\emph{dos.library} provides access to it:
+
+
+\begin{verbatim}
+cli = ExtendedCli (  ) /* since V47 */
+D0                 
+
+struct ExtendedCommandLineInterface *ExtendedCli( void )
+\end{verbatim}
+
+The {\tt ExtendedCli}\mkey{ExtendedCli()} function returns a pointer
+{\tt ExtendedCommandLineInterface}\mkey{ExtendedCommandLineInterface}
+structure defined in {\tt dos/shell.h} or {\tt NULL} in case the shell is
+non-extended:
+
+\begin{verbatim}
+struct ExtendedCommandLineInterface {
+    struct CommandLineInterface  cle_CLI;  /* Regular CLI         */
+    struct Hook                  cle_Hook; /* For shell functions */
+    struct CommandLineInterface *cle_This; /* pointer to itself   */
+    LONG                         cle_Version; /* Its version      */
+};
+\end{verbatim}
+
+The {\tt cle\_CLI} element is a regular {\tt CommandLineInterface}\key{CommandLineInterface}
+structure as defined in section~\ref{sec:getcli}, and
+{\tt cle\_Hook}\mkey{cle\_Hook} the hook to be initialized. {\tt cle\_This}\mkey{cle\_This}
+points back to the first element of the structure, and
+{\tt cle\_Version}\mkey{cle\_Version} is its version. The version is
+currently set to 47 and thus matches the major version of {\tt dos.library} that allocated the structure.
+\smallbreak{}
+
+The shell startup code shall obtain this structure, and if present,
+initialize {\tt cle\_Hook}\key{cle\_Hook} appropriately. The hook is called
+through {\tt DoShellMethod()}\key{DoShellMethod()} as follows:
+
+\begin{verbatim}
+result = ShellHook(hook,method,tags)
+d0                  a0   a1     a2
+
+UBYTE *ShellHook(struct Hook *hk,ULONG *method, struct TagItem *tags)
+\end{verbatim}
+
+That is, register {\tt a0} contains a pointer to the hook, i.e.
+{\tt cle\_Hook}\key{cle\_Hook}, register {\tt a1} a pointer to a long word containing
+the method to call, thus containing the first argument of
+{\tt DoShellMethod()}\key{DoShellMethod()}, and register {\tt a2} a pointer to a
+{\tt TagList} containing parameters, and thus is filled from the second argument of
+{\tt DoShellMethod()}\key{DoShellMethod()}.
+\medbreak{}
+
+Implementers of shells need to be aware that the
+{\tt ExtendedCli()}\key{ExtendedCli()} can return {\tt NULL}, namely when the
+shell is unextended, and then bypass providing any hook. In such a case, tab
+expansion and the history are not accessible. Internally, the
+{\tt AllocDosObject()}\key{AllocDosObject()} function documented in
+section~\ref{sec:allocdosobject} always creates extended CLIs, though legacy
+code that builds CLI structures itself will not. The
+{\tt ExtendedCli()}\key{ExtendedCli()} function tests the
+{\tt pr\_CLI}\key{pr\_CLI} element of the calling process and checks it for
+the presence of the extended structure, and only then returns it. Thus, it
+is important to allocate CLI structures through \emph{dos.library} and not
+manually in order to obtain a fully featured shell.
+
 \chapter{Miscellaneous Functions}
 
 In this section, miscellaneous functions are specified that logically do not
