@@ -810,7 +810,7 @@ inverse conversion of an integer to a string, though the \emph{exec.library}
 function {\tt RawDoFmt()}\key{RawDoFmt()} may be used to implement it as a by-product of a
 more general family of functions. Section~\ref{sec:sprintf} provides a very
 compact and in many cases sufficient implementation of a function that
-closely reassembles the {\tt sprintf()}\key{sprintf()} function of ANSI-C;
+closely reassembles the {\tt sprintf()}\key{SPrintf()} function of ANSI-C;
 it prints and formats many elementary data types, including integers, to an output
 buffer, and as such, can also convert an integer into a decimal number.
 
@@ -854,7 +854,7 @@ strings. It is based on the {\tt RawDoFmt()}\mkey{RawDoFmt()} function of
 \emph{exec.library}, which is also patched by \emph{locale.library} and
 thus formats numbers according to the currently loaded locale.
 
-\mkey{sprintf()}\mkey{vsprintf()}\mkey{LongToStr()}
+\mkey{SPrintf()}\mkey{VSPrintf()}\mkey{LongToStr()}
 \begin{verbatim}
 #include <stdarg.h> /* for va_list macros */
 
@@ -867,7 +867,7 @@ static void prbuf(char c)
 ** convert a list of arguments to a string using an
 ** ANSI-C format template.
 */
-void vsprintf(char *buffer, const char *ctlstr, void *args)
+void VSPrintf(char *buffer, const char *ctlstr, void *args)
 {
   RawDoFmt((char *)ctlstr, args, prbuf, buffer);
 }
@@ -876,12 +876,12 @@ void vsprintf(char *buffer, const char *ctlstr, void *args)
 ** Convert multiple arguments to a string, using
 ** an ANSI-C format template.
 */
-void sprintf(char *buffer, const char *ctrl,...)
+void SPrintf(char *buffer, const char *ctrl,...)
 {
   va_list args;
 
   va_start(args,ctrl);
-  vsprintf(buffer,ctrl,args);
+  VSPrintf(buffer,ctrl,args);
   va_end(args);
 }
 
@@ -890,10 +890,10 @@ void sprintf(char *buffer, const char *ctrl,...)
 */
 void LongToStr(char buffer *buf, LONG val)
 {
-  sprintf(buffer,"%ld",val);
+  SPrintf(buffer,"%ld",val);
 }
 \end{verbatim}
-The {\tt vsprintf()} function defined above takes a target {\tt buffer}, an ANSI-C
+The {\tt VSPrintf()} function defined above takes a target {\tt buffer}, an ANSI-C
 conversion string {\tt ctlstr} containing formatting directives, see~\cite{kernrichie},
 and a buffer of primitive integer data types or strings in {\tt args}. It
 converts these arguments to strings, formats them according to {\tt ctlstr}
@@ -941,7 +941,7 @@ with ``{\tt \%}'', see~\cite{rkrmlib} for more details.
   then!). Not following this guideline will cause hard to find bugs
   resulting in incorrect output.}
 
-The {\tt vsprintf()}\key{vsprintf()} function from the above code segment implements the function
+The {\tt VSPrintf()}\key{VSPrintf()} function from the above code segment implements the function
 of the same name in the ANSI-C library only approximately, and the
 formatting directives need to be adjusted carefully to avoid problems. There
 is, as in the ANSI-C standard library, no check whether the target buffer is
@@ -952,15 +952,15 @@ the {\tt Printf()}\key{Printf()} function from section~\ref{sec:printf} are
 based on the same exec function, the same peculiarities apply there as well.
 \smallbreak{}
 
-The {\tt sprintf()}\key{sprintf()} function is an --- albeit basic ---
+The {\tt SPrintf()}\key{SPrintf()} function is an --- albeit basic ---
 re-implementation of the C standard library function {\tt sprintf()} which
 prints all its arguments to a buffer. The same formatting directives apply.
 It uses the varargs macros of ANSI-C from {\tt stdarg.h} to forward its
-arguments to {\tt vsprintf()}.
+arguments to {\tt VSPrintf()}.
 \smallbreak{}
 
 The {\tt LongToStr()}\key{LongToStr()} function is a simple application
-of {\tt sprintf()} to convert a signed integer to a string. It does the inverse of the
+of {\tt SPrintf()} to convert a signed integer to a string. It does the inverse of the
 {\tt StrToLong()}\key{StrToLong()} function of \emph{dos.library}
 introduced in section~\ref{sec:strtolong}.
 \smallbreak{}
@@ -1531,7 +1531,7 @@ handlers and file systems.
 \smallbreak{}
 
 A \emph{path} is broken up into two parts: An optional device, volume or
-assign name terminated by a colon (``:''), followed by a string that allows
+assign name terminated by a colon~(``:''), followed by a string that allows
 the handler to locate the file and/or defines its properties.
 \smallbreak{}
 
@@ -1584,7 +1584,8 @@ name. Code points from the control set of ISO-Latin, i.e.\ codes between
 {\tt 0x01} to {\tt 0x1f} or {\tt 0x7f} to {\tt 0x9f} should be
 avoided\footnote{Unfortunately, the file systems in the Amiga Kickstart are currently inconsistent on which
 characters they accept. The FFS does not accept any control characters,
-the RAM-Handler\key{RAM-Handler} (probably erroneously) accepts characters in the C1 control set from {\tt 0x80} to {\tt 0x9f}.}, and
+the RAM-Handler\key{RAM-Handler} (probably erroneously) accepts characters
+in the C1 control set from {\tt 0x80} to {\tt 0x9f}.}, and
 the code point {\tt 0x00} ASCII {\tt NUL} shall not be used at all as it terminates
 C strings and therefore cannot be part of a file name anyhow\footnote{To be very
 precise, it actually \emph{could} be as this character does not have a
@@ -1958,8 +1959,8 @@ section~\ref{sec:assigns}.
 As introduced in above, a path consists of an optional
 device, volume or assign name and a colon (``{\tt :}''), followed by a
 string describing a file or directory within the accessed volume, device or
-assign\key{Assign}. If the colon is present, such a path is said to be an \emph{absolute
-path} because it identifies a location within a logical or physical volume
+assign\key{Assign}. If the colon is present, such a path is said to be
+an \emph{absolute path} because it identifies a location within a logical or physical volume
 relative to the topmost or \emph{root directory}\key{Root Directory} of the
 volume. If the device name and the colon are not present, such a path is
 called a \emph{relative path} because it corresponds to a location in the file system\key{File System}
@@ -1969,7 +1970,7 @@ relative to the \emph{current directory} of the process using the path.
 If only a colon is present but the device, volume or assign\key{Assign} name is omitted,
 the path is still an absolute path and is relative to the root directory of
 volume that contains the current directory of the running
-processing. Details on processes and their properties are provided
+process. Details on processes and their properties are provided
 in chapter~\ref{sec:process}.
 \smallbreak{}
 
@@ -2023,7 +2024,7 @@ some other operating system that use the backslash as component separator.
 When attempting to locate a particular file or directory,
 \emph{dos.library} first checks if the path contains a colon (``{\tt :}'')
 and hence is an absolute path. If so, it locates the handler or file system\key{File System}
-responsible from the name upfront the colon and then provides the entire
+responsible from the name upfront the colon, if present, and then provides the entire
 path to this handler.
 \smallbreak{}
 
@@ -2055,7 +2056,8 @@ last component reached during the scan.
 
 As interpreting relative path starts with the current directory and stops
 when the end of the path has been reached, the empty string indicates the
-current directory.
+current directory and the colon without a preceding name the root directory
+of the volume the current directory is located on.
 
 \punchline{No Dots Here}{Unlike other operating systems, AmigaDOS does
   not use ``.'' and ``..'' to indicate the current directory or the
