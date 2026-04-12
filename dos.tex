@@ -1505,6 +1505,38 @@ The {\tt ParseDate()} function of \emph{locale.library} is more powerful
 than this function and should probably be preferred if this library is
 available.
 
+\subsection{Additional Date and Time Conversion Functions}
+
+Additional conversion functions for time and date representations are found
+in \emph{utility.library}. For completeness, they are briefly introduced
+here.
+\smallbreak{}
+
+The {\tt Amiga2Date()}\mkey{Amiga2Date()} function converts the number of
+seconds from January $1^{\mbox{\tiny st}}$ 1978 into seconds, minutes,
+hours, days, etc.\, placed in a {\tt ClockData}\mkey{ClockData}
+structure defined as follows:
+\begin{verbatim}
+struct ClockData
+{
+        UWORD  sec;   /* seconds of the minute */
+        UWORD  min;   /* minutes of the hour */
+        UWORD  hour;  /* hours of the day */
+        UWORD  mday;  /* day of the month */
+        UWORD  month; /* month of the year */
+        UWORD  year;  /* year (not an offset) */
+        UWORD  wday;  /* day of the week */
+};
+\end{verbatim}
+
+The {\tt Date2Amiga()}\mkey{Date2Amiga()} function converts in the reverse
+direction, from seconds, minutes, hours etc.\ to a seconds count. This
+function, with a little help of simple arithmetics, can be useful to convert
+a {\tt DateStamp}\key{DateStamp (struct)} structure into other
+representations. Since the above two functions are not part of
+\emph{dos.library} but \emph{utility.library}, their full definition is out scope for
+this volume. 
+
 \chapter{Paths and File Names} \label{sec:paths}
 
 AmigaDOS organizes data on storage media such as floppies or hard disks in
@@ -15295,17 +15327,17 @@ Table~\ref{table:hunk_index} depicts the syntax of this hunk.
    & \tt do \{ & Loop over translation units \\ \hline
 16 & \tt $\quad$ $u_o$ & Offset in bytes of the unit name into the string table \\ \hline
 16 & \tt $\quad$ $h_o$ & Offset in long words of the first hunk of the unit within {\tt HUNK\_LIB} \\ \hline 
-16 & \tt $\quad$ $h_c$ & Number of hunks within the unit \\ \hline
-   & \tt $\quad$ for($j$=0;$j$<$h_c$;$j$++) \{ & Loop over all hunks \\ \hline
+16 & \tt $\quad$ $h_c$ & Number of segments within the unit \\ \hline
+   & \tt $\quad$ for($j$=0;$j$<$h_c$;$j$++) \{ & Loop over all segments \\ \hline
 16 & \tt $\quad\quad$ $h_n$ & Offset in bytes of the hunk name into the string table \\ \hline
 16 & \tt $\quad\quad$ $\hat{l}$ & Abbreviated hunk size in long words \\ \hline
-2  & \tt $\quad\quad$ $m_t$ & Memory type of the hunk \\ \hline
+2  & \tt $\quad\quad$ $m_t$ & Memory type of the segment \\ \hline
 14 & \tt $\quad\quad$ $\hat{h}$ & Abbreviated hunk type \\ \hline
-16 & \tt $\quad\quad$ $x_c$ & Number of references in the hunk \\ \hline
+16 & \tt $\quad\quad$ $x_c$ & Number of references in the segment \\ \hline
    & \tt $\quad\quad$ for($k$=0;$k$<$x_c$;$k$++) \{ & Loop over references \\ \hline
 16 & \tt $\quad\quad\quad$ $x_n$ & Offset of the reference name into the string table \\ \hline
    & \tt $\quad\quad$ \} & \\ \hline
-16 & \tt $\quad\quad$ $d_c$ & Number of definitions in the hunk \\ \hline
+16 & \tt $\quad\quad$ $d_c$ & Number of definitions in the segment \\ \hline
    & \tt $\quad\quad$ for($k$=0;$k$<$d_c$;$k$++) \{ & Loop over definitions \\ \hline 
 16 & \tt $\quad\quad\quad$ $d_n$ & Offset of the defined name into the string table \\ \hline   
 16 & \tt $\quad\quad\quad$ $\hat{s}_v$ & Abbreviated symbol value \\ \hline
