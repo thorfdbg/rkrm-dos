@@ -1122,7 +1122,7 @@ after $31^{\mbox{\tiny th}}$ December 2045.
 \smallbreak{}
 
 There is no function in AmigaDOS to set the date, this needs to be done
-through the {\tt timer.device} with the {\tt TR\_SETSYSTIME} command. The
+through the {\tt timer.device} with the {\tt TR\_SETSYSTIME} command.
 Kickstart, during bootstrap, takes the current time from the real time
 clock, if it is present. If no real time clock is present, then all elements
 of the {\tt rn\_Time} structure in the {\tt RootNode} structure (see
@@ -1582,7 +1582,8 @@ what a file system considers an identical file name can, actually, be
 something different from what \emph{dos.library} considers a matching
 name. Code points from the control set of ISO-Latin, i.e.\ codes between
 {\tt 0x01} to {\tt 0x1f} or {\tt 0x7f} to {\tt 0x9f} should be
-avoided\footnote{Unfortunately, the file systems in the Amiga Kickstart are currently inconsistent on which
+avoided\footnote{Unfortunately, the file systems in the Amiga Kickstart
+are currently inconsistent on which
 characters they accept. The FFS does not accept any control characters,
 the RAM-Handler\key{RAM-Handler} (probably erroneously) accepts characters
 in the C1 control set from {\tt 0x80} to {\tt 0x9f}.}, and
@@ -1761,7 +1762,7 @@ the Kickstart ROM, but the corresponding handlers are disk-based and
 loaded as soon as the corresponding device is needed. The addition of {\tt PIPE}
 to this list is relatively recent, AmigaDOS V47 (Kickstart 3.2) includes it
 in the ROM-mounted devices as the Boot Shell\key{Boot Shell} requires it. Its handler is
-neither included in the Kickstart.
+neither included in Kickstart.
 \medbreak{}
 
 The following device names have a special meaning and do not correspond to
@@ -7170,7 +7171,7 @@ vector with the values found in the loaded code, see
 section~\ref{sec:bcplbinding} for further details. Any values $>0$
 require a BPTR to a custom vector which is used instead for
 initializing the handler. This startup mechanism is only used for
-creating device list entries within the Kickstart and it is not quite
+creating device list entries within Kickstart and it is not quite
 practical otherwise as this vector needs to be communicated into
 \emph{dos.library} somehow. For new code, BCPL linkage and binding
 should not be used anymore.
@@ -10952,7 +10953,7 @@ the {\tt NP\_CloseError}\key{NP\_CloseError} tag of
 \medbreak{}
 
 {\tt pr\_ExitCode()}\mkey{pr\_ExitCode()} is a pointer to a function that is called by AmigaDOS
-as part of the process shutdown code, and as such more useful that
+as first step of the process shutdown code, and is as such more useful than
 {\tt pr\_ReturnAddr}\key{pr\_ReturnAddr}. The function prototype is as follows:
 
 \begin{verbatim}
@@ -11276,16 +11277,35 @@ process terminates, and once the new process is running, two independent
 sets of variables and alias definitions exist.
 \smallbreak{}
 
-{\tt NP\_Cli}\mkey{NP\_Cli} determines whether the new process will receive a new shell\key{Shell}
-environment in the form of a {\tt CommandLineInterface}\key{CommandLineInterface} structure. If
+{\tt NP\_Cli}\mkey{NP\_Cli} determines whether the new process will receive
+a new shell\key{Shell} environment in the form
+of a {\tt CommandLineInterface}\key{CommandLineInterface} structure. If
 non-zero, a new CLI structure will be created and a BPTR to this
 structure will be filled into the {\tt pr\_CLI}\key{pr\_CLI} element.
 The new shell environment will be a copy of the shell environment
 of the caller if one is present, or a shell environment initialized with all
 defaults. This means that the prompt, the path, and the command name will be
-copied over if possible. If the tag value is~$0$, no CLI structure will be
-created. The latter is also the default.
+copied over if possible.
 \smallbreak{}
+
+The command stream, i.e. {\tt cli\_CurrentInput}\key{cli\_CurrentInput}
+and the input stream {\tt cli\_StandardInput}\key{cli\_StandardInput} are
+both copied from {\tt pr\_CIS} and thus to whatever input stream was
+selected by {\tt NP\_Input}. Similarly, the output stream
+{\tt cli\_StandardOutput}\key{cli\_StandardOutput} is
+copied from {\tt pr\_COS} and thus the output stream of the process.
+\smallbreak{}
+
+Some shell commands, most notably the {\tt Execute}\key{Execute (command)}
+command described in section~\ref{sec:executecmd}, depend on this
+arrangement to identify whether their input stream has been redirected. If
+so, they use a slightly different command template that allow to use such
+commands within pipes.
+\smallskip{}
+
+If the value of {\tt NP\_Cli} is~$0$, no CLI structure will be
+created. The latter is also the default.
+\medbreak{}
 
 {\tt NP\_Path}\mkey{NP\_Path} provides a chained list of locks\key{Lock}
 within which commands for shell\key{Shell} execution are searched.
@@ -11301,7 +11321,8 @@ to copy the paths of the caller if the calling process is equipped with a
 CLI structure. This (implicit) copy is, of course, released on error.
 \smallbreak{}
 
-{\tt NP\_CommandName}\mkey{NP\_CommandName} provides the name of the command being executed within
+{\tt NP\_CommandName}\mkey{NP\_CommandName} provides the name of the
+command being executed within
 the shell\key{Shell} environment if {\tt NP\_Cli}\key{NP\_Cli} indicates that one is to be
 created. This tag does not actually \emph{load} any command, it only
 provides an identification within the shell which command is running, see also
@@ -16354,7 +16375,7 @@ AmigaDOS, which hosts for example the shell. It not only serves the
 graphical console based on an intuition window, but also consoles on the
 serial port or other devices. The AUX-Handler\key{AUX-Handler} is only a
 minimal disk-based wrapper that locates the CON-Handler\key{CON-Handler}
-in the Kickstart and launches it with a suitable startup packet. The
+in Kickstart and launches it with a suitable startup packet. The
 CON-Handler therefore implements the {\tt CON}, {\tt RAW} and {\tt AUX} devices.
 \smallbreak{}
 
@@ -17202,7 +17223,7 @@ BPTR & serial input/output with parameters from the {\tt FileSysStartupMsg}
 \end{rkrmtable}
 
 The values~0 to~2 represent the handlers {\tt SER}, {\tt PAR} and
-{\tt PRT} mounted by the Kickstart, and are supported by all AmigaDOS
+{\tt PRT} mounted by Kickstart, and are supported by all AmigaDOS
 versions. They can be recreated by a mountlist as follows:
 
 \begin{verbatim}
@@ -17353,8 +17374,7 @@ i.e.\ for a quantum size of 1024 bytes at most 8K of data can be waiting in a pi
 The Queue-Handler\key{Queue-Handler} can also be configured through a
 mountlist\key{Mountlist}, though as it is already mounted by the ROM,
 the name of a custom mounted device cannot be {\tt PIPE}. The mount parameters
-used by the Kickstart correspond to the following
-mountlist:
+used by Kickstart correspond to the following mountlist:
 
 \begin{verbatim}
 Handler         = L:Queue-Handler
@@ -17615,7 +17635,7 @@ environment vector is larger than~0.
 
 The boot block does not only identify the FFS flavor, it is also a
 component of the Kickstart boot process implemented by the {\tt strap}
-module of the Kickstart ROM. In short, the Kickstart supports two boot
+module of the Kickstart ROM. In short, Kickstart supports two boot
 mechanisms, boot block booting described here and boot point booting, which
 depends on an Autoconfig ROM implementing the boot procedure,
 \cite{rkrmdev}~contains the details. For hard disks, the latter boot protocol
@@ -20392,7 +20412,9 @@ identifying the type of the object. As programs are not consistent on
 the element they read, both should be filled with the same value. The
 value~0 should be avoided as some programs identify directories by
 testing against a positive value whereas others check for a
-non-negative value, i.e.\ interpret~0 as a directory.
+non-negative value, i.e.\ interpret~0 as a directory. If the examined object
+is a directory, {\tt fib\_DirEntryType} shall be set to {\tt ST\_USERDIR} as
+some programs depend on this (positive) value to identify directories.
 \smallbreak{}
 
 The fields {\tt fib\_OwnerUID}\key{fib\_OwnerUID} and
@@ -20411,7 +20433,7 @@ inserted volume shall be examined\key{ZERO lock}. In such a case, {\tt fib\_File
 filled with the name of the volume.
 \smallbreak{}
 
-The BCPL implementations of some system commands of the Kickstart 1.3,
+The BCPL implementations of some system commands of Kickstart 1.3,
 including {\tt Dir} and {\tt List}, only reserve storage for a reduced
 version of the {\tt FileInfoBlock}\key{FileInfoBlock} structure that does not
 include the {\tt fib\_Reserved} field. A file system that is supposed
@@ -20472,7 +20494,7 @@ directory through the {\tt ZERO} lock\key{ZERO lock} in
 such a case.
 \smallbreak{}
 
-The BCPL implementations of some system commands of the Kickstart 1.3,
+The BCPL implementations of some system commands of Kickstart 1.3,
 including {\tt Dir} and {\tt List}, only reserve storage for a reduced
 version of the {\tt FileInfoBlock}\key{FileInfoBlock} structure that does not
 include the {\tt fib\_Reserved} field. A file system that is supposed
@@ -26412,7 +26434,7 @@ command will be held resident once used.
 
 Third, the AmigaDOS Shell adds its own built-in commands during 
 initialization to this list. This includes elementary commands such as
-{\tt CD} or {\tt Execute} that are contained in the Kickstart and do not need
+{\tt CD} or {\tt Execute} that are contained in Kickstart and do not need
 to be loaded from disk.
 \smallbreak{}
 
