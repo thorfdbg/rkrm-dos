@@ -4512,6 +4512,11 @@ failure, or to an undefined value in case of success.
 This function allows to open files in exclusive mode without deleting its
 contents. For that, obtain an exclusive lock on the file to be opened, and
 then call {\tt OpenFromLock()} in a second step.
+\smallskip{}
+
+Due to an incomplete implementation in the ROM file systems and further
+defects in \emph{dos.library}, this function does not work in AmigaDOS
+version 36. This was fixed in version~37.
 \medbreak{}
 
 While this function is not available in AmigaDOS versions 34 and below, the
@@ -19133,6 +19138,23 @@ conversion of the C strings to BSTRs are performed
 transparently within \emph{dos.library}. Unfortunately, it means
 that even handlers written in Assembler or C need to deal with legacy
 BCPL data types.
+\smallbreak{}
+
+The first set of packets initialize a {\tt FileHandle}\key{FileHandle}
+structure, preparing it for read and write access. They implement the the
+{\tt Open()}\key{Open()} and {\tt OpenFromLock}\key{OpenFromLock()} function
+of sections \label{sec:open} and \ref{sec:openfromlock} which also prepare
+the {\tt FileHandle} structure passed in the packets. While it is
+recommended to go through the wrapper functions of \emph{dos.library}, the
+corresponding packets may also be send manually. Then, the {\tt FileHandle}
+shall be created by {\tt AllocDosObject()}\key{AllocDosObject()}, see
+section~\ref{sec:allocdosobject}, and its {\tt fh\_Type} pointer be set to
+the message port of the handler or file system as obtained by
+{\tt GetDeviceProc()}\key{GetDeviceProc()}. Further initialization is
+not required, {\tt AllocDosObject()} takes care of the necessary steps.
+Once the file has been opened, the packets for reading, writing or seeking
+in the file then identify the file by the {\tt fh\_Arg1} element of the
+{\tt FileHandle} and not the handle itself.
 
 \subsection{Opening a File for Shared Access} \label{sec:actionfindinput}
 
@@ -20861,9 +20883,11 @@ as one of its components. It is mostly used by \emph{dos.library}
 internally to resolve soft links transparently to applications.
 \smallbreak{}
 
-Unlike soft links, hard links\key{Hard Link} are resolved entirely
-within the handler and do not require interaction with 
-\emph{dos.library}.
+Unlike soft links, hard links\key{Hard Link} are resolved entirely within
+the handler and do not require interaction with \emph{dos.library}. It is
+the resposibility of the file system to identify hard links and redirect
+then the corresponding activity, such as opening the linked file, to the
+target of the link.
 \smallbreak{}
 
 AmigaDOS version~47 introduced another type of link, the
