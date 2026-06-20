@@ -2912,6 +2912,16 @@ prepares the input stream for buffered I/O:
   Flush(Input()); /* release the cmd line parameters */
 \end{verbatim}
 
+For the same reasons, the standard input file handle cannot be generally
+used for output, or even converted into a buffered output stream, and in
+some situations, any output attempted over it is lost\footnote{In the
+current implementation, this happens if the standard input has been
+redirected by the Shell since it then never received a buffer in the regular
+way, see also the description of {\tt SetVBuf()\key{SetVBuf()}} in
+\ref{sec:setvbuf}.  This is likely an implementation defect which remained
+unnoticed since output over the input stream is rarely attempted.}.
+\medbreak{}
+
 AmigaDOS provides buffered record-oriented read and write functions similar to
 ANSI-C {\tt fread()} and {\tt fwrite()}; they are introduced in
 the next two sections. They read or write one or multiple records, each of
@@ -3098,6 +3108,14 @@ AmigaDOS this function cannot be safely applied to file handles\key{FileHandle} 
 the {\tt NIL} pseudo-device. As a workaround, the caller should check first
 the {\tt fh\_Type}\key{fh\_Type} element of the file handle, and should not call this
 function if this element is {\tt NULL}, see also section~\ref{sec:filehandle}.
+\smallbreak{}
+
+In currently all AmigaDOS versions, this function cannot change the buffer
+size of the standard input stream of Shell commands as retrieved by the
+{\tt Input()}\key{Input()} function. The reason is that the Shell, or rather
+the {\tt RunCommand()}\key{RunCommand()} function deposits the command line
+parameters in a manually allocated buffer {\tt SetVBuf()}\key{SetVBuf()} is
+unable to alter later on.
 
 \subsection{Synchronize the File to the Buffer} \label{sec:flush}
 
@@ -19143,7 +19161,7 @@ BCPL data types.
 The first set of packets initialize a {\tt FileHandle}\key{FileHandle}
 structure, preparing it for read and write access. They implement the the
 {\tt Open()}\key{Open()} and {\tt OpenFromLock}\key{OpenFromLock()} function
-of sections \label{sec:open} and \ref{sec:openfromlock} which also prepare
+of sections \ref{sec:open} and \ref{sec:openfromlock} which also prepare
 the {\tt FileHandle} structure passed in the packets. While it is
 recommended to go through the wrapper functions of \emph{dos.library}, the
 corresponding packets may also be send manually. Then, the {\tt FileHandle}
