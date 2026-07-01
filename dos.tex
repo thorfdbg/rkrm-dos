@@ -2943,6 +2943,16 @@ prepares the input stream for buffered I/O:
   Flush(Input()); /* release the cmd line parameters */
 \end{verbatim}
 
+For the same reasons, the standard input file handle cannot be generally
+used for output, or even converted into a buffered output stream, and in
+some situations, any output attempted over it is lost\footnote{In the
+current implementation, this happens if the standard input has been
+redirected by the Shell since it then never received a buffer in the regular
+way, see also the description of {\tt SetVBuf()\key{SetVBuf()}} in
+\ref{sec:setvbuf}.  This is likely an implementation defect which remained
+unnoticed since output over the input stream is rarely attempted.}.
+\medbreak{}
+
 AmigaDOS provides buffered record-oriented read and write functions similar to
 ANSI-C {\tt fread()} and {\tt fwrite()}; they are introduced in
 the next two sections. They read or write one or multiple records, each of
@@ -3129,6 +3139,14 @@ AmigaDOS this function cannot be safely applied to file handles\key{FileHandle} 
 the {\tt NIL} pseudo-device. As a workaround, the caller should check first
 the {\tt fh\_Type}\key{fh\_Type} element of the file handle, and should not call this
 function if this element is {\tt NULL}, see also section~\ref{sec:filehandle}.
+\smallbreak{}
+
+In currently all AmigaDOS versions, this function cannot change the buffer
+size of the standard input stream of Shell commands as retrieved by the
+{\tt Input()}\key{Input()} function. The reason is that the Shell, or rather
+the {\tt RunCommand()}\key{RunCommand()} function deposits the command line
+parameters in a manually allocated buffer {\tt SetVBuf()}\key{SetVBuf()} is
+unable to alter later on.
 
 \subsection{Synchronize the File to the Buffer} \label{sec:flush}
 
@@ -4543,6 +4561,11 @@ failure, or to an undefined value in case of success.
 This function allows to open files in exclusive mode without deleting its
 contents. For that, obtain an exclusive lock on the file to be opened, and
 then call {\tt OpenFromLock()} in a second step.
+\smallskip{}
+
+Due to an incomplete implementation in the ROM file systems and further
+defects in \emph{dos.library}, this function does not work in AmigaDOS
+version 36. This was fixed in version~37.
 \medbreak{}
 
 While this function is not available in AmigaDOS versions 34 and below, the
@@ -10983,9 +11006,8 @@ the {\tt NP\_CloseError}\key{NP\_CloseError} tag of
 {\tt CreateNewProc()}\key{CreateNewProc()}.
 \medbreak{}
 
-{\tt pr\_ExitCode()}\mkey{pr\_ExitCode()} is a pointer to a function that is
-called by AmigaDOS as first part of the process shutdown code before any
-other processes resources are released, and more useful than
+{\tt pr\_ExitCode()}\mkey{pr\_ExitCode()} is a pointer to a function that is called by AmigaDOS
+as first step of the process shutdown code, and is as such more useful than
 {\tt pr\_ReturnAddr}\key{pr\_ReturnAddr}. The function prototype is as follows:
 
 \begin{verbatim}
@@ -11358,7 +11380,8 @@ to copy the paths of the caller if the calling process is equipped with a
 CLI structure. This (implicit) copy is, of course, released on error.
 \smallbreak{}
 
-{\tt NP\_CommandName}\mkey{NP\_CommandName} provides the name of the command being executed within
+{\tt NP\_CommandName}\mkey{NP\_CommandName} provides the name of the
+command being executed within
 the shell\key{Shell} environment if {\tt NP\_Cli}\key{NP\_Cli} indicates that one is to be
 created. This tag does not actually \emph{load} any command, it only
 provides an identification within the shell which command is running, see also
@@ -17670,7 +17693,7 @@ environment vector is larger than~0.
 \medbreak{}
 
 The boot block does not only identify the FFS flavor, it is also a
-component of Kickstart boot process implemented by the {\tt strap}
+component of the Kickstart boot process implemented by the {\tt strap}
 module of the Kickstart ROM. In short, Kickstart supports two boot
 mechanisms, boot block booting described here and boot point booting, which
 depends on an Autoconfig ROM implementing the boot procedure,
@@ -19169,6 +19192,23 @@ conversion of the C strings to BSTRs are performed
 transparently within \emph{dos.library}. Unfortunately, it means
 that even handlers written in Assembler or C need to deal with legacy
 BCPL data types.
+\smallbreak{}
+
+The first set of packets initialize a {\tt FileHandle}\key{FileHandle}
+structure, preparing it for read and write access. They implement the the
+{\tt Open()}\key{Open()} and {\tt OpenFromLock}\key{OpenFromLock()} function
+of sections \ref{sec:open} and \ref{sec:openfromlock} which also prepare
+the {\tt FileHandle} structure passed in the packets. While it is
+recommended to go through the wrapper functions of \emph{dos.library}, the
+corresponding packets may also be send manually. Then, the {\tt FileHandle}
+shall be created by {\tt AllocDosObject()}\key{AllocDosObject()}, see
+section~\ref{sec:allocdosobject}, and its {\tt fh\_Type} pointer be set to
+the message port of the handler or file system as obtained by
+{\tt GetDeviceProc()}\key{GetDeviceProc()}. Further initialization is
+not required, {\tt AllocDosObject()} takes care of the necessary steps.
+Once the file has been opened, the packets for reading, writing or seeking
+in the file then identify the file by the {\tt fh\_Arg1} element of the
+{\tt FileHandle} and not the handle itself.
 
 \subsection{Opening a File for Shared Access} \label{sec:actionfindinput}
 
@@ -20448,7 +20488,9 @@ identifying the type of the object. As programs are not consistent on
 the element they read, both should be filled with the same value. The
 value~0 should be avoided as some programs identify directories by
 testing against a positive value whereas others check for a
-non-negative value, i.e.\ interpret~0 as a directory.
+non-negative value, i.e.\ interpret~0 as a directory. If the examined object
+is a directory, {\tt fib\_DirEntryType} shall be set to {\tt ST\_USERDIR} as
+some programs depend on this (positive) value to identify directories.
 \smallbreak{}
 
 The fields {\tt fib\_OwnerUID}\key{fib\_OwnerUID} and
@@ -20895,9 +20937,11 @@ as one of its components. It is mostly used by \emph{dos.library}
 internally to resolve soft links transparently to applications.
 \smallbreak{}
 
-Unlike soft links, hard links\key{Hard Link} are resolved entirely
-within the handler and do not require interaction with 
-\emph{dos.library}.
+Unlike soft links, hard links\key{Hard Link} are resolved entirely within
+the handler and do not require interaction with \emph{dos.library}. It is
+the resposibility of the file system to identify hard links and redirect
+then the corresponding activity, such as opening the linked file, to the
+target of the link.
 \smallbreak{}
 
 AmigaDOS version~47 introduced another type of link, the
