@@ -1505,6 +1505,38 @@ The {\tt ParseDate()} function of \emph{locale.library} is more powerful
 than this function and should probably be preferred if this library is
 available.
 
+\subsection{Additional Date and Time Conversion Functions}
+
+Additional conversion functions for time and date representations are found
+in \emph{utility.library}. For completeness, they are briefly introduced
+here.
+\smallbreak{}
+
+The {\tt Amiga2Date()}\mkey{Amiga2Date()} function converts the number of
+seconds from January $1^{\mbox{\tiny st}}$ 1978 into seconds, minutes,
+hours, days, etc.\, placed in a {\tt ClockData}\mkey{ClockData}
+structure defined as follows:
+\begin{verbatim}
+struct ClockData
+{
+        UWORD  sec;   /* seconds of the minute */
+        UWORD  min;   /* minutes of the hour */
+        UWORD  hour;  /* hours of the day */
+        UWORD  mday;  /* day of the month */
+        UWORD  month; /* month of the year */
+        UWORD  year;  /* year (not an offset) */
+        UWORD  wday;  /* day of the week */
+};
+\end{verbatim}
+
+The {\tt Date2Amiga()}\mkey{Date2Amiga()} function converts in the reverse
+direction, from seconds, minutes, hours etc.\ to a seconds count. This
+function, with a little help of simple arithmetics, can be useful to convert
+a {\tt DateStamp}\key{DateStamp (struct)} structure into other
+representations. Since the above two functions are not part of
+\emph{dos.library} but \emph{utility.library}, their full definition is out scope for
+this volume. 
+
 \chapter{Paths and File Names} \label{sec:paths}
 
 AmigaDOS organizes data on storage media such as floppies or hard disks in
@@ -1582,8 +1614,7 @@ what a file system considers an identical file name can, actually, be
 something different from what \emph{dos.library} considers a matching
 name. Code points from the control set of ISO-Latin, i.e.\ codes between
 {\tt 0x01} to {\tt 0x1f} or {\tt 0x7f} to {\tt 0x9f} should be
-avoided\footnote{Unfortunately, the file systems in the Amiga Kickstart
-are currently inconsistent on which
+avoided\footnote{Unfortunately, the file systems in Amiga Kickstart are currently inconsistent on which
 characters they accept. The FFS does not accept any control characters,
 the RAM-Handler\key{RAM-Handler} (probably erroneously) accepts characters
 in the C1 control set from {\tt 0x80} to {\tt 0x9f}.}, and
@@ -4231,7 +4262,9 @@ chapter~\ref{sec:paths}) will be created. If a file or directory of the same
 name already exists, this function will fail with the error code
 {\tt ERROR\_OBJECT\_EXISTS}\key{ERROR\_OBJECT\_EXISTS}\footnote{The information
 in~\cite{guru} that in such a case a conflicting file or directory is
-deleted is not correct.}. If successful, the function returns an exclusive
+deleted is not correct. Also, some file systems erraneously return
+{\tt ERROR\_OBJECT\_IN\_USE}\key{ERROR\_OBJECT\_IN\_USE} if the directory
+exists and is locked.}. If successful, the function returns an exclusive
 lock to the created directory, otherwise it returns {\tt ZERO}.
 \smallbreak{}
 
@@ -11300,34 +11333,39 @@ process terminates, and once the new process is running, two independent
 sets of variables and alias definitions exist.
 \smallbreak{}
 
-{\tt NP\_Cli}\mkey{NP\_Cli} determines whether the new process will receive
-a new shell\key{Shell} environment in the form
-of a {\tt CommandLineInterface}\key{CommandLineInterface} structure. If
-non-zero, a new CLI structure will be created and a BPTR to this
-structure will be filled into the {\tt pr\_CLI}\key{pr\_CLI} element.
+{\tt NP\_Cli}\mkey{NP\_Cli} determines whether the new process will receive a new shell\key{Shell}
+environment in the form of a {\tt CommandLineInterface}\key{CommandLineInterface} structure.
+This structure describes a shell, its elements are discussed in more
+detail in section~\ref{sec:getcli}. If non-zero, a new CLI structure will be
+created and a BPTR to this structure will be filled into the {\tt pr\_CLI}\key{pr\_CLI} element.
 The new shell environment will be a copy of the shell environment
 of the caller if one is present, or a shell environment initialized with all
 defaults. This means that the prompt, the path, and the command name will be
 copied over if possible.
 \smallbreak{}
 
-The command stream, i.e. {\tt cli\_CurrentInput}\key{cli\_CurrentInput}
-and the input stream {\tt cli\_StandardInput}\key{cli\_StandardInput} are
-both copied from {\tt pr\_CIS} and thus to whatever input stream was
-selected by {\tt NP\_Input}. Similarly, the output stream
-{\tt cli\_StandardOutput}\key{cli\_StandardOutput} is
-copied from {\tt pr\_COS} and thus the output stream of the process.
+The shell command input stream {\tt cli\_CurrentInput}\key{cli\_CurrentInput} and its
+input stream {\tt cli\_StandardInput}\key{cli\_StandardInput}
+are set to the input stream {\tt pr\_CIS}\key{pr\_CIS} of the newly created
+process and thus to whatever {\tt NP\_Input}\key{NP\_Input} defined it to
+be. Likewise, the output stream of the Shell as contained
+in {\tt cli\_StandardOutput}\key{cli\_StandardOutput}
+is copied from the output stream in {\tt pr\_COS}\key{pr\_COS}.
+A potential startup code of the new process should leave input and
+output streams of the shell and the process alone as some Shell commands
+compare the process streams with those recorded in the CLI structure to identify
+whether their input or output has been redirected and adjust their command
+template then slightly. This holds for example for the
+{\tt Execute}\key{Execute (command)} command to make it accept pipes as
+command input stream, see section~\ref{sec:executecmd}. In general, if the
+purpose of the newly created process is to execute shell commands, the
+{\tt System()}\key{System()} function of section~\ref{sec:system} is a
+better match as it takes care of all peculiarities for creating a shell,
+setting up its input and output streams and executing commands within it.
 \smallbreak{}
 
-Some shell commands, most notably the {\tt Execute}\key{Execute (command)}
-command described in section~\ref{sec:executecmd}, depend on this
-arrangement to identify whether their input stream has been redirected. If
-so, they use a slightly different command template that allow to use such
-commands within pipes.
-\smallskip{}
-
-If the value of {\tt NP\_Cli} is~$0$, no CLI structure will be
-created. The latter is also the default.
+If the tag value of {\tt NP\_Cli}\key{NP\_Cli} is~$0$, no CLI structure will be
+created. This is also the default.
 \medbreak{}
 
 {\tt NP\_Path}\mkey{NP\_Path} provides a chained list of locks\key{Lock}
@@ -15339,17 +15377,17 @@ Table~\ref{table:hunk_index} depicts the syntax of this hunk.
    & \tt do \{ & Loop over translation units \\ \hline
 16 & \tt $\quad$ $u_o$ & Offset in bytes of the unit name into the string table \\ \hline
 16 & \tt $\quad$ $h_o$ & Offset in long words of the first hunk of the unit within {\tt HUNK\_LIB} \\ \hline 
-16 & \tt $\quad$ $h_c$ & Number of hunks within the unit \\ \hline
-   & \tt $\quad$ for($j$=0;$j$<$h_c$;$j$++) \{ & Loop over all hunks \\ \hline
+16 & \tt $\quad$ $h_c$ & Number of segments within the unit \\ \hline
+   & \tt $\quad$ for($j$=0;$j$<$h_c$;$j$++) \{ & Loop over all segments \\ \hline
 16 & \tt $\quad\quad$ $h_n$ & Offset in bytes of the hunk name into the string table \\ \hline
 16 & \tt $\quad\quad$ $\hat{l}$ & Abbreviated hunk size in long words \\ \hline
-2  & \tt $\quad\quad$ $m_t$ & Memory type of the hunk \\ \hline
+2  & \tt $\quad\quad$ $m_t$ & Memory type of the segment \\ \hline
 14 & \tt $\quad\quad$ $\hat{h}$ & Abbreviated hunk type \\ \hline
-16 & \tt $\quad\quad$ $x_c$ & Number of references in the hunk \\ \hline
+16 & \tt $\quad\quad$ $x_c$ & Number of references in the segment \\ \hline
    & \tt $\quad\quad$ for($k$=0;$k$<$x_c$;$k$++) \{ & Loop over references \\ \hline
 16 & \tt $\quad\quad\quad$ $x_n$ & Offset of the reference name into the string table \\ \hline
    & \tt $\quad\quad$ \} & \\ \hline
-16 & \tt $\quad\quad$ $d_c$ & Number of definitions in the hunk \\ \hline
+16 & \tt $\quad\quad$ $d_c$ & Number of definitions in the segment \\ \hline
    & \tt $\quad\quad$ for($k$=0;$k$<$d_c$;$k$++) \{ & Loop over definitions \\ \hline 
 16 & \tt $\quad\quad\quad$ $d_n$ & Offset of the defined name into the string table \\ \hline   
 16 & \tt $\quad\quad\quad$ $\hat{s}_v$ & Abbreviated symbol value \\ \hline
