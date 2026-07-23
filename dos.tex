@@ -21277,7 +21277,7 @@ LONG readlink(BPTR lock, UBYTE *string,UBYTE *buffer, ULONG size)
 
   /* Check whether the found object is a softlink */
   if (node->type != ST_SOFTLINK) {
-    res2 = ERROR_OBJECT_WRONG_TYPE;
+    res2 = ERROR_OBJECT_NOT_FOUND;
     return -1;
   }
 
@@ -21313,7 +21313,7 @@ LONG readlink(BPTR lock, UBYTE *string,UBYTE *buffer, ULONG size)
   if (res < 0)
     return res; /* Deliver the error */
 
-  /* If the link is absolute, i.e.\ contains a ':', then ignore the
+  /* If the link is absolute, i.e. contains a ':', then ignore the
   ** start of the string. 'res' is the length of the link location.
   */
   src = strchr(buffer + path_before,':');
@@ -21325,8 +21325,8 @@ LONG readlink(BPTR lock, UBYTE *string,UBYTE *buffer, ULONG size)
       /* Is relative to our root, but not necessarily 
       ** to the root of the caller, so fix up.
       */
-      char *volname = (char *)BADDR(volumenode->dol_Name);
-      LONG len      = *volname; /* It's a BSTR */
+      UBYTE *volname = (UBYTE *)BADDR(volumenode->dol_Name);
+      LONG len       = *volname; /* It's a BSTR */
       /* Check whether there is enough buffer */
       if (len + res >= size) {
         SetIoErr(ERROR_LINE_TOO_LONG);
@@ -21339,7 +21339,6 @@ LONG readlink(BPTR lock, UBYTE *string,UBYTE *buffer, ULONG size)
         memmove(buffer + len ,buffer + path_before,res + 1);
         /* Prepend the volume name */
         memcpy(buffer,volname + 1,len);
-        res += len;
       }
     } else {
       /* Here the link is absolute to a given volume
