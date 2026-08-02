@@ -23337,64 +23337,90 @@ set the {\tt dol\_Task}\key{dol\_Task} element of the
 device list\key{Device List} to {\tt NULL}, and then terminate the process.
 \smallbreak{}
 
-A file system shall not exit as long as resources cache copies of its
-{\tt MsgPort}(s); this is typically the {\tt pr\_MsgPort} of the handler
-process which is released by AmigaDOS as soon as the process exits. This
-port would become unusable on exit, and an attempt to contact the file
-system through it would crash the system. Resources that contain a
-pointer to the (or a) file system port are file handles\key{FileHandle},
-locks\key{Lock} or {\tt NotifyRequest}s\key{NotifyRequest}. If any of them
-are still active, the file system or handler cannot exit, and
-{\tt ACTION\_DIE} shall fail.
+In case the file system can foresee that it cannot safely exit,
+this packet shall fail by setting {\tt dp\_Res1} to
+{\tt DOSFALSE} and {\tt dp\_Res2} to an error code,
+e.g.\ {\tt ERROR\_OBJECT\_IN\_USE}\key{ERROR\_OBJECT\_IN\_USE}. This
+is the case if any of the file system resources such as locks\key{Lock},
+file handles\key{FileHandle} or notification requests\key{NotifyRequest}
+cache exist which contain a pointer to the file system {\tt MsgPort}(s).
+As such port(s) would become unusable on exit, any attempt to contact the file
+system through such resources it would crash the system.
+\smallskip{}
+
+If termination is seemingly possible, this packet shall be replied by setting
+{\tt dp\_Res1} to {\tt DOSTRUE} and {\tt dp\_Res2} to~0.
+\medbreak{}
+
+In one implementation strategy, {\tt ACTION\_DIE} fails early if any of the
+above resources are still active, and the file system then simply continues
+to accept packets without changing its operation.
 \smallbreak{}
 
-If none of these resources exist, as next step, references to the file
-system port(s) shall be removed from the device list\key{Device List}. To
-gain access to the device list, the file system should use
+If, however, none of these resources exist, references to the file
+system port(s) should be removed from the {\tt DosList}\key{DosList}. To
+gain access to the list, the file system shall use
 {\tt AttemptLockDosList()}\key{AttemptLockDosList()} as a blocking semaphore
 may cause a deadlock. If the list is not accessible at this time, the file
 system cannot safely shut down and {\tt ACTION\_DIE} shall also fail. If the
-device list is accessible, the file system shall set the {\tt dol\_Task}
-elements of the volumes it administrates and the device node it is
-represented by to {\tt NULL}. This will request AmigaDOS to launch a new
+{\tt DosList} is accessible, the file system should remove the volume
+it administrates (if any) from the {\tt DosList}\key{DosList} and set the {\tt dol\_Task}
+elements of the device node it is represented by to {\tt NULL}.
+This will request AmigaDOS to launch a new
 file system from the {\tt dol\_SegList} segment\key{Segment} as soon as a
 client attempts to access it through its device name.
 \smallbreak{}
 
-Unfortunately, even these precautions are not fully sufficient to safely
+After unmounting the volume and replying to {\tt ACTION\_DIE}\key{ACTION\_DIE}, the
+{\tt MsgPort}(s) of the handler or file system used for packet
+communication can still contain packets that were submitted after
+{\tt ACTION\_DIE}\key{ACTION\_DIE} has been received. In order to avoid a
+deadlock or a crash, the file system shall still reply these
+packets, for example with the default result codes from
+table~\ref{table:unimp} in section~\ref{sec:handlermain}.
+\medbreak{}
+
+An alternative implementation strategy is to first attempt to remove the
+volume node from the {\tt DosList}\key{DosList} if any medium is currently
+loaded and acknolwedge {\tt ACTION\_DIE} if this was possible; if not, the
+packet shall fail. On success, the file system or handler enters a shutdown
+state in which it refuses to actively perform any operation: any
+{\tt ACTION\_INFO}\key{ACTION\_INFO} or {\tt ACTION\_DISK\_INFO}\key{ACTION\_DISK\_INFO}
+should be responded by by signaling that no medium is available. This will
+trigger Workbench to close all windows open on the file system, and
+remove the disk icon from its screen. In shutdown stage, a file system should then
+refuse to lock any object, open any file or start any notification request,
+returning {\tt ERROR\_NO\_DISK}\key{ERROR\_NO\_DISK}. Attempts to
+release, close or shutdown objects should be still honored, though.
+\smallskip{}
+
+As soon as the number of file system resources, i.e. files, locks and
+notification requests, reaches zero, the handler shall, as above, set the
+{\tt dol\_Task} elements of its device node on the {\tt DosList}\key{DosList} to {\tt NULL}
+and then finally terminate.
+\medskip{}
+
+Additional details on how to terminate a handler are found in
+section~\ref{sec:terminatehandler}.  This section contains also sample code
+demonstrating the first implementation strategy.
+\smallskip{}
+
+Unfortunately, even the above precautions are not fully sufficient to safely
 unmount a device because client programs can request a handler message port
 via {\tt GetDeviceProc()}\key{GetDeviceProc()} or
 {\tt DeviceProc()}\key{DeviceProc()} any time for direct communication and
 buffer the returned port. A file system has no direct control of where or whether
 cached copies of its port(s) are held, and thus whether it can safely
-terminate. This limits the utility of this packet to system debugging tools.
-\smallbreak{}
-
-In case the file system can foresee that it cannot safely exit at the
-time the request is made, this packet shall fail by setting {\tt dp\_Res1} to {\tt DOSFALSE}
-and {\tt dp\_Res2} to an error code, e.g.\ {\tt ERROR\_OBJECT\_IN\_USE}\key{ERROR\_OBJECT\_IN\_USE}.
-If termination is seemingly possible, this packet shall be replied by setting
-{\tt dp\_Res1} to {\tt DOSTRUE} and {\tt dp\_Res2} to~0.
-\smallbreak{}
-
-After unmounting the volume and replying to this packet, the
-{\tt MsgPort}(s) of this handler or file system used for packet
-communication can still contain packets that were submitted after
-{\tt ACTION\_DIE}\key{ACTION\_DIE} has been received. In order to avoid a
-deadlock or a crash, the file system shall still reply these
-packets, for example with the default result codes from
-table~\ref{table:unimp} in section~\ref{sec:handlermain}; additional
-details on how to terminate a handler are found in
-section~\ref{sec:terminatehandler}.
+terminate.
 \smallbreak{}
 
 Some handlers do not initialize the {\tt dol\_Task}\key{dol\_Task} element of its
-{\tt DosList}\key{DosList} entrie(s) with an address of their port(s);
+{\tt DosList}\key{DosList} entrie(s) with their port(s);
 interactive handlers such as the CON-Handler\key{CON-Handler} are typical
 examples. Such handlers shall terminate themselves without requiring
 an {\tt ACTION\_DIE}\key{ACTION\_DIE} when the last resource opened to them
 had been shut down, i.e.\ all file handles\key{FileHandle} have been closed,
-all locks\key{Lock} (if they are supported at all) have been unlocked and all {\tt NotifyRequest}s
+all locks\key{Lock} (if they are supported at all) have been unlocked and all {\tt NotifyRequest}s\key{NotifyRequest}
 (if supported) had been canceled.
 
 \subsection{Do Nothing}
