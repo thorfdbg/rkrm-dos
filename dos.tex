@@ -7151,7 +7151,7 @@ CON-Handler\key{CON-Handler} uses this element to distinguish
 whether it is used as {\tt CON} or {\tt RAW} device (see
 section~\ref{sec:constartup} for details). The Fast File
 System\key{Fast File System (FFS)} and most other file systems
-expect here a BPTR to a {\tt FileSysStartupMsg} structure. While this value
+expect here a BPTR to a {\tt FileSysStartupMsg}\key{FileSysStartupMsg} structure. While this value
 may be whatever the handler\key{Handler} requires, the {\tt Mount}\key{Mount (command)} command either
 deposits here a BPTR to the {\tt FileSysStartupMsg} structure, a BPTR to a
 BSTR, or a small integer.
@@ -8976,7 +8976,7 @@ the device list\key{Device List}, though does not attempt to populate or
 initialize them. Such constructor-type functions are discussed then in
 section~\ref{sec:createdeletedoslist}.
 
-\subsection{Adding an Entry to the Device List}
+\subsection{Adding an Entry to the Device List} \label{sec:adddosentry}
 
 The {\tt AddDosEntry()}\mkey{AddDosEntry()} adds an initialized {\tt
   DosList} structure to the device list\key{Device List}.
@@ -9142,7 +9142,7 @@ is currently not possible in a completely robust way. It is suggested to
 only unlink such nodes from the device list\key{Device List} if absolutely
 necessary, but tolerate the memory leak.
 
-\subsection{Creating a Device List Entry}
+\subsection{Creating a Device List Entry} \label{sec:makedosentry}
 
 The {\tt MakeDosEntry()}\mkey{MakeDosEntry()} creates an empty {\tt DosList}
 structure of the given type, and performs elementary initialization. It
@@ -16377,6 +16377,91 @@ Once the use counter reaches zero again, the handler releases all its
 resources and terminates processing. The handler shutdown is discussed in
 more detail in section~\ref{sec:terminatehandler}.
 
+\subsection{Volume Management} \label{sec:volmanagement}
+
+File systems typically monitor physical devices, such as disk drives, for
+media changes. The corresponding device, whose name typically stems from the
+the {\tt FileSysStartupMsg}\key{FileSysStartupMsg} (see section
+\ref{sec:filesysstartup}), shall therefore implement the
+{\tt TD\_ADDCHANGEINT} {\tt IORequest} command from the trackdisk command set. Details on
+this request are found in~\cite{rkrmdev}, though briefly, it delivers an
+{\tt Interrupt} structure whose {\tt is\_Code} function is called upon a
+media change.
+\smallbreak{}
+
+When this happens, the file system shall check whether a medium is present,
+i.e.\ has been inserted, or just has been removed. In the former case, the
+file system shall first verify whether the logical structure of the medium
+is acceptable and matches its specification. That is, a short validation
+test is necessary. The ROM file system also determines the flavor of the
+FFS, see table~\ref{table:ffsflavours} in \ref{sec:envec}. The result of
+this validation is the basis for the information delivered through the
+{\tt InfoData}\key{InfoData} structure explained in more detail
+in~\ref{sec:info}, and requested through the
+{\tt ACTION\_INFO}\key{ACTION\_INFO} (see~\ref{sec:actioninfo}) and
+{\tt ACTION\_DISKINFO}\key{ACTION\_DISKINFO} (see~\ref{sec:packetdiskinfo}),
+that is, the file system determines whether the disk is readable, validated
+or write protected.
+\smallskip{}
+
+If this initial validation passes, the file system shall determine the name
+and creation date of the volume found in the drive, and then scan the
+{\tt DosList}\key{DosList} for an entry of type {\tt DLT\_VOLUME}\key{DLT\_VOLUME}
+whose name matches its name, whose creation date matches the
+{dol\_VolumeDate}\key{dol\_VolumeDate}
+and whose {\tt dol\_DiskType}\key{dol\_DiskType} matches a supported type of the file
+system\footnote{Unfortunately, the FFS only leaves a 0 here and omits this
+step.}. If everything matches, the file system ``adopts'' the already
+existing volume node in the {\tt DosList}, and takes the responsibility for
+all locks, files and notification requests on this volume, to be identified
+through the elements in the {dol\_LockList}\key{dol\_LockList} of the volume node. In
+particular, the above check shall ensure that the file system is able to
+interpret the {\tt FileLock}\key{FileLock} structures in this chained list
+correctly as they then stem from another process running the same file
+system operating on a the same or a different physical device, e.g.\ another disk
+drive. Thus, this step allows to carry over file system operations if a disk
+is removed from one drive and re-inserted into another.
+\smallbreak{}
+
+If no matching volume node in the {\tt DosList} exists, the file system
+needs to create one, populate its entries and link it in, see also
+chapter~\ref{sec:devicelist}. Access to this list shall be requested through
+\begin{verbatim}
+if (AttemptLockDosList(LDF\_VOLUMES|LDF\_WRITE)) {
+  struct DosList *volume = MakeDosEntry(name, DLT\_VOLUME);
+  /* Now initialize the structure... */
+  AddDosEntry(volume);
+}
+\end{verbatim}
+potentially retrying later if the list is currently locked, see also
+sections~\ref{sec:makedosentry} and~\ref{sec:adddosentry}. In particular,
+blocking access through {\tt LockDosList()}\key{LockDosList()} can deadlock
+the system and shall therefore be avoided.
+\smallbreak{}
+
+Once the medium is inserted and the volume node has been identified or
+created, file systems typically install a timer through
+\emph{timer.device} to frequently write modified blocks back to the drive
+and turn off the motor once done. The corresponding {\tt timerequest} is
+typically linked to a packet of type {\tt ACTION\_TIMER} to ease
+implementation, see section~\ref{sec:actiontimer} and~\cite{rkrmdev}.
+\medbreak{}
+
+If, however, a medium was removed from the monitored drive, the file system
+shall check whether any locks on the removed medium are still present, and
+if so, link them into {\tt dol\_LockList} of the volume node describing the
+medium if not already done. This will allow another file system of the same
+kind, running on this or any other drive, to pick up the locks and continue
+to honor them. If no locks are pending, no files are open and no
+notification requests are present, the volume node shall be removed from the
+{\tt DosList}, again requesting access with
+{\tt AttemptLockDosList(LDF\_VOLUMES|LDF\_WRITE)}
+to avoid a deadlock, see also section~\ref{sec:remdosentry}. The volume
+node, once unlocked, is then released through {\tt FreeDosEntry()} described
+in~\ref{sec:releaseentry}. Finally, the internal state of the file system
+shall be updated such that {\tt ACTION\_DISKINFO}\key{ACTION\_DISKINFO} and
+{\tt ACTION\_INFO}\key{ACTION\_INFO} deliver the proper state of the file system.
+
 \subsection{Handler Shutdown} \label{sec:terminatehandler}
 
 A handler\key{Handler} that does not initialize the {\tt dol\_Task}\key{dol\_Task} element of its
@@ -23505,7 +23590,7 @@ indicates that the {\tt IORequest} pointed to by {\tt dp\_Link} completed
 and data had been written out. As such, this packet shall never be
 replied.
 
-\subsection{Receive a Returning Timer Request}
+\subsection{Receive a Returning Timer Request} \label{sec:actiontimer}
 
 The {\tt ACTION\_TIMER}\mkey{ACTION\_TIMER} packet is part of a returning {\tt TR\_ADDREQUEST},
 a \emph{timer.device} request to wait for a certain time span. 
