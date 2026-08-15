@@ -1122,7 +1122,7 @@ after $31^{\mbox{\tiny th}}$ December 2045.
 \smallbreak{}
 
 There is no function in AmigaDOS to set the date, this needs to be done
-through the {\tt timer.device} with the {\tt TR\_SETSYSTIME} command. The
+through the {\tt timer.device} with the {\tt TR\_SETSYSTIME} command.
 Kickstart, during bootstrap, takes the current time from the real time
 clock, if it is present. If no real time clock is present, then all elements
 of the {\tt rn\_Time} structure in the {\tt RootNode} structure (see
@@ -1505,6 +1505,38 @@ The {\tt ParseDate()} function of \emph{locale.library} is more powerful
 than this function and should probably be preferred if this library is
 available.
 
+\subsection{Additional Date and Time Conversion Functions}
+
+Additional conversion functions for time and date representations are found
+in \emph{utility.library}. For completeness, they are briefly introduced
+here.
+\smallbreak{}
+
+The {\tt Amiga2Date()}\mkey{Amiga2Date()} function converts the number of
+seconds from January $1^{\mbox{\tiny st}}$ 1978 into seconds, minutes,
+hours, days, etc.\, placed in a {\tt ClockData}\mkey{ClockData}
+structure defined as follows:
+\begin{verbatim}
+struct ClockData
+{
+        UWORD  sec;   /* seconds of the minute */
+        UWORD  min;   /* minutes of the hour */
+        UWORD  hour;  /* hours of the day */
+        UWORD  mday;  /* day of the month */
+        UWORD  month; /* month of the year */
+        UWORD  year;  /* year (not an offset) */
+        UWORD  wday;  /* day of the week */
+};
+\end{verbatim}
+
+The {\tt Date2Amiga()}\mkey{Date2Amiga()} function converts in the reverse
+direction, from seconds, minutes, hours etc.\ to a seconds count. This
+function, with a little help of simple arithmetics, can be useful to convert
+a {\tt DateStamp}\key{DateStamp (struct)} structure into other
+representations. Since the above two functions are not part of
+\emph{dos.library} but \emph{utility.library}, their full definition is out scope for
+this volume. 
+
 \chapter{Paths and File Names} \label{sec:paths}
 
 AmigaDOS organizes data on storage media such as floppies or hard disks in
@@ -1582,7 +1614,7 @@ what a file system considers an identical file name can, actually, be
 something different from what \emph{dos.library} considers a matching
 name. Code points from the control set of ISO-Latin, i.e.\ codes between
 {\tt 0x01} to {\tt 0x1f} or {\tt 0x7f} to {\tt 0x9f} should be
-avoided\footnote{Unfortunately, the file systems in the Amiga Kickstart are currently inconsistent on which
+avoided\footnote{Unfortunately, the file systems in Amiga Kickstart are currently inconsistent on which
 characters they accept. The FFS does not accept any control characters,
 the RAM-Handler\key{RAM-Handler} (probably erroneously) accepts characters
 in the C1 control set from {\tt 0x80} to {\tt 0x9f}.}, and
@@ -1761,7 +1793,7 @@ the Kickstart ROM, but the corresponding handlers are disk-based and
 loaded as soon as the corresponding device is needed. The addition of {\tt PIPE}
 to this list is relatively recent, AmigaDOS V47 (Kickstart 3.2) includes it
 in the ROM-mounted devices as the Boot Shell\key{Boot Shell} requires it. Its handler is
-neither included in the Kickstart.
+neither included in Kickstart.
 \medbreak{}
 
 The following device names have a special meaning and do not correspond to
@@ -2911,6 +2943,16 @@ prepares the input stream for buffered I/O:
   Flush(Input()); /* release the cmd line parameters */
 \end{verbatim}
 
+For the same reasons, the standard input file handle cannot be generally
+used for output, or even converted into a buffered output stream, and in
+some situations, any output attempted over it is lost\footnote{In the
+current implementation, this happens if the standard input has been
+redirected by the Shell since it then never received a buffer in the regular
+way, see also the description of {\tt SetVBuf()\key{SetVBuf()}} in
+\ref{sec:setvbuf}.  This is likely an implementation defect which remained
+unnoticed since output over the input stream is rarely attempted.}.
+\medbreak{}
+
 AmigaDOS provides buffered record-oriented read and write functions similar to
 ANSI-C {\tt fread()} and {\tt fwrite()}; they are introduced in
 the next two sections. They read or write one or multiple records, each of
@@ -3097,6 +3139,14 @@ AmigaDOS this function cannot be safely applied to file handles\key{FileHandle} 
 the {\tt NIL} pseudo-device. As a workaround, the caller should check first
 the {\tt fh\_Type}\key{fh\_Type} element of the file handle, and should not call this
 function if this element is {\tt NULL}, see also section~\ref{sec:filehandle}.
+\smallbreak{}
+
+In currently all AmigaDOS versions, this function cannot change the buffer
+size of the standard input stream of Shell commands as retrieved by the
+{\tt Input()}\key{Input()} function. The reason is that the Shell, or rather
+the {\tt RunCommand()}\key{RunCommand()} function deposits the command line
+parameters in a manually allocated buffer {\tt SetVBuf()}\key{SetVBuf()} is
+unable to alter later on.
 
 \subsection{Synchronize the File to the Buffer} \label{sec:flush}
 
@@ -4212,7 +4262,9 @@ chapter~\ref{sec:paths}) will be created. If a file or directory of the same
 name already exists, this function will fail with the error code
 {\tt ERROR\_OBJECT\_EXISTS}\key{ERROR\_OBJECT\_EXISTS}\footnote{The information
 in~\cite{guru} that in such a case a conflicting file or directory is
-deleted is not correct.}. If successful, the function returns an exclusive
+deleted is not correct. Also, some file systems erraneously return
+{\tt ERROR\_OBJECT\_IN\_USE}\key{ERROR\_OBJECT\_IN\_USE} if the directory
+exists and is locked.}. If successful, the function returns an exclusive
 lock to the created directory, otherwise it returns {\tt ZERO}.
 \smallbreak{}
 
@@ -4511,6 +4563,11 @@ failure, or to an undefined value in case of success.
 This function allows to open files in exclusive mode without deleting its
 contents. For that, obtain an exclusive lock on the file to be opened, and
 then call {\tt OpenFromLock()} in a second step.
+\smallskip{}
+
+Due to an incomplete implementation in the ROM file systems and further
+defects in \emph{dos.library}, this function does not work in AmigaDOS
+version 36. This was fixed in version~37.
 \medbreak{}
 
 While this function is not available in AmigaDOS versions 34 and below, the
@@ -7094,7 +7151,7 @@ CON-Handler\key{CON-Handler} uses this element to distinguish
 whether it is used as {\tt CON} or {\tt RAW} device (see
 section~\ref{sec:constartup} for details). The Fast File
 System\key{Fast File System (FFS)} and most other file systems
-expect here a BPTR to a {\tt FileSysStartupMsg} structure. While this value
+expect here a BPTR to a {\tt FileSysStartupMsg}\key{FileSysStartupMsg} structure. While this value
 may be whatever the handler\key{Handler} requires, the {\tt Mount}\key{Mount (command)} command either
 deposits here a BPTR to the {\tt FileSysStartupMsg} structure, a BPTR to a
 BSTR, or a small integer.
@@ -7170,7 +7227,7 @@ vector with the values found in the loaded code, see
 section~\ref{sec:bcplbinding} for further details. Any values $>0$
 require a BPTR to a custom vector which is used instead for
 initializing the handler. This startup mechanism is only used for
-creating device list entries within the Kickstart and it is not quite
+creating device list entries within Kickstart and it is not quite
 practical otherwise as this vector needs to be communicated into
 \emph{dos.library} somehow. For new code, BCPL linkage and binding
 should not be used anymore.
@@ -8919,7 +8976,7 @@ the device list\key{Device List}, though does not attempt to populate or
 initialize them. Such constructor-type functions are discussed then in
 section~\ref{sec:createdeletedoslist}.
 
-\subsection{Adding an Entry to the Device List}
+\subsection{Adding an Entry to the Device List} \label{sec:adddosentry}
 
 The {\tt AddDosEntry()}\mkey{AddDosEntry()} adds an initialized {\tt
   DosList} structure to the device list\key{Device List}.
@@ -9085,7 +9142,7 @@ is currently not possible in a completely robust way. It is suggested to
 only unlink such nodes from the device list\key{Device List} if absolutely
 necessary, but tolerate the memory leak.
 
-\subsection{Creating a Device List Entry}
+\subsection{Creating a Device List Entry} \label{sec:makedosentry}
 
 The {\tt MakeDosEntry()}\mkey{MakeDosEntry()} creates an empty {\tt DosList}
 structure of the given type, and performs elementary initialization. It
@@ -10952,7 +11009,7 @@ the {\tt NP\_CloseError}\key{NP\_CloseError} tag of
 \medbreak{}
 
 {\tt pr\_ExitCode()}\mkey{pr\_ExitCode()} is a pointer to a function that is called by AmigaDOS
-as part of the process shutdown code, and as such more useful that
+as first step of the process shutdown code, and is as such more useful than
 {\tt pr\_ReturnAddr}\key{pr\_ReturnAddr}. The function prototype is as follows:
 
 \begin{verbatim}
@@ -11277,15 +11334,39 @@ sets of variables and alias definitions exist.
 \smallbreak{}
 
 {\tt NP\_Cli}\mkey{NP\_Cli} determines whether the new process will receive a new shell\key{Shell}
-environment in the form of a {\tt CommandLineInterface}\key{CommandLineInterface} structure. If
-non-zero, a new CLI structure will be created and a BPTR to this
-structure will be filled into the {\tt pr\_CLI}\key{pr\_CLI} element.
+environment in the form of a {\tt CommandLineInterface}\key{CommandLineInterface} structure.
+This structure describes a shell, its elements are discussed in more
+detail in section~\ref{sec:getcli}. If non-zero, a new CLI structure will be
+created and a BPTR to this structure will be filled into the {\tt pr\_CLI}\key{pr\_CLI} element.
 The new shell environment will be a copy of the shell environment
 of the caller if one is present, or a shell environment initialized with all
 defaults. This means that the prompt, the path, and the command name will be
-copied over if possible. If the tag value is~$0$, no CLI structure will be
-created. The latter is also the default.
+copied over if possible.
 \smallbreak{}
+
+The shell command input stream {\tt cli\_CurrentInput}\key{cli\_CurrentInput} and its
+input stream {\tt cli\_StandardInput}\key{cli\_StandardInput}
+are set to the input stream {\tt pr\_CIS}\key{pr\_CIS} of the newly created
+process and thus to whatever {\tt NP\_Input}\key{NP\_Input} defined it to
+be. Likewise, the output stream of the Shell as contained
+in {\tt cli\_StandardOutput}\key{cli\_StandardOutput}
+is copied from the output stream in {\tt pr\_COS}\key{pr\_COS}.
+A potential startup code of the new process should leave input and
+output streams of the shell and the process alone as some Shell commands
+compare the process streams with those recorded in the CLI structure to identify
+whether their input or output has been redirected and adjust their command
+template then slightly. This holds for example for the
+{\tt Execute}\key{Execute (command)} command to make it accept pipes as
+command input stream, see section~\ref{sec:executecmd}. In general, if the
+purpose of the newly created process is to execute shell commands, the
+{\tt System()}\key{System()} function of section~\ref{sec:system} is a
+better match as it takes care of all peculiarities for creating a shell,
+setting up its input and output streams and executing commands within it.
+\smallbreak{}
+
+If the tag value of {\tt NP\_Cli}\key{NP\_Cli} is~$0$, no CLI structure will be
+created. This is also the default.
+\medbreak{}
 
 {\tt NP\_Path}\mkey{NP\_Path} provides a chained list of locks\key{Lock}
 within which commands for shell\key{Shell} execution are searched.
@@ -11301,7 +11382,8 @@ to copy the paths of the caller if the calling process is equipped with a
 CLI structure. This (implicit) copy is, of course, released on error.
 \smallbreak{}
 
-{\tt NP\_CommandName}\mkey{NP\_CommandName} provides the name of the command being executed within
+{\tt NP\_CommandName}\mkey{NP\_CommandName} provides the name of the
+command being executed within
 the shell\key{Shell} environment if {\tt NP\_Cli}\key{NP\_Cli} indicates that one is to be
 created. This tag does not actually \emph{load} any command, it only
 provides an identification within the shell which command is running, see also
@@ -15295,17 +15377,17 @@ Table~\ref{table:hunk_index} depicts the syntax of this hunk.
    & \tt do \{ & Loop over translation units \\ \hline
 16 & \tt $\quad$ $u_o$ & Offset in bytes of the unit name into the string table \\ \hline
 16 & \tt $\quad$ $h_o$ & Offset in long words of the first hunk of the unit within {\tt HUNK\_LIB} \\ \hline 
-16 & \tt $\quad$ $h_c$ & Number of hunks within the unit \\ \hline
-   & \tt $\quad$ for($j$=0;$j$<$h_c$;$j$++) \{ & Loop over all hunks \\ \hline
+16 & \tt $\quad$ $h_c$ & Number of segments within the unit \\ \hline
+   & \tt $\quad$ for($j$=0;$j$<$h_c$;$j$++) \{ & Loop over all segments \\ \hline
 16 & \tt $\quad\quad$ $h_n$ & Offset in bytes of the hunk name into the string table \\ \hline
 16 & \tt $\quad\quad$ $\hat{l}$ & Abbreviated hunk size in long words \\ \hline
-2  & \tt $\quad\quad$ $m_t$ & Memory type of the hunk \\ \hline
+2  & \tt $\quad\quad$ $m_t$ & Memory type of the segment \\ \hline
 14 & \tt $\quad\quad$ $\hat{h}$ & Abbreviated hunk type \\ \hline
-16 & \tt $\quad\quad$ $x_c$ & Number of references in the hunk \\ \hline
+16 & \tt $\quad\quad$ $x_c$ & Number of references in the segment \\ \hline
    & \tt $\quad\quad$ for($k$=0;$k$<$x_c$;$k$++) \{ & Loop over references \\ \hline
 16 & \tt $\quad\quad\quad$ $x_n$ & Offset of the reference name into the string table \\ \hline
    & \tt $\quad\quad$ \} & \\ \hline
-16 & \tt $\quad\quad$ $d_c$ & Number of definitions in the hunk \\ \hline
+16 & \tt $\quad\quad$ $d_c$ & Number of definitions in the segment \\ \hline
    & \tt $\quad\quad$ for($k$=0;$k$<$d_c$;$k$++) \{ & Loop over definitions \\ \hline 
 16 & \tt $\quad\quad\quad$ $d_n$ & Offset of the defined name into the string table \\ \hline   
 16 & \tt $\quad\quad\quad$ $\hat{s}_v$ & Abbreviated symbol value \\ \hline
@@ -16295,6 +16377,90 @@ Once the use counter reaches zero again, the handler releases all its
 resources and terminates processing. The handler shutdown is discussed in
 more detail in section~\ref{sec:terminatehandler}.
 
+\subsection{Volume Management} \label{sec:volmanagement}
+
+File systems typically monitor physical devices, such as disk drives, for
+media changes. The corresponding exec device, whose name typically stems from the
+the {\tt FileSysStartupMsg}\key{FileSysStartupMsg} (see section
+\ref{sec:filesysstartup}), shall therefore implement the
+{\tt TD\_ADDCHANGEINT} {\tt IORequest} command from the {\tt trackdisk} command set. Details on
+this request are found in~\cite{rkrmdev}, though briefly, it delivers an
+{\tt Interrupt} structure whose {\tt is\_Code} function is called on a
+media change.
+\smallbreak{}
+
+When this happens, the file system shall check whether a medium is present,
+i.e.\ has been inserted, or just has been removed. In the former case, the
+file system shall first verify whether the logical structure of the medium
+is acceptable and matches its specification. That is, a short validation
+test is necessary. The ROM file system also determines the flavor of the
+FFS, see table~\ref{table:ffsflavours} in \ref{sec:envec}. The result of
+this validation is the basis for the information delivered through the
+{\tt InfoData}\key{InfoData} structure explained in more detail
+in~\ref{sec:info}, and requested through the
+{\tt ACTION\_INFO}\key{ACTION\_INFO} (see~\ref{sec:actioninfo}) and
+{\tt ACTION\_DISKINFO}\key{ACTION\_DISKINFO} (see~\ref{sec:packetdiskinfo}),
+that is, the file system determines whether the disk is readable, invalid
+or write protected.
+\smallskip{}
+
+If this initial validation passes, the file system shall determine the name
+and creation date of the volume found in the drive, and then scan the
+{\tt DosList}\key{DosList} for an entry of type {\tt DLT\_VOLUME}\key{DLT\_VOLUME}
+whose {\tt dol\_Name}\key{dol\_Name} element matches the volume name, whose
+{\tt dol\_VolumeDate}\key{dol\_VolumeDate} element matches the volume creation date
+and whose {\tt dol\_DiskType}\key{dol\_DiskType} element matches a supported type of the file
+system\footnote{Unfortunately, the FFS only leaves a 0 in {\tt dol\_DiskType} and omits this
+step.}. If everything matches, the file system ``adopts'' the already
+existing volume node in the {\tt DosList}, and takes the responsibility for
+all locks, files and notification requests on this volume, to be identified
+through the elements in the {\tt dol\_LockList}\key{dol\_LockList} of the
+volume node.
+In particular, the above check ensures that the file system is able to
+interpret the {\tt FileLock}\key{FileLock} objects in this chained list
+correctly as they then stem from the same file system, though possibly
+a different process operating on a different physical device, e.g.\ another disk
+drive. Thus, this step allows to carry over locks on the same
+medium when moved from one drive to another. Even though AmigaDOS does not
+provide a mechanism to carry over files or notification requests,
+these objects may be indirectly identified through locks.
+\smallbreak{}
+
+If no matching volume node in the {\tt DosList}\key{DosList} exists, the file system
+shall create one, populate its entries and link it in, see also
+chapter~\ref{sec:devicelist}. Access to the {\tt DosList}\key{DosList}, as
+required to make these modifications, shall be requested through
+{\tt AttemptLockDosList()}\key{AttemptLockDosList()}:
+\begin{verbatim}
+if (AttemptLockDosList(LDF_VOLUMES|LDF_WRITE)) {
+  struct DosList *volume = FindMatchingEntry(name,...);
+  if (volume == NULL) {
+    volume = MakeDosEntry(name, DLT_VOLUME);
+    /* here initialize the structure, then... */
+    AddDosEntry(volume);
+  }
+}
+\end{verbatim}
+potentially retrying the access later if the list is currently locked, see also
+sections~\ref{sec:makedosentry} and~\ref{sec:adddosentry}. In particular,
+blocking access through {\tt LockDosList()}\key{LockDosList()} can deadlock
+the system and is therefore unsuitable.
+\medbreak{}
+
+If, however, a medium was removed from the monitored drive, the file system
+shall check whether any locks on the removed medium are still present, and
+if so, link them into {\tt dol\_LockList} of the volume node describing the
+medium if not already done. This will allow a file system of the same type
+to pick up the locks once the medium is reinserted. If no locks are pending,
+the volume node shall be removed from the {\tt DosList} with
+{\tt RemDosEntry()}\key{RemDosEntry()} of section~\ref{sec:remdosentry},
+using the same precautions as above to grant access to the list. The volume
+node, once unlocked, is then released through {\tt FreeDosEntry()} described
+in~\ref{sec:releaseentry}. Finally, the internal state of the file system
+shall be updated such that {\tt ACTION\_DISKINFO}\key{ACTION\_DISKINFO} and
+{\tt ACTION\_INFO}\key{ACTION\_INFO} deliver the proper state of the file
+system.
+
 \subsection{Handler Shutdown} \label{sec:terminatehandler}
 
 A handler\key{Handler} that does not initialize the {\tt dol\_Task}\key{dol\_Task} element of its
@@ -16330,22 +16496,17 @@ manage have been released. Thus, in addition to tracking these resources,
 file systems should check for incoming packets of the type
 {\tt ACTION\_DIE}\key{ACTION\_DIE}. If the file system is aware that
 any of its resources are still in use, e.g.\ some files or locks are
-still open, {\tt ACTION\_DIE} shall fail. Otherwise, the file system
-may reply to this packet with success and should attempt to shutdown.
+still open, {\tt ACTION\_DIE} cannot immediately shut down the file system.
+Either the packet is then replied with an error, or the file system enters a
+shutdown state until it is ready to terminate.
+Section~\ref{sec:packetactiondie} provides more details on {\tt ACTION\_DIE}
+and implementation strategies.
 \smallbreak{}
 
-The {\tt pr\_MsgPort} or any other ports of such a handler can still
-contain packets that have not yet been worked on after {\tt ACTION\_DIE}\key{ACTION\_DIE}
-has been received and replied. In order to avoid a deadlock, the
-packets pending in the input queue still need to be replied, for
-example using the default return codes from table~\ref{table:unimp} in section~\ref{sec:handlermain}.
-\smallbreak{}
-
-Despite such precautions, {\tt ACTION\_DIE}\key{ACTION\_DIE} cannot be
+However, {\tt ACTION\_DIE}\key{ACTION\_DIE} cannot be
 implemented in a fully reliable way as some of the {\tt MsgPort}(s) of the
 file system could still be cached by client programs even without
-having access to any of its resources. Section~\ref{sec:packetactiondie} contains
-further details on {\tt ACTION\_DIE}.
+having access to any of its resources.
 
 \section{The CON-Handler} \label{sec:console}
 
@@ -16354,7 +16515,7 @@ AmigaDOS, which hosts for example the shell. It not only serves the
 graphical console based on an intuition window, but also consoles on the
 serial port or other devices. The AUX-Handler\key{AUX-Handler} is only a
 minimal disk-based wrapper that locates the CON-Handler\key{CON-Handler}
-in the Kickstart and launches it with a suitable startup packet. The
+in Kickstart and launches it with a suitable startup packet. The
 CON-Handler therefore implements the {\tt CON}, {\tt RAW} and {\tt AUX} devices.
 \smallbreak{}
 
@@ -17202,7 +17363,7 @@ BPTR & serial input/output with parameters from the {\tt FileSysStartupMsg}
 \end{rkrmtable}
 
 The values~0 to~2 represent the handlers {\tt SER}, {\tt PAR} and
-{\tt PRT} mounted by the Kickstart, and are supported by all AmigaDOS
+{\tt PRT} mounted by Kickstart, and are supported by all AmigaDOS
 versions. They can be recreated by a mountlist as follows:
 
 \begin{verbatim}
@@ -17353,8 +17514,7 @@ i.e.\ for a quantum size of 1024 bytes at most 8K of data can be waiting in a pi
 The Queue-Handler\key{Queue-Handler} can also be configured through a
 mountlist\key{Mountlist}, though as it is already mounted by the ROM,
 the name of a custom mounted device cannot be {\tt PIPE}. The mount parameters
-used by the Kickstart correspond to the following
-mountlist:
+used by Kickstart correspond to the following mountlist:
 
 \begin{verbatim}
 Handler         = L:Queue-Handler
@@ -17615,7 +17775,7 @@ environment vector is larger than~0.
 
 The boot block does not only identify the FFS flavor, it is also a
 component of the Kickstart boot process implemented by the {\tt strap}
-module of the Kickstart ROM. In short, the Kickstart supports two boot
+module of the Kickstart ROM. In short, Kickstart supports two boot
 mechanisms, boot block booting described here and boot point booting, which
 depends on an Autoconfig ROM implementing the boot procedure,
 \cite{rkrmdev}~contains the details. For hard disks, the latter boot protocol
@@ -19113,6 +19273,23 @@ conversion of the C strings to BSTRs are performed
 transparently within \emph{dos.library}. Unfortunately, it means
 that even handlers written in Assembler or C need to deal with legacy
 BCPL data types.
+\smallbreak{}
+
+The first set of packets initialize a {\tt FileHandle}\key{FileHandle}
+structure, preparing it for read and write access. They implement the the
+{\tt Open()}\key{Open()} and {\tt OpenFromLock}\key{OpenFromLock()} function
+of sections \ref{sec:open} and \ref{sec:openfromlock} which also prepare
+the {\tt FileHandle} structure passed in the packets. While it is
+recommended to go through the wrapper functions of \emph{dos.library}, the
+corresponding packets may also be send manually. Then, the {\tt FileHandle}
+shall be created by {\tt AllocDosObject()}\key{AllocDosObject()}, see
+section~\ref{sec:allocdosobject}, and its {\tt fh\_Type} pointer be set to
+the message port of the handler or file system as obtained by
+{\tt GetDeviceProc()}\key{GetDeviceProc()}. Further initialization is
+not required, {\tt AllocDosObject()} takes care of the necessary steps.
+Once the file has been opened, the packets for reading, writing or seeking
+in the file then identify the file by the {\tt fh\_Arg1} element of the
+{\tt FileHandle} and not the handle itself.
 
 \subsection{Opening a File for Shared Access} \label{sec:actionfindinput}
 
@@ -20392,7 +20569,9 @@ identifying the type of the object. As programs are not consistent on
 the element they read, both should be filled with the same value. The
 value~0 should be avoided as some programs identify directories by
 testing against a positive value whereas others check for a
-non-negative value, i.e.\ interpret~0 as a directory.
+non-negative value, i.e.\ interpret~0 as a directory. If the examined object
+is a directory, {\tt fib\_DirEntryType} shall be set to {\tt ST\_USERDIR} as
+some programs depend on this (positive) value to identify directories.
 \smallbreak{}
 
 The fields {\tt fib\_OwnerUID}\key{fib\_OwnerUID} and
@@ -20411,7 +20590,7 @@ inserted volume shall be examined\key{ZERO lock}. In such a case, {\tt fib\_File
 filled with the name of the volume.
 \smallbreak{}
 
-The BCPL implementations of some system commands of the Kickstart 1.3,
+The BCPL implementations of some system commands of Kickstart 1.3,
 including {\tt Dir} and {\tt List}, only reserve storage for a reduced
 version of the {\tt FileInfoBlock}\key{FileInfoBlock} structure that does not
 include the {\tt fib\_Reserved} field. A file system that is supposed
@@ -20472,7 +20651,7 @@ directory through the {\tt ZERO} lock\key{ZERO lock} in
 such a case.
 \smallbreak{}
 
-The BCPL implementations of some system commands of the Kickstart 1.3,
+The BCPL implementations of some system commands of Kickstart 1.3,
 including {\tt Dir} and {\tt List}, only reserve storage for a reduced
 version of the {\tt FileInfoBlock}\key{FileInfoBlock} structure that does not
 include the {\tt fib\_Reserved} field. A file system that is supposed
@@ -20839,9 +21018,11 @@ as one of its components. It is mostly used by \emph{dos.library}
 internally to resolve soft links transparently to applications.
 \smallbreak{}
 
-Unlike soft links, hard links\key{Hard Link} are resolved entirely
-within the handler and do not require interaction with 
-\emph{dos.library}.
+Unlike soft links, hard links\key{Hard Link} are resolved entirely within
+the handler and do not require interaction with \emph{dos.library}. It is
+the resposibility of the file system to identify hard links and redirect
+then the corresponding activity, such as opening the linked file, to the
+target of the link.
 \smallbreak{}
 
 AmigaDOS version~47 introduced another type of link, the
@@ -21213,7 +21394,7 @@ LONG readlink(BPTR lock, UBYTE *string,UBYTE *buffer, ULONG size)
 
   /* Check whether the found object is a softlink */
   if (node->type != ST_SOFTLINK) {
-    res2 = ERROR_OBJECT_WRONG_TYPE;
+    res2 = ERROR_OBJECT_NOT_FOUND;
     return -1;
   }
 
@@ -21249,7 +21430,7 @@ LONG readlink(BPTR lock, UBYTE *string,UBYTE *buffer, ULONG size)
   if (res < 0)
     return res; /* Deliver the error */
 
-  /* If the link is absolute, i.e.\ contains a ':', then ignore the
+  /* If the link is absolute, i.e. contains a ':', then ignore the
   ** start of the string. 'res' is the length of the link location.
   */
   src = strchr(buffer + path_before,':');
@@ -21261,8 +21442,8 @@ LONG readlink(BPTR lock, UBYTE *string,UBYTE *buffer, ULONG size)
       /* Is relative to our root, but not necessarily 
       ** to the root of the caller, so fix up.
       */
-      char *volname = (char *)BADDR(volumenode->dol_Name);
-      LONG len      = *volname; /* It's a BSTR */
+      UBYTE *volname = (UBYTE *)BADDR(volumenode->dol_Name);
+      LONG len       = *volname; /* It's a BSTR */
       /* Check whether there is enough buffer */
       if (len + res >= size) {
         SetIoErr(ERROR_LINE_TOO_LONG);
@@ -21275,7 +21456,6 @@ LONG readlink(BPTR lock, UBYTE *string,UBYTE *buffer, ULONG size)
         memmove(buffer + len ,buffer + path_before,res + 1);
         /* Prepend the volume name */
         memcpy(buffer,volname + 1,len);
-        res += len;
       }
     } else {
       /* Here the link is absolute to a given volume
@@ -23236,64 +23416,85 @@ set the {\tt dol\_Task}\key{dol\_Task} element of the
 device list\key{Device List} to {\tt NULL}, and then terminate the process.
 \smallbreak{}
 
-A file system shall not exit as long as resources cache copies of its
-{\tt MsgPort}(s); this is typically the {\tt pr\_MsgPort} of the handler
-process which is released by AmigaDOS as soon as the process exits. This
-port would become unusable on exit, and an attempt to contact the file
-system through it would crash the system. Resources that contain a
-pointer to the (or a) file system port are file handles\key{FileHandle},
-locks\key{Lock} or {\tt NotifyRequest}s\key{NotifyRequest}. If any of them
-are still active, the file system or handler cannot exit, and
-{\tt ACTION\_DIE} shall fail.
+In case the file system can foresee that it cannot safely exit,
+this packet shall fail by setting {\tt dp\_Res1} to
+{\tt DOSFALSE} and {\tt dp\_Res2} to an error code,
+e.g.\ {\tt ERROR\_OBJECT\_IN\_USE}\key{ERROR\_OBJECT\_IN\_USE}. This
+is the case if any of the file system resources such as locks\key{Lock},
+file handles\key{FileHandle} or notification requests\key{NotifyRequest}
+cache exist which contain a pointer to the file system {\tt MsgPort}(s).
+As such port(s) would become unusable on exit, any attempt to contact the file
+system through such resources it would crash the system.
+\smallskip{}
+
+If termination is seemingly possible, this packet shall be replied by setting
+{\tt dp\_Res1} to {\tt DOSTRUE} and {\tt dp\_Res2} to~0.
+\medbreak{}
+
+In one implementation strategy, {\tt ACTION\_DIE} fails early if any of the
+above resources are still active, and the file system then simply continues
+to accept packets without changing its operation.
 \smallbreak{}
 
-If none of these resources exist, as next step, references to the file
-system port(s) shall be removed from the device list\key{Device List}. To
-gain access to the device list, the file system should use
+If, however, none of these resources exist, references to the file
+system port(s) should be removed from the {\tt DosList}\key{DosList}. To
+gain access to the list, the file system shall use
 {\tt AttemptLockDosList()}\key{AttemptLockDosList()} as a blocking semaphore
 may cause a deadlock. If the list is not accessible at this time, the file
 system cannot safely shut down and {\tt ACTION\_DIE} shall also fail. If the
-device list is accessible, the file system shall set the {\tt dol\_Task}
-elements of the volumes it administrates and the device node it is
-represented by to {\tt NULL}. This will request AmigaDOS to launch a new
+{\tt DosList} is accessible, the file system should remove the volume
+it administrates (if any) from the {\tt DosList}\key{DosList} and set the {\tt dol\_Task}
+elements of the device node it is represented by to {\tt NULL}.
+This will request AmigaDOS to launch a new
 file system from the {\tt dol\_SegList} segment\key{Segment} as soon as a
 client attempts to access it through its device name.
 \smallbreak{}
 
-Unfortunately, even these precautions are not fully sufficient to safely
+After unmounting the volume and replying to {\tt ACTION\_DIE}\key{ACTION\_DIE}, the
+{\tt MsgPort}(s) of the handler or file system used for packet
+communication can still contain packets that were submitted after
+{\tt ACTION\_DIE}\key{ACTION\_DIE} has been received. In order to avoid a
+deadlock or a crash, the file system shall still reply these
+packets with the default result codes from
+table~\ref{table:unimp} in section~\ref{sec:handlermain}.
+\medbreak{}
+
+An alternative implementation strategy is to first attempt to remove the
+volume node from the {\tt DosList}\key{DosList} if any medium is currently
+loaded and acknolwedge {\tt ACTION\_DIE} if this was possible; if not, the
+packet shall fail. On success, the file system or handler enters a shutdown
+state in which it refuses to actively perform any operation: any
+{\tt ACTION\_INFO}\key{ACTION\_INFO} or {\tt ACTION\_DISK\_INFO}\key{ACTION\_DISK\_INFO}
+should be responded by signaling that no medium is available. This will
+trigger Workbench to close all windows open on the file system and
+remove the disk icon from its screen. In shutdown stage, a file system should then
+refuse to lock any object, open any file or start any notification request,
+returning {\tt ERROR\_NO\_DISK}\key{ERROR\_NO\_DISK}. Attempts to
+release, close or shutdown objects should be still honored, though.
+\smallskip{}
+
+As soon as the number of file system resources, i.e. files, locks and
+notification requests, reaches zero, the handler shall, as above, set the
+{\tt dol\_Task} elements of its device node on the {\tt DosList}\key{DosList} to {\tt NULL}
+and then finally terminate.
+\medskip{}
+
+Unfortunately, even the above precautions are not fully sufficient to safely
 unmount a device because client programs can request a handler message port
 via {\tt GetDeviceProc()}\key{GetDeviceProc()} or
 {\tt DeviceProc()}\key{DeviceProc()} any time for direct communication and
 buffer the returned port. A file system has no direct control of where or whether
 cached copies of its port(s) are held, and thus whether it can safely
-terminate. This limits the utility of this packet to system debugging tools.
-\smallbreak{}
-
-In case the file system can foresee that it cannot safely exit at the
-time the request is made, this packet shall fail by setting {\tt dp\_Res1} to {\tt DOSFALSE}
-and {\tt dp\_Res2} to an error code, e.g.\ {\tt ERROR\_OBJECT\_IN\_USE}\key{ERROR\_OBJECT\_IN\_USE}.
-If termination is seemingly possible, this packet shall be replied by setting
-{\tt dp\_Res1} to {\tt DOSTRUE} and {\tt dp\_Res2} to~0.
-\smallbreak{}
-
-After unmounting the volume and replying to this packet, the
-{\tt MsgPort}(s) of this handler or file system used for packet
-communication can still contain packets that were submitted after
-{\tt ACTION\_DIE}\key{ACTION\_DIE} has been received. In order to avoid a
-deadlock or a crash, the file system shall still reply these
-packets, for example with the default result codes from
-table~\ref{table:unimp} in section~\ref{sec:handlermain}; additional
-details on how to terminate a handler are found in
-section~\ref{sec:terminatehandler}.
+terminate.
 \smallbreak{}
 
 Some handlers do not initialize the {\tt dol\_Task}\key{dol\_Task} element of its
-{\tt DosList}\key{DosList} entrie(s) with an address of their port(s);
+{\tt DosList}\key{DosList} entrie(s) with their port(s);
 interactive handlers such as the CON-Handler\key{CON-Handler} are typical
 examples. Such handlers shall terminate themselves without requiring
 an {\tt ACTION\_DIE}\key{ACTION\_DIE} when the last resource opened to them
 had been shut down, i.e.\ all file handles\key{FileHandle} have been closed,
-all locks\key{Lock} (if they are supported at all) have been unlocked and all {\tt NotifyRequest}s
+all locks\key{Lock} (if they are supported at all) have been unlocked and all {\tt NotifyRequest}s\key{NotifyRequest}
 (if supported) had been canceled.
 
 \subsection{Do Nothing}
@@ -23378,7 +23579,7 @@ indicates that the {\tt IORequest} pointed to by {\tt dp\_Link} completed
 and data had been written out. As such, this packet shall never be
 replied.
 
-\subsection{Receive a Returning Timer Request}
+\subsection{Receive a Returning Timer Request} \label{sec:actiontimer}
 
 The {\tt ACTION\_TIMER}\mkey{ACTION\_TIMER} packet is part of a returning {\tt TR\_ADDREQUEST},
 a \emph{timer.device} request to wait for a certain time span. 
@@ -26412,7 +26613,7 @@ command will be held resident once used.
 
 Third, the AmigaDOS Shell adds its own built-in commands during 
 initialization to this list. This includes elementary commands such as
-{\tt CD} or {\tt Execute} that are contained in the Kickstart and do not need
+{\tt CD} or {\tt Execute} that are contained in Kickstart and do not need
 to be loaded from disk.
 \smallbreak{}
 
