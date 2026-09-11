@@ -24999,10 +24999,7 @@ context.
   called program remains active when {\tt RunCommand()}\key{RunCommand()}
   returns, even if it is unsuitable for the math model of the calling
   process. It thus can be necessary to re-open any \emph{mathieee} library
-  after returning from {\tt RunCommand()}. This this is arguably a defect in
-  {\tt RunCommand()} which should really store the FPU configuration,
-  reinitialize it before entering the called program, and restore it when
-  returning to its caller.}
+  after returning from {\tt RunCommand()}.}
 
 The {\tt seglist} argument is a BPTR to the chained list of
 segments\key{Segment} of the executable to start, for example as returned by
@@ -25012,7 +25009,7 @@ section~\ref{sec:resident}.
 \smallbreak{}
 
 The {\tt stacksize} argument is the size of the stack in bytes to be
-provided to the command; this has to be provided by the caller as this
+allocated for the command; this has to be provided by the caller as this
 function does not attempt to identify the minimum stack size necessary.
 The Shell takes the stack size from {\tt cli\_DefaultStack}\key{cli\_DefaultStack}, see
 section~\ref{sec:clistruct}, and multiplies it by~4. It additionally
@@ -25025,8 +25022,8 @@ size is given by {\tt task->tc\_Upper} - {\tt task->tc\_Lower}, regardless wheth
 were started from the shell or the Workbench.
 \smallbreak{}
 
-The {\tt argptr} and {\tt argsize} arguments provide command line arguments
-that are passed to the command. They are provided through several
+The {\tt argptr} and {\tt argsize} arguments define the command line arguments
+passed to the command. They are provided through several
 mechanisms: First, the CPU register {\tt a0} is loaded with {\tt argptr} and
 register {\tt d0} is filled with {\tt argsize}. Second, the
 {\tt pr\_Arguments}\key{pr\_Arguments} element of the process is temporarily
@@ -25049,10 +25046,12 @@ arguments behind the first newline. However, some commands such as {\tt Run}
 will make use of the entire string.
 \medbreak{}
 
-All changes performed by {\tt RunCommand()}\key{RunCommand()} on the caller and its resources,
-namely the stack, the modifications of the input file handle\key{FileHandle} and storage of
-the arguments and the modified stack are reverted when the called command
-returns.
+All changes\footnote{except configuration changes to the FPU, see
+above. This is likely a defect of {\tt RunCommand()}.} performed by
+{\tt RunCommand()}\key{RunCommand()} on the caller and its resources, namely
+the stack, the modifications of the input file handle\key{FileHandle} and
+storage of the arguments and the modified stack are reverted when the called
+command returns.
 \smallbreak{}
 
 As the program name \emph{is not} part of the command line arguments, it is
@@ -26694,7 +26693,7 @@ segment\key{Segment (resident)} is not used anymore, e.g.\ if the resident comma
 execution. It is confusingly initially~1 (not 0) if the segment is
 unused. Resident commands with a {\tt seg\_UC} counter larger than~1 cannot
 be unloaded as they are currently in use\footnote{To add to the confusion,
-the {\tt Resident} command prints not {\tt seg\_UC}, but {\tt seg\_UC}-1.}.
+the {\tt Resident} command prints {\tt seg\_UC}-1 instead of {\tt seg\_UC}.}.
 \smallbreak{}
 
 Despite these regular entries used for resident disk-based commands,
