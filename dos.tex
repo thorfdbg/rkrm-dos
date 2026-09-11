@@ -24986,12 +24986,29 @@ command its own stack and its own arguments. It does not create a new
 process nor a new shell\key{Shell}, but executes the command as part of the caller. The
 AmigaDOS Shell uses this function to execute loaded commands within its
 context.
-\smallbreak{}
 
-The {\tt seglist} argument is a BPTR to the chained list of segments\key{Segment} of the executable
-to start, for example as returned by {\tt LoadSeg()}\key{LoadSeg()} for
-disk-based commands, or as the {\tt seg\_Seg}\key{seg\_Seg} element of
-resident commands, see section~\ref{sec:resident}.
+\punchline{Ignores the FPU}{The {\tt RunCommand()}\key{RunCommand()}
+  function does not take care of the FPU. Whatever its configuration was in
+  the calling process is carried over to the program executed through this
+  function. In particular, if the calling process opened one of the
+  \emph{mathieeee} libraries and by that indirectly configured the precision
+  of the FPU to single or double, this configuration remains active in the
+  called program.  It is thus necessary to re-initialize the FPU in the
+  startup code of command line programs as the state of the FPU is generally
+  unknown upon entry. For the same reason, the FPU configuration of the
+  called program remains active when {\tt RunCommand()}\key{RunCommand()}
+  returns, even if it is unsuitable for the math model of the calling
+  process. It thus can be necessary to re-open any \emph{mathieee} library
+  after returning from {\tt RunCommand()}. This this is arguably a defect in
+  {\tt RunCommand()} which should really store the FPU configuration,
+  reinitialize it before entering the called program, and restore it when
+  returning to its caller.}
+
+The {\tt seglist} argument is a BPTR to the chained list of
+segments\key{Segment} of the executable to start, for example as returned by
+{\tt LoadSeg()}\key{LoadSeg()} for disk-based commands, or
+as the {\tt seg\_Seg}\key{seg\_Seg} element of resident commands, see
+section~\ref{sec:resident}.
 \smallbreak{}
 
 The {\tt stacksize} argument is the size of the stack in bytes to be
@@ -25043,7 +25060,7 @@ advisable to set the path and file name of the loaded program by
 {\tt SetProgramName()}\key{SetProgramName()} upfront, more on this function in
 section~\ref{sec:setprogramname}. The startup code of many C compilers will
 construct {\tt argv[0]} from it.
-\smallbreak{}
+\medskip{}
 
 This function returns the result code of the called command, or~$-1$ if it
 failed to allocate resources such as the input file handle\key{FileHandle} buffer or the
