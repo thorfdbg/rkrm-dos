@@ -16445,7 +16445,38 @@ potentially retrying the access later if the list is currently locked, see also
 sections~\ref{sec:makedosentry} and~\ref{sec:adddosentry}. In particular,
 blocking access through {\tt LockDosList()}\key{LockDosList()} can deadlock
 the system and is therefore unsuitable.
-\medbreak{}
+\smallbreak{}
+
+Finally, once the volume node is available in the
+{\tt DosList}\key{DosList}, the file system shall send an input event of
+type {\tt IECLASS\_DISKINSERTED}\key{IECLASS\_DISKINSERTED} through the
+input event handler. The following code fragment defines a function taking
+an even type as argument that is suitable for this task, see
+also~\cite{rkrmdev} for more details:
+\begin{verbatim}
+void SendDiskChange(ULONG ieclass)
+/* call with IECLASS_DISKINSERTED or IECLASS_DISKREMOVED */
+{
+ struct MsgPort   *iport;
+ struct IOStdReq  *ireq;
+ struct InputEvent ievent;
+
+ if(iport = CreateMsgPort()) {
+  if(ireq = (struct IOStdReq *)CreateIORequest(iport,
+                                    sizeof(struct IOStdReq ))) {
+   if(!OpenDevice("input.device",0,(struct IORequest *)ireq,0)) {
+    ireq->io_Command = IND_WRITEEVENT;
+    ireq->io_Data    = (APTR)&ievent;
+    ievent.ie_Class  = ieclass;
+    DoIO((struct IORequest *)ireq);
+    CloseDevice((struct IORequest *)ireq);
+   }
+   DeleteIORequest(ireq);
+  }
+ DeleteMsgPort(iport);
+ }
+}
+\end{verbatim}
 
 If, however, a medium was removed from the monitored drive, the file system
 shall check whether any locks on the removed medium are still present, and
@@ -16459,7 +16490,8 @@ node, once unlocked, is then released through {\tt FreeDosEntry()} described
 in~\ref{sec:releaseentry}. Finally, the internal state of the file system
 shall be updated such that {\tt ACTION\_DISKINFO}\key{ACTION\_DISKINFO} and
 {\tt ACTION\_INFO}\key{ACTION\_INFO} deliver the proper state of the file
-system.
+system and an {\tt IECLASS\_DISKREMOVED}\key{IECLASS\_DISKREMOVED} event
+shall be send through the input event handler chain.
 
 \subsection{Handler Shutdown} \label{sec:terminatehandler}
 
